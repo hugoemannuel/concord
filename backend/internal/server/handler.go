@@ -117,10 +117,16 @@ func (h *Handler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create default channel"})
 		return
 	}
+	if _, err := h.channelService.CreateNotices(c.Request.Context(), server.ID, userID.(string)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create notices channel"})
+		return
+	}
 	if _, err := h.channelService.CreateSystem(c.Request.Context(), server.ID, userID.(string)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create bot channel"})
 		return
 	}
+
+	h.service.NotifyMemberJoined(c.Request.Context(), server.ID, userID.(string))
 
 	c.JSON(http.StatusCreated, server)
 }

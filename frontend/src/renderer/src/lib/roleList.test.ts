@@ -22,11 +22,12 @@ const role = (id: string, position: number, extra: Partial<Role> = {}): Role => 
 })
 
 const everyone = role('everyone', 0, { is_default: true })
-const list = [everyone, role('a', 1), role('b', 3), role('c', 2)]
+const bots = role('bots', 1, { name: 'Bots', hoist: true, is_system: true })
+const list = [everyone, bots, role('a', 2), role('b', 4), role('c', 3)]
 
 describe('lista de cargos', () => {
-  it('sortRoles põe o mais alto primeiro e o @everyone por último', () => {
-    expect(sortRoles(list).map((r) => r.id)).toEqual(['b', 'c', 'a', 'everyone'])
+  it('sortRoles põe o mais alto primeiro, Bots abaixo dos cargos normais e o @everyone por último', () => {
+    expect(sortRoles(list).map((r) => r.id)).toEqual(['b', 'c', 'a', 'bots', 'everyone'])
   })
 
   it('sortRoles não muda a lista original', () => {
@@ -36,20 +37,20 @@ describe('lista de cargos', () => {
   })
 
   it('upsertRole inclui na posição certa', () => {
-    const next = upsertRole(sortRoles(list), role('novo', 4))
-    expect(next.map((r) => r.id)).toEqual(['novo', 'b', 'c', 'a', 'everyone'])
+    const next = upsertRole(sortRoles(list), role('novo', 5))
+    expect(next.map((r) => r.id)).toEqual(['novo', 'b', 'c', 'a', 'bots', 'everyone'])
   })
 
   it('upsertRole atualiza e reordena quem já existe', () => {
-    const next = upsertRole(sortRoles(list), { ...role('a', 5), name: 'Renomeado' })
-    expect(next.map((r) => r.id)).toEqual(['a', 'b', 'c', 'everyone'])
+    const next = upsertRole(sortRoles(list), { ...role('a', 6), name: 'Renomeado' })
+    expect(next.map((r) => r.id)).toEqual(['a', 'b', 'c', 'bots', 'everyone'])
     expect(next[0].name).toBe('Renomeado')
-    expect(next).toHaveLength(4)
+    expect(next).toHaveLength(5)
   })
 
   it('removeRole tira só o cargo', () => {
-    expect(removeRole(list, 'b').map((r) => r.id)).toEqual(['everyone', 'a', 'c'])
-    expect(removeRole(list, 'nada')).toHaveLength(4)
+    expect(removeRole(list, 'b').map((r) => r.id)).toEqual(['everyone', 'bots', 'a', 'c'])
+    expect(removeRole(list, 'nada')).toHaveLength(5)
   })
 })
 
@@ -71,15 +72,15 @@ describe('stripRoleFromMembers', () => {
 })
 
 describe('assignableRoles', () => {
-  it('o dono dá qualquer cargo, menos o @everyone', () => {
+  it('o dono dá qualquer cargo normal, menos o @everyone e o Bots', () => {
     const got = assignableRoles(list, { isOwner: true, actorHighest: 0, canManageRoles: true })
     expect(got.map((r) => r.id)).toEqual(['b', 'c', 'a'])
   })
 
-  it('os demais só os abaixo do seu mais alto', () => {
-    const got = assignableRoles(list, { isOwner: false, actorHighest: 3, canManageRoles: true })
+  it('os demais só os abaixo do seu mais alto, excluindo Bots', () => {
+    const got = assignableRoles(list, { isOwner: false, actorHighest: 4, canManageRoles: true })
     expect(got.map((r) => r.id)).toEqual(['c', 'a'])
-    const low = assignableRoles(list, { isOwner: false, actorHighest: 2, canManageRoles: true })
+    const low = assignableRoles(list, { isOwner: false, actorHighest: 3, canManageRoles: true })
     expect(low.map((r) => r.id)).toEqual(['a'])
   })
 

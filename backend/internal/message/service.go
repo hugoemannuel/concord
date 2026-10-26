@@ -14,12 +14,13 @@ import (
 )
 
 var (
-	ErrContentRequired = errors.New("content is required")
-	ErrMessageNotFound = errors.New("message not found")
-	ErrNotAuthor       = errors.New("only the author can delete this message")
-	ErrMessageHidden   = errors.New("message not found")
-	ErrInvalidReply    = errors.New("invalid reply target")
-	ErrInvalidEmoji    = errors.New("invalid emoji reaction")
+	ErrContentRequired     = errors.New("content is required")
+	ErrMessageNotFound     = errors.New("message not found")
+	ErrNotAuthor           = errors.New("only the author can delete this message")
+	ErrSystemChannelDelete = errors.New("messages in system channels cannot be deleted")
+	ErrMessageHidden       = errors.New("message not found")
+	ErrInvalidReply        = errors.New("invalid reply target")
+	ErrInvalidEmoji        = errors.New("invalid emoji reaction")
 )
 
 type EventPublisher interface {
@@ -35,6 +36,11 @@ type EventPublisher interface {
 
 type ChannelResolver interface {
 	ChannelServerID(ctx context.Context, channelID string) (string, error)
+}
+
+// SystemChannelChecker diz se o canal é um canal fixo de sistema ("bot" ou "avisos").
+type SystemChannelChecker interface {
+	IsSystemChannel(ctx context.Context, channelID string) (bool, error)
 }
 
 type ConversationResolver interface {
@@ -254,7 +260,19 @@ func (s *Service) canModerate(ctx context.Context, channelID string, authorID st
 	return nil
 }
 
+func (s *Service) isSystemChannel(ctx context.Context, channelID string) bool {
+	if checker, ok := s.channelResolver.(SystemChannelChecker); ok {
+		isSys, err := checker.IsSystemChannel(ctx, channelID)
+		return err == nil && isSys
+	}
+	return false
+}
+
 func (s *Service) DeleteChannelMessage(ctx context.Context, channelID string, messageID string, userID string) error {
+	if s.isSystemChannel(ctx, channelID) {
+		return ErrSystemChannelDelete
+	}
+
 	msg, err := s.repository.FindByID(ctx, messageID)
 	if err != nil {
 		return ErrMessageNotFound

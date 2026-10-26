@@ -75,6 +75,10 @@ func (f *permStore) FindSystemByServerID(context.Context, string) (*Channel, err
 	return nil, ErrChannelNotFound
 }
 
+func (f *permStore) FindNoticesByServerID(context.Context, string) (*Channel, error) {
+	return nil, ErrChannelNotFound
+}
+
 func (f *permStore) Update(context.Context, string, string) error { return nil }
 func (f *permStore) Delete(_ context.Context, id string) error {
 	delete(f.channels, id)

@@ -9,6 +9,7 @@ import { userMenuHandler } from '../store/userMenuStore'
 import { showToast } from '../store/toastStore'
 import ChatPane from '../components/ChatPane'
 import Avatar from '../components/Avatar'
+import StyledName from '../components/StyledName'
 import GroupIcon from '../components/friends/GroupIcon'
 import CreateGroupModal from '../components/friends/CreateGroupModal'
 import ConfirmModal from '../components/friends/ConfirmModal'
@@ -65,7 +66,7 @@ function MemberRow({
           status === 'offline' ? 'text-gray-500' : 'text-gray-200'
         }`}
       >
-        {look.name}
+        <StyledName name={look.name} userId={member.id} style={member.name_style} />
       </span>
       {isOwner && (
         <span title="Dono do grupo" className="text-[#f0b232]">

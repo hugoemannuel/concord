@@ -3,6 +3,7 @@ package friendship
 import (
 	"time"
 
+	"gin-quickstart/backend/internal/namestyle"
 	"gin-quickstart/backend/internal/user"
 )
 
@@ -15,12 +16,13 @@ type Friendship struct {
 }
 
 type PendingRequest struct {
-	UserID      string    `json:"user_id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
-	AvatarURL   *string   `json:"avatar_url,omitempty"`
-	Direction   string    `json:"direction"`
-	CreatedAt   time.Time `json:"created_at"`
+	UserID      string          `json:"user_id"`
+	Username    string          `json:"username"`
+	DisplayName string          `json:"display_name"`
+	AvatarURL   *string         `json:"avatar_url,omitempty"`
+	NameStyle   namestyle.Style `json:"name_style"`
+	Direction   string          `json:"direction"`
+	CreatedAt   time.Time       `json:"created_at"`
 }
 
 // Relação vista por quem pergunta. Quem foi bloqueado não fica sabendo:

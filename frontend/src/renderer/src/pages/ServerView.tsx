@@ -5,7 +5,6 @@ import InviteCodeBox from '../components/InviteCodeBox'
 import { Navigate, useParams } from 'react-router-dom'
 import { useServerStore } from '../store/serverStore'
 import { useMusicStore } from '../store/musicStore'
-import MaestroAvatar from '../components/music/MaestroAvatar'
 import { T18 } from '../lib/music'
 import { useFriendStore } from '../store/friendStore'
 import { useAuthStore } from '../store/authStore'
@@ -92,19 +91,16 @@ function MemberRow({
       <LevelRowShimmer userId={userId} />
       <div className="relative shrink-0">
         <LevelUpBurst userId={userId} />
-        {isBot ? (
-          <MaestroAvatar size={32} />
-        ) : (
-          <Avatar
-            userId={userId}
-            name={name}
-            avatarUrl={avatarUrl}
-            size={32}
-            status={status}
-            cutoutColor="#07080b"
-            fallbackClassName={colorClass}
-          />
-        )}
+        <Avatar
+          userId={userId}
+          name={name}
+          avatarUrl={avatarUrl}
+          size={32}
+          // O Maestro não tem websocket: está sempre online.
+          status={isBot ? 'online' : status}
+          cutoutColor="#07080b"
+          fallbackClassName={colorClass}
+        />
       </div>
       <div className="relative min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
@@ -356,6 +352,7 @@ export function ServerView(): React.JSX.Element {
             placeholder={`Mensagem para #${activeChannel?.name ?? 'canal'}`}
             canMentionEveryone={canMentionEveryone}
             permissions={chatPermissions}
+            canDeleteMessages={!activeChannel?.is_system}
             mentionable={currentMembers
               .filter((m) => m.username)
               .map((m) => ({
@@ -417,6 +414,7 @@ export function ServerView(): React.JSX.Element {
                       }
                       nameColor={roleColorCss(memberColor(roles, m.role_ids))}
                       online={!offline}
+                      isBot={!!m.is_bot}
                     />
                   )
                 })}

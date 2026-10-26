@@ -16,10 +16,10 @@ func PermissionRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
-const roleColumns = `id, server_id, name, color, position, permissions, hoist, is_default, created_at, updated_at`
+const roleColumns = `id, server_id, name, color, position, permissions, hoist, is_default, is_system, created_at, updated_at`
 
 func scanRole(row pgx.Row, r *Role) error {
-	return row.Scan(&r.ID, &r.ServerID, &r.Name, &r.Color, &r.Position, &r.Permissions, &r.Hoist, &r.IsDefault, &r.CreatedAt, &r.UpdatedAt)
+	return row.Scan(&r.ID, &r.ServerID, &r.Name, &r.Color, &r.Position, &r.Permissions, &r.Hoist, &r.IsDefault, &r.IsSystem, &r.CreatedAt, &r.UpdatedAt)
 }
 
 // LoadSnapshot lê tudo que o cálculo de permissões do servidor precisa.

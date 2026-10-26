@@ -113,15 +113,17 @@ export function mentionNotification(
   )
   return {
     kind: 'mention',
-    // Aviso do próprio servidor (ex.: aniversário) não é "Fulano mencionou você".
+    // Aviso do próprio servidor (ex.: aniversário/boas-vindas) não é "Fulano mencionou você".
     title:
       message.system_kind === 'birthday'
         ? '🎂 Feliz aniversário!'
-        : isMention
-          ? `${author} mencionou você`
-          : isReplyToMe
-            ? `${author} respondeu você`
-            : `${author} mencionou @${everyone}`,
+        : message.system_kind === 'welcome'
+          ? '👋 Boas-vindas!'
+          : isMention
+            ? `${author} mencionou você`
+            : isReplyToMe
+              ? `${author} respondeu você`
+              : `${author} mencionou @${everyone}`,
     body: truncate(messagePreview(message)),
     route: `/servers/${serverId}/channels/${message.channel_id}`
   }

@@ -15,12 +15,14 @@ const role = (id: string, position: number, extra: Partial<Role> = {}): Role => 
 })
 
 const everyone = role('everyone', 0, { name: '@everyone', is_default: true })
+const bots = role('bots', 1, { name: 'Bots', hoist: true, is_system: true })
 const roles: Role[] = [
   everyone,
-  role('mod', 3, { hoist: true, color: 0x00ff00 }),
-  role('vip', 2, { hoist: true, color: 0xff00ff }),
-  role('artista', 1, { color: 0x0000ff }), // colorido, mas não exibido separadamente
-  role('sem-cor', 4)
+  bots,
+  role('mod', 4, { hoist: true, color: 0x00ff00 }),
+  role('vip', 3, { hoist: true, color: 0xff00ff }),
+  role('artista', 2, { color: 0x0000ff }), // colorido, mas não exibido separadamente
+  role('sem-cor', 5)
 ]
 
 const member = (id: string, ...roleIds: string[]): { user_id: string; role_ids: string[] } => ({
@@ -32,30 +34,33 @@ const members = [
   member('mod', 'mod'),
   member('vip', 'vip'),
   member('vipmod', 'vip', 'mod'),
+  member('maestro', 'bots'),
   member('artista', 'artista'),
   member('ana'),
   member('off', 'mod')
 ]
-const online = new Set(['dono', 'mod', 'vip', 'vipmod', 'artista', 'ana'])
+const online = new Set(['dono', 'mod', 'vip', 'vipmod', 'maestro', 'artista', 'ana'])
 
 const group = (): MemberGroup<ReturnType<typeof member>>[] =>
   groupMembers({ members, roles, ownerId: 'dono', isOnline: (id) => online.has(id) })
 
 describe('groupMembers', () => {
-  it('põe o dono em cima, depois os cargos exibidos, os membros e os offline', () => {
+  it('põe o dono em cima, depois os cargos exibidos, Bots abaixo de todos os cargos, os membros sem cargo e os offline', () => {
     expect(group().map((g) => g.key)).toEqual([
       'owner',
       'role:mod',
       'role:vip',
+      'role:bots',
       'members',
       'offline'
     ])
   })
 
-  it('cada pessoa fica só no grupo do seu cargo exibido mais alto', () => {
+  it('cada pessoa fica só no grupo do seu cargo exibido mais alto e o bot fica em Bots', () => {
     const byKey = Object.fromEntries(group().map((g) => [g.key, g.members.map((m) => m.user_id)]))
     expect(byKey['role:mod']).toEqual(['mod', 'vipmod'])
     expect(byKey['role:vip']).toEqual(['vip'])
+    expect(byKey['role:bots']).toEqual(['maestro'])
   })
 
   it('cargo colorido mas não exibido separadamente não cria grupo', () => {
@@ -72,6 +77,9 @@ describe('groupMembers', () => {
     const mod = group().find((g) => g.key === 'role:mod')
     expect(mod?.title).toBe('MOD')
     expect(mod?.roleId).toBe('mod')
+    const botGroup = group().find((g) => g.key === 'role:bots')
+    expect(botGroup?.title).toBe('Bots')
+    expect(botGroup?.roleId).toBe('bots')
   })
 
   it('não cria grupo vazio e o dono offline cai em Offline', () => {

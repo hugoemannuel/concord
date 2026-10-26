@@ -18,6 +18,7 @@ const maxNameLength = 32
 var (
 	ErrRoleNotFound    = errors.New("cargo não encontrado")
 	ErrEveryoneRole    = errors.New("o @everyone não pode ser apagado, renomeado nem movido")
+	ErrBotRole         = errors.New("o cargo Bots é fixo do servidor e não pode ser apagado, movido nem atribuído a outros usuários")
 	ErrRoleHierarchy   = errors.New("você só mexe em cargos abaixo do seu cargo mais alto")
 	ErrCannotGrant     = errors.New("você não pode dar uma permissão que não tem")
 	ErrTooManyRoles    = errors.New("limite de cargos do servidor atingido")

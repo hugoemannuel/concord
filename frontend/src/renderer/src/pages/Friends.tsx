@@ -18,6 +18,8 @@ import { useCallStore } from '../store/callStore'
 import { useUserMenuStore } from '../store/userMenuStore'
 import { useUserLook } from '../store/profileStore'
 import Avatar from '../components/Avatar'
+import StyledName from '../components/StyledName'
+import type { NameStyle } from '../lib/nameStyle'
 import { STATUS_META } from '../lib/presenceStatus'
 import { friendRequestError } from '../lib/relationship'
 import { showToast } from '../store/toastStore'
@@ -85,7 +87,13 @@ function PersonRow({
   onContextMenu,
   children
 }: {
-  user: { id: string; username: string; display_name?: string; avatar_url?: string | null }
+  user: {
+    id: string
+    username: string
+    display_name?: string
+    avatar_url?: string | null
+    name_style?: NameStyle
+  }
   subtitle: React.ReactNode
   showStatus: boolean
   onClick?: () => void
@@ -123,7 +131,7 @@ function PersonRow({
       />
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline gap-1.5 truncate text-ds-md font-semibold text-white">
-          {look.name}
+          <StyledName name={look.name} userId={user.id} style={user.name_style} />
           <span className="hidden truncate text-ds-sm font-normal text-gray-400 group-hover:inline">
             {user.username}
           </span>
@@ -331,6 +339,24 @@ function AddFriend(): React.JSX.Element {
   )
 }
 
+function ActiveVoiceFriendCard({ friend }: { friend: PublicUser }): React.JSX.Element {
+  const look = useUserLook(friend.id, {
+    name: friend.display_name || friend.username,
+    avatarUrl: friend.avatar_url
+  })
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-[#111214] p-3">
+      <Avatar userId={friend.id} name={look.name} avatarUrl={look.avatarUrl} size={32} />
+      <div className="min-w-0">
+        <p className="truncate text-ds-md font-medium text-white">
+          <StyledName name={look.name} userId={friend.id} style={friend.name_style} />
+        </p>
+        <p className="truncate text-ds-xs text-gray-400">Em um canal de voz</p>
+      </div>
+    </div>
+  )
+}
+
 /** Coluna "Ativo agora": amigos em canais de voz que o app conhece. */
 function ActiveNow({ friends }: { friends: PublicUser[] }): React.JSX.Element {
   const navigate = useNavigate()
@@ -373,20 +399,7 @@ function ActiveNow({ friends }: { friends: PublicUser[] }): React.JSX.Element {
       ) : (
         <div className="mt-4 flex flex-col gap-2">
           {inVoice.map((f) => (
-            <div key={f.id} className="flex items-center gap-3 rounded-lg bg-[#111214] p-3">
-              <Avatar
-                userId={f.id}
-                name={f.display_name || f.username}
-                avatarUrl={f.avatar_url}
-                size={32}
-              />
-              <div className="min-w-0">
-                <p className="truncate text-ds-md font-medium text-white">
-                  {f.display_name || f.username}
-                </p>
-                <p className="truncate text-ds-xs text-gray-400">Em um canal de voz</p>
-              </div>
-            </div>
+            <ActiveVoiceFriendCard key={f.id} friend={f} />
           ))}
         </div>
       )}

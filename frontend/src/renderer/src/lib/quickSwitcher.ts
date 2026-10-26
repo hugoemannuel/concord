@@ -1,3 +1,5 @@
+import type { NameStyle } from './nameStyle'
+
 export type SwitcherKind = 'person' | 'server' | 'channel'
 
 export interface SwitcherItem {
@@ -7,6 +9,7 @@ export interface SwitcherItem {
   hint: string
   route: string
   avatar?: { userId: string; url?: string | null }
+  nameStyle?: NameStyle
   /** Ícone do servidor (kind 'server'). */
   iconUrl?: string | null
 }

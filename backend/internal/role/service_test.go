@@ -50,15 +50,18 @@ func (f *fakeStore) List(context.Context, string) ([]Role, error) {
 }
 
 func (f *fakeStore) Create(_ context.Context, role *Role) error {
+	base := 1
 	for id, r := range f.snap.Roles {
-		if !r.IsDefault {
+		if r.IsSystem {
+			base = 2
+		} else if !r.IsDefault {
 			r.Position++
 			f.snap.Roles[id] = r
 		}
 	}
 	f.next++
 	role.ID = fmt.Sprintf("novo%d", f.next)
-	role.Position = 1
+	role.Position = base
 	f.snap.Roles[role.ID] = *role
 	return nil
 }
@@ -195,6 +198,7 @@ func TestCreateValidatesInput(t *testing.T) {
 		"nome vazio":      {Input{Name: ptr("   ")}, ErrInvalidName},
 		"nome longo":      {Input{Name: ptr("123456789012345678901234567890123")}, ErrInvalidName},
 		"nome @everyone":  {Input{Name: ptr("@everyone")}, ErrInvalidName},
+		"nome Bots":       {Input{Name: ptr("Bots")}, ErrInvalidName},
 		"cor negativa":    {Input{Color: ptr(-1)}, ErrInvalidColor},
 		"cor fora de RGB": {Input{Color: ptr(0x1000000)}, ErrInvalidColor},
 	}
@@ -275,6 +279,52 @@ func TestEveryoneRoleRules(t *testing.T) {
 	}
 	if f.snap.Everyone.ID != "everyone" || f.snap.Roles["everyone"].Permissions != next {
 		t.Fatal("permissões do @everyone não mudaram")
+	}
+}
+
+func TestBotSystemRoleRules(t *testing.T) {
+	svc, f, _ := setup()
+	// Ajusta cargos existentes para posições 2..4 e adiciona o cargo de sistema Bots na posição 1.
+	for _, id := range []string{"vip", "gerente", "admin"} {
+		r := f.snap.Roles[id]
+		r.Position++
+		f.snap.Roles[id] = r
+	}
+	f.snap.Roles["bots"] = Role{
+		ID:       "bots",
+		ServerID: "s1",
+		Name:     permission.BotsRoleName,
+		Position: 1,
+		Hoist:    true,
+		IsSystem: true,
+	}
+
+	if err := svc.Delete(ctx, "s1", "dono", "bots"); !errors.Is(err, ErrBotRole) {
+		t.Fatalf("apagar Bots: err = %v, want ErrBotRole", err)
+	}
+	if _, err := svc.SetMemberRole(ctx, "s1", "dono", "ana", "bots", true); !errors.Is(err, ErrBotRole) {
+		t.Fatalf("atribuir Bots a usuário: err = %v, want ErrBotRole", err)
+	}
+	if _, err := svc.SetMemberRole(ctx, "s1", "dono", "ana", "bots", false); !errors.Is(err, ErrBotRole) {
+		t.Fatalf("remover Bots via API: err = %v, want ErrBotRole", err)
+	}
+	if _, err := svc.Update(ctx, "s1", "dono", "bots", Input{Name: ptr("Outros")}); !errors.Is(err, ErrBotRole) {
+		t.Fatalf("renomear Bots: err = %v, want ErrBotRole", err)
+	}
+	if _, err := svc.Update(ctx, "s1", "dono", "bots", Input{Hoist: ptr(false)}); !errors.Is(err, ErrBotRole) {
+		t.Fatalf("desativar hoist do Bots: err = %v, want ErrBotRole", err)
+	}
+	// Tentar subir Bots acima de outro cargo na reordenação é bloqueado.
+	if _, err := svc.Reorder(ctx, "s1", "dono", []string{"admin", "gerente", "bots", "vip"}); !errors.Is(err, ErrBotRole) {
+		t.Fatalf("subir Bots na ordem: err = %v, want ErrBotRole", err)
+	}
+	// Reordenar os cargos normais mantém Bots na posição 1 e os demais acima (2..4).
+	if _, err := svc.Reorder(ctx, "s1", "dono", []string{"gerente", "vip", "admin"}); err != nil {
+		t.Fatalf("reordenar cargos normais: %v", err)
+	}
+	if f.snap.Roles["bots"].Position != 1 || f.snap.Roles["admin"].Position != 2 || f.snap.Roles["vip"].Position != 3 || f.snap.Roles["gerente"].Position != 4 {
+		t.Fatalf("posições incorretas após reorder com Bots: bots=%d admin=%d vip=%d gerente=%d",
+			f.snap.Roles["bots"].Position, f.snap.Roles["admin"].Position, f.snap.Roles["vip"].Position, f.snap.Roles["gerente"].Position)
 	}
 }
 

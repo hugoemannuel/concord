@@ -56,7 +56,10 @@ export function groupMembers<T extends GroupableMember>(opts: {
   const { members, roles, ownerId, isOnline } = opts
   const hoisted = roles
     .filter((r) => r.hoist && !r.is_default)
-    .sort((a, b) => b.position - a.position)
+    .sort((a, b) => {
+      if (!!a.is_system !== !!b.is_system) return a.is_system ? 1 : -1
+      return b.position - a.position
+    })
 
   const online = members.filter((m) => isOnline(m.user_id))
   const offline = members.filter((m) => !isOnline(m.user_id))

@@ -39,7 +39,7 @@ function RolesSection(): React.JSX.Element {
   const [busy, setBusy] = useState(false)
 
   const selected = roles.find((r) => r.id === selectedId) ?? roles[0]
-  const orderable = roles.filter((r) => !r.is_default)
+  const orderable = roles.filter((r) => !r.is_default && !r.is_system)
   const counts = useMemo(() => {
     const map: Record<string, number> = {}
     for (const m of members) for (const id of m.role_ids ?? []) map[id] = (map[id] ?? 0) + 1
@@ -72,7 +72,7 @@ function RolesSection(): React.JSX.Element {
   }
 
   const canMove = (role: Role, direction: -1 | 1): boolean => {
-    if (role.is_default || !access.canManage(role)) return false
+    if (role.is_default || role.is_system || !access.canManage(role)) return false
     const index = orderable.findIndex((r) => r.id === role.id)
     const neighbor = orderable[index + direction]
     return !!neighbor && access.canManage(neighbor)
@@ -117,7 +117,7 @@ function RolesSection(): React.JSX.Element {
                   <span className="shrink-0 text-[11px] text-gray-500">{counts[role.id] ?? 0}</span>
                 )}
               </button>
-              {!role.is_default && (
+              {!role.is_default && !role.is_system && (
                 <span className="flex shrink-0 flex-col opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <button
                     type="button"
@@ -216,7 +216,7 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
         <h2 className="min-w-0 truncate text-base font-bold text-white">
           {role.is_default ? 'Permissões padrão (@everyone)' : `Editar cargo — ${role.name}`}
         </h2>
-        {!role.is_default && manageable && (
+        {!role.is_default && !role.is_system && manageable && (
           <Button
             variant="danger"
             className="px-3 py-1 text-xs"
@@ -230,6 +230,13 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
       {!manageable && (
         <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
           Este cargo está acima do seu: você pode ver, mas não editar.
+        </p>
+      )}
+
+      {role.is_system && (
+        <p className="mb-4 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-300">
+          O cargo <b className="text-white">{role.name}</b> é fixo do servidor e exclusivo para bots:
+          fica sempre abaixo dos demais cargos e não pode ser apagado nem atribuído a outros usuários.
         </p>
       )}
 
@@ -258,6 +265,7 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
               label="Nome do cargo"
               value={name}
               maxLength={32}
+              disabled={!!role.is_system}
               onChange={(e) => setName(e.target.value)}
             />
 
@@ -301,15 +309,17 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-white/8 bg-white/3 px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-white">Exibir membros separadamente</p>
-                <p className="text-xs text-gray-400">
-                  Quem está online com este cargo ganha um grupo próprio na lista de membros.
-                </p>
+            {!role.is_system && (
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-white/8 bg-white/3 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">Exibir membros separadamente</p>
+                  <p className="text-xs text-gray-400">
+                    Quem está online com este cargo ganha um grupo próprio na lista de membros.
+                  </p>
+                </div>
+                <Switch checked={hoist} label="Exibir membros separadamente" onChange={setHoist} />
               </div>
-              <Switch checked={hoist} label="Exibir membros separadamente" onChange={setHoist} />
-            </div>
+            )}
           </div>
         )}
 
@@ -395,7 +405,7 @@ function RoleMembers({
 
   return (
     <div className="space-y-6">
-      {manageable && (
+      {manageable && !role.is_system && (
         <div>
           <Input
             label="Adicionar membros"
@@ -447,7 +457,7 @@ function RoleMembers({
                   <Avatar userId={m.user_id} name={nameOf(m)} avatarUrl={m.avatar_url} size={24} />
                   <span className="truncate text-sm text-white">{nameOf(m)}</span>
                 </span>
-                {manageable && (
+                {manageable && !role.is_system && (
                   <button
                     type="button"
                     onClick={() => void run(() => removeMemberRole(serverId, m.user_id, role.id))}

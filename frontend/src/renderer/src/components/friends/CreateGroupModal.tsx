@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../Modal'
 import Avatar from '../Avatar'
+import StyledName from '../StyledName'
 import { useFriendStore } from '../../store/friendStore'
 import { useAuthStore } from '../../store/authStore'
 import { useChatStore } from '../../store/chatStore'
@@ -113,7 +114,7 @@ function CreateGroupModal({
               size={32}
             />
             <span className="min-w-0 flex-1 truncate text-sm text-white">
-              {f.display_name || f.username}
+              <StyledName name={f.display_name || f.username} userId={f.id} style={f.name_style} />
               <span className="ml-1.5 text-gray-500">{f.username}</span>
             </span>
             <input

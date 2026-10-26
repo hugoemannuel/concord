@@ -42,6 +42,8 @@ type Service struct {
 
 	// Chamados quando o Maestro é removido de um servidor (fecha o player dele).
 	onMusicBotDisabled []func(serverID string)
+	// Chamados quando um usuário novo entra no servidor (posta boas-vindas no canal "avisos").
+	onMemberJoined []func(ctx context.Context, serverID string, member ServerMember)
 }
 
 func ServerService(repository *Repository, publisher EventPublisher, roles RoleDefaults) *Service {
@@ -109,6 +111,27 @@ func (s *Service) OnMusicBotDisabled(fn func(serverID string)) {
 func (s *Service) notifyMusicBotDisabled(serverID string) {
 	for _, fn := range s.onMusicBotDisabled {
 		fn(serverID)
+	}
+}
+
+// OnMemberJoined registra um hook para quando um usuário novo entra no servidor.
+func (s *Service) OnMemberJoined(fn func(ctx context.Context, serverID string, member ServerMember)) {
+	s.onMemberJoined = append(s.onMemberJoined, fn)
+}
+
+func (s *Service) notifyMemberJoined(ctx context.Context, serverID string, member ServerMember) {
+	for _, fn := range s.onMemberJoined {
+		fn(ctx, serverID, member)
+	}
+}
+
+// NotifyMemberJoined dispara o hook de entrada para userID no servidor (ex.: dono na criação).
+func (s *Service) NotifyMemberJoined(ctx context.Context, serverID, userID string) {
+	if s.repository == nil || len(s.onMemberJoined) == 0 {
+		return
+	}
+	if fullMember, err := s.repository.FindMemberByUserID(ctx, serverID, userID); err == nil {
+		s.notifyMemberJoined(ctx, serverID, *fullMember)
 	}
 }
 
@@ -316,6 +339,9 @@ func (s *Service) AcceptInvite(ctx context.Context, inviteID string, userID stri
 			Member:   *fullMember,
 		})
 	}
+	if err == nil {
+		s.notifyMemberJoined(ctx, invite.ServerID, *fullMember)
+	}
 
 	return nil
 }
@@ -372,6 +398,9 @@ func (s *Service) JoinByCode(ctx context.Context, rawCode string, userID string)
 		fullMember, err := s.repository.FindMemberByUserID(ctx, serverID, userID)
 		if err == nil && s.publisher != nil {
 			s.publisher.PublishMemberJoin(MemberJoinEvent{ServerID: serverID, Member: *fullMember})
+		}
+		if err == nil {
+			s.notifyMemberJoined(ctx, serverID, *fullMember)
 		}
 	}
 

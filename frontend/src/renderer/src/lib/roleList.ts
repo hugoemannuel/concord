@@ -1,8 +1,12 @@
 import type { Role } from './permissions'
 
-/** Do cargo mais alto para o mais baixo (o @everyone, posição 0, por último). */
+/** Do cargo mais alto para o mais baixo (cargos normais, depois Bots fixo e @everyone por último). */
 export function sortRoles(roles: Role[]): Role[] {
-  return [...roles].sort((a, b) => b.position - a.position)
+  return [...roles].sort((a, b) => {
+    if (a.is_default !== b.is_default) return a.is_default ? 1 : -1
+    if (!!a.is_system !== !!b.is_system) return a.is_system ? 1 : -1
+    return b.position - a.position
+  })
 }
 
 /** Troca (ou inclui) o cargo na lista, mantendo a ordem da hierarquia. */
@@ -34,7 +38,7 @@ export function stripRoleFromMembers<T extends { role_ids?: string[] }>(
 
 /**
  * Cargos que o ator pode dar ou tirar de outros: os abaixo do seu mais alto (o
- * dono, todos), sem o @everyone.
+ * dono, todos), sem o @everyone e sem o cargo de sistema (Bots).
  */
 export function assignableRoles(
   roles: Role[],
@@ -42,7 +46,9 @@ export function assignableRoles(
 ): Role[] {
   if (!opts.canManageRoles) return []
   return sortRoles(
-    roles.filter((r) => !r.is_default && (opts.isOwner || opts.actorHighest > r.position))
+    roles.filter(
+      (r) => !r.is_default && !r.is_system && (opts.isOwner || opts.actorHighest > r.position)
+    )
   )
 }
 

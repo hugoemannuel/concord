@@ -34,6 +34,8 @@ func respondError(c *gin.Context, err error) {
 		status, code = http.StatusForbidden, "cannot_grant"
 	case errors.Is(err, ErrEveryoneRole):
 		code = "everyone_role"
+	case errors.Is(err, ErrBotRole):
+		status, code = http.StatusForbidden, "bot_role"
 	case errors.Is(err, ErrTooManyRoles):
 		code = "too_many_roles"
 	case errors.Is(err, ErrInvalidName), errors.Is(err, ErrInvalidColor), errors.Is(err, ErrInvalidOrder):

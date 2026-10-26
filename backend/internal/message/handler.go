@@ -164,8 +164,17 @@ func (h *Handler) DeleteChannelMessage(c *gin.Context) {
 		return
 	}
 
+	if h.channelService != nil {
+		if ch, err := h.channelService.FindByID(c.Request.Context(), channelID); err == nil && ch.IsSystem {
+			c.JSON(http.StatusForbidden, gin.H{"error": ErrSystemChannelDelete.Error(), "code": "system_channel"})
+			return
+		}
+	}
+
 	if err := h.service.DeleteChannelMessage(c.Request.Context(), channelID, messageID, userID); err != nil {
 		switch {
+		case errors.Is(err, ErrSystemChannelDelete):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "code": "system_channel"})
 		case errors.Is(err, ErrNotAuthor):
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "code": "missing_permission"})
 		case errors.Is(err, ErrMessageNotFound):

@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { gameAccent } from '../../../shared/gameCatalog'
 import { activityElapsed, type PresenceActivity } from '../lib/presenceActivity'
+import type { NameStyle } from '../lib/nameStyle'
+import { useUserLook } from '../store/profileStore'
 import Avatar from './Avatar'
 import GameIcon from './GameIcon'
+import StyledName from './StyledName'
 
 /** "há 5 min": o tempo é lido uma vez por montagem (o cartão reabre a cada visita). */
 export function Elapsed({ startedAt }: { startedAt: number }): React.JSX.Element {
@@ -16,11 +19,21 @@ export function ActivityCard({
   activity,
   onClick
 }: {
-  user: { id: string; username: string; display_name?: string; avatar_url?: string | null }
+  user: {
+    id: string
+    username: string
+    display_name?: string
+    avatar_url?: string | null
+    name_style?: NameStyle
+  }
   activity: PresenceActivity
   onClick?: () => void
 }): React.JSX.Element {
   const accent = gameAccent(activity.name) ?? '#5865f2'
+  const look = useUserLook(user.id, {
+    name: user.display_name || user.username,
+    avatarUrl: user.avatar_url
+  })
   return (
     <button
       type="button"
@@ -29,13 +42,13 @@ export function ActivityCard({
     >
       <Avatar
         userId={user.id}
-        name={user.display_name || user.username}
-        avatarUrl={user.avatar_url}
+        name={look.name}
+        avatarUrl={look.avatarUrl}
         size={32}
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-ds-sm font-medium text-gray-400">
-          {user.display_name || user.username}
+          <StyledName name={look.name} userId={user.id} style={user.name_style} />
         </p>
         <p className="truncate text-ds-md font-bold text-white">{activity.name}</p>
         <p className="truncate text-ds-xs text-gray-400">

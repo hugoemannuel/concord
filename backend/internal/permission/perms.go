@@ -88,6 +88,9 @@ const DefaultModerator = DefaultEveryone | ManageChannels | ManageServer | Menti
 // ModeratorName é o nome do cargo criado junto com o servidor.
 const ModeratorName = "Moderador"
 
+// BotsRoleName é o nome fixo do cargo de sistema exclusivo para bots do servidor.
+const BotsRoleName = "Bots"
+
 // EveryoneName é o nome fixo do cargo padrão.
 const EveryoneName = "@everyone"
 

@@ -18,10 +18,10 @@ func RoleRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
-const columns = `id, server_id, name, color, position, permissions, hoist, is_default, created_at, updated_at`
+const columns = `id, server_id, name, color, position, permissions, hoist, is_default, is_system, created_at, updated_at`
 
 func scan(row pgx.Row, r *Role) error {
-	return row.Scan(&r.ID, &r.ServerID, &r.Name, &r.Color, &r.Position, &r.Permissions, &r.Hoist, &r.IsDefault, &r.CreatedAt, &r.UpdatedAt)
+	return row.Scan(&r.ID, &r.ServerID, &r.Name, &r.Color, &r.Position, &r.Permissions, &r.Hoist, &r.IsDefault, &r.IsSystem, &r.CreatedAt, &r.UpdatedAt)
 }
 
 // List: cargos do servidor, do mais alto para o mais baixo (@everyone por último).
@@ -42,24 +42,28 @@ func (r *Repository) List(ctx context.Context, serverID string) ([]Role, error) 
 	return roles, rows.Err()
 }
 
-// CreateDefaults cria o @everyone e o Moderador de um servidor novo.
+// CreateDefaults cria o @everyone, o cargo fixo Bots e o Moderador de um servidor novo.
 func (r *Repository) CreateDefaults(ctx context.Context, serverID string) error {
 	_, err := r.db.Exec(
 		ctx,
 		`
-		INSERT INTO roles (server_id, name, position, permissions, is_default, hoist)
-		VALUES ($1, $2, 0, $3, TRUE, FALSE), ($1, $4, 1, $5, FALSE, TRUE)
+		INSERT INTO roles (server_id, name, position, permissions, is_default, is_system, hoist)
+		VALUES
+			($1, $2, 0, $3, TRUE, FALSE, FALSE),
+			($1, $4, 1, 0, FALSE, TRUE, TRUE),
+			($1, $5, 2, $6, FALSE, FALSE, TRUE)
 		`,
 		serverID,
 		permission.EveryoneName,
 		permission.DefaultEveryone,
+		permission.BotsRoleName,
 		permission.ModeratorName,
 		permission.DefaultModerator,
 	)
 	return err
 }
 
-// Create insere o cargo logo acima do @everyone (posição 1), subindo os demais.
+// Create insere o cargo logo acima dos cargos fixos (@everyone e Bots), subindo os demais.
 func (r *Repository) Create(ctx context.Context, role *Role) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -67,14 +71,21 @@ func (r *Repository) Create(ctx context.Context, role *Role) error {
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `UPDATE roles SET position = position + 1 WHERE server_id = $1 AND NOT is_default`, role.ServerID); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE roles SET position = position + 1 WHERE server_id = $1 AND NOT is_default AND NOT is_system`, role.ServerID); err != nil {
 		return err
 	}
 	err = scan(tx.QueryRow(
 		ctx,
 		`
 		INSERT INTO roles (server_id, name, color, position, permissions, hoist)
-		VALUES ($1, $2, $3, 1, $4, $5)
+		VALUES (
+			$1,
+			$2,
+			$3,
+			(SELECT COALESCE(MAX(position) + 1, 1) FROM roles WHERE server_id = $1 AND (is_default OR is_system)),
+			$4,
+			$5
+		)
 		RETURNING `+columns,
 		role.ServerID, role.Name, role.Color, role.Permissions, role.Hoist,
 	), role)
@@ -104,7 +115,7 @@ func (r *Repository) Delete(ctx context.Context, serverID, roleID string) error 
 	}
 	defer tx.Rollback(ctx)
 
-	tag, err := tx.Exec(ctx, `DELETE FROM roles WHERE id = $1 AND server_id = $2 AND NOT is_default`, roleID, serverID)
+	tag, err := tx.Exec(ctx, `DELETE FROM roles WHERE id = $1 AND server_id = $2 AND NOT is_default AND NOT is_system`, roleID, serverID)
 	if err != nil {
 		return err
 	}
@@ -125,7 +136,7 @@ func (r *Repository) SetPositions(ctx context.Context, serverID string, position
 	}
 	defer tx.Rollback(ctx)
 	for id, pos := range positions {
-		if _, err := tx.Exec(ctx, `UPDATE roles SET position = $3, updated_at = NOW() WHERE id = $1 AND server_id = $2 AND NOT is_default`, id, serverID, pos); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE roles SET position = $3, updated_at = NOW() WHERE id = $1 AND server_id = $2 AND NOT is_default AND NOT is_system`, id, serverID, pos); err != nil {
 			return err
 		}
 	}

@@ -1,11 +1,13 @@
 import { request } from './client'
 import type { PublicUser } from '../store/authStore'
+import type { NameStyle } from '../lib/nameStyle'
 
 export interface PendingRequest {
   user_id: string
   username: string
   display_name: string
   avatar_url?: string | null
+  name_style?: NameStyle
   direction: 'incoming' | 'outgoing'
   created_at: string
 }

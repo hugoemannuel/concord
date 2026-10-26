@@ -70,6 +70,8 @@ export interface Role {
   hoist: boolean
   /** É o @everyone. */
   is_default: boolean
+  /** É o cargo fixo de sistema (Bots). */
+  is_system?: boolean
 }
 
 export type OverwriteTarget = 'role' | 'member'
@@ -418,6 +420,8 @@ export function permissionError(code: string | undefined, fallback = 'Algo deu e
       return 'Você foi banido deste servidor.'
     case 'everyone_role':
       return 'O cargo @everyone não pode ser renomeado, movido nem apagado.'
+    case 'bot_role':
+      return 'O cargo Bots é fixo do servidor e não pode ser apagado, movido nem atribuído a outros usuários.'
     case 'too_many_roles':
       return 'O servidor atingiu o limite de cargos.'
     case 'role_not_found':
@@ -436,6 +440,8 @@ export function permissionError(code: string | undefined, fallback = 'Algo deu e
       return 'Cargo ou membro não encontrado neste servidor.'
     case 'invalid_nickname':
       return 'Apelido inválido: até 32 caracteres, sem caracteres invisíveis ou de controle.'
+    case 'system_channel':
+      return 'Esse canal é fixo do servidor: não pode ser alterado nem ter mensagens excluídas.'
     default:
       return fallback
   }

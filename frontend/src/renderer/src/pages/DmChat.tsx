@@ -8,6 +8,7 @@ import { useUserLook } from '../store/profileStore'
 import { profileCardHandler } from '../store/profileCardStore'
 import { STATUS_META } from '../lib/presenceStatus'
 import Avatar from '../components/Avatar'
+import StyledName from '../components/StyledName'
 import { useCallStore } from '../store/callStore'
 import { getOrCreateConversationWith } from '../api/conversations'
 import { showToast } from '../store/toastStore'
@@ -123,7 +124,9 @@ function DmChat(): React.JSX.Element {
             />
           </button>
           <div className="min-w-0">
-            <p className="truncate text-ds-md font-semibold text-white">{look.name}</p>
+            <p className="truncate text-ds-md font-semibold text-white">
+              <StyledName name={look.name} userId={userId} style={other?.name_style} />
+            </p>
             {otherHandle && <p className="truncate text-ds-xs text-gray-400">@{otherHandle}</p>}
           </div>
         </div>

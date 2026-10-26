@@ -8,7 +8,7 @@ import (
 	"gin-quickstart/backend/internal/permission"
 )
 
-// systemStore: um canal de sistema e um comum em memória.
+// systemStore: canais de sistema ("bot" e "avisos") e um comum em memória.
 type systemStore struct {
 	fakeStore
 	channels map[string]*Channel
@@ -40,8 +40,9 @@ func newSystemStore() *systemStore {
 	return &systemStore{
 		fakeStore: *newFakeStore(),
 		channels: map[string]*Channel{
-			"bot":   {ID: "bot", ServerID: "s1", Name: SystemChannelName, Type: TypeText, IsSystem: true},
-			"geral": {ID: "geral", ServerID: "s1", Name: "geral", Type: TypeText},
+			"bot":    {ID: "bot", ServerID: "s1", Name: SystemChannelName, Type: TypeText, IsSystem: true},
+			"avisos": {ID: "avisos", ServerID: "s1", Name: NoticesChannelName, Type: TypeText, IsSystem: true},
+			"geral":  {ID: "geral", ServerID: "s1", Name: "geral", Type: TypeText},
 		},
 	}
 }
@@ -51,18 +52,20 @@ func TestSystemChannelCannotBeChanged(t *testing.T) {
 	svc := newService(store, nil)
 	ctx := context.Background()
 
-	if _, err := svc.Update(ctx, "bot", "outro"); !errors.Is(err, ErrSystemChannel) {
-		t.Fatalf("Update err = %v, want ErrSystemChannel", err)
-	}
-	if err := svc.Delete(ctx, "bot"); !errors.Is(err, ErrSystemChannel) {
-		t.Fatalf("Delete err = %v, want ErrSystemChannel", err)
-	}
-	ch := store.channels["bot"]
-	if err := svc.SetOverwrite(ctx, ch, permission.Overwrite{}); !errors.Is(err, ErrSystemChannel) {
-		t.Fatalf("SetOverwrite err = %v, want ErrSystemChannel", err)
-	}
-	if err := svc.DeleteOverwrite(ctx, ch, "role", "x"); !errors.Is(err, ErrSystemChannel) {
-		t.Fatalf("DeleteOverwrite err = %v, want ErrSystemChannel", err)
+	for _, id := range []string{"bot", "avisos"} {
+		if _, err := svc.Update(ctx, id, "outro"); !errors.Is(err, ErrSystemChannel) {
+			t.Fatalf("%s: Update err = %v, want ErrSystemChannel", id, err)
+		}
+		if err := svc.Delete(ctx, id); !errors.Is(err, ErrSystemChannel) {
+			t.Fatalf("%s: Delete err = %v, want ErrSystemChannel", id, err)
+		}
+		ch := store.channels[id]
+		if err := svc.SetOverwrite(ctx, ch, permission.Overwrite{}); !errors.Is(err, ErrSystemChannel) {
+			t.Fatalf("%s: SetOverwrite err = %v, want ErrSystemChannel", id, err)
+		}
+		if err := svc.DeleteOverwrite(ctx, ch, "role", "x"); !errors.Is(err, ErrSystemChannel) {
+			t.Fatalf("%s: DeleteOverwrite err = %v, want ErrSystemChannel", id, err)
+		}
 	}
 	if len(store.updated)+len(store.deleted) != 0 {
 		t.Fatalf("system channel was touched: updated=%v deleted=%v", store.updated, store.deleted)
@@ -100,5 +103,13 @@ func TestCreateNeverMakesSystemChannel(t *testing.T) {
 	}
 	if !sys.IsSystem || sys.Name != SystemChannelName || sys.Type != TypeText {
 		t.Fatalf("CreateSystem = %+v", sys)
+	}
+
+	notices, err := svc.CreateNotices(context.Background(), "s1", "dono")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !notices.IsSystem || notices.Name != NoticesChannelName || notices.Type != TypeText {
+		t.Fatalf("CreateNotices = %+v", notices)
 	}
 }

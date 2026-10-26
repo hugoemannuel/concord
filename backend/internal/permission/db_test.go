@@ -126,21 +126,28 @@ func TestDBNewServerHasDefaultRoles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roles) != 2 {
-		t.Fatalf("roles = %+v, want @everyone e Moderador", roles)
+	if len(roles) != 3 {
+		t.Fatalf("roles = %+v, want @everyone, Bots e Moderador", roles)
 	}
-	// Do mais alto para o mais baixo: Moderador (1), @everyone (0).
-	mod, everyone := roles[0], roles[1]
-	if mod.Name != permission.ModeratorName || mod.Position != 1 || mod.Permissions != permission.DefaultModerator || !mod.Hoist || mod.IsDefault {
+	// Do mais alto para o mais baixo: Moderador (2), Bots (1), @everyone (0).
+	mod, bots, everyone := roles[0], roles[1], roles[2]
+	if mod.Name != permission.ModeratorName || mod.Position != 2 || mod.Permissions != permission.DefaultModerator || !mod.Hoist || mod.IsDefault || mod.IsSystem {
 		t.Errorf("Moderador = %+v", mod)
 	}
-	if everyone.Name != permission.EveryoneName || everyone.Position != 0 || everyone.Permissions != permission.DefaultEveryone || !everyone.IsDefault {
+	if bots.Name != permission.BotsRoleName || bots.Position != 1 || bots.Permissions != 0 || !bots.Hoist || bots.IsDefault || !bots.IsSystem {
+		t.Errorf("Bots = %+v", bots)
+	}
+	if everyone.Name != permission.EveryoneName || everyone.Position != 0 || everyone.Permissions != permission.DefaultEveryone || !everyone.IsDefault || everyone.IsSystem {
 		t.Errorf("@everyone = %+v", everyone)
 	}
 
 	// Um @everyone por servidor.
 	if _, err := e.db.Exec(e.ctx, `INSERT INTO roles (server_id, name, is_default) VALUES ($1, 'outro', TRUE)`, srv.ID); err == nil {
 		t.Error("o índice único devia impedir dois @everyone")
+	}
+	// Um cargo de sistema (Bots) por servidor.
+	if _, err := e.db.Exec(e.ctx, `INSERT INTO roles (server_id, name, is_system) VALUES ($1, 'outro_bot', TRUE)`, srv.ID); err == nil {
+		t.Error("o índice único devia impedir dois cargos de sistema")
 	}
 }
 
@@ -185,7 +192,8 @@ func TestDBSnapshotMatchesPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if snap.OwnerID != owner || len(snap.MemberRoles) != 4 || len(snap.Channels) != 2 {
+	// 5 membros: dono + Maestro (adicionado na criação do servidor) + modUser + vipUser + plain.
+	if snap.OwnerID != owner || len(snap.MemberRoles) < 4 || len(snap.Channels) != 2 {
 		t.Fatalf("snapshot = owner %s, %d membros, %d canais", snap.OwnerID, len(snap.MemberRoles), len(snap.Channels))
 	}
 	if len(snap.Channels[private.ID].Overwrites) != 2 || len(snap.Channels[public.ID].Overwrites) != 0 {
@@ -320,10 +328,14 @@ func TestDBCascades(t *testing.T) {
 	if n := count(`SELECT COUNT(*) FROM channel_overwrites WHERE channel_id = $1`, ch.ID); n != 1 {
 		t.Errorf("a sobrescrita de membro continua: %d", n)
 	}
-	// O @everyone não se apaga.
+	// O @everyone e o Bots não se apagam.
 	everyone := e.roleByName(t, srv.ID, permission.EveryoneName)
 	if err := e.roleRepo.Delete(e.ctx, srv.ID, everyone.ID); !errors.Is(err, role.ErrRoleNotFound) {
 		t.Errorf("apagar @everyone: err = %v", err)
+	}
+	bots := e.roleByName(t, srv.ID, permission.BotsRoleName)
+	if err := e.roleRepo.Delete(e.ctx, srv.ID, bots.ID); !errors.Is(err, role.ErrRoleNotFound) {
+		t.Errorf("apagar Bots: err = %v", err)
 	}
 
 	// Apagar o canal apaga as sobrescritas; apagar o servidor leva tudo.
@@ -364,8 +376,8 @@ func TestDBRoleCreateAndReorderPositions(t *testing.T) {
 		}
 		return out
 	}
-	// Cargo novo entra logo acima do @everyone, abaixo dos anteriores.
-	if got := names(); !reflect.DeepEqual(got, []string{permission.ModeratorName, "A", "B", permission.EveryoneName}) {
+	// Cargo novo entra logo acima dos cargos fixos (Bots e @everyone), abaixo dos anteriores.
+	if got := names(); !reflect.DeepEqual(got, []string{permission.ModeratorName, "A", "B", permission.BotsRoleName, permission.EveryoneName}) {
 		t.Fatalf("ordem = %v", got)
 	}
 
@@ -377,7 +389,7 @@ func TestDBRoleCreateAndReorderPositions(t *testing.T) {
 	for _, r := range roles {
 		got = append(got, r.Name)
 	}
-	if want := []string{"B", permission.ModeratorName, "A", permission.EveryoneName}; !reflect.DeepEqual(got, want) {
+	if want := []string{"B", permission.ModeratorName, "A", permission.BotsRoleName, permission.EveryoneName}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("depois de reordenar = %v, want %v", got, want)
 	}
 
@@ -499,7 +511,7 @@ func TestDBOverwriteUpsertAndDelete(t *testing.T) {
 }
 
 // A migration tem que transformar os servidores que já existiam: cada um ganha
-// @everyone e Moderador, e quem era role='admin' (fora o dono) vira Moderador.
+// @everyone, Bots e Moderador, e quem era role='admin' (fora o dono) vira Moderador.
 //
 // Atenção: este teste desfaz a 029 e a refaz, então só serve com banco
 // descartável (como o resto) e não deve rodar ao mesmo tempo que outros testes
@@ -511,7 +523,7 @@ func TestDBMigrationBackfillsExistingServers(t *testing.T) {
 	// Banco só com as migrations anteriores à 029, como produção antes dela.
 	// As posteriores (030, 031, ...) também ficam de fora: se entrassem, o
 	// banco iria para a versão mais alta e o Migrate pularia a 029 depois. A
-	// 039 (apelidos) mexe nos cargos: roda depois, junto com a 029.
+	// 039 (apelidos) e a 053 (Bots) mexem nos cargos: rodam depois, junto com a 029.
 	dir := t.TempDir()
 	entries, err := os.ReadDir("../../migrations")
 	if err != nil {
@@ -559,16 +571,17 @@ func TestDBMigrationBackfillsExistingServers(t *testing.T) {
 		}
 	}
 
-	// Agora aplica a 029 (e a 039) em cima dos dados.
+	// Agora aplica a 029 (e a 039, 053) em cima dos dados.
 	if err := database.Migrate(db, "../../migrations"); err != nil {
 		t.Fatal(err)
 	}
 
 	roles, err := role.RoleRepository(db).List(ctx, serverID)
-	if err != nil || len(roles) != 2 {
+	if err != nil || len(roles) != 3 {
 		t.Fatalf("roles = %+v, %v", roles, err)
 	}
-	if roles[1].Permissions != permission.DefaultEveryone || !roles[1].IsDefault ||
+	if roles[2].Permissions != permission.DefaultEveryone || !roles[2].IsDefault ||
+		roles[1].Name != permission.BotsRoleName || !roles[1].IsSystem || !roles[1].Hoist ||
 		roles[0].Permissions != permission.DefaultModerator || roles[0].Name != permission.ModeratorName {
 		t.Errorf("cargos padrão errados: %+v", roles)
 	}

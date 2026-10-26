@@ -30,6 +30,7 @@ type store interface {
 	Create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite) error
 	FindByID(ctx context.Context, id string) (*Channel, error)
 	FindSystemByServerID(ctx context.Context, serverID string) (*Channel, error)
+	FindNoticesByServerID(ctx context.Context, serverID string) (*Channel, error)
 	Update(ctx context.Context, id string, name string) error
 	Delete(ctx context.Context, id string) error
 	ListByServerID(ctx context.Context, serverID string) ([]Channel, error)
@@ -55,7 +56,7 @@ func newService(repository store, publisher EventPublisher) *Service {
 }
 
 // Create cria o canal já com as sobrescritas (canal privado). O canal de
-// sistema só nasce por CreateSystem, nunca por pedido do cliente.
+// sistema só nasce por CreateSystem/CreateNotices, nunca por pedido do cliente.
 func (s *Service) Create(ctx context.Context, ch *Channel, overwrites ...permission.Overwrite) error {
 	ch.IsSystem = false
 	return s.create(ctx, ch, overwrites)
@@ -70,9 +71,23 @@ func (s *Service) CreateSystem(ctx context.Context, serverID, createdBy string) 
 	return ch, nil
 }
 
+// CreateNotices cria o canal "avisos" do servidor (usado na criação do servidor).
+func (s *Service) CreateNotices(ctx context.Context, serverID, createdBy string) (*Channel, error) {
+	ch := &Channel{ServerID: serverID, Name: NoticesChannelName, Type: TypeText, CreatedBy: createdBy, IsSystem: true}
+	if err := s.create(ctx, ch, nil); err != nil {
+		return nil, err
+	}
+	return ch, nil
+}
+
 // SystemChannel: o canal "bot" do servidor (ErrChannelNotFound se não tem).
 func (s *Service) SystemChannel(ctx context.Context, serverID string) (*Channel, error) {
 	return s.repository.FindSystemByServerID(ctx, serverID)
+}
+
+// NoticesChannel: o canal "avisos" do servidor (ErrChannelNotFound se não tem).
+func (s *Service) NoticesChannel(ctx context.Context, serverID string) (*Channel, error) {
+	return s.repository.FindNoticesByServerID(ctx, serverID)
 }
 
 func (s *Service) create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite) error {

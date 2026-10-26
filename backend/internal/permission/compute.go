@@ -13,6 +13,7 @@ type Role struct {
 	Permissions int64     `json:"permissions"`
 	Hoist       bool      `json:"hoist"`
 	IsDefault   bool      `json:"is_default"`
+	IsSystem    bool      `json:"is_system"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

@@ -337,6 +337,22 @@ func main() {
 	roomAccess := message.NewServiceRoomAccess(channelService, permissionService, conversationService, friendshipService)
 	attachmentHandler := message.NewAttachmentHandler(messageRepository, uploads, uploadSpace, roomAccess, authService)
 
+	// Boas-vindas no canal "avisos" para todo usuário novo no servidor.
+	serverService.OnMemberJoined(func(ctx context.Context, serverID string, member server.ServerMember) {
+		if member.Username == "" {
+			return
+		}
+		ch, err := channelService.NoticesChannel(ctx, serverID)
+		if err != nil {
+			log.Printf("[server] canal de avisos do servidor %s: %v", serverID, err)
+			return
+		}
+		content := server.RandomWelcomeMessage(member.Username)
+		if _, err := messageService.CreateSystemChannelMessage(ctx, ch.ID, member.UserID, content, server.WelcomeSystemKind); err != nil {
+			log.Printf("[server] mensagem de boas-vindas no servidor %s: %v", serverID, err)
+		}
+	})
+
 	// Mesa de áudio (Soundboard) compartilhada por servidor
 	soundboardUploads, err := media.NewStore(filepath.Join(uploadsDir, "soundboard"))
 	if err != nil {

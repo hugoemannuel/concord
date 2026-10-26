@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { API_BASE_URL } from '../lib/config'
+import { MAESTRO_USER_ID } from '../lib/music'
+import maestroGif from '../assets/maestro.gif'
 import { isAnimatedMedia, profileMediaSrc } from '../lib/profileMedia'
 import { STATUS_META, type PresenceStatus } from '../lib/presenceStatus'
 import { useUserLook } from '../store/profileStore'
@@ -49,6 +51,8 @@ function Avatar({
   const moving =
     animated && animate === 'hover' ? profileMediaSrc(look.avatarUrl, API_BASE_URL) : null
   const showImage = still && failedSrc !== still
+  // O Maestro não tem foto no banco: o GIF vem embutido no app.
+  const maestro = userId === MAESTRO_USER_ID && !showImage
 
   const dot = Math.max(10, Math.round(size * 0.3))
   const border = size >= 64 ? 5 : size >= 32 ? 3 : 2
@@ -58,7 +62,15 @@ function Avatar({
       className={`group relative shrink-0 ${className}`}
       style={{ width: size, height: size }}
     >
-      {showImage ? (
+      {maestro ? (
+        <img
+          src={maestroGif}
+          alt=""
+          draggable={false}
+          style={{ imageRendering: 'pixelated' }}
+          className="h-full w-full rounded-full bg-[#1e1f22] object-cover"
+        />
+      ) : showImage ? (
         <>
           <img
             src={still}

@@ -1,10 +1,50 @@
 package message
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+type systemChannelTestResolver struct {
+	fakeRooms
+	system map[string]bool
+}
+
+func (r systemChannelTestResolver) IsSystemChannel(_ context.Context, channelID string) (bool, error) {
+	return r.system[channelID], nil
+}
+
+func TestDeleteChannelMessageBlockedInSystemChannels(t *testing.T) {
+	resolver := systemChannelTestResolver{
+		system: map[string]bool{
+			"avisos": true,
+			"bot":    true,
+			"geral":  false,
+		},
+	}
+	svc := &Service{channelResolver: resolver}
+	ctx := context.Background()
+
+	for _, ch := range []string{"avisos", "bot"} {
+		err := svc.DeleteChannelMessage(ctx, ch, "m1", "ana")
+		if !errors.Is(err, ErrSystemChannelDelete) {
+			t.Fatalf("%s: DeleteChannelMessage err = %v, want ErrSystemChannelDelete", ch, err)
+		}
+
+		router := editRouter(svc, "ana", allowAll{}, fakeAccess{})
+		req := httptest.NewRequest(http.MethodDelete, "/api/channels/"+ch+"/messages/m1", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("%s: status = %d, want 403", ch, rec.Code)
+		}
+	}
+}
 
 func TestValidateEmoji(t *testing.T) {
 	valid := []string{"👍", "❤️", "😂", "🔥", "🎉", "👀", "👨‍💻"}

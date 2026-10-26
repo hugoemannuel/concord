@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../Modal'
 import Avatar from '../Avatar'
+import StyledName from '../StyledName'
 import { useFriendStore } from '../../store/friendStore'
 import { useChatStore } from '../../store/chatStore'
 import { useAuthStore } from '../../store/authStore'
@@ -64,7 +65,8 @@ function QuickSwitcherModal({
             ? `${(c.members ?? []).length} membros`
             : (c.other_user?.username ?? ''),
         route,
-        avatar: c.other_user ? { userId: c.other_user.id, url: c.other_user.avatar_url } : undefined
+        avatar: c.other_user ? { userId: c.other_user.id, url: c.other_user.avatar_url } : undefined,
+        nameStyle: c.type !== 'group' ? c.other_user?.name_style : undefined
       })
     }
     for (const f of friends) {
@@ -76,7 +78,8 @@ function QuickSwitcherModal({
         label: f.display_name || f.username,
         hint: f.username,
         route,
-        avatar: { userId: f.id, url: f.avatar_url }
+        avatar: { userId: f.id, url: f.avatar_url },
+        nameStyle: f.name_style
       })
     }
     for (const s of servers) {
@@ -163,7 +166,13 @@ function QuickSwitcherModal({
                 {item.label.replace(/^#/, '').slice(0, 1).toUpperCase()}
               </span>
             )}
-            <span className="truncate text-sm text-white">{item.label}</span>
+            <span className="truncate text-sm text-white">
+              {item.kind === 'person' ? (
+                <StyledName name={item.label} userId={item.avatar?.userId} style={item.nameStyle} />
+              ) : (
+                item.label
+              )}
+            </span>
             <span className="truncate text-xs text-gray-500">{item.hint}</span>
           </button>
         ))}

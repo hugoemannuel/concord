@@ -159,6 +159,9 @@ func (r *Repository) ListPending(ctx context.Context, userID string) ([]PendingR
 			u.username,
 			u.display_name,
 			u.avatar_url,
+			u.name_font,
+			u.name_effect,
+			u.name_colors,
 			f.created_at
 		FROM friendships f
 		JOIN users u ON u.id = f.requester_id
@@ -181,6 +184,9 @@ func (r *Repository) ListPending(ctx context.Context, userID string) ([]PendingR
 			&r.Username,
 			&r.DisplayName,
 			&r.AvatarURL,
+			&r.NameStyle.Font,
+			&r.NameStyle.Effect,
+			&r.NameStyle.Colors,
 			&r.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -205,6 +211,9 @@ func (r *Repository) ListSent(ctx context.Context, userID string) ([]PendingRequ
 			u.username,
 			u.display_name,
 			u.avatar_url,
+			u.name_font,
+			u.name_effect,
+			u.name_colors,
 			f.created_at
 		FROM friendships f
 		JOIN users u ON u.id = f.addressee_id
@@ -227,6 +236,9 @@ func (r *Repository) ListSent(ctx context.Context, userID string) ([]PendingRequ
 			&r.Username,
 			&r.DisplayName,
 			&r.AvatarURL,
+			&r.NameStyle.Font,
+			&r.NameStyle.Effect,
+			&r.NameStyle.Colors,
 			&r.CreatedAt,
 		); err != nil {
 			return nil, err

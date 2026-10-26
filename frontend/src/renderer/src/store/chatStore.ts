@@ -792,7 +792,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         // O canal "bot" e o que o Maestro escreve nunca avisam nem contam como não lido.
         const quiet =
           msg.author_id === MAESTRO_USER_ID ||
-          useServerStore.getState().channels.some((c) => c.id === msg.channel_id && c.is_system)
+          useServerStore.getState().channels.some(
+            (c) => c.id === msg.channel_id && c.is_system && c.name === 'bot'
+          )
         const decision = quiet
           ? { notify: false, unread: false, mention: false }
           : meUser && serverId && msg.channel_id
@@ -1349,7 +1351,8 @@ function applyUserUpdate(profile: PublicProfile): void {
   useProfileStore.getState().apply(profile)
   const look = {
     display_name: profile.display_name,
-    avatar_url: profile.avatar_url ?? null
+    avatar_url: profile.avatar_url ?? null,
+    ...(profile.name_style ? { name_style: profile.name_style } : {})
   }
 
   const auth = useAuthStore.getState()

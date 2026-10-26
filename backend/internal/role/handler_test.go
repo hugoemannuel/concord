@@ -16,7 +16,8 @@ func request(t *testing.T, userID, method, path, body string) *httptest.Response
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	f, rec := newFake(), &recorder{}
-	f.snap.Roles["mod"] = Role{ID: "mod", ServerID: "s1", Name: permission.ModeratorName, Position: 1, Permissions: permission.DefaultModerator}
+	f.snap.Roles["mod"] = Role{ID: "mod", ServerID: "s1", Name: permission.ModeratorName, Position: 2, Permissions: permission.DefaultModerator}
+	f.snap.Roles["bots"] = Role{ID: "bots", ServerID: "s1", Name: permission.BotsRoleName, Position: 1, Hoist: true, IsSystem: true}
 	router := gin.New()
 	auth := func(c *gin.Context) {
 		if userID != "" {
@@ -63,6 +64,10 @@ func TestHandlerStatusAndCodes(t *testing.T) {
 		{"editar inexistente", "gerente", http.MethodPatch, "/roles/nada", `{"name":"x"}`, http.StatusNotFound, "role_not_found"},
 		{"renomear @everyone", "dono", http.MethodPatch, "/roles/everyone", `{"name":"x"}`, http.StatusBadRequest, "everyone_role"},
 		{"apagar @everyone", "dono", http.MethodDelete, "/roles/everyone", "", http.StatusBadRequest, "everyone_role"},
+		{"renomear Bots", "dono", http.MethodPatch, "/roles/bots", `{"name":"x"}`, http.StatusForbidden, "bot_role"},
+		{"apagar Bots", "dono", http.MethodDelete, "/roles/bots", "", http.StatusForbidden, "bot_role"},
+		{"dar Bots a usuário", "dono", http.MethodPut, "/members/ana/roles/bots", "", http.StatusForbidden, "bot_role"},
+		{"tirar Bots de membro", "dono", http.MethodDelete, "/members/ana/roles/bots", "", http.StatusForbidden, "bot_role"},
 		{"apagar cargo", "gerente", http.MethodDelete, "/roles/vip", "", http.StatusOK, ""},
 		{"ordem inválida", "dono", http.MethodPut, "/roles/order", `{"role_ids":["vip"]}`, http.StatusBadRequest, "invalid"},
 		{"dar cargo", "gerente", http.MethodPut, "/members/ana/roles/vip", "", http.StatusOK, ""},

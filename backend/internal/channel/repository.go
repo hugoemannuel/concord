@@ -145,10 +145,15 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 	return ch, nil
 }
 
-// FindSystemByServerID: o canal de sistema ("bot") do servidor; ErrChannelNotFound se não tem.
-func (r *Repository) FindSystemByServerID(ctx context.Context, serverID string) (*Channel, error) {
+// FindSystemByName: canal de sistema do servidor pelo nome ("bot" ou "avisos").
+func (r *Repository) FindSystemByName(ctx context.Context, serverID string, names ...string) (*Channel, error) {
 	var id string
-	err := r.db.QueryRow(ctx, `SELECT id FROM channels WHERE server_id = $1 AND is_system`, serverID).Scan(&id)
+	err := r.db.QueryRow(
+		ctx,
+		`SELECT id FROM channels WHERE server_id = $1 AND is_system AND name = ANY($2) LIMIT 1`,
+		serverID,
+		names,
+	).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrChannelNotFound
 	}
@@ -156,6 +161,26 @@ func (r *Repository) FindSystemByServerID(ctx context.Context, serverID string) 
 		return nil, err
 	}
 	return r.FindByID(ctx, id)
+}
+
+// FindSystemByServerID: o canal de sistema ("bot") do servidor; ErrChannelNotFound se não tem.
+func (r *Repository) FindSystemByServerID(ctx context.Context, serverID string) (*Channel, error) {
+	return r.FindSystemByName(ctx, serverID, SystemChannelName, "bot-maestro")
+}
+
+// FindNoticesByServerID: o canal de sistema ("avisos") do servidor; ErrChannelNotFound se não tem.
+func (r *Repository) FindNoticesByServerID(ctx context.Context, serverID string) (*Channel, error) {
+	return r.FindSystemByName(ctx, serverID, NoticesChannelName, "avisos-sistema")
+}
+
+// IsSystemChannel diz se o canal é de sistema ("bot" ou "avisos").
+func (r *Repository) IsSystemChannel(ctx context.Context, channelID string) (bool, error) {
+	var isSystem bool
+	err := r.db.QueryRow(ctx, `SELECT is_system FROM channels WHERE id = $1`, channelID).Scan(&isSystem)
+	if err != nil {
+		return false, err
+	}
+	return isSystem, nil
 }
 
 func (r *Repository) ChannelServerID(ctx context.Context, channelID string) (string, error) {
