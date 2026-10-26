@@ -101,14 +101,7 @@ func (r *Repository) Create(ctx context.Context, msg *Message) error {
 }
 
 func (r *Repository) FindByID(ctx context.Context, id string) (*Message, error) {
-	msg := &Message{Author: &Author{}}
-	var replyID, replyAuthorID, replyUsername, replyDisplayName, replyContent *string
-	var replyAvatarURL *string
-	var replyStyle namestyle.Style
-	var stickerServerID, stickerName, stickerContentType *string
-	var rawGifMeta []byte
-
-	err := r.db.QueryRow(
+	row := r.db.QueryRow(
 		ctx,
 		`
 		SELECT `+messageColumns+`
@@ -116,62 +109,13 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Message, error) 
 		WHERE m.id = $1
 		`,
 		id,
-	).Scan(
-		&msg.ID,
-		&msg.AuthorID,
-		&msg.Author.Username,
-		&msg.Author.DisplayName,
-		&msg.Author.AvatarURL,
-		&msg.Author.NameStyle,
-		&msg.ChannelID,
-		&msg.ConversationID,
-		&msg.ReplyToID,
-		&msg.Content,
-		&msg.SystemKind,
-		&msg.MentionEveryone,
-		&msg.CreatedAt,
-		&msg.EditedAt,
-		&replyID,
-		&replyAuthorID,
-		&replyUsername,
-		&replyDisplayName,
-		&replyAvatarURL,
-		&replyStyle,
-		&replyContent,
-		&msg.StickerID,
-		&stickerServerID,
-		&stickerName,
-		&stickerContentType,
-		&msg.GifURL,
-		&rawGifMeta,
-		&msg.StickerID,
-		&stickerServerID,
-		&stickerName,
-		&stickerContentType,
-		&msg.GifURL,
-		&rawGifMeta,
 	)
+	found, err := scanMessageRow(row)
 	if err != nil {
 		return nil, err
 	}
-	msg.Author.ID = msg.AuthorID
+	msg := &found
 
-	if replyID != nil && replyAuthorID != nil && replyUsername != nil && replyDisplayName != nil && replyContent != nil {
-		msg.ReplyTo = &ReplyPreview{
-			ID:       *replyID,
-			AuthorID: *replyAuthorID,
-			Author: &Author{
-				ID:          *replyAuthorID,
-				Username:    *replyUsername,
-				DisplayName: *replyDisplayName,
-				AvatarURL:   replyAvatarURL,
-				NameStyle:   replyStyle,
-			},
-			Content: *replyContent,
-		}
-	}
-
-	populateMedia(msg, stickerServerID, stickerName, stickerContentType, rawGifMeta)
 	msgs := []Message{*msg}
 	if err := r.attachReactions(ctx, msgs); err != nil {
 		return nil, err
@@ -474,7 +418,9 @@ func scanMessages(rows rowScanner) ([]Message, error) {
 
 // scanMessageRow lê uma linha de messageColumns; extra recebe as colunas
 // que vierem depois delas.
-func scanMessageRow(rows rowScanner, extra ...any) (Message, error) {
+func scanMessageRow(rows interface {
+	Scan(dest ...interface{}) error
+}, extra ...any) (Message, error) {
 	var msg Message
 	var replyID, replyAuthorID, replyUsername, replyDisplayName, replyContent *string
 	var replyAvatarURL *string

@@ -228,3 +228,36 @@ func TestUpdateContentDB(t *testing.T) {
 		t.Fatalf("lista depois da edição fora de ordem ou sem edited_at: %+v", list)
 	}
 }
+
+type countingScanner struct{ n int }
+
+func (c *countingScanner) Scan(dest ...interface{}) error {
+	c.n = len(dest)
+	return nil
+}
+
+// O Scan do pgx exige um destino por coluna; destino a mais ou a menos dá
+// "number of field descriptions must equal number of destinations" e quebra
+// toda leitura de mensagem. FindByID e as listagens usam scanMessageRow.
+func TestScanMessageRowMatchesColumns(t *testing.T) {
+	var c countingScanner
+	if _, err := scanMessageRow(&c); err != nil {
+		t.Fatal(err)
+	}
+	cols, depth := 1, 0
+	for _, r := range messageColumns {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				cols++
+			}
+		}
+	}
+	if c.n != cols {
+		t.Fatalf("scanMessageRow tem %d destinos, messageColumns tem %d colunas", c.n, cols)
+	}
+}
