@@ -1,0 +1,95 @@
+# Release do projeto open source: a cada tag v<versão> (ex.: v0.9.0) gera o
+# app genérico (Windows e Linux, pergunta o servidor na tela inicial) e o
+# pacote do servidor para VPS, e publica tudo num GitHub Release. Cada
+# servidor instalado pelo "Hospedar um servidor" se atualiza por aqui
+# (server-latest.yml do release mais novo); nada passa pela VPS oficial.
+#
+# Configuração (Settings → Secrets and variables → Actions):
+#   Secrets:
+#     RELEASE_KEY_OSS  chave Ed25519 que assina o app genérico e o servidor
+#                      (openssl genpkey -algorithm ed25519). Diferente da
+#                      RELEASE_KEY da VPS oficial: uma não vale pela outra.
+#
+# Para publicar: git tag v0.9.0 && git push origin v0.9.0
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Versão da tag
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag inválida: $GITHUB_REF_NAME"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Backend e salinha-host antes de gerar qualquer coisa: não publica versão quebrada.
+      - name: Testes do servidor
+        working-directory: backend
+        run: |
+          go vet ./...
+          GOOS=windows go vet ./internal/hostkit/ ./cmd/salinha-host/
+          go test ./internal/hostkit/ ./internal/auth/
+
+      - name: Chave de assinatura
+        env:
+          RELEASE_KEY_OSS: ${{ secrets.RELEASE_KEY_OSS }}
+        run: |
+          printf '%s' "$RELEASE_KEY_OSS" | scripts/write-key.sh backend/.release-key-oss "PRIVATE KEY"
+          if ! openssl pkey -in backend/.release-key-oss -noout 2>/dev/null; then
+            echo "::error::secret RELEASE_KEY_OSS inválido — cole a chave inteira (com as linhas BEGIN/END)"
+            exit 1
+          fi
+          echo "chave pública do projeto:"
+          openssl pkey -in backend/.release-key-oss -pubout
+
+      - name: Gerar o release
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq unzip xz-utils >/dev/null
+          npm i -g yarn@1.22.22
+          scripts/release-oss.sh "${{ steps.version.outputs.version }}"
+
+      - name: Publicar no GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          notes=$(mktemp)
+          {
+            echo "## Instalar"
+            echo
+            echo "- **Windows:** baixe \`Salinha-$version-setup.exe\`."
+            echo "- **Linux x64:** baixe \`Salinha-$version-x64.AppImage\`."
+            echo
+            echo "Ao abrir, escolha **Entrar num servidor** (cole o endereço que te passaram) ou **Hospedar um servidor** (instala na sua VPS e devolve o endereço para mandar aos amigos). Veja [docs/INSTALADOR.md](https://github.com/${{ github.repository }}/blob/main/docs/INSTALADOR.md)."
+            echo
+            if grep -q '[^[:space:]]' changelog/next.md 2>/dev/null; then cat changelog/next.md; fi
+          } > "$notes"
+          gh release create "v$version" dist/release/* --title "Salinha $version" --notes-file "$notes"
+
+      - name: Limpar chave
+        if: always()
+        run: rm -f backend/.release-key-oss

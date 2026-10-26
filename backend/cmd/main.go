@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -188,6 +189,15 @@ func main() {
 	// SIGTERM (systemctl restart/stop) ou Ctrl+C: desliga com calma (ver lifecycle.Run).
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
+	// Salinha Servidor (internal/hostkit): no Windows não há SIGTERM para um
+	// processo sem console, então o supervisor pede o desligamento com calma
+	// fechando o stdin (e, se ele morrer, o stdin fecha sozinho).
+	if os.Getenv("STOP_ON_STDIN_EOF") == "1" {
+		go func() {
+			_, _ = io.Copy(io.Discard, os.Stdin)
+			stop()
+		}()
+	}
 
 	databaseURL := os.Getenv("DATABASE_URL")
 
@@ -500,6 +510,13 @@ func main() {
 		appURL = "http://localhost:5173"
 	}
 	emailService := auth.NewEmailService(authRepository, userService, authService, mailer.FromEnv(), appURL)
+	// Servidor sem SMTP (instalador do host): ninguém receberia o link, então a
+	// conta já nasce confirmada e o RequireVerified deixa passar.
+	emailVerificationOff := strings.EqualFold(strings.TrimSpace(os.Getenv("EMAIL_VERIFICATION")), "off")
+	if emailVerificationOff {
+		emailService.WithAutoVerify()
+		log.Println("confirmação de e-mail desligada (EMAIL_VERIFICATION=off)")
+	}
 	authHandler := auth.AuthHandler(authService, userService).WithEmail(emailService)
 	auth.AuthRoutes(api, authHandler, authMiddleware)
 
@@ -509,6 +526,9 @@ func main() {
 	user.ProfileRoutes(api, profileHandler, authMiddleware)
 	friendship.FriendRoutes(api, friendshipHandler, authMiddleware)
 	requireVerified := auth.RequireVerified(func(ctx context.Context, id string) (bool, error) {
+		if emailVerificationOff {
+			return true, nil
+		}
 		u, err := userService.FindByID(ctx, id)
 		if err != nil {
 			return false, err

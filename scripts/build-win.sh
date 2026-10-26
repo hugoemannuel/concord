@@ -8,23 +8,34 @@
 # (electronuserland/builder:wine) para não precisar de wine na máquina.
 set -euo pipefail
 
+#   scripts/build-win.sh --generic
+#
+# --generic: o instalador do GitHub Releases, sem servidor embutido (a tela
+# inicial pergunta; scripts/release-oss.sh). Leva junto o salinha-host do
+# "Hospedar um servidor" (scripts/build-host-deployer.sh).
 SERVER_URL="${1:-}"
 if [[ -z "$SERVER_URL" ]]; then
-  echo "uso: $0 http://endereco-publico:porta" >&2
+  echo "uso: $0 http://endereco-publico:porta | --generic" >&2
   exit 1
 fi
-if [[ ! "$SERVER_URL" =~ ^https?:// ]]; then
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ "$SERVER_URL" == "--generic" ]]; then
+  SERVER_URL=""
+  # O app troca pelo <servidor escolhido>/updates/ ao abrir (serverSwitch.ts);
+  # este só preenche o app-update.yml do electron-builder.
+  UPDATE_URL="http://127.0.0.1/updates/"
+  "$ROOT/scripts/build-host-deployer.sh" windows
+elif [[ ! "$SERVER_URL" =~ ^https?:// ]]; then
   echo "o endereço precisa começar com http:// ou https:// (recebido: $SERVER_URL)" >&2
   exit 1
+else
+  UPDATE_URL="${SERVER_URL%/}/updates/"
 fi
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$ROOT/frontend/dist"
 
 # Alvos (portable + instalador por padrão; release-win.sh usa só nsis) e a
 # chave pública que valida atualizações (vazia = app sem auto-update).
 BUILD_TARGETS="${BUILD_TARGETS:-portable nsis}"
-UPDATE_URL="${SERVER_URL%/}/updates/"
 
 # Helper nativo do som da janela (Rust → concord-audio.exe), embutido no app.
 docker build -q -t concord-rust-win "$ROOT/native/concord-audio" >/dev/null
@@ -65,5 +76,5 @@ docker run --rm \
   '
 
 echo
-echo "Pronto. Servidor embutido: $SERVER_URL"
+echo "Pronto. Servidor embutido: ${SERVER_URL:-nenhum (build genérico)}"
 ls -lh "$ROOT"/frontend/dist/*.exe

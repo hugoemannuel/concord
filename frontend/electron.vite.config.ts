@@ -3,28 +3,28 @@ import { defineConfig } from 'electron-vite'
 import { buildConnectSrc, buildMediaSrc } from './src/renderer/src/lib/serverUrl'
 import { cspPlugin, rendererShared } from './vite.renderer.shared'
 
-// A CSP do renderer precisa liberar o servidor embutido no build (API,
-// WebSocket e os arquivos de mídia do chat).
-const connectSrcPlugin = cspPlugin(
-  buildConnectSrc(process.env.VITE_SERVER_URL),
-  buildMediaSrc(process.env.VITE_SERVER_URL)
-)
+const serverUrl = process.env.VITE_SERVER_URL?.trim() ?? ''
 
-// Atualizações: servidas pelo próprio servidor e assinadas pelo dono.
-const serverUrl = process.env.VITE_SERVER_URL?.trim()
-const updateUrl = serverUrl ? new URL('/updates/', serverUrl).toString() : ''
-
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   main: {
     define: {
-      __CONCORD_UPDATE_URL__: JSON.stringify(updateUrl),
+      // Vazio = build genérico: o servidor vem da tela inicial (serverSwitch.ts)
+      // e as atualizações de <servidor>/updates/, assinadas pelo projeto.
+      __CONCORD_SERVER_URL__: JSON.stringify(serverUrl),
       __CONCORD_UPDATE_PUBKEY__: JSON.stringify(process.env.CONCORD_UPDATE_PUBKEY ?? '')
     }
   },
   preload: {},
   renderer: {
     // Aliases, plugins e assets: iguais aos do build web (vite.renderer.shared.ts).
-    ...rendererShared(connectSrcPlugin),
+    // A CSP precisa liberar o servidor (API, WebSocket e mídia do chat). Com o
+    // servidor embutido (ou no dev, com o backend local) ela sai pronta; no
+    // build genérico os marcadores ficam e o main os preenche ao abrir.
+    ...rendererShared(
+      ...(serverUrl || command === 'serve'
+        ? [cspPlugin(buildConnectSrc(serverUrl), buildMediaSrc(serverUrl))]
+        : [])
+    ),
     // Duas páginas: o app e o overlay de jogo (janela à parte, sem rede).
     build: {
       rollupOptions: {
@@ -35,4 +35,4 @@ export default defineConfig({
       }
     }
   }
-})
+}))

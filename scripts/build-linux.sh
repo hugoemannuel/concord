@@ -4,15 +4,25 @@
 #   - Salinha-<versão>-x64.tar.gz: o mesmo app + salinha-launcher, para a
 #     instalação por usuário sem FUSE (site/install.sh e o updater próprio do
 #     Linux em src/main/linuxUpdater.ts). O manifesto dele é do release-linux.sh.
-# Uso: scripts/build-linux.sh https://endereco-publico
+# Uso: scripts/build-linux.sh https://endereco-publico | --generic
+#
+# --generic: o build do GitHub Releases, sem servidor embutido (a tela inicial
+# pergunta), com o salinha-host do "Hospedar um servidor" junto.
 set -euo pipefail
 
 SERVER_URL="${1:-}"
-if [[ ! "$SERVER_URL" =~ ^https?:// ]]; then
-  echo "uso: $0 http(s)://endereco-publico" >&2
-  exit 1
-fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ "$SERVER_URL" == "--generic" ]]; then
+  SERVER_URL=""
+  # O app troca pelo <servidor escolhido>/updates/ ao abrir (serverSwitch.ts).
+  UPDATE_URL="http://127.0.0.1/updates/"
+  "$ROOT/scripts/build-host-deployer.sh" linux
+elif [[ ! "$SERVER_URL" =~ ^https?:// ]]; then
+  echo "uso: $0 http(s)://endereco-publico | --generic" >&2
+  exit 1
+else
+  UPDATE_URL="${SERVER_URL%/}/updates/"
+fi
 mkdir -p "$ROOT/frontend/dist"
 
 docker run --rm --platform linux/amd64 \
@@ -20,7 +30,7 @@ docker run --rm --platform linux/amd64 \
   -v "$ROOT/frontend/dist:/out" \
   -v concord-builder-linux-cache:/root/.cache \
   -e VITE_SERVER_URL="$SERVER_URL" \
-  -e CONCORD_UPDATE_URL="${SERVER_URL%/}/updates/" \
+  -e CONCORD_UPDATE_URL="$UPDATE_URL" \
   -e CONCORD_UPDATE_PUBKEY="${CONCORD_UPDATE_PUBKEY:-}" \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   electronuserland/builder:22 \
@@ -43,4 +53,4 @@ docker run --rm --platform linux/amd64 \
     chown "$HOST_UID:$HOST_GID" /out/*.AppImage /out/*.tar.gz /out/latest-linux.yml
   '
 
-echo "AppImage e .tar.gz gerados em frontend/dist (servidor: $SERVER_URL)"
+echo "AppImage e .tar.gz gerados em frontend/dist (servidor: ${SERVER_URL:-nenhum, build genérico})"

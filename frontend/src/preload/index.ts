@@ -4,6 +4,8 @@ import type { OverlaySnapshot } from '../renderer/src/lib/overlayState'
 import type { OverlayFrame, OverlayLayout } from '../renderer/src/lib/overlayLayout'
 import type { CallResume, PendingCallResume } from '../shared/callResume'
 import type { AppMetrics } from '../shared/appMetrics'
+import { serverUrlFromArgv, type ProbeResult, type ServerInfo } from '../shared/serverAddress'
+import type { HostEvent, VpsForm } from '../shared/hostServer'
 
 interface ScreenSourceInfo {
   id: string
@@ -15,6 +17,48 @@ interface ScreenSourceInfo {
 
 // Custom APIs for renderer
 const api = {
+  server: {
+    /** Servidor desta execução (o main passa por argumento); undefined = tela inicial. */
+    url: serverUrlFromArgv(process.argv),
+    info(): Promise<ServerInfo> {
+      return ipcRenderer.invoke('server:info')
+    },
+    /** Confere se o endereço é um servidor da Salinha no ar. */
+    probe(address: string): Promise<ProbeResult> {
+      return ipcRenderer.invoke('server:probe', address)
+    },
+    /** Confere, salva e reabre o app falando com ele. */
+    connect(address: string): Promise<ProbeResult> {
+      return ipcRenderer.invoke('server:connect', address)
+    },
+    /** Esquece o servidor e reabre na tela inicial (saia da conta antes). */
+    forget(): Promise<boolean> {
+      return ipcRenderer.invoke('server:forget')
+    }
+  },
+  host: {
+    /** Instala o servidor na VPS pelo SSH (andamento em onEvent). */
+    deploy(form: VpsForm): Promise<boolean> {
+      return ipcRenderer.invoke('host:deploy', form)
+    },
+    /** Escolher o arquivo da chave SSH; null = cancelou. */
+    pickKey(): Promise<string | null> {
+      return ipcRenderer.invoke('host:pick-key')
+    },
+    /** A VPS foi reinstalada: esquece a identidade antiga dela. */
+    forgetKey(host: string): Promise<boolean> {
+      return ipcRenderer.invoke('host:forget-key', host)
+    },
+    /** Entra no servidor recém-instalado (endereço público) e reabre o app. */
+    finish(): Promise<boolean> {
+      return ipcRenderer.invoke('host:finish')
+    },
+    onEvent(cb: (event: HostEvent) => void): () => void {
+      const listener = (_e: unknown, event: HostEvent): void => cb(event)
+      ipcRenderer.on('host:event', listener)
+      return () => ipcRenderer.removeListener('host:event', listener)
+    }
+  },
   appMetrics: {
     sample(reset = false): Promise<AppMetrics | null> {
       return ipcRenderer.invoke('app-metrics:sample', reset)

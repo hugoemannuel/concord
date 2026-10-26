@@ -18,12 +18,37 @@ import ModerationHost from './components/ModerationHost'
 import TitleBar from './components/TitleBar'
 import WebNotificationBridge from './components/WebNotificationBridge'
 import WebLeaveGuard from './components/WebLeaveGuard'
-import { IS_WEB } from './lib/config'
+import { IS_WEB, NEEDS_SERVER } from './lib/config'
+import { getSetupRouter } from './setupRouter'
 import { currentPlatform, hasCustomTitleBar } from './lib/titleBar'
 
 const customTitleBar = hasCustomTitleBar(currentPlatform())
 
+/** Moldura com a barra de título própria (Windows), como o app normal. */
+function Frame({ children }: { children: React.ReactNode }): React.JSX.Element {
+  if (!customTitleBar) return <>{children}</>
+  return (
+    <div className="flex h-full flex-col">
+      <TitleBar />
+      <div className="relative min-h-0 flex-1">{children}</div>
+    </div>
+  )
+}
+
 function App(): React.JSX.Element {
+  // Build genérico, primeira vez: só a tela inicial (sem servidor não há
+  // conta, chat nem atualizações para ligar).
+  if (NEEDS_SERVER) {
+    return (
+      <>
+        <Background />
+        <ToastContainer />
+        <Frame>
+          <RouterProvider router={getSetupRouter()} />
+        </Frame>
+      </>
+    )
+  }
   return (
     <>
       <Background />
@@ -51,16 +76,9 @@ function App(): React.JSX.Element {
       <SettingsScreen />
       <ServerSettingsScreen />
       <ModerationHost />
-      {customTitleBar ? (
-        <div className="flex h-full flex-col">
-          <TitleBar />
-          <div className="relative min-h-0 flex-1">
-            <RouterProvider router={router} />
-          </div>
-        </div>
-      ) : (
+      <Frame>
         <RouterProvider router={router} />
-      )}
+      </Frame>
     </>
   )
 }

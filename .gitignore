@@ -31,11 +31,15 @@ backend/concord-server
 # ─── Releases do app (scripts/release-win.sh) ───────────────────
 backend/updates/
 backend/.release-key
+# Chave do instalador do GitHub Releases (scripts/release-oss.sh)
+backend/.release-key-oss
 
 # ─── Mídia do chat (UPLOADS_DIR em dev) ─────────────────────────
 backend/uploads/
 
 # ─── Helper nativo (gerado no build) ────────────────────────────
 frontend/resources/win/
+# salinha-host do "Hospedar um servidor" (scripts/build-host-deployer.sh)
+frontend/resources/host/
 native/concord-audio/target/
 .superpowers/

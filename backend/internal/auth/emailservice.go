@@ -63,6 +63,15 @@ type EmailService struct {
 	// async roda o envio fora do pedido (trocável nos testes). Uma falha de SMTP
 	// nunca pode quebrar o cadastro nem mostrar se a conta existe.
 	async func(func())
+	// autoVerify: servidor sem SMTP (EMAIL_VERIFICATION=off, instalador do
+	// host): a conta já nasce confirmada em vez de esperar um e-mail que não sai.
+	autoVerify bool
+}
+
+// WithAutoVerify confirma o e-mail no cadastro (e no reenvio) sem mandar nada.
+func (s *EmailService) WithAutoVerify() *EmailService {
+	s.autoVerify = true
+	return s
 }
 
 func NewEmailService(repo *Repository, users *user.Service, sessions *Service, m mailer.Mailer, appURL string) *EmailService {
@@ -93,6 +102,18 @@ func hashEmailToken(token string) string {
 
 // SendVerification envia (em segundo plano) o link de confirmação de e-mail.
 func (s *EmailService) SendVerification(u *user.User) {
+	if s.autoVerify {
+		// Na hora (não em segundo plano): a resposta do cadastro já sai confirmada.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.users.MarkEmailVerified(ctx, u.ID); err != nil {
+			log.Printf("[auth] confirmar e-mail de %s: %v", u.ID, err)
+			return
+		}
+		now := time.Now()
+		u.EmailVerifiedAt = &now
+		return
+	}
 	s.sendLater(u, purposeVerifyEmail, verifyEmailTTL, mailer.VerifyEmail)
 }
 
@@ -177,5 +198,6 @@ func (s *EmailService) Resend(ctx context.Context, userID string) (bool, error) 
 		return false, nil
 	}
 	s.SendVerification(u)
-	return true, nil
+	// Sem SMTP a conta foi confirmada agora: nada foi enviado.
+	return !s.autoVerify, nil
 }

@@ -27,6 +27,10 @@ import { setupToasts } from './toasts'
 import { TITLE_BAR_COLOR, titleBarOptions } from './windowPolicy'
 import { isSafeExternalUrl } from '../shared/externalUrl'
 import { contextMenuItems } from './contextMenu'
+import { bootServer, serveRendererCsp, setupServerSwitch, type BootServer } from './serverSwitch'
+import { updateFeedUrl } from './serverConfig'
+import { setupHostServer } from './hostSetup'
+import { SERVER_ARG } from '../shared/serverAddress'
 import {
   audioLogPath,
   hwndFromSourceId,
@@ -37,6 +41,8 @@ import {
 } from './screenAudio'
 
 let mainWindow: BrowserWindow | null = null
+/** Servidor desta execução: embutido no build ou escolhido na tela inicial. */
+let server: BootServer = { url: null, fixed: false }
 
 // Picker de tela (Fase 3): o getDisplayMedia do renderer dispara este handler,
 // que pede ao renderer para abrir o modal de seleção e resolve com a fonte
@@ -166,6 +172,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      // O preload entrega ao renderer antes do config.ts rodar (sem servidor:
+      // tela inicial).
+      additionalArguments: server.url ? [`${SERVER_ARG}${server.url}`] : [],
       sandbox: false,
       // Sem isso o Chromium reduz timers/render da janela em segundo plano e a
       // live (captura de tela/WebRTC) trava para quem assiste.
@@ -252,6 +261,14 @@ app.whenReady().then(() => {
   // Sem a barra "File Edit View Window" padrão do Electron (aparecia no Alt).
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
 
+  // Dev = renderer servido pelo Vite (yarn dev); o build rodando sem empacotar
+  // (electron-vite preview) se comporta como o instalado.
+  server = bootServer(is.dev && Boolean(process.env['ELECTRON_RENDERER_URL']))
+  // Build genérico: a CSP do index.html é preenchida com o servidor escolhido.
+  if (!server.fixed) serveRendererCsp(join(__dirname, '../renderer/index.html'), server.url)
+  setupServerSwitch(() => mainWindow, server)
+  setupHostServer(() => mainWindow)
+
   registerScreenShareHandlers()
   registerScreenAudio()
   setupBackground(() => mainWindow, icon)
@@ -261,7 +278,7 @@ app.whenReady().then(() => {
   setupGames(() => mainWindow)
   setupAppMetrics(() => mainWindow)
   setupUpdater(() => mainWindow, {
-    feedUrl: __CONCORD_UPDATE_URL__,
+    feedUrl: updateFeedUrl(server.url),
     publicKeyPem: __CONCORD_UPDATE_PUBKEY__
   })
 

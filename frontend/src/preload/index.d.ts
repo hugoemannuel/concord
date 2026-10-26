@@ -3,6 +3,35 @@ import type { OverlaySnapshot } from '../renderer/src/lib/overlayState'
 import type { OverlayFrame, OverlayLayout } from '../renderer/src/lib/overlayLayout'
 import type { CallResume, PendingCallResume } from '../shared/callResume'
 import type { AppMetrics } from '../shared/appMetrics'
+import type { ProbeResult, ServerInfo } from '../shared/serverAddress'
+import type { HostEvent, VpsForm } from '../shared/hostServer'
+
+/** "Hospedar um servidor" numa VPS (salinha-host deploy). */
+export interface HostApi {
+  /** Instala o servidor na VPS pelo SSH (andamento em onEvent). false = falhou ou ocupado. */
+  deploy(form: VpsForm): Promise<boolean>
+  /** Escolher o arquivo da chave SSH; null = cancelou. */
+  pickKey(): Promise<string | null>
+  /** A VPS foi reinstalada: esquece a identidade antiga dela. */
+  forgetKey(host: string): Promise<boolean>
+  /** Entra no servidor recém-instalado (endereço público) e reabre o app. */
+  finish(): Promise<boolean>
+  /** Eventos do andamento. Retorna unsubscribe. */
+  onEvent(cb: (event: HostEvent) => void): () => void
+}
+
+/** Servidor do app (build genérico: escolhido na tela inicial). */
+export interface ServerApi {
+  /** Servidor desta execução; undefined = nenhum ainda (tela inicial). */
+  url: string | undefined
+  info(): Promise<ServerInfo>
+  /** Confere se o endereço é um servidor da Salinha no ar. */
+  probe(address: string): Promise<ProbeResult>
+  /** Confere, salva e reabre o app falando com ele. */
+  connect(address: string): Promise<ProbeResult>
+  /** Esquece o servidor e reabre na tela inicial (saia da conta antes). */
+  forget(): Promise<boolean>
+}
 
 export interface ScreenSourceInfo {
   id: string
@@ -154,6 +183,8 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api?: {
+      server?: ServerApi
+      host?: HostApi
       appMetrics?: { sample(reset?: boolean): Promise<AppMetrics | null> }
       screenPicker: ScreenPickerApi
       background?: BackgroundApi

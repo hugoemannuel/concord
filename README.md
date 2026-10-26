@@ -153,9 +153,23 @@ concord/
         └── renderer/ # app React (api, store, components, pages, lib, overlay)
 ```
 
+## 📥 Instalar
+
+Baixe o instalador no **[GitHub Releases](https://github.com/hugoemannuel/concord/releases)**
+(`Salinha-<versão>-setup.exe` no Windows, `Salinha-<versão>-x64.AppImage` no
+Linux x64). Na primeira vez, escolha:
+
+- **Entrar num servidor:** cole o endereço que te passaram.
+- **Hospedar um servidor:** informe o IP e o acesso root da sua VPS (Debian 12+
+  ou Ubuntu 22.04+); o app instala tudo lá, com HTTPS, voz e vídeo, e devolve o
+  endereço para mandar aos amigos. Servidor e app se atualizam sozinhos pelo
+  GitHub Releases.
+
+Detalhes, requisitos e manutenção: **[docs/INSTALADOR.md](docs/INSTALADOR.md)**.
+
 ## 🚀 Como rodar
 
-> **Hospedar para os amigos** (este PC como servidor, amigos baixam o `.exe` ou AppImage Linux x64):
+> **Hospedar à mão** (Docker, playit ou a VPS oficial com deploy automático):
 > veja **[docs/HOSPEDAGEM.md](docs/HOSPEDAGEM.md)**.
 
 ### Distribuição desktop
@@ -337,6 +351,7 @@ yarn build:linux  # instalador Linux
 
 ## 📚 Documentação
 
+- [docs/INSTALADOR.md](docs/INSTALADOR.md): instalador do GitHub (entrar num servidor ou hospedar numa VPS)
 - [docs/HOSPEDAGEM.md](docs/HOSPEDAGEM.md): hospedar para os amigos e rodar numa VPS
 - [docs/CARGOS.md](docs/CARGOS.md): cargos, permissões e hierarquia
 - [docs/ATIVIDADE.md](docs/ATIVIDADE.md): jogo em andamento (rich presence)

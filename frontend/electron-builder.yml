@@ -15,6 +15,7 @@ files:
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!resources/win/**'
+  - '!resources/host/**'
   - '!**/*.test.ts'
 asarUnpack:
   - resources/**
@@ -55,6 +56,10 @@ win:
   extraResources:
     - from: resources/win/concord-audio.exe
       to: concord-audio.exe
+    # Build genérico: o salinha-host do "Hospedar um servidor" (instala na VPS
+    # pelo SSH). Gerado por scripts/build-host-deployer.sh; o build oficial não tem.
+    - from: resources/host/salinha-host.exe
+      to: host/salinha-host.exe
   target:
     - portable
     - nsis
@@ -88,6 +93,10 @@ dmg:
 linux:
   icon: resources/icon.png
   executableName: salinha
+  # Build genérico: o salinha-host do "Hospedar um servidor" (scripts/build-host-deployer.sh).
+  extraResources:
+    - from: resources/host/salinha-host
+      to: host/salinha-host
   target:
     - AppImage
   category: Network

@@ -14,6 +14,7 @@ import { browserPermission, requestBrowserPermission } from '../lib/browserNotif
 import LevelUpPreview from './level/LevelUpPreview'
 import Switch from './Switch'
 import MutedNotifications from './MutedNotifications'
+import ServerSettings from './settings/ServerSettings'
 
 /** Linha com título, descrição e o interruptor, como nas configurações do Discord. */
 export function Toggle({
@@ -218,6 +219,7 @@ export function DesktopSettings(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-4">
+      <ServerSettings />
       {hasAutostart && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <Toggle
@@ -278,7 +280,7 @@ export function DesktopSettings(): React.JSX.Element {
           </label>
         </div>
       )}
-      {!hasAutostart && !hasOverlay && (
+      {!hasAutostart && !hasOverlay && !window.api?.server?.url && (
         <p className="text-ds-md text-gray-400">Nada para configurar aqui nesta plataforma.</p>
       )}
       {/* Prévia da animação de nível: só no build de dev (some do build final). */}

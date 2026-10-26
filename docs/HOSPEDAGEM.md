@@ -1,5 +1,9 @@
 # Hospedar a Salinha para os amigos
 
+> **O jeito fácil:** o instalador do GitHub Releases instala o servidor numa
+> VPS pelo próprio app, sem nada disto à mão. Veja [INSTALADOR.md](INSTALADOR.md).
+> Este guia é o caminho manual (Docker, playit) e o da VPS oficial.
+
 Este PC é o servidor (backend + Postgres + LiveKit). O **playit.gg** leva o
 tráfego da internet até ele sem abrir porta no roteador. Os amigos só baixam e
 abrem o `.exe`.
