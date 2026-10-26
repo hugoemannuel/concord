@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout'
 import Button from '../components/Button'
+import ConnectionTest from '../components/ConnectionTest'
 import Input from '../components/Input'
 import BirthdayFields from '../components/BirthdayFields'
 import { type BirthdayValue } from '../lib/birthday'
@@ -17,7 +18,7 @@ import {
   type RegisterField
 } from '../lib/authForms'
 import { register } from '../api/auth'
-import { registerErrorMessage } from '../lib/loginError'
+import { registerErrorMessage, isConnectionFailure } from '../lib/loginError'
 import { getMe } from '../api/users'
 import { useAuthStore } from '../store/authStore'
 import { useInviteLinkStore } from '../store/inviteLinkStore'
@@ -41,6 +42,7 @@ function Register(): React.JSX.Element {
   const [birthday, setBirthday] = useState<BirthdayValue>({ day: null, month: null, year: null })
   const [errors, setErrors] = useState<FieldErrors<RegisterField>>({})
   const [error, setError] = useState<string | null>(null)
+  const [offline, setOffline] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const setFieldError = (field: RegisterField, message: string | null): void =>
@@ -56,6 +58,7 @@ function Register(): React.JSX.Element {
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
     setError(null)
+    setOffline(false)
 
     const found = validateRegister({ username, displayName, email, password, confirm, birthday })
     setErrors(found)
@@ -89,6 +92,7 @@ function Register(): React.JSX.Element {
         setErrors({ username: taken, email: taken })
       } else {
         setError(registerErrorMessage(err))
+        setOffline(isConnectionFailure(err))
       }
     } finally {
       setLoading(false)
@@ -179,6 +183,7 @@ function Register(): React.JSX.Element {
             {error}
           </p>
         )}
+        {offline && <ConnectionTest />}
         <Button type="submit" className="mt-1 w-full py-2.5" disabled={loading}>
           {loading ? 'Criando conta...' : 'Continuar'}
         </Button>

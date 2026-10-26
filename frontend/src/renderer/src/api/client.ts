@@ -54,7 +54,7 @@ async function rawRequest<T>(path: string, options: RequestInit = {}, token?: st
     })
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new ApiError(0, 'Request timed out')
+      throw new ApiError(0, 'Request timed out', 'timeout')
     }
     throw err
   } finally {

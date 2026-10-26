@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatInviteCount, inviteErrorMessage } from './invitePreview'
+import { NO_CONNECTION_MESSAGE } from './loginError'
 
 // Mesmo formato do ApiError (status + code), sem importar o client.
 function apiError(status: number, code?: string): Error & { status: number; code?: string } {
@@ -27,6 +28,6 @@ describe('inviteErrorMessage', () => {
     )
     expect(inviteErrorMessage(apiError(500))).toBe('Erro no servidor. Tente de novo em instantes.')
     expect(inviteErrorMessage(new Error('?'))).toBe('Não foi possível abrir o convite.')
-    expect(inviteErrorMessage(new TypeError('Failed to fetch'))).toBe('Sem conexão com o servidor.')
+    expect(inviteErrorMessage(new TypeError('Failed to fetch'))).toBe(NO_CONNECTION_MESSAGE)
   })
 })

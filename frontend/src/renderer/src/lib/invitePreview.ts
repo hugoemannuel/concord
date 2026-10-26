@@ -16,5 +16,5 @@ export function inviteErrorMessage(err: unknown): string {
   if (status === 403 && code === 'email_not_verified') {
     return 'Confirme seu e-mail para entrar no servidor.'
   }
-  return commonMessage(status) ?? 'Não foi possível abrir o convite.'
+  return commonMessage(status, err) ?? 'Não foi possível abrir o convite.'
 }

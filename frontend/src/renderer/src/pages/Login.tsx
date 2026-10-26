@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout'
 import Button from '../components/Button'
+import ConnectionTest from '../components/ConnectionTest'
 import Input from '../components/Input'
 import { login } from '../api/auth'
 import { buildLoginInput, loginIdentifierError } from '../lib/loginIdentifier'
-import { loginErrorMessage } from '../lib/loginError'
+import { isConnectionFailure, loginErrorMessage } from '../lib/loginError'
 import { getMe } from '../api/users'
 import { useAuthStore } from '../store/authStore'
 import { useInviteLinkStore } from '../store/inviteLinkStore'
@@ -27,11 +28,13 @@ function Login(): React.JSX.Element {
   const [identifierErr, setIdentifierErr] = useState<string | null>(null)
   const [passwordErr, setPasswordErr] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [offline, setOffline] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
     setError(null)
+    setOffline(false)
 
     const idError = loginIdentifierError(identifier)
     const pwError = password ? null : 'Informe sua senha.'
@@ -55,6 +58,7 @@ function Login(): React.JSX.Element {
         setPasswordErr(INVALID_LOGIN)
       } else {
         setError(loginErrorMessage(err))
+        setOffline(isConnectionFailure(err))
       }
     } finally {
       setLoading(false)
@@ -110,6 +114,7 @@ function Login(): React.JSX.Element {
             {error}
           </p>
         )}
+        {offline && <ConnectionTest />}
         <Button type="submit" className="w-full py-2.5" disabled={loading}>
           {loading ? 'Entrando...' : 'Entrar'}
         </Button>

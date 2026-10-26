@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { loginErrorMessage, registerErrorMessage } from './loginError'
+import {
+  isConnectionFailure,
+  loginErrorMessage,
+  NO_CONNECTION_MESSAGE,
+  registerErrorMessage,
+  TIMEOUT_MESSAGE
+} from './loginError'
 
 // Mesmo formato do ApiError (status + message), sem importar o client.
-function apiError(status: number, message: string): Error & { status: number } {
-  return Object.assign(new Error(message), { status })
+function apiError(
+  status: number,
+  message: string,
+  code?: string
+): Error & { status: number; code?: string } {
+  return Object.assign(new Error(message), { status, code })
 }
 
 describe('loginErrorMessage', () => {
@@ -31,9 +41,15 @@ describe('loginErrorMessage', () => {
     )
   })
 
-  it('sem resposta (timeout ou rede fora) vira sem conexão', () => {
-    expect(loginErrorMessage(apiError(0, 'Request timed out'))).toBe('Sem conexão com o servidor.')
-    expect(loginErrorMessage(new TypeError('Failed to fetch'))).toBe('Sem conexão com o servidor.')
+  it('rede fora vira sem conexão, com dica de DNS e antivírus', () => {
+    expect(loginErrorMessage(apiError(0, 'x'))).toBe(NO_CONNECTION_MESSAGE)
+    expect(loginErrorMessage(new TypeError('Failed to fetch'))).toBe(NO_CONNECTION_MESSAGE)
+    expect(NO_CONNECTION_MESSAGE).toMatch(/DNS/)
+  })
+
+  it('tempo esgotado tem texto próprio, diferente de sem rede', () => {
+    expect(loginErrorMessage(apiError(0, 'Request timed out', 'timeout'))).toBe(TIMEOUT_MESSAGE)
+    expect(TIMEOUT_MESSAGE).not.toBe(NO_CONNECTION_MESSAGE)
   })
 
   it('qualquer outra coisa cai no genérico', () => {
@@ -57,16 +73,22 @@ describe('registerErrorMessage', () => {
     expect(registerErrorMessage(apiError(500, 'failed to create user'))).toBe(
       'Erro no servidor. Tente de novo em instantes.'
     )
-    expect(registerErrorMessage(apiError(0, 'Request timed out'))).toBe(
-      'Sem conexão com o servidor.'
-    )
-    expect(registerErrorMessage(new TypeError('Failed to fetch'))).toBe(
-      'Sem conexão com o servidor.'
-    )
+    expect(registerErrorMessage(apiError(0, 'Request timed out', 'timeout'))).toBe(TIMEOUT_MESSAGE)
+    expect(registerErrorMessage(new TypeError('Failed to fetch'))).toBe(NO_CONNECTION_MESSAGE)
   })
 
   it('o resto cai no genérico do cadastro', () => {
     expect(registerErrorMessage(apiError(404, 'x'))).toBe('Falha ao criar conta.')
     expect(registerErrorMessage(new Error('boom'))).toBe('Falha ao criar conta.')
+  })
+})
+
+describe('isConnectionFailure', () => {
+  it('só vale quando o pedido nem teve resposta', () => {
+    expect(isConnectionFailure(apiError(0, 'x'))).toBe(true)
+    expect(isConnectionFailure(new TypeError('Failed to fetch'))).toBe(true)
+    expect(isConnectionFailure(apiError(500, 'x'))).toBe(false)
+    expect(isConnectionFailure(apiError(429, 'x'))).toBe(false)
+    expect(isConnectionFailure(new Error('boom'))).toBe(false)
   })
 })
