@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"gin-quickstart/backend/internal/auth"
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/conversation"
 	"gin-quickstart/backend/internal/friendship"
@@ -75,6 +76,7 @@ func (a *app) wireCore() {
 		friendship.FriendRoutes(api, friendshipHandler, a.authMiddleware)
 		channel.ChannelRoutes(api, channelHandler, a.authMiddleware)
 		role.RoleRoutes(api, roleHandler, a.authMiddleware)
+		audit.AuditRoutes(api, audit.AuditHandler(audit.AuditService(audit.AuditRepository(a.db), a.permissionService)), a.authMiddleware)
 	})
 }
 

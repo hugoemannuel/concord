@@ -53,6 +53,11 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
         description: 'Mudar nome, ícone e canal principal do servidor.'
       },
       {
+        name: 'VIEW_AUDIT_LOG',
+        label: 'Ver registro de auditoria',
+        description: 'Consultar as ações administrativas e alterações do servidor.'
+      },
+      {
         name: 'CREATE_INVITE',
         label: 'Criar convite',
         description: 'Convidar amigos e compartilhar o código do servidor.'

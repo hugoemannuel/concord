@@ -8,6 +8,7 @@ import (
 	"sort"
 	"testing"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -49,7 +50,7 @@ func (f *fakeStore) List(context.Context, string) ([]Role, error) {
 	return roles, nil
 }
 
-func (f *fakeStore) Create(_ context.Context, role *Role) error {
+func (f *fakeStore) Create(_ context.Context, role *Role, _ *audit.Mark) error {
 	base := 1
 	for id, r := range f.snap.Roles {
 		if r.IsSystem {
@@ -66,7 +67,7 @@ func (f *fakeStore) Create(_ context.Context, role *Role) error {
 	return nil
 }
 
-func (f *fakeStore) Update(_ context.Context, role *Role) error {
+func (f *fakeStore) Update(_ context.Context, role *Role, _ *audit.Mark) error {
 	f.snap.Roles[role.ID] = *role
 	if role.IsDefault {
 		f.snap.Everyone = *role
@@ -74,7 +75,7 @@ func (f *fakeStore) Update(_ context.Context, role *Role) error {
 	return nil
 }
 
-func (f *fakeStore) Delete(_ context.Context, _ string, roleID string) error {
+func (f *fakeStore) Delete(_ context.Context, _ string, roleID string, _ *audit.Mark) error {
 	delete(f.snap.Roles, roleID)
 	for uid, ids := range f.snap.MemberRoles {
 		f.snap.MemberRoles[uid] = without(ids, roleID)
@@ -82,7 +83,7 @@ func (f *fakeStore) Delete(_ context.Context, _ string, roleID string) error {
 	return nil
 }
 
-func (f *fakeStore) SetPositions(_ context.Context, _ string, positions map[string]int) error {
+func (f *fakeStore) SetPositions(_ context.Context, _ string, positions map[string]int, _ *audit.Mark) error {
 	for id, pos := range positions {
 		r := f.snap.Roles[id]
 		r.Position = pos
@@ -91,7 +92,7 @@ func (f *fakeStore) SetPositions(_ context.Context, _ string, positions map[stri
 	return nil
 }
 
-func (f *fakeStore) AddMemberRole(_ context.Context, _ string, userID, roleID string) error {
+func (f *fakeStore) AddMemberRole(_ context.Context, _ string, userID, roleID string, _ *audit.Mark) error {
 	for _, id := range f.snap.MemberRoles[userID] {
 		if id == roleID {
 			return nil
@@ -101,7 +102,7 @@ func (f *fakeStore) AddMemberRole(_ context.Context, _ string, userID, roleID st
 	return nil
 }
 
-func (f *fakeStore) RemoveMemberRole(_ context.Context, _ string, userID, roleID string) error {
+func (f *fakeStore) RemoveMemberRole(_ context.Context, _ string, userID, roleID string, _ *audit.Mark) error {
 	f.snap.MemberRoles[userID] = without(f.snap.MemberRoles[userID], roleID)
 	return nil
 }

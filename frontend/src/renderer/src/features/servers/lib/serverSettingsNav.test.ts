@@ -16,7 +16,7 @@ describe('seções das configurações do servidor', () => {
   })
 
   it('o dono e o administrador veem todas', () => {
-    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans'])
+    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit'])
   })
 
   it('cada permissão abre só o que usa', () => {
@@ -25,6 +25,7 @@ describe('seções das configurações do servidor', () => {
     expect(ids(Perm.KICK_MEMBERS)).toEqual(['members'])
     expect(ids(Perm.BAN_MEMBERS)).toEqual(['members', 'bans'])
     expect(ids(Perm.MANAGE_NICKNAMES)).toEqual(['members'])
+    expect(ids(Perm.VIEW_AUDIT_LOG)).toEqual(['audit'])
   })
 
   it('"Alterar apelido" (o próprio) não abre as configurações', () => {

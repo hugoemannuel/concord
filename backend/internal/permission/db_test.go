@@ -97,7 +97,7 @@ func (e *env) newServer(t *testing.T, owner string) *server.Server {
 
 func (e *env) join(t *testing.T, serverID, userID string) {
 	t.Helper()
-	if err := e.servers.AddingUserServer(e.ctx, &server.Server{ID: serverID}, &server.ServerMember{}, userID, "member"); err != nil {
+	if err := e.servers.AddingUserServer(e.ctx, &server.Server{ID: serverID}, &server.ServerMember{}, userID, "member", nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -128,7 +128,7 @@ const legacyModerator = permission.DefaultEveryone | permission.ManageChannels |
 func (e *env) newModerator(t *testing.T, serverID string) permission.Role {
 	t.Helper()
 	mod := &permission.Role{ServerID: serverID, Name: "Moderador", Permissions: legacyModerator, Hoist: true}
-	if err := e.roleRepo.Create(e.ctx, mod); err != nil {
+	if err := e.roleRepo.Create(e.ctx, mod, nil); err != nil {
 		t.Fatal(err)
 	}
 	return *mod
@@ -175,14 +175,14 @@ func TestDBSnapshotMatchesPermissions(t *testing.T) {
 		e.join(t, srv.ID, u)
 	}
 	mod := e.newModerator(t, srv.ID)
-	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, modUser, mod.ID); err != nil {
+	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, modUser, mod.ID, nil); err != nil {
 		t.Fatal(err)
 	}
 	vip := &permission.Role{ServerID: srv.ID, Name: "VIP"}
-	if err := e.roleRepo.Create(e.ctx, vip); err != nil {
+	if err := e.roleRepo.Create(e.ctx, vip, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, vipUser, vip.ID); err != nil {
+	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, vipUser, vip.ID, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -255,7 +255,7 @@ func TestDBLegacyRoleAndRoleIDsInMemberList(t *testing.T) {
 	e.join(t, srv.ID, modUser)
 	e.join(t, srv.ID, plain)
 	mod := e.newModerator(t, srv.ID)
-	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, modUser, mod.ID); err != nil {
+	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, modUser, mod.ID, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,11 +297,11 @@ func TestDBCascades(t *testing.T) {
 	e.join(t, srv.ID, bia)
 
 	vip := &permission.Role{ServerID: srv.ID, Name: "VIP"}
-	if err := e.roleRepo.Create(e.ctx, vip); err != nil {
+	if err := e.roleRepo.Create(e.ctx, vip, nil); err != nil {
 		t.Fatal(err)
 	}
 	for _, u := range []string{ana, bia} {
-		if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, u, vip.ID); err != nil {
+		if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, u, vip.ID, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -321,7 +321,7 @@ func TestDBCascades(t *testing.T) {
 	}
 
 	// Expulsar a ana apaga os cargos dela, não os da bia.
-	if err := e.servers.RemoveMember(e.ctx, srv.ID, ana); err != nil {
+	if err := e.servers.RemoveMember(e.ctx, srv.ID, ana, nil); err != nil {
 		t.Fatal(err)
 	}
 	if n := count(`SELECT COUNT(*) FROM member_roles WHERE server_id = $1 AND user_id = $2`, srv.ID, ana); n != 0 {
@@ -332,7 +332,7 @@ func TestDBCascades(t *testing.T) {
 	}
 
 	// Apagar o cargo tira ele da bia e a sobrescrita do canal.
-	if err := e.roleRepo.Delete(e.ctx, srv.ID, vip.ID); err != nil {
+	if err := e.roleRepo.Delete(e.ctx, srv.ID, vip.ID, nil); err != nil {
 		t.Fatal(err)
 	}
 	if n := count(`SELECT COUNT(*) FROM member_roles WHERE role_id = $1`, vip.ID); n != 0 {
@@ -346,16 +346,16 @@ func TestDBCascades(t *testing.T) {
 	}
 	// O @everyone e o Bots não se apagam.
 	everyone := e.roleByName(t, srv.ID, permission.EveryoneName)
-	if err := e.roleRepo.Delete(e.ctx, srv.ID, everyone.ID); !errors.Is(err, role.ErrRoleNotFound) {
+	if err := e.roleRepo.Delete(e.ctx, srv.ID, everyone.ID, nil); !errors.Is(err, role.ErrRoleNotFound) {
 		t.Errorf("apagar @everyone: err = %v", err)
 	}
 	bots := e.roleByName(t, srv.ID, permission.BotsRoleName)
-	if err := e.roleRepo.Delete(e.ctx, srv.ID, bots.ID); !errors.Is(err, role.ErrRoleNotFound) {
+	if err := e.roleRepo.Delete(e.ctx, srv.ID, bots.ID, nil); !errors.Is(err, role.ErrRoleNotFound) {
 		t.Errorf("apagar Bots: err = %v", err)
 	}
 
 	// Apagar o canal apaga as sobrescritas; apagar o servidor leva tudo.
-	if err := e.channelSvc.Delete(e.ctx, ch.ID); err != nil {
+	if err := e.channelSvc.Delete(e.ctx, ch.ID, owner); err != nil {
 		t.Fatal(err)
 	}
 	if n := count(`SELECT COUNT(*) FROM channel_overwrites WHERE channel_id = $1`, ch.ID); n != 0 {
@@ -378,7 +378,7 @@ func TestDBRoleCreateAndReorderPositions(t *testing.T) {
 	a := &permission.Role{ServerID: srv.ID, Name: "A"}
 	b := &permission.Role{ServerID: srv.ID, Name: "B"}
 	for _, r := range []*permission.Role{a, b} {
-		if err := e.roleRepo.Create(e.ctx, r); err != nil {
+		if err := e.roleRepo.Create(e.ctx, r, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -433,7 +433,7 @@ func TestDBBanFlow(t *testing.T) {
 	e.join(t, srv.ID, mod)
 	e.join(t, srv.ID, victim)
 	modRole := e.newModerator(t, srv.ID)
-	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, mod, modRole.ID); err != nil {
+	if err := e.roleRepo.AddMemberRole(e.ctx, srv.ID, mod, modRole.ID, nil); err != nil {
 		t.Fatal(err)
 	}
 	code, err := e.serverSvc.InviteCode(e.ctx, srv.ID, owner)
@@ -501,11 +501,11 @@ func TestDBOverwriteUpsertAndDelete(t *testing.T) {
 	everyone := e.roleByName(t, srv.ID, permission.EveryoneName)
 
 	o := permission.Overwrite{TargetType: permission.TargetRole, TargetID: everyone.ID, Deny: permission.SendMessages}
-	if err := repo.SetOverwrite(e.ctx, ch.ID, o); err != nil {
+	if err := repo.SetOverwrite(e.ctx, ch.ID, o, nil); err != nil {
 		t.Fatal(err)
 	}
 	o.Deny, o.Allow = 0, permission.AddReactions
-	if err := repo.SetOverwrite(e.ctx, ch.ID, o); err != nil { // upsert
+	if err := repo.SetOverwrite(e.ctx, ch.ID, o, nil); err != nil { // upsert
 		t.Fatal(err)
 	}
 	snap, _ := e.permissions.Snapshot(e.ctx, srv.ID)
@@ -513,7 +513,7 @@ func TestDBOverwriteUpsertAndDelete(t *testing.T) {
 	if len(got) != 1 || got[0].Allow != permission.AddReactions || got[0].Deny != 0 {
 		t.Fatalf("overwrites = %+v", got)
 	}
-	if err := repo.DeleteOverwrite(e.ctx, ch.ID, permission.TargetRole, everyone.ID); err != nil {
+	if err := repo.DeleteOverwrite(e.ctx, ch.ID, permission.TargetRole, everyone.ID, nil); err != nil {
 		t.Fatal(err)
 	}
 	snap, _ = e.permissions.Snapshot(e.ctx, srv.ID)
@@ -522,7 +522,7 @@ func TestDBOverwriteUpsertAndDelete(t *testing.T) {
 	}
 
 	// target_type fora de role/member é recusado pelo banco.
-	if err := repo.SetOverwrite(e.ctx, ch.ID, permission.Overwrite{TargetType: "grupo", TargetID: everyone.ID}); err == nil {
+	if err := repo.SetOverwrite(e.ctx, ch.ID, permission.Overwrite{TargetType: "grupo", TargetID: everyone.ID}, nil); err == nil {
 		t.Error("o CHECK de target_type devia recusar")
 	}
 }

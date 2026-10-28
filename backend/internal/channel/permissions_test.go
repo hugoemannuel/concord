@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 
 	"github.com/gin-gonic/gin"
@@ -69,7 +70,7 @@ func (f *permStore) Snapshot(_ context.Context, serverID string) (*permission.Sn
 	return f.snap, nil
 }
 
-func (f *permStore) Create(_ context.Context, ch *Channel, overwrites []permission.Overwrite) error {
+func (f *permStore) Create(_ context.Context, ch *Channel, overwrites []permission.Overwrite, _ *audit.Mark) error {
 	f.created = overwrites
 	f.channels[ch.ID] = ch
 	f.snap.WithChannel(ch.ID, ch.Type, append([]permission.Overwrite{}, overwrites...)...)
@@ -93,8 +94,8 @@ func (f *permStore) FindNoticesByServerID(context.Context, string) (*Channel, er
 	return nil, ErrChannelNotFound
 }
 
-func (f *permStore) Update(context.Context, string, string) error { return nil }
-func (f *permStore) Delete(_ context.Context, id string) error {
+func (f *permStore) Update(context.Context, string, string, *audit.Mark) error { return nil }
+func (f *permStore) Delete(_ context.Context, id string, _ *audit.Mark) error {
 	delete(f.channels, id)
 	return nil
 }
@@ -108,9 +109,9 @@ func (f *permStore) ListByServerID(context.Context, string) ([]Channel, error) {
 	return out, nil
 }
 
-func (f *permStore) Reorder(context.Context, string, string, []string) error { return nil }
+func (f *permStore) Reorder(context.Context, string, string, []string, *audit.Mark) error { return nil }
 
-func (f *permStore) SetOverwrite(_ context.Context, channelID string, o permission.Overwrite) error {
+func (f *permStore) SetOverwrite(_ context.Context, channelID string, o permission.Overwrite, _ *audit.Mark) error {
 	info := f.snap.Channels[channelID]
 	kept := []permission.Overwrite{}
 	for _, cur := range info.Overwrites {
@@ -123,7 +124,7 @@ func (f *permStore) SetOverwrite(_ context.Context, channelID string, o permissi
 	return nil
 }
 
-func (f *permStore) DeleteOverwrite(_ context.Context, channelID, targetType, targetID string) error {
+func (f *permStore) DeleteOverwrite(_ context.Context, channelID, targetType, targetID string, _ *audit.Mark) error {
 	info := f.snap.Channels[channelID]
 	kept := []permission.Overwrite{}
 	for _, cur := range info.Overwrites {

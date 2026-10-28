@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 
 	"github.com/google/uuid"
@@ -27,16 +28,16 @@ type EventPublisher interface {
 
 // store é o que o Service usa do Repository (nos testes, um fake em memória).
 type store interface {
-	Create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite) error
+	Create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite, mark *audit.Mark) error
 	FindByID(ctx context.Context, id string) (*Channel, error)
 	FindSystemByServerID(ctx context.Context, serverID string) (*Channel, error)
 	FindNoticesByServerID(ctx context.Context, serverID string) (*Channel, error)
-	Update(ctx context.Context, id string, name string) error
-	Delete(ctx context.Context, id string) error
+	Update(ctx context.Context, id string, name string, mark *audit.Mark) error
+	Delete(ctx context.Context, id string, mark *audit.Mark) error
 	ListByServerID(ctx context.Context, serverID string) ([]Channel, error)
-	Reorder(ctx context.Context, serverID string, chType string, ids []string) error
-	SetOverwrite(ctx context.Context, channelID string, o permission.Overwrite) error
-	DeleteOverwrite(ctx context.Context, channelID, targetType, targetID string) error
+	Reorder(ctx context.Context, serverID string, chType string, ids []string, mark *audit.Mark) error
+	SetOverwrite(ctx context.Context, channelID string, o permission.Overwrite, mark *audit.Mark) error
+	DeleteOverwrite(ctx context.Context, channelID, targetType, targetID string, mark *audit.Mark) error
 }
 
 type Service struct {
@@ -59,13 +60,15 @@ func newService(repository store, publisher EventPublisher) *Service {
 // sistema só nasce por CreateSystem/CreateNotices, nunca por pedido do cliente.
 func (s *Service) Create(ctx context.Context, ch *Channel, overwrites ...permission.Overwrite) error {
 	ch.IsSystem = false
-	return s.create(ctx, ch, overwrites)
+	mark := &audit.Mark{ServerID: ch.ServerID, ActorID: ch.CreatedBy, Action: audit.ChannelCreate}
+	return s.create(ctx, ch, overwrites, mark)
 }
 
 // CreateSystem cria o canal "bot" do servidor (usado na criação do servidor).
+// Canal de sistema não gera registro de auditoria.
 func (s *Service) CreateSystem(ctx context.Context, serverID, createdBy string) (*Channel, error) {
 	ch := &Channel{ServerID: serverID, Name: SystemChannelName, Type: TypeText, CreatedBy: createdBy, IsSystem: true}
-	if err := s.create(ctx, ch, nil); err != nil {
+	if err := s.create(ctx, ch, nil, nil); err != nil {
 		return nil, err
 	}
 	return ch, nil
@@ -74,7 +77,7 @@ func (s *Service) CreateSystem(ctx context.Context, serverID, createdBy string) 
 // CreateNotices cria o canal "avisos" do servidor (usado na criação do servidor).
 func (s *Service) CreateNotices(ctx context.Context, serverID, createdBy string) (*Channel, error) {
 	ch := &Channel{ServerID: serverID, Name: NoticesChannelName, Type: TypeText, CreatedBy: createdBy, IsSystem: true}
-	if err := s.create(ctx, ch, nil); err != nil {
+	if err := s.create(ctx, ch, nil, nil); err != nil {
 		return nil, err
 	}
 	return ch, nil
@@ -90,7 +93,7 @@ func (s *Service) NoticesChannel(ctx context.Context, serverID string) (*Channel
 	return s.repository.FindNoticesByServerID(ctx, serverID)
 }
 
-func (s *Service) create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite) error {
+func (s *Service) create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite, mark *audit.Mark) error {
 	if ch.Name == "" {
 		return ErrNameRequired
 	}
@@ -101,7 +104,7 @@ func (s *Service) create(ctx context.Context, ch *Channel, overwrites []permissi
 
 	ch.ID = uuid.New().String()
 
-	if err := s.repository.Create(ctx, ch, overwrites); err != nil {
+	if err := s.repository.Create(ctx, ch, overwrites, mark); err != nil {
 		return err
 	}
 	ch.Overwrites = append([]permission.Overwrite{}, overwrites...)
@@ -123,7 +126,7 @@ func (s *Service) FindByID(ctx context.Context, id string) (*Channel, error) {
 	return s.repository.FindByID(ctx, id)
 }
 
-func (s *Service) Update(ctx context.Context, id string, name string) (*Channel, error) {
+func (s *Service) Update(ctx context.Context, id string, name string, actorID string) (*Channel, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -136,7 +139,8 @@ func (s *Service) Update(ctx context.Context, id string, name string) (*Channel,
 		return nil, ErrSystemChannel
 	}
 
-	if err := s.repository.Update(ctx, id, name); err != nil {
+	mark := &audit.Mark{ServerID: ch.ServerID, ActorID: actorID, Action: audit.ChannelUpdate}
+	if err := s.repository.Update(ctx, id, name, mark); err != nil {
 		return nil, err
 	}
 
@@ -155,7 +159,7 @@ func (s *Service) Update(ctx context.Context, id string, name string) (*Channel,
 	return updated, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id string) error {
+func (s *Service) Delete(ctx context.Context, id string, actorID string) error {
 	ch, err := s.repository.FindByID(ctx, id)
 	if err != nil {
 		return ErrChannelNotFound
@@ -164,7 +168,8 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 		return ErrSystemChannel
 	}
 
-	if err := s.repository.Delete(ctx, id); err != nil {
+	mark := &audit.Mark{ServerID: ch.ServerID, ActorID: actorID, Action: audit.ChannelDelete}
+	if err := s.repository.Delete(ctx, id, mark); err != nil {
 		return err
 	}
 
@@ -180,7 +185,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 
 // Reorder muda a ordem dos canais de um tipo (texto ou voz) do servidor; ids
 // tem que ser exatamente os canais daquela seção. Avisa a sala do servidor.
-func (s *Service) Reorder(ctx context.Context, serverID string, chType string, ids []string, requestID string) error {
+func (s *Service) Reorder(ctx context.Context, serverID string, chType string, ids []string, requestID string, actorID string) error {
 	if chType != TypeText && chType != TypeVoice {
 		return ErrInvalidType
 	}
@@ -191,7 +196,8 @@ func (s *Service) Reorder(ctx context.Context, serverID string, chType string, i
 		ids = []string{}
 	}
 
-	if err := s.repository.Reorder(ctx, serverID, chType, ids); err != nil {
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.ChannelReorder}
+	if err := s.repository.Reorder(ctx, serverID, chType, ids, mark); err != nil {
 		return err
 	}
 
@@ -213,23 +219,25 @@ func (s *Service) ListByServerID(ctx context.Context, serverID string) ([]Channe
 
 // SetOverwrite grava a sobrescrita e avisa o servidor (o canal muda para quem
 // ganhou ou perdeu acesso).
-func (s *Service) SetOverwrite(ctx context.Context, ch *Channel, o permission.Overwrite) error {
+func (s *Service) SetOverwrite(ctx context.Context, ch *Channel, o permission.Overwrite, actorID string) error {
 	if ch.IsSystem {
 		return ErrSystemChannel
 	}
 	o.ChannelID = ch.ID
-	if err := s.repository.SetOverwrite(ctx, ch.ID, o); err != nil {
+	mark := &audit.Mark{ServerID: ch.ServerID, ActorID: actorID, Action: audit.ChannelOverwriteSet}
+	if err := s.repository.SetOverwrite(ctx, ch.ID, o, mark); err != nil {
 		return err
 	}
 	s.publishPermissions(ch)
 	return nil
 }
 
-func (s *Service) DeleteOverwrite(ctx context.Context, ch *Channel, targetType, targetID string) error {
+func (s *Service) DeleteOverwrite(ctx context.Context, ch *Channel, targetType, targetID string, actorID string) error {
 	if ch.IsSystem {
 		return ErrSystemChannel
 	}
-	if err := s.repository.DeleteOverwrite(ctx, ch.ID, targetType, targetID); err != nil {
+	mark := &audit.Mark{ServerID: ch.ServerID, ActorID: actorID, Action: audit.ChannelOverwriteDelete}
+	if err := s.repository.DeleteOverwrite(ctx, ch.ID, targetType, targetID, mark); err != nil {
 		return err
 	}
 	s.publishPermissions(ch)

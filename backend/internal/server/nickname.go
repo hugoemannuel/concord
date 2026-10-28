@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/user"
 )
@@ -46,7 +47,7 @@ type NicknameEvent struct {
 
 type nicknameStore interface {
 	// SetNickname grava o apelido; false se a pessoa não é (mais) membro.
-	SetNickname(ctx context.Context, serverID, userID string, nickname *string) (bool, error)
+	SetNickname(ctx context.Context, serverID, userID string, nickname *string, mark *audit.Mark) (bool, error)
 }
 
 // NicknamePublisher avisa o servidor inteiro (server:member:nickname).
@@ -101,7 +102,8 @@ func (n *Nicknames) Set(ctx context.Context, serverID, actorID, targetID, raw st
 	if err != nil {
 		return nil, err
 	}
-	found, err := n.store.SetNickname(ctx, serverID, targetID, nick)
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.MemberNickname}
+	found, err := n.store.SetNickname(ctx, serverID, targetID, nick, mark)
 	if err != nil {
 		return nil, err
 	}

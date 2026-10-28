@@ -6,6 +6,7 @@ package permission
 import (
 	"errors"
 	"net/http"
+	"sort"
 )
 
 // Bits de permissão. Todos abaixo de 1<<31 para o frontend fazer bitwise sem
@@ -38,6 +39,8 @@ const (
 	// outros (moderação, respeitando a hierarquia). Mesmos bits do Discord.
 	ChangeNickname  int64 = 1 << 26
 	ManageNicknames int64 = 1 << 27
+	// Registro de auditoria do servidor (quem vê as ações administrativas).
+	ViewAuditLog int64 = 1 << 28
 )
 
 // Names: nome de cada bit (o mesmo do app e de testdata/vectors.json).
@@ -67,6 +70,7 @@ var Names = map[string]int64{
 	"DISCONNECT_MEMBERS":   DisconnectMembers,
 	"CHANGE_NICKNAME":      ChangeNickname,
 	"MANAGE_NICKNAMES":     ManageNicknames,
+	"VIEW_AUDIT_LOG":       ViewAuditLog,
 }
 
 // All é a soma de todos os bits conhecidos (dono e ADMINISTRATOR).
@@ -74,7 +78,7 @@ const All = ViewChannel | ManageChannels | ManageRoles | ManageServer | CreateIn
 	KickMembers | BanMembers | Administrator | SendMessages | AttachFiles | AddReactions |
 	MentionEveryone | ManageMessages | ReadHistory | Connect | Speak | Stream |
 	MuteMembers | DeafenMembers | MoveMembers | DisconnectMembers | UseSoundboard | ManageExpressions |
-	ChangeNickname | ManageNicknames
+	ChangeNickname | ManageNicknames | ViewAuditLog
 
 // DefaultEveryone: o que qualquer membro faz num servidor novo. Nos servidores
 // que já existiam, a migration 000039 ligou o CHANGE_NICKNAME no @everyone.
@@ -128,4 +132,25 @@ func Has(perms, want int64) bool {
 // Normalize descarta bits desconhecidos (o app pode mandar lixo).
 func Normalize(perms int64) int64 {
 	return perms & All
+}
+
+// NamesOf devolve os nomes das permissões em bits, na ordem dos bits (o
+// registro de auditoria guarda essas listas antes e depois de uma mudança).
+func NamesOf(bits int64) []string {
+	type named struct {
+		bit  int64
+		name string
+	}
+	list := []named{}
+	for name, bit := range Names {
+		if bits&bit != 0 {
+			list = append(list, named{bit, name})
+		}
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].bit < list[j].bit })
+	names := make([]string, 0, len(list))
+	for _, n := range list {
+		names = append(names, n.name)
+	}
+	return names
 }

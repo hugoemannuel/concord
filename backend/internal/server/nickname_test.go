@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -26,7 +27,7 @@ func (f *fakeNicknames) Snapshot(context.Context, string) (*permission.Snapshot,
 	return f.snap, nil
 }
 
-func (f *fakeNicknames) SetNickname(_ context.Context, _ string, userID string, nickname *string) (bool, error) {
+func (f *fakeNicknames) SetNickname(_ context.Context, _ string, userID string, nickname *string, _ *audit.Mark) (bool, error) {
 	if !f.snap.IsMember(userID) {
 		return false, nil
 	}

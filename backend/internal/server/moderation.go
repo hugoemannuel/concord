@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -35,9 +36,9 @@ type MemberRemovedEvent struct {
 }
 
 type moderationStore interface {
-	RemoveMember(ctx context.Context, serverID, userID string) error
-	BanMember(ctx context.Context, serverID, userID, bannedBy string, reason *string) error
-	Unban(ctx context.Context, serverID, userID string) (bool, error)
+	RemoveMember(ctx context.Context, serverID, userID string, mark *audit.Mark) error
+	BanMember(ctx context.Context, serverID, userID, bannedBy string, reason *string, mark *audit.Mark) error
+	Unban(ctx context.Context, serverID, userID string, mark *audit.Mark) (bool, error)
 	ListBans(ctx context.Context, serverID string) ([]Ban, error)
 }
 
@@ -102,7 +103,8 @@ func (m *Moderation) Kick(ctx context.Context, serverID, actorID, targetID strin
 	if !snap.IsMember(targetID) {
 		return ErrMemberNotFound
 	}
-	if err := m.store.RemoveMember(ctx, serverID, targetID); err != nil {
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.MemberKick}
+	if err := m.store.RemoveMember(ctx, serverID, targetID, mark); err != nil {
 		return err
 	}
 	m.removed(ctx, serverID, targetID, RemovedKick)
@@ -124,7 +126,9 @@ func (m *Moderation) Ban(ctx context.Context, serverID, actorID, targetID, reaso
 		reasonPtr = &reason
 	}
 	wasMember := snap.IsMember(targetID)
-	if err := m.store.BanMember(ctx, serverID, targetID, actorID, reasonPtr); err != nil {
+	// O motivo é texto livre e pode conter dados sensíveis; não copiá-lo para a auditoria.
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.MemberBan}
+	if err := m.store.BanMember(ctx, serverID, targetID, actorID, reasonPtr, mark); err != nil {
 		return err
 	}
 	if wasMember {
@@ -137,7 +141,8 @@ func (m *Moderation) Unban(ctx context.Context, serverID, actorID, targetID stri
 	if err := m.requireBan(ctx, serverID, actorID); err != nil {
 		return err
 	}
-	found, err := m.store.Unban(ctx, serverID, targetID)
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.MemberUnban}
+	found, err := m.store.Unban(ctx, serverID, targetID, mark)
 	if err != nil {
 		return err
 	}
@@ -180,7 +185,8 @@ func (m *Moderation) Leave(ctx context.Context, serverID, userID string) error {
 	if snap.IsOwner(userID) {
 		return ErrOwnerCannotLeave
 	}
-	if err := m.store.RemoveMember(ctx, serverID, userID); err != nil {
+	mark := &audit.Mark{ServerID: serverID, ActorID: userID, Action: audit.MemberLeave}
+	if err := m.store.RemoveMember(ctx, serverID, userID, mark); err != nil {
 		return err
 	}
 	m.removed(ctx, serverID, userID, RemovedLeave)

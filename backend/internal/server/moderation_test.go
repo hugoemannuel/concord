@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -47,12 +48,12 @@ func (f *fakeModeration) Snapshot(context.Context, string) (*permission.Snapshot
 	return f.snap, nil
 }
 
-func (f *fakeModeration) RemoveMember(_ context.Context, _ string, userID string) error {
+func (f *fakeModeration) RemoveMember(_ context.Context, _ string, userID string, _ *audit.Mark) error {
 	delete(f.snap.MemberRoles, userID)
 	return nil
 }
 
-func (f *fakeModeration) BanMember(_ context.Context, _ string, userID, _ string, reason *string) error {
+func (f *fakeModeration) BanMember(_ context.Context, _ string, userID, _ string, reason *string, _ *audit.Mark) error {
 	f.bans[userID] = ""
 	if reason != nil {
 		f.bans[userID] = *reason
@@ -61,7 +62,7 @@ func (f *fakeModeration) BanMember(_ context.Context, _ string, userID, _ string
 	return nil
 }
 
-func (f *fakeModeration) Unban(_ context.Context, _ string, userID string) (bool, error) {
+func (f *fakeModeration) Unban(_ context.Context, _ string, userID string, _ *audit.Mark) (bool, error) {
 	_, ok := f.bans[userID]
 	delete(f.bans, userID)
 	return ok, nil

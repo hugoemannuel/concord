@@ -3,7 +3,7 @@ import { Perm } from './permissions'
 // Seções das configurações do servidor (tela cheia, como as de usuário). Cada
 // uma aparece para quem tem ao menos uma das permissões que ela usa.
 
-export type ServerSettingsSectionId = 'overview' | 'roles' | 'members' | 'bans'
+export type ServerSettingsSectionId = 'overview' | 'roles' | 'members' | 'bans' | 'audit'
 
 export interface ServerSettingsSection {
   id: ServerSettingsSectionId
@@ -20,7 +20,8 @@ export const SERVER_SETTINGS_SECTIONS: ServerSettingsSection[] = [
     label: 'Membros',
     anyOf: Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS | Perm.MANAGE_NICKNAMES
   },
-  { id: 'bans', label: 'Banimentos', anyOf: Perm.BAN_MEMBERS }
+  { id: 'bans', label: 'Banimentos', anyOf: Perm.BAN_MEMBERS },
+  { id: 'audit', label: 'Registro de auditoria', anyOf: Perm.VIEW_AUDIT_LOG }
 ]
 
 /** As seções que essas permissões deixam abrir. */

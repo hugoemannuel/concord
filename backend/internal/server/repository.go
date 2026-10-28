@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"gin-quickstart/backend/internal/namestyle"
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -53,41 +55,6 @@ func (r *Repository) Create(
 		&server.OwnerID,
 		&server.CreatedAt,
 		&server.UpdatedAt,
-	)
-}
-
-func (r *Repository) AddingUserServer(
-	ctx context.Context,
-	server *Server,
-	serverMember *ServerMember,
-	userID string,
-	role string,
-) error {
-	return r.db.QueryRow(
-		ctx,
-		`
-		INSERT INTO server_members (
-			server_id,
-			user_id,
-			role
-		)
-		VALUES ($1, $2, $3)
-		RETURNING
-			server_id,
-			user_id,
-			role,
-			joined_at,
-			updated_at
-		`,
-		server.ID,
-		userID,
-		role,
-	).Scan(
-		&serverMember.ServerID,
-		&serverMember.UserID,
-		&serverMember.Role,
-		&serverMember.JoinedAt,
-		&serverMember.UpdatedAt,
 	)
 }
 
@@ -152,55 +119,122 @@ const primaryChannelColumn = `COALESCE(
 		)`
 
 // SetPrimaryChannel escolhe o canal principal; o canal tem que ser de texto e
-// deste servidor.
-func (r *Repository) SetPrimaryChannel(ctx context.Context, serverID string, channelID string) error {
-	tag, err := r.db.Exec(
-		ctx,
-		`
-		UPDATE servers
-		SET primary_channel_id = $2, updated_at = NOW()
-		WHERE id = $1
-		AND EXISTS (
-			SELECT 1 FROM channels WHERE id = $2 AND server_id = $1 AND type = 'text'
+// deste servidor. Grava o registro com o nome do canal antes e depois.
+func (r *Repository) SetPrimaryChannel(ctx context.Context, serverID string, channelID string, mark *audit.Mark) error {
+	return audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		var before string
+		err := tx.QueryRow(
+			ctx,
+			`
+			SELECT COALESCE(c.name, '')
+			FROM servers s
+			LEFT JOIN channels c ON c.id = `+primaryChannelColumn+`
+			WHERE s.id = $1
+			FOR UPDATE OF s
+			`,
+			serverID,
+		).Scan(&before)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrInvalidPrimaryChannel
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		tag, err := tx.Exec(
+			ctx,
+			`
+			UPDATE servers
+			SET primary_channel_id = $2, updated_at = NOW()
+			WHERE id = $1
+			AND EXISTS (
+				SELECT 1 FROM channels WHERE id = $2 AND server_id = $1 AND type = 'text'
+			)
+			`,
+			serverID,
+			channelID,
 		)
-		`,
-		serverID,
-		channelID,
-	)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrInvalidPrimaryChannel
-	}
-	return nil
+		if err != nil {
+			return nil, err
+		}
+		if tag.RowsAffected() == 0 {
+			return nil, ErrInvalidPrimaryChannel
+		}
+
+		var after string
+		if err := tx.QueryRow(ctx, `SELECT name FROM channels WHERE id = $1`, channelID).Scan(&after); err != nil {
+			return nil, err
+		}
+		changes := audit.Diff(nil, "primary_channel", before, after)
+		if len(changes) == 0 {
+			return nil, nil
+		}
+		return mark.Event(audit.TargetServer, serverID, "", changes), nil
+	})
 }
 
-func (r *Repository) Update(ctx context.Context, id string, name string, iconURL string) error {
-	_, err := r.db.Exec(
-		ctx,
-		`UPDATE servers SET name = $1, icon_url = $2, updated_at = NOW() WHERE id = $3`,
-		name,
-		iconURL,
-		id,
-	)
-	return err
+// Update grava nome e ícone; o registro guarda o nome antes e depois e se o
+// servidor tem ícone (não a URL).
+func (r *Repository) Update(ctx context.Context, id string, name string, iconURL string, mark *audit.Mark) error {
+	return audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		var before string
+		var beforeIcon *string
+		if err := tx.QueryRow(ctx, `SELECT name, icon_url FROM servers WHERE id = $1 FOR UPDATE`, id).Scan(&before, &beforeIcon); err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(
+			ctx,
+			`UPDATE servers SET name = $1, icon_url = $2, updated_at = NOW() WHERE id = $3`,
+			name,
+			iconURL,
+			id,
+		); err != nil {
+			return nil, err
+		}
+		changes := audit.Diff(nil, "name", before, name)
+		changes = audit.Diff(changes, "icon", hasIcon(beforeIcon), iconURL != "")
+		if len(changes) == 0 {
+			return nil, nil
+		}
+		return mark.Event(audit.TargetServer, id, name, changes), nil
+	})
+}
+
+func hasIcon(icon *string) bool {
+	return icon != nil && *icon != ""
 }
 
 // SetIcon troca o ícone (nil tira) e devolve o antigo (para apagar o arquivo).
-func (r *Repository) SetIcon(ctx context.Context, id string, url *string) (*string, error) {
+func (r *Repository) SetIcon(ctx context.Context, id string, url *string, mark *audit.Mark) (*string, error) {
 	var old *string
-	err := r.db.QueryRow(
-		ctx,
-		`
-		UPDATE servers s SET icon_url = COALESCE($2, ''), updated_at = NOW()
-		FROM (SELECT icon_url FROM servers WHERE id = $1 FOR UPDATE) prev
-		WHERE s.id = $1
-		RETURNING prev.icon_url
-		`,
-		id,
-		url,
-	).Scan(&old)
+	err := audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		if err := tx.QueryRow(
+			ctx,
+			`
+			UPDATE servers s SET icon_url = COALESCE($2, ''), updated_at = NOW()
+			FROM (SELECT icon_url FROM servers WHERE id = $1 FOR UPDATE) prev
+			WHERE s.id = $1
+			RETURNING prev.icon_url
+			`,
+			id,
+			url,
+		).Scan(&old); err != nil {
+			return nil, err
+		}
+		oldURL := ""
+		if old != nil {
+			oldURL = *old
+		}
+		newURL := ""
+		if url != nil {
+			newURL = *url
+		}
+		if oldURL == newURL {
+			return nil, nil
+		}
+		changes := []audit.Change{{Field: "icon", Before: hasIcon(old), After: hasIcon(url)}}
+		return mark.Event(audit.TargetServer, id, "", changes), nil
+	})
 	return old, err
 }
 
@@ -255,477 +289,4 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Server,
 	}
 
 	return servers, nil
-}
-
-func (r *Repository) ListMembers(ctx context.Context, serverID string) ([]ServerMember, error) {
-	rows, err := r.db.Query(
-		ctx,
-		`
-		SELECT
-			sm.server_id,
-			sm.user_id,
-			u.username,
-			u.display_name,
-			u.avatar_url,
-			` + namestyle.Expr("u") + `,
-			u.is_bot,
-			sm.nickname,
-			`+legacyRoleColumn+`,
-			`+memberRoleIDsColumn+`,
-			sm.joined_at,
-			sm.updated_at
-		FROM server_members sm
-		JOIN users u ON u.id = sm.user_id
-		WHERE sm.server_id = $1
-		ORDER BY sm.joined_at
-		`,
-		serverID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var members []ServerMember
-	for rows.Next() {
-		var m ServerMember
-		if err := rows.Scan(
-			&m.ServerID,
-			&m.UserID,
-			&m.Username,
-			&m.DisplayName,
-			&m.AvatarURL,
-			&m.NameStyle,
-			&m.IsBot,
-			&m.Nickname,
-			&m.Role,
-			&m.RoleIDs,
-			&m.JoinedAt,
-			&m.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		members = append(members, m)
-	}
-
-	if members == nil {
-		members = []ServerMember{}
-	}
-
-	return members, nil
-}
-
-// SetNickname grava (ou tira, com nil) o apelido do membro no servidor.
-func (r *Repository) SetNickname(ctx context.Context, serverID, userID string, nickname *string) (bool, error) {
-	tag, err := r.db.Exec(
-		ctx,
-		`UPDATE server_members SET nickname = $3, updated_at = NOW() WHERE server_id = $1 AND user_id = $2`,
-		serverID,
-		userID,
-		nickname,
-	)
-	if err != nil {
-		return false, err
-	}
-	return tag.RowsAffected() > 0, nil
-}
-
-func (r *Repository) IsMember(ctx context.Context, serverID string, userID string) (bool, error) {
-	var exists bool
-	err := r.db.QueryRow(
-		ctx,
-		`SELECT EXISTS(SELECT 1 FROM server_members WHERE server_id = $1 AND user_id = $2)`,
-		serverID,
-		userID,
-	).Scan(&exists)
-	return exists, err
-}
-
-func (r *Repository) FindMemberByUserID(ctx context.Context, serverID string, userID string) (*ServerMember, error) {
-	m := &ServerMember{}
-	err := r.db.QueryRow(
-		ctx,
-		`
-		SELECT
-			sm.server_id,
-			sm.user_id,
-			u.username,
-			u.display_name,
-			u.avatar_url,
-			` + namestyle.Expr("u") + `,
-			u.is_bot,
-			sm.nickname,
-			`+legacyRoleColumn+`,
-			`+memberRoleIDsColumn+`,
-			sm.joined_at,
-			sm.updated_at
-		FROM server_members sm
-		JOIN users u ON u.id = sm.user_id
-		WHERE sm.server_id = $1 AND sm.user_id = $2
-		`,
-		serverID,
-		userID,
-	).Scan(
-		&m.ServerID,
-		&m.UserID,
-		&m.Username,
-		&m.DisplayName,
-		&m.AvatarURL,
-		&m.NameStyle,
-		&m.IsBot,
-		&m.Nickname,
-		&m.Role,
-		&m.RoleIDs,
-		&m.JoinedAt,
-		&m.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (r *Repository) CreateInvite(ctx context.Context, invite *ServerInvite) error {
-	return r.db.QueryRow(
-		ctx,
-		`
-		INSERT INTO server_invites (id, server_id, inviter_id, invitee_id, status)
-		VALUES ($1, $2, $3, $4, 'pending')
-		RETURNING
-			id,
-			server_id,
-			inviter_id,
-			invitee_id,
-			status,
-			created_at,
-			responded_at
-		`,
-		invite.ID,
-		invite.ServerID,
-		invite.InviterID,
-		invite.InviteeID,
-	).Scan(
-		&invite.ID,
-		&invite.ServerID,
-		&invite.InviterID,
-		&invite.InviteeID,
-		&invite.Status,
-		&invite.CreatedAt,
-		&invite.RespondedAt,
-	)
-}
-
-func (r *Repository) FindPendingInvite(ctx context.Context, serverID string, inviteeID string) (*ServerInvite, error) {
-	invite := &ServerInvite{}
-	err := r.db.QueryRow(
-		ctx,
-		`
-		SELECT
-			id,
-			server_id,
-			inviter_id,
-			invitee_id,
-			status,
-			created_at,
-			responded_at
-		FROM server_invites
-		WHERE server_id = $1 AND invitee_id = $2 AND status = 'pending'
-		`,
-		serverID,
-		inviteeID,
-	).Scan(
-		&invite.ID,
-		&invite.ServerID,
-		&invite.InviterID,
-		&invite.InviteeID,
-		&invite.Status,
-		&invite.CreatedAt,
-		&invite.RespondedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return invite, nil
-}
-
-func (r *Repository) FindInviteByID(ctx context.Context, id string) (*ServerInvite, error) {
-	invite := &ServerInvite{}
-	err := r.db.QueryRow(
-		ctx,
-		`
-		SELECT
-			id,
-			server_id,
-			inviter_id,
-			invitee_id,
-			status,
-			created_at,
-			responded_at
-		FROM server_invites
-		WHERE id = $1
-		`,
-		id,
-	).Scan(
-		&invite.ID,
-		&invite.ServerID,
-		&invite.InviterID,
-		&invite.InviteeID,
-		&invite.Status,
-		&invite.CreatedAt,
-		&invite.RespondedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return invite, nil
-}
-
-func (r *Repository) ListInvitesByInvitee(ctx context.Context, inviteeID string) ([]ServerInvite, error) {
-	rows, err := r.db.Query(
-		ctx,
-		`
-		SELECT
-			si.id,
-			si.server_id,
-			s.name,
-			s.icon_url,
-			si.inviter_id,
-			u.username,
-			si.invitee_id,
-			si.status,
-			si.created_at,
-			si.responded_at
-		FROM server_invites si
-		JOIN servers s ON s.id = si.server_id
-		JOIN users u ON u.id = si.inviter_id
-		WHERE si.invitee_id = $1
-		AND si.status = 'pending'
-		ORDER BY si.created_at DESC
-		`,
-		inviteeID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var invites []ServerInvite
-	for rows.Next() {
-		var i ServerInvite
-		if err := rows.Scan(
-			&i.ID,
-			&i.ServerID,
-			&i.ServerName,
-			&i.ServerIconURL,
-			&i.InviterID,
-			&i.InviterUsername,
-			&i.InviteeID,
-			&i.Status,
-			&i.CreatedAt,
-			&i.RespondedAt,
-		); err != nil {
-			return nil, err
-		}
-		invites = append(invites, i)
-	}
-
-	if invites == nil {
-		invites = []ServerInvite{}
-	}
-
-	return invites, nil
-}
-
-func (r *Repository) ListInvitesByServer(ctx context.Context, serverID string) ([]ServerInvite, error) {
-	rows, err := r.db.Query(
-		ctx,
-		`
-		SELECT
-			si.id,
-			si.server_id,
-			s.name,
-			s.icon_url,
-			si.inviter_id,
-			u_inviter.username,
-			si.invitee_id,
-			u_invitee.username,
-			si.status,
-			si.created_at,
-			si.responded_at
-		FROM server_invites si
-		JOIN servers s ON s.id = si.server_id
-		JOIN users u_inviter ON u_inviter.id = si.inviter_id
-		JOIN users u_invitee ON u_invitee.id = si.invitee_id
-		WHERE si.server_id = $1
-		AND si.status = 'pending'
-		ORDER BY si.created_at DESC
-		`,
-		serverID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var invites []ServerInvite
-	for rows.Next() {
-		var i ServerInvite
-		if err := rows.Scan(
-			&i.ID,
-			&i.ServerID,
-			&i.ServerName,
-			&i.ServerIconURL,
-			&i.InviterID,
-			&i.InviterUsername,
-			&i.InviteeID,
-			&i.InviteeUsername,
-			&i.Status,
-			&i.CreatedAt,
-			&i.RespondedAt,
-		); err != nil {
-			return nil, err
-		}
-		invites = append(invites, i)
-	}
-
-	if invites == nil {
-		invites = []ServerInvite{}
-	}
-
-	return invites, nil
-}
-
-func (r *Repository) UpdateInviteStatus(ctx context.Context, id string, status string) error {
-	_, err := r.db.Exec(
-		ctx,
-		`
-		UPDATE server_invites
-		SET status = $2, responded_at = NOW()
-		WHERE id = $1
-		`,
-		id,
-		status,
-	)
-	return err
-}
-
-// InviteCode devolve o código de convite do servidor ("" se ainda não tem).
-func (r *Repository) InviteCode(ctx context.Context, serverID string) (string, error) {
-	var code *string
-	err := r.db.QueryRow(ctx, `SELECT invite_code FROM servers WHERE id = $1`, serverID).Scan(&code)
-	if err != nil || code == nil {
-		return "", err
-	}
-	return *code, nil
-}
-
-// SetInviteCodeIfMissing grava o código só se o servidor ainda não tem um
-// (duas pessoas abrindo "Convidar" ao mesmo tempo recebem o mesmo código).
-func (r *Repository) SetInviteCodeIfMissing(ctx context.Context, serverID string, code string) error {
-	_, err := r.db.Exec(
-		ctx,
-		`UPDATE servers SET invite_code = $2 WHERE id = $1 AND invite_code IS NULL`,
-		serverID,
-		code,
-	)
-	return err
-}
-
-// SetInviteCode troca o código do servidor ("Gerar novo link").
-func (r *Repository) SetInviteCode(ctx context.Context, serverID string, code string) error {
-	_, err := r.db.Exec(ctx, `UPDATE servers SET invite_code = $2 WHERE id = $1`, serverID, code)
-	return err
-}
-
-func (r *Repository) FindIDByInviteCode(ctx context.Context, code string) (string, error) {
-	var id string
-	err := r.db.QueryRow(ctx, `SELECT id FROM servers WHERE invite_code = $1`, code).Scan(&id)
-	return id, err
-}
-
-// InvitePreview: servidor do código e os ids dos membros (para contar e ver
-// quem está online). Sem servidor com esse código, pgx.ErrNoRows.
-func (r *Repository) InvitePreview(ctx context.Context, code string) (*InvitePreview, []string, error) {
-	p := &InvitePreview{}
-	var iconURL *string
-	var memberIDs []string
-	err := r.db.QueryRow(
-		ctx,
-		`SELECT
-			s.id,
-			s.name,
-			NULLIF(s.icon_url, ''),
-			COALESCE((SELECT array_agg(sm.user_id::text) FROM server_members sm WHERE sm.server_id = s.id), '{}')
-		FROM servers s
-		WHERE s.invite_code = $1`,
-		code,
-	).Scan(&p.ServerID, &p.Name, &iconURL, &memberIDs)
-	if err != nil {
-		return nil, nil, err
-	}
-	p.IconURL = iconURL
-	return p, memberIDs, nil
-}
-
-// SharesServer: os dois estão em pelo menos um servidor em comum.
-func (r *Repository) SharesServer(ctx context.Context, userA string, userB string) (bool, error) {
-	var shares bool
-	err := r.db.QueryRow(
-		ctx,
-		`SELECT EXISTS (
-			SELECT 1 FROM server_members a
-			JOIN server_members b ON a.server_id = b.server_id
-			WHERE a.user_id = $1 AND b.user_id = $2
-		)`,
-		userA,
-		userB,
-	).Scan(&shares)
-	return shares, err
-}
-
-// MutualServers: servidores em que os dois estão (cartão de perfil).
-func (r *Repository) MutualServers(ctx context.Context, userA string, userB string) ([]MutualServer, error) {
-	rows, err := r.db.Query(
-		ctx,
-		`SELECT s.id, s.name, s.icon_url
-		FROM servers s
-		JOIN server_members a ON a.server_id = s.id AND a.user_id = $1
-		JOIN server_members b ON b.server_id = s.id AND b.user_id = $2
-		ORDER BY s.name`,
-		userA,
-		userB,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	servers := []MutualServer{}
-	for rows.Next() {
-		var s MutualServer
-		if err := rows.Scan(&s.ID, &s.Name, &s.IconURL); err != nil {
-			return nil, err
-		}
-		servers = append(servers, s)
-	}
-	return servers, rows.Err()
-}
-
-// AddMemberIfMissing põe alguém no servidor sem falhar se já estiver lá.
-// Se o usuário for um bot (is_bot = TRUE), vincula também o cargo de sistema (Bots).
-func (r *Repository) AddMemberIfMissing(ctx context.Context, serverID string, userID string, role string) error {
-	if _, err := r.db.Exec(ctx,
-		`INSERT INTO server_members (server_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-		serverID, userID, role); err != nil {
-		return err
-	}
-	_, err := r.db.Exec(ctx,
-		`INSERT INTO member_roles (server_id, user_id, role_id)
-		 SELECT $1, $2, r.id
-		 FROM roles r
-		 JOIN users u ON u.id = $2
-		 WHERE r.server_id = $1 AND r.is_system = TRUE AND u.is_bot = TRUE
-		 ON CONFLICT DO NOTHING`,
-		serverID, userID)
-	return err
 }

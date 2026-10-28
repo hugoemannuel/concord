@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -22,12 +23,12 @@ type EventPublisher interface {
 // store é o que o Service usa do Repository (nos testes, um fake em memória).
 type store interface {
 	List(ctx context.Context, serverID string) ([]Role, error)
-	Create(ctx context.Context, role *Role) error
-	Update(ctx context.Context, role *Role) error
-	Delete(ctx context.Context, serverID, roleID string) error
-	SetPositions(ctx context.Context, serverID string, positions map[string]int) error
-	AddMemberRole(ctx context.Context, serverID, userID, roleID string) error
-	RemoveMemberRole(ctx context.Context, serverID, userID, roleID string) error
+	Create(ctx context.Context, role *Role, mark *audit.Mark) error
+	Update(ctx context.Context, role *Role, mark *audit.Mark) error
+	Delete(ctx context.Context, serverID, roleID string, mark *audit.Mark) error
+	SetPositions(ctx context.Context, serverID string, positions map[string]int, mark *audit.Mark) error
+	AddMemberRole(ctx context.Context, serverID, userID, roleID string, mark *audit.Mark) error
+	RemoveMemberRole(ctx context.Context, serverID, userID, roleID string, mark *audit.Mark) error
 	MemberRoleIDs(ctx context.Context, serverID, userID string) ([]string, error)
 }
 
@@ -96,7 +97,8 @@ func (s *Service) Create(ctx context.Context, serverID, actorID string, in Input
 	if err := apply(role, in, actorPerms); err != nil {
 		return nil, err
 	}
-	if err := s.repository.Create(ctx, role); err != nil {
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.RoleCreate}
+	if err := s.repository.Create(ctx, role, mark); err != nil {
 		return nil, err
 	}
 
@@ -133,7 +135,8 @@ func (s *Service) Update(ctx context.Context, serverID, actorID, roleID string, 
 	if err := apply(&updated, in, actorPerms); err != nil {
 		return nil, err
 	}
-	if err := s.repository.Update(ctx, &updated); err != nil {
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.RoleUpdate}
+	if err := s.repository.Update(ctx, &updated, mark); err != nil {
 		return nil, err
 	}
 
@@ -196,7 +199,8 @@ func (s *Service) Delete(ctx context.Context, serverID, actorID, roleID string) 
 	if !snap.CanManageRole(actorID, current) {
 		return ErrRoleHierarchy
 	}
-	if err := s.repository.Delete(ctx, serverID, roleID); err != nil {
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.RoleDelete}
+	if err := s.repository.Delete(ctx, serverID, roleID, mark); err != nil {
 		return err
 	}
 	if s.publisher != nil {
@@ -235,7 +239,8 @@ func (s *Service) Reorder(ctx context.Context, serverID, actorID string, roleIDs
 	}
 
 	if len(changed) > 0 {
-		if err := s.repository.SetPositions(ctx, serverID, changed); err != nil {
+		mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.RoleReorder}
+		if err := s.repository.SetPositions(ctx, serverID, changed, mark); err != nil {
 			return nil, err
 		}
 	}
@@ -304,10 +309,15 @@ func (s *Service) SetMemberRole(ctx context.Context, serverID, actorID, targetID
 		return nil, err
 	}
 
+	action := audit.RoleMemberRemove
 	if add {
-		err = s.repository.AddMemberRole(ctx, serverID, targetID, roleID)
+		action = audit.RoleMemberAdd
+	}
+	mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: action}
+	if add {
+		err = s.repository.AddMemberRole(ctx, serverID, targetID, roleID, mark)
 	} else {
-		err = s.repository.RemoveMemberRole(ctx, serverID, targetID, roleID)
+		err = s.repository.RemoveMemberRole(ctx, serverID, targetID, roleID, mark)
 	}
 	if err != nil {
 		return nil, err

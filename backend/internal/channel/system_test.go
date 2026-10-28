@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -23,15 +24,15 @@ func (s *systemStore) FindByID(_ context.Context, id string) (*Channel, error) {
 	}
 	return nil, ErrChannelNotFound
 }
-func (s *systemStore) Update(_ context.Context, id, _ string) error {
+func (s *systemStore) Update(_ context.Context, id, _ string, _ *audit.Mark) error {
 	s.updated = append(s.updated, id)
 	return nil
 }
-func (s *systemStore) Delete(_ context.Context, id string) error {
+func (s *systemStore) Delete(_ context.Context, id string, _ *audit.Mark) error {
 	s.deleted = append(s.deleted, id)
 	return nil
 }
-func (s *systemStore) Create(_ context.Context, ch *Channel, _ []permission.Overwrite) error {
+func (s *systemStore) Create(_ context.Context, ch *Channel, _ []permission.Overwrite, _ *audit.Mark) error {
 	s.channels[ch.ID] = ch
 	return nil
 }
@@ -53,17 +54,17 @@ func TestSystemChannelCannotBeChanged(t *testing.T) {
 	ctx := context.Background()
 
 	for _, id := range []string{"bot", "avisos"} {
-		if _, err := svc.Update(ctx, id, "outro"); !errors.Is(err, ErrSystemChannel) {
+		if _, err := svc.Update(ctx, id, "outro", "dono"); !errors.Is(err, ErrSystemChannel) {
 			t.Fatalf("%s: Update err = %v, want ErrSystemChannel", id, err)
 		}
-		if err := svc.Delete(ctx, id); !errors.Is(err, ErrSystemChannel) {
+		if err := svc.Delete(ctx, id, "dono"); !errors.Is(err, ErrSystemChannel) {
 			t.Fatalf("%s: Delete err = %v, want ErrSystemChannel", id, err)
 		}
 		ch := store.channels[id]
-		if err := svc.SetOverwrite(ctx, ch, permission.Overwrite{}); !errors.Is(err, ErrSystemChannel) {
+		if err := svc.SetOverwrite(ctx, ch, permission.Overwrite{}, "dono"); !errors.Is(err, ErrSystemChannel) {
 			t.Fatalf("%s: SetOverwrite err = %v, want ErrSystemChannel", id, err)
 		}
-		if err := svc.DeleteOverwrite(ctx, ch, "role", "x"); !errors.Is(err, ErrSystemChannel) {
+		if err := svc.DeleteOverwrite(ctx, ch, "role", "x", "dono"); !errors.Is(err, ErrSystemChannel) {
 			t.Fatalf("%s: DeleteOverwrite err = %v, want ErrSystemChannel", id, err)
 		}
 	}
@@ -77,10 +78,10 @@ func TestRegularChannelStillEditable(t *testing.T) {
 	svc := newService(store, nil)
 	ctx := context.Background()
 
-	if _, err := svc.Update(ctx, "geral", "novo"); err != nil {
+	if _, err := svc.Update(ctx, "geral", "novo", "dono"); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if err := svc.Delete(ctx, "geral"); err != nil {
+	if err := svc.Delete(ctx, "geral", "dono"); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 }

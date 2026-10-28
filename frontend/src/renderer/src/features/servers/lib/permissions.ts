@@ -33,7 +33,8 @@ export const Perm = {
   MANAGE_EXPRESSIONS: 1 << 23,
   DISCONNECT_MEMBERS: 1 << 24,
   CHANGE_NICKNAME: 1 << 26,
-  MANAGE_NICKNAMES: 1 << 27
+  MANAGE_NICKNAMES: 1 << 27,
+  VIEW_AUDIT_LOG: 1 << 28
 } as const
 
 export type PermName = keyof typeof Perm

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,9 @@ func newFakeStore() *fakeStore {
 	}
 }
 
-func (f *fakeStore) Create(context.Context, *Channel, []permission.Overwrite) error { return nil }
+func (f *fakeStore) Create(context.Context, *Channel, []permission.Overwrite, *audit.Mark) error {
+	return nil
+}
 func (f *fakeStore) FindByID(context.Context, string) (*Channel, error) {
 	return nil, ErrChannelNotFound
 }
@@ -47,14 +50,18 @@ func (f *fakeStore) FindSystemByServerID(context.Context, string) (*Channel, err
 func (f *fakeStore) FindNoticesByServerID(context.Context, string) (*Channel, error) {
 	return nil, ErrChannelNotFound
 }
-func (f *fakeStore) Update(context.Context, string, string) error { return nil }
-func (f *fakeStore) Delete(context.Context, string) error         { return nil }
+func (f *fakeStore) Update(context.Context, string, string, *audit.Mark) error { return nil }
+func (f *fakeStore) Delete(context.Context, string, *audit.Mark) error         { return nil }
 func (f *fakeStore) ListByServerID(context.Context, string) ([]Channel, error) {
 	return []Channel{}, nil
 }
 
-func (f *fakeStore) SetOverwrite(context.Context, string, permission.Overwrite) error { return nil }
-func (f *fakeStore) DeleteOverwrite(context.Context, string, string, string) error    { return nil }
+func (f *fakeStore) SetOverwrite(context.Context, string, permission.Overwrite, *audit.Mark) error {
+	return nil
+}
+func (f *fakeStore) DeleteOverwrite(context.Context, string, string, string, *audit.Mark) error {
+	return nil
+}
 
 // perms: dono, "mod" com o cargo Moderador e "ana" só com @everyone.
 func (f *fakeStore) perms() *permission.Service {
@@ -70,7 +77,7 @@ func (f *fakeStore) perms() *permission.Service {
 	return permission.NewService(&permission.StaticStore{Snapshots: map[string]*permission.Snapshot{f.serverID: snap}})
 }
 
-func (f *fakeStore) Reorder(_ context.Context, serverID, chType string, ids []string) error {
+func (f *fakeStore) Reorder(_ context.Context, serverID, chType string, ids []string, _ *audit.Mark) error {
 	f.calls++
 	var current []string
 	if serverID == f.serverID {

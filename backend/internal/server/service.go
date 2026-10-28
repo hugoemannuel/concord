@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/bot"
 
 	"github.com/google/uuid"
@@ -80,7 +81,7 @@ func (s *Service) Create(
 	}
 
 	member := &ServerMember{}
-	if err := s.repository.AddingUserServer(ctx, server, member, server.OwnerID, "member"); err != nil {
+	if err := s.repository.AddingUserServer(ctx, server, member, server.OwnerID, "member", nil); err != nil {
 		return err
 	}
 
@@ -145,7 +146,7 @@ func (s *Service) SetMusicBot(ctx context.Context, serverID, actorID string, ena
 		return ErrOnlyOwnerBot
 	}
 	if !enabled {
-		if err := s.repository.RemoveMember(ctx, serverID, bot.UserID); err != nil {
+		if err := s.repository.RemoveMember(ctx, serverID, bot.UserID, nil); err != nil {
 			return err
 		}
 		if s.publisher != nil {
@@ -165,96 +166,6 @@ func (s *Service) SetMusicBot(ctx context.Context, serverID, actorID string, ena
 
 func (s *Service) FindByID(ctx context.Context, id string) (*Server, error) {
 	return s.repository.FindByID(ctx, id)
-}
-
-// SetPrimaryChannel troca o canal principal e avisa o servidor.
-func (s *Service) SetPrimaryChannel(ctx context.Context, serverID string, channelID string) (*Server, error) {
-	if err := s.repository.SetPrimaryChannel(ctx, serverID, channelID); err != nil {
-		return nil, err
-	}
-
-	updated, err := s.repository.FindByID(ctx, serverID)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.publisher != nil {
-		s.publisher.PublishServerUpdate(UpdateEvent{
-			ServerID: updated.ID,
-			Server:   *updated,
-		})
-	}
-
-	return updated, nil
-}
-
-func (s *Service) Update(ctx context.Context, id string, name string, iconURL *string) (*Server, error) {
-	if name == "" {
-		return nil, errors.New("name is required")
-	}
-
-	srv, err := s.repository.FindByID(ctx, id)
-	if err != nil {
-		return nil, errors.New("server not found")
-	}
-
-	icon := srv.IconURL
-	if iconURL != nil {
-		icon = *iconURL
-	}
-	if err := s.repository.Update(ctx, id, name, icon); err != nil {
-		return nil, err
-	}
-
-	updated, err := s.repository.FindByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.publisher != nil {
-		s.publisher.PublishServerUpdate(UpdateEvent{
-			ServerID: srv.ID,
-			Server:   *updated,
-		})
-	}
-
-	return updated, nil
-}
-
-// SetIcon troca o ícone (nil tira), avisa os membros com server:update e
-// devolve o ícone antigo para quem chama apagar o arquivo.
-func (s *Service) SetIcon(ctx context.Context, id string, url *string) (*Server, *string, error) {
-	old, err := s.repository.SetIcon(ctx, id, url)
-	if err != nil {
-		return nil, nil, errors.New("server not found")
-	}
-	updated, err := s.repository.FindByID(ctx, id)
-	if err != nil {
-		return nil, nil, err
-	}
-	if s.publisher != nil {
-		s.publisher.PublishServerUpdate(UpdateEvent{ServerID: updated.ID, Server: *updated})
-	}
-	return updated, old, nil
-}
-
-func (s *Service) Delete(ctx context.Context, id string) error {
-	srv, err := s.repository.FindByID(ctx, id)
-	if err != nil {
-		return errors.New("server not found")
-	}
-
-	if err := s.repository.Delete(ctx, id); err != nil {
-		return err
-	}
-
-	if s.publisher != nil {
-		s.publisher.PublishServerDelete(DeleteEvent{
-			ServerID: srv.ID,
-		})
-	}
-
-	return nil
 }
 
 func (s *Service) ListByUserID(ctx context.Context, userID string) ([]Server, error) {
@@ -324,7 +235,8 @@ func (s *Service) AcceptInvite(ctx context.Context, inviteID string, userID stri
 	}
 
 	member := &ServerMember{}
-	if err := s.repository.AddingUserServer(ctx, &Server{ID: invite.ServerID}, member, userID, "member"); err != nil {
+	mark := &audit.Mark{ServerID: invite.ServerID, ActorID: userID, Action: audit.MemberJoin}
+	if err := s.repository.AddingUserServer(ctx, &Server{ID: invite.ServerID}, member, userID, "member", mark); err != nil {
 		return err
 	}
 
@@ -390,7 +302,8 @@ func (s *Service) JoinByCode(ctx context.Context, rawCode string, userID string)
 			return nil, ErrBanned
 		}
 		member := &ServerMember{}
-		if err := s.repository.AddingUserServer(ctx, &Server{ID: serverID}, member, userID, "member"); err != nil {
+		mark := &audit.Mark{ServerID: serverID, ActorID: userID, Action: audit.MemberJoin}
+		if err := s.repository.AddingUserServer(ctx, &Server{ID: serverID}, member, userID, "member", mark); err != nil {
 			return nil, err
 		}
 		// A prévia do convite mostra o número de membros: entrou, conta já.

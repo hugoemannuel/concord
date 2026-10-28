@@ -453,7 +453,7 @@ func TestRotateInviteCodeDB(t *testing.T) {
 		t.Fatalf("depois de entrar: %+v, want 2 membros", p)
 	}
 
-	newCode, err := s.RotateInviteCode(ctx, serverID)
+	newCode, err := s.RotateInviteCode(ctx, serverID, joiner)
 	if err != nil {
 		t.Fatal(err)
 	}

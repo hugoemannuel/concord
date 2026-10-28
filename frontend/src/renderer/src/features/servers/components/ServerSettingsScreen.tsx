@@ -18,12 +18,14 @@ import RolesSection from './RolesSection'
 import ServerSettingsNav from './ServerSettingsNav'
 import MembersSection from './MembersSection'
 import BansSection from './BansSection'
+import AuditSection from './AuditSection'
 
 const SECTION_VIEW = {
   overview: OverviewSection,
   roles: RolesSection,
   members: MembersSection,
-  bans: BansSection
+  bans: BansSection,
+  audit: AuditSection
 } as const
 
 /**

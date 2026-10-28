@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/ratelimit"
 	"gin-quickstart/backend/internal/user"
@@ -199,10 +200,11 @@ func (s *Service) InvitePreview(ctx context.Context, rawCode string) (*InvitePre
 // RotateInviteCode troca o código do servidor por um novo (mesmo formato e
 // aleatoriedade): o link antigo para de funcionar na hora. Quem chama já
 // conferiu CREATE_INVITE.
-func (s *Service) RotateInviteCode(ctx context.Context, serverID string) (string, error) {
+func (s *Service) RotateInviteCode(ctx context.Context, serverID string, actorID string) (string, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		code := newInviteCode()
-		err := s.repository.SetInviteCode(ctx, serverID, code)
+		mark := &audit.Mark{ServerID: serverID, ActorID: actorID, Action: audit.ServerInviteCodeReset}
+		err := s.repository.SetInviteCode(ctx, serverID, code, mark)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			continue // outro servidor já tem esse código (raríssimo): sorteia de novo
@@ -267,7 +269,7 @@ func (h *Handler) RotateInviteCode(c *gin.Context) {
 		}
 		return
 	}
-	code, err := h.service.RotateInviteCode(c.Request.Context(), serverID)
+	code, err := h.service.RotateInviteCode(c.Request.Context(), serverID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reset invite code"})
 		return

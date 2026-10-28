@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,15 +22,24 @@ func ChannelRepository(db *pgxpool.Pool) *Repository {
 }
 
 // Create insere o canal e as sobrescritas dele numa transação: um canal
-// privado nunca existe, nem por um instante, sem o deny do @everyone.
-func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite) error {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
+// privado nunca existe, nem por um instante, sem o deny do @everyone. mark nil
+// (canais de sistema) não gera registro de auditoria.
+func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permission.Overwrite, mark *audit.Mark) error {
+	return audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		if err := insertChannel(ctx, tx, ch); err != nil {
+			return nil, err
+		}
+		for _, o := range overwrites {
+			if err := setOverwrite(ctx, tx, ch.ID, o); err != nil {
+				return nil, err
+			}
+		}
+		return mark.Event(audit.TargetChannel, ch.ID, ch.Name, []audit.Change{{Field: "type", After: ch.Type}}), nil
+	})
+}
 
-	err = tx.QueryRow(
+func insertChannel(ctx context.Context, tx pgx.Tx, ch *Channel) error {
+	return tx.QueryRow(
 		ctx,
 		`
 		INSERT INTO channels (id, server_id, name, type, created_by, is_system, position)
@@ -67,46 +76,6 @@ func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permi
 		&ch.CreatedAt,
 		&ch.UpdatedAt,
 	)
-	if err != nil {
-		return err
-	}
-	for _, o := range overwrites {
-		if err := setOverwrite(ctx, tx, ch.ID, o); err != nil {
-			return err
-		}
-	}
-	return tx.Commit(ctx)
-}
-
-type execer interface {
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
-}
-
-func setOverwrite(ctx context.Context, db execer, channelID string, o permission.Overwrite) error {
-	_, err := db.Exec(
-		ctx,
-		`
-		INSERT INTO channel_overwrites (channel_id, target_type, target_id, allow, deny)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (channel_id, target_type, target_id) DO UPDATE SET allow = EXCLUDED.allow, deny = EXCLUDED.deny
-		`,
-		channelID, o.TargetType, o.TargetID, o.Allow, o.Deny,
-	)
-	return err
-}
-
-// SetOverwrite cria ou troca a sobrescrita de um cargo/membro no canal.
-func (r *Repository) SetOverwrite(ctx context.Context, channelID string, o permission.Overwrite) error {
-	return setOverwrite(ctx, r.db, channelID, o)
-}
-
-func (r *Repository) DeleteOverwrite(ctx context.Context, channelID, targetType, targetID string) error {
-	_, err := r.db.Exec(
-		ctx,
-		`DELETE FROM channel_overwrites WHERE channel_id = $1 AND target_type = $2 AND target_id = $3`,
-		channelID, targetType, targetID,
-	)
-	return err
 }
 
 func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) {
@@ -192,31 +161,44 @@ func (r *Repository) ChannelServerID(ctx context.Context, channelID string) (str
 	return serverID, nil
 }
 
-func (r *Repository) Update(ctx context.Context, id string, name string) error {
-	tag, err := r.db.Exec(
-		ctx,
-		`UPDATE channels SET name = $1, updated_at = NOW() WHERE id = $2`,
-		name,
-		id,
-	)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrChannelNotFound
-	}
-	return nil
+func (r *Repository) Update(ctx context.Context, id string, name string, mark *audit.Mark) error {
+	return audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		before, err := lockName(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE channels SET name = $1, updated_at = NOW() WHERE id = $2`, name, id); err != nil {
+			return nil, err
+		}
+		changes := audit.Diff(nil, "name", before, name)
+		if len(changes) == 0 {
+			return nil, nil
+		}
+		return mark.Event(audit.TargetChannel, id, name, changes), nil
+	})
 }
 
-func (r *Repository) Delete(ctx context.Context, id string) error {
-	tag, err := r.db.Exec(ctx, `DELETE FROM channels WHERE id = $1`, id)
-	if err != nil {
-		return err
+// lockName trava o canal e devolve o nome que ele tinha antes da mudança.
+func lockName(ctx context.Context, tx pgx.Tx, id string) (string, error) {
+	var name string
+	err := tx.QueryRow(ctx, `SELECT name FROM channels WHERE id = $1 FOR UPDATE`, id).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrChannelNotFound
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrChannelNotFound
-	}
-	return nil
+	return name, err
+}
+
+func (r *Repository) Delete(ctx context.Context, id string, mark *audit.Mark) error {
+	return audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		name, err := lockName(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM channels WHERE id = $1`, id); err != nil {
+			return nil, err
+		}
+		return mark.Event(audit.TargetChannel, id, name, nil), nil
+	})
 }
 
 func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Channel, error) {
@@ -268,48 +250,4 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 	}
 
 	return channels, nil
-}
-
-// Reorder grava a nova ordem dos canais de um tipo do servidor numa transação:
-// trava os canais da seção, confere que ids é exatamente eles (ValidateOrder)
-// e grava position = índice em ids.
-func (r *Repository) Reorder(ctx context.Context, serverID string, chType string, ids []string) error {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	rows, err := tx.Query(
-		ctx,
-		`SELECT id FROM channels WHERE server_id = $1 AND type = $2 FOR UPDATE`,
-		serverID,
-		chType,
-	)
-	if err != nil {
-		return err
-	}
-	current, err := pgx.CollectRows(rows, pgx.RowTo[string])
-	if err != nil {
-		return err
-	}
-
-	if err := ValidateOrder(current, ids); err != nil {
-		return err
-	}
-
-	if _, err := tx.Exec(
-		ctx,
-		`
-		UPDATE channels AS c
-		SET position = o.ord - 1
-		FROM unnest($1::text[]) WITH ORDINALITY AS o(id, ord)
-		WHERE c.id = o.id::uuid
-		`,
-		ids,
-	); err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
 }

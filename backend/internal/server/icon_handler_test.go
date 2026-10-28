@@ -43,7 +43,7 @@ type fakeIcons struct {
 	events int
 }
 
-func (f *fakeIcons) SetIcon(_ context.Context, id string, url *string) (*Server, *string, error) {
+func (f *fakeIcons) SetIcon(_ context.Context, id string, url *string, _ string) (*Server, *string, error) {
 	old := f.icon
 	f.icon = ""
 	if url != nil {

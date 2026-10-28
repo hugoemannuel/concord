@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/platform/livekit"
 	"gin-quickstart/backend/internal/soundboard"
 
@@ -42,6 +43,7 @@ func (a *app) wireCalls() {
 	// AFK: XP de voz e badges de call param depois de 10 min sem falar.
 	a.callAFK = call.NewAFK(a.callService, time.Now)
 	callHandler := call.CallHandler(a.callService, a.liveKitTokens)
+	callHandler.SetAuditRecorder(audit.NewRecorder(a.db))
 	// Reinício do servidor não derruba quem está em chamada. Sem conseguir
 	// recarregar as chamadas o servidor não fica pronto (a porta nem abre):
 	// tenta de novo por até 30 s e então desiste (o systemd reinicia e o

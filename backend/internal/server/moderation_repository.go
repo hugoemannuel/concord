@@ -3,6 +3,10 @@ package server
 import (
 	"context"
 	"time"
+
+	"gin-quickstart/backend/internal/audit"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Ban: alguém banido do servidor (não entra de novo por convite nem código).
@@ -28,51 +32,64 @@ func (r *Repository) IsBanned(ctx context.Context, serverID, userID string) (boo
 	return banned, err
 }
 
-// RemoveMember tira o membro (os cargos dele vão junto pelo cascade).
-func (r *Repository) RemoveMember(ctx context.Context, serverID, userID string) error {
-	_, err := r.db.Exec(ctx, `DELETE FROM server_members WHERE server_id = $1 AND user_id = $2`, serverID, userID)
-	return err
+// RemoveMember tira o membro (os cargos dele vão junto pelo cascade). Com mark
+// nil (o Maestro saindo do servidor) não há registro.
+func (r *Repository) RemoveMember(ctx context.Context, serverID, userID string, mark *audit.Mark) error {
+	return audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		tag, err := tx.Exec(ctx, `DELETE FROM server_members WHERE server_id = $1 AND user_id = $2`, serverID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if tag.RowsAffected() == 0 {
+			return nil, nil
+		}
+		return mark.Event(audit.TargetMember, userID, "", nil), nil
+	})
 }
 
-// BanMember grava o banimento e tira o membro numa transação.
-func (r *Repository) BanMember(ctx context.Context, serverID, userID, bannedBy string, reason *string) error {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	if _, err := tx.Exec(
-		ctx,
-		`
-		INSERT INTO server_bans (server_id, user_id, banned_by, reason)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (server_id, user_id) DO UPDATE SET banned_by = EXCLUDED.banned_by, reason = EXCLUDED.reason
-		`,
-		serverID, userID, bannedBy, reason,
-	); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM server_members WHERE server_id = $1 AND user_id = $2`, serverID, userID); err != nil {
-		return err
-	}
-	// Convite pendente para quem foi banido não vale mais.
-	if _, err := tx.Exec(
-		ctx,
-		`UPDATE server_invites SET status = 'declined', responded_at = NOW() WHERE server_id = $1 AND invitee_id = $2 AND status = 'pending'`,
-		serverID, userID,
-	); err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
+// BanMember grava o banimento e tira o membro numa transação, junto com o registro.
+func (r *Repository) BanMember(ctx context.Context, serverID, userID, bannedBy string, reason *string, mark *audit.Mark) error {
+	return audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		if _, err := tx.Exec(
+			ctx,
+			`
+			INSERT INTO server_bans (server_id, user_id, banned_by, reason)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (server_id, user_id) DO UPDATE SET banned_by = EXCLUDED.banned_by, reason = EXCLUDED.reason
+			`,
+			serverID, userID, bannedBy, reason,
+		); err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM server_members WHERE server_id = $1 AND user_id = $2`, serverID, userID); err != nil {
+			return nil, err
+		}
+		// Convite pendente para quem foi banido não vale mais.
+		if _, err := tx.Exec(
+			ctx,
+			`UPDATE server_invites SET status = 'declined', responded_at = NOW() WHERE server_id = $1 AND invitee_id = $2 AND status = 'pending'`,
+			serverID, userID,
+		); err != nil {
+			return nil, err
+		}
+		return mark.Event(audit.TargetMember, userID, "", nil), nil
+	})
 }
 
-func (r *Repository) Unban(ctx context.Context, serverID, userID string) (bool, error) {
-	tag, err := r.db.Exec(ctx, `DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2`, serverID, userID)
-	if err != nil {
-		return false, err
-	}
-	return tag.RowsAffected() > 0, nil
+func (r *Repository) Unban(ctx context.Context, serverID, userID string, mark *audit.Mark) (bool, error) {
+	found := false
+	err := audit.Tx(ctx, r.db, func(tx pgx.Tx) (*audit.Event, error) {
+		tag, err := tx.Exec(ctx, `DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2`, serverID, userID)
+		if err != nil {
+			return nil, err
+		}
+		found = tag.RowsAffected() > 0
+		if !found {
+			return nil, nil
+		}
+		return mark.Event(audit.TargetMember, userID, "", nil), nil
+	})
+	return found, err
 }
 
 func (r *Repository) ListBans(ctx context.Context, serverID string) ([]Ban, error) {
