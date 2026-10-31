@@ -340,7 +340,6 @@ O [`deploy/Caddyfile`](../deploy/Caddyfile) é a cópia versionada do
 | Bloco | Para quê |
 |---|---|
 | `74-0-5-252.sslip.io` | `PUBLIC_URL` dos apps desktop: `/rtc*`, `/updates/*` e o backend |
-| `:8080` | repasse antigo (apps que falam com o endereço do playit): igual ao de cima |
 | `salinha.bhrx.com.br` | página de download (`/opt/concord/site`) e `/updates/*` |
 | `concord.bhrx.com.br` | redireciona para `salinha.bhrx.com.br` |
 | `app-salinha.bhrx.com.br` | app no navegador (`/opt/concord/web`), `/rtc*`, `/api`, `/ws`, `/updates/*`; também o endereço alternativo do app desktop |
@@ -353,7 +352,7 @@ funcionam assim, inclusive os WebSockets e o `/rtc` do app web.
   backend: cada deploy cortava essa conexão, o cliente fazia um "ICE restart"
   e a voz e a tela de todo mundo travavam por 0,3–1 s ao mesmo tempo. O app já
   pede `/rtc` no mesmo endereço da API, então funciona **sem atualizar o app**.
-  Está no bloco do `PUBLIC_URL`, no `:8080` e no app web (`import salinha_rtc`);
+  Está no bloco do `PUBLIC_URL` e no app web (`import salinha_rtc`);
   um bloco novo que sirva o app precisa do mesmo `import`.
 - **`/updates/*`:** os manifestos (`latest*.yml`) vêm do disco
   (`/opt/concord/updates`); os instaladores, `.blockmap` e `.sig`
@@ -367,6 +366,42 @@ funcionam assim, inclusive os WebSockets e o `/rtc` do app web.
   ociosas, e um POST mandado numa conexão reaproveitada daria 502.
 - O proxy `/rtc` do backend continua para o PC de casa com playit (um túnel
   TCP só, sem Caddy). Lá, reiniciar o backend ainda trava a voz por um instante.
+
+### Portas abertas na VPS
+
+Só ficam abertas para a internet as portas que o app usa: `22` (SSH), `80` e
+`443` TCP/UDP (Caddy: HTTPS e o redirecionamento do HTTP) e as do LiveKit
+(`7881/tcp`, `7882/udp` e as UDP dos candidatos ICE). Postgres, a API do
+LiveKit, o Prometheus, o admin do Caddy e o backend ficam em `127.0.0.1`.
+Confira com `ss -tulnp`.
+
+- **`:8080` (HTTP puro) saiu em 2026-10-31.** Era o repasse dos apps que
+  ainda falavam com o endereço do playit, e servia o app inteiro (API, WS com
+  o token na URL, `/rtc`, updates) sem criptografia. Antes de tirar: o Caddy
+  não tem access log e o journal do backend não guarda o Host (e só cobre
+  ~2 dias), então não há como ver 2 semanas de uso; a evidência foi o journal
+  do Caddy de 14 dias (nada da 8080), zero conexões no conntrack (que guarda
+  conexões estabelecidas por até 5 dias), zero conexões abertas e zero SYN
+  em amostras com `tcpdump` (com a 443 ativa na mesma hora), e nenhum agente
+  do playit rodando (o `concord-relay` do PC de casa ainda existe, mas sem o
+  playit nada de fora chega nele; pode ser removido com
+  `docker rm -f concord-relay`). Para voltar, recoloque o bloco
+  `:8080 { import salinha_app }` e aplique com o `scripts/apply-caddyfile.sh`.
+- **LLMNR desligado em 2026-10-31.** O `systemd-resolved` escutava a `5355`
+  (TCP e UDP, em `0.0.0.0` e `[::]`) para resolução de nomes na rede local,
+  que não tem uso numa VPS. Drop-in em
+  `/etc/systemd/resolved.conf.d/10-sem-llmnr.conf`:
+
+  ```ini
+  [Resolve]
+  LLMNR=no
+  ```
+
+  Depois: `systemctl restart systemd-resolved`, conferir que `ss -tulnp | grep 5355`
+  não mostra nada, que `getent hosts github.com` resolve e que backend
+  (`curl 127.0.0.1:8090/healthz`) e LiveKit (`curl 127.0.0.1:7880/`) seguem
+  respondendo.
+- SSH e firewall: veja a auditoria de segurança (tarefa à parte).
 
 **Caddy 2.6 e o reload.** O `stream_close_delay`, que faria o reload do Caddy
 não fechar os WebSockets, só existe a partir do 2.7. No 2.6.2 **todo
@@ -812,7 +847,7 @@ Permitir notificações**.
 4. Publique uma versão nova com o `PUBLIC_URL` da VPS. Os apps antigos se
    atualizam pelo endereço antigo e passam a falar direto com a VPS.
 5. Quando todos estiverem na versão nova, desligue o repasse, o playit e o
-   bloco `:8080`.
+   bloco `:8080` (feito em 2026-10-31; veja "Portas abertas na VPS").
 
 **Deploy automático (GitHub Actions):** o workflow `.github/workflows/deploy.yml`
 roda a cada push/merge na `main`:
