@@ -11,7 +11,8 @@ function Nameplate({
   url,
   active,
   fade,
-  forceAnimate = false
+  forceAnimate = false,
+  highlight = false
 }: {
   url: string | null | undefined
   /** A linha está em hover/foco. */
@@ -20,6 +21,8 @@ function Nameplate({
   fade: string
   /** Prévia "Animando": roda sem hover. */
   forceAnimate?: boolean
+  /** A linha é a aberta (ex.: a DM): o destaque fica por cima da faixa. */
+  highlight?: boolean
 }): React.JSX.Element | null {
   const { still, moving } = mediaLayers(url, API_BASE_URL, {
     animate: forceAnimate ? 'always' : 'hover',
@@ -37,6 +40,11 @@ function Nameplate({
       <span
         className="absolute inset-0"
         style={{ background: `linear-gradient(90deg, ${fade} 10%, transparent 80%)` }}
+      />
+      {/* O fundo da linha (hover, aberta) ficaria embaixo da faixa: repete por cima. */}
+      <span
+        data-tint
+        className={`absolute inset-0 transition-colors ${highlight ? 'bg-fg/10' : 'group-hover:bg-fg/6'}`}
       />
     </span>
   )

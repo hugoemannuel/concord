@@ -59,16 +59,19 @@ function DmName({
 /** A faixa de quem está do outro lado da DM (grupo não tem). */
 function DmNameplate({
   other,
-  active
+  active,
+  open
 }: {
   other: ConversationOtherUser
   active: boolean
+  /** A DM é a aberta: o destaque vai por cima da faixa. */
+  open: boolean
 }): React.JSX.Element | null {
   const look = useUserLook(other.id, {
     name: other.display_name || other.username,
     nameplateUrl: other.nameplate_url
   })
-  return <Nameplate url={look.nameplateUrl} active={active} fade={SIDEBAR_BG} />
+  return <Nameplate url={look.nameplateUrl} active={active} fade={SIDEBAR_BG} highlight={open} />
 }
 
 /** Ícone do grupo, ou o avatar de quem está do outro lado da DM. */
@@ -232,7 +235,7 @@ function ConversationRow({
         active ? 'bg-fg/10' : 'hover:bg-fg/6'
       }`}
     >
-      {!isGroup && other && <DmNameplate other={other} active={hover.active} />}
+      {!isGroup && other && <DmNameplate other={other} active={hover.active} open={active} />}
       <ConversationLead conv={conv} other={other} isGroup={isGroup} active={hover.active} />
       <ConversationText
         conv={conv}

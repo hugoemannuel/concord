@@ -23,15 +23,17 @@ export function nameplateChoice(choice: NameplateMode, user: NameplateState): Na
   return { kind: 'pick' }
 }
 
-/** O efeito de escolher uma opção: abrir o arquivo, o modo a gravar ou nada. */
+/**
+ * O efeito de escolher uma opção: abrir o arquivo ou o modo a gravar. Grava
+ * mesmo se a sessão já diz esse modo: ela pode estar velha (o modo não vem no
+ * user:update, então outro aparelho pode ter mudado).
+ */
 export function nameplateEffect(
   choice: NameplateMode,
   user: NameplateState | null
-): 'pick' | NameplateMode | null {
-  const state = user ?? {}
-  const action = nameplateChoice(choice, state)
-  if (action.kind === 'pick') return 'pick'
-  return action.mode === resolveNameplateMode(state.nameplate_mode) ? null : action.mode
+): 'pick' | NameplateMode {
+  const action = nameplateChoice(choice, user ?? {})
+  return action.kind === 'pick' ? 'pick' : action.mode
 }
 
 export function hasAnimation(...urls: (string | null | undefined)[]): boolean {
@@ -55,6 +57,23 @@ export function previewRows(user: {
 }
 
 const STEP: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }
+
+/**
+ * Teclado do grupo de rádio: as setas só movem o foco (escolher salva e pode
+ * abrir o arquivo; isso fica para Espaço/Enter, como num botão). Devolve se a
+ * tecla foi tratada (para o preventDefault).
+ */
+export function radioKey(
+  key: string,
+  index: number,
+  length: number,
+  focusAt: (index: number) => void
+): boolean {
+  const next = radioStep(index, key, length)
+  if (next === null) return false
+  focusAt(next)
+  return true
+}
 
 /** Próxima opção de um grupo de rádio pelas setas (dá a volta); null = outra tecla. */
 export function radioStep(current: number, key: string, length: number): number | null {

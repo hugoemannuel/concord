@@ -11,6 +11,13 @@ const fade = 'var(--bg-members)'
 const imgs = (html: string): string[] => html.match(/<img[^>]*>/g) ?? []
 
 describe('Nameplate', () => {
+  it('o hover e a linha aberta continuam visíveis por cima da faixa', () => {
+    const html = renderToStaticMarkup(<Nameplate url={png} active={false} fade={fade} highlight />)
+    expect(html).toMatch(/<span[^>]*data-tint[^>]*bg-fg\/10/)
+    const hover = renderToStaticMarkup(<Nameplate url={png} active={false} fade={fade} />)
+    expect(hover).toMatch(/<span[^>]*data-tint[^>]*group-hover:bg-fg\/6/)
+  })
+
   it('sem faixa não desenha nada', () => {
     expect(renderToStaticMarkup(<Nameplate url={null} active fade={fade} />)).toBe('')
   })

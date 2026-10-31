@@ -36,6 +36,7 @@ describe('Avatar com moldura', () => {
     const html = renderToStaticMarkup(<Avatar name="Mugis" size={32} decorationUrl={gif} />)
     expect(html).toContain('/a_d/static')
     expect(html).not.toContain('/a_d"')
+    expect(html).toMatch(/<img data-decoration[^>]*loading="lazy"/)
   })
 
   it('com a linha ativa (hover/foco) monta a moldura animada', () => {

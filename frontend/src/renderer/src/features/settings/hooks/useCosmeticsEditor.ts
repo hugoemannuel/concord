@@ -51,7 +51,7 @@ export function useCosmeticsEditor(pick: (kind: CosmeticImageKind) => void): {
   const choose = (mode: NameplateMode): void => {
     const effect = nameplateEffect(mode, user)
     if (effect === 'pick') pick('nameplate')
-    else if (effect) void run(() => setNameplateMode(effect))
+    else void run(() => setNameplateMode(effect))
   }
 
   const pickFile = (kind: CosmeticImageKind, file: File | undefined): void => {

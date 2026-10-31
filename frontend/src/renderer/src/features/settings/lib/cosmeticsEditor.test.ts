@@ -4,6 +4,7 @@ import {
   nameplateChoice,
   nameplateEffect,
   previewRows,
+  radioKey,
   radioStep
 } from './cosmeticsEditor'
 
@@ -61,13 +62,27 @@ describe('nameplateEffect', () => {
   it('pede o arquivo, troca o modo ou não faz nada (já está nele)', () => {
     expect(nameplateEffect('custom', { nameplate_mode: 'off' })).toBe('pick')
     expect(nameplateEffect('banner', { nameplate_mode: 'off' })).toBe('banner')
-    expect(nameplateEffect('off', { nameplate_mode: 'off' })).toBeNull()
+    // A sessão pode estar velha (o modo não vem no user:update): manda de novo.
+    expect(nameplateEffect('off', { nameplate_mode: 'off' })).toBe('off')
   })
 })
 
 describe('nameplateEffect sem sessão', () => {
   it('sem usuário trata como desligada', () => {
     expect(nameplateEffect('banner', null)).toBe('banner')
-    expect(nameplateEffect('off', null)).toBeNull()
+    expect(nameplateEffect('off', null)).toBe('off')
+  })
+})
+
+describe('radioKey', () => {
+  it('setas só movem o foco (não escolhem)', () => {
+    const focused: number[] = []
+    expect(radioKey('ArrowUp', 0, 3, (i) => focused.push(i))).toBe(true)
+    expect(focused).toEqual([2])
+  })
+  it('outras teclas seguem o padrão do botão (Espaço/Enter escolhem)', () => {
+    const focused: number[] = []
+    expect(radioKey('Enter', 0, 3, (i) => focused.push(i))).toBe(false)
+    expect(focused).toEqual([])
   })
 })

@@ -86,6 +86,7 @@ function AvatarDecoration({
     <>
       <img
         data-decoration
+        loading="lazy"
         src={still}
         alt=""
         aria-hidden="true"

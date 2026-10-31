@@ -85,3 +85,20 @@ describe('CosmeticsModal', () => {
     expect(html).not.toContain('Animando')
   })
 })
+
+describe('CosmeticsModal ocupado', () => {
+  it('as opções ficam com aria-disabled (o foco não se perde)', () => {
+    const html = renderToStaticMarkup(
+      <CosmeticsModal
+        user={{ ...base, nameplate_mode: 'off' }}
+        busy
+        onChoose={noop}
+        onPickDecoration={noop}
+        onRemove={noop}
+        onClose={noop}
+      />
+    )
+    expect(html).toMatch(/role="radio"[^>]*aria-disabled="true"/)
+    expect(html).not.toMatch(/role="radio"[^>]*disabled=""/)
+  })
+})
