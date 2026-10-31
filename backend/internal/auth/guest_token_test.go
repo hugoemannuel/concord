@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -71,7 +72,7 @@ func TestAuthMiddlewareRefusesGuestToken(t *testing.T) {
 
 func TestMemberOrGuestMiddleware(t *testing.T) {
 	s, router := guestRouter(t, MemberOrGuestMiddleware)
-	access, _ := s.GenerateAccessToken("u1")
+	access, _ := s.GenerateAccessToken(context.Background(), "u1")
 	guest, _ := s.GenerateGuestToken("g1", time.Now().Add(time.Hour))
 	media, _, _ := s.GenerateMediaToken("u1")
 

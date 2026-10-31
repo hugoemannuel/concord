@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,7 +19,7 @@ func TestMiddlewareRejectsMediaTokenAsBearer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	accessToken, err := s.GenerateAccessToken("u1")
+	accessToken, err := s.GenerateAccessToken(context.Background(), "u1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +44,7 @@ func TestOptionalAuthMiddleware(t *testing.T) {
 		c.String(http.StatusOK, c.GetString("userID"))
 	})
 
-	accessToken, err := s.GenerateAccessToken("u1")
+	accessToken, err := s.GenerateAccessToken(context.Background(), "u1")
 	if err != nil {
 		t.Fatal(err)
 	}

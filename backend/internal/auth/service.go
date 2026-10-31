@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -11,12 +12,18 @@ import (
 type Claims struct {
 	UserID string `json:"user_id"`
 	Type   string `json:"type"`
+	// Version é users.token_version quando o token de acesso foi emitido
+	// (docs/adr/0039). Tokens de antes da migration não têm: valem como 0.
+	Version int `json:"ver,omitempty"`
 	jwt.RegisteredClaims
 }
 
 type Service struct {
 	repository *Repository
 	secret     []byte
+	// versions confere a versão da sessão; nil = sem conferência (testes).
+	versions  *VersionCache
+	onRevoked []func(userID string)
 }
 
 // NewService monta o serviço com o segredo dos tokens (SecretFromEnv).
@@ -27,10 +34,16 @@ func NewService(repository *Repository, secret []byte) *Service {
 	}
 }
 
-func (s *Service) GenerateAccessToken(userID string) (string, error) {
+// GenerateAccessToken emite o token de acesso com a versão atual da sessão.
+func (s *Service) GenerateAccessToken(ctx context.Context, userID string) (string, error) {
+	version, err := s.currentVersion(ctx, userID)
+	if err != nil {
+		return "", err
+	}
 	claims := Claims{
-		UserID: userID,
-		Type:   "access",
+		UserID:  userID,
+		Type:    "access",
+		Version: version,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

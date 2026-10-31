@@ -28,6 +28,10 @@ func (a *app) wireCore() {
 		log.Fatalf("[auth] %v", err)
 	}
 	a.authService = auth.NewService(a.authRepository, secret)
+	// Sessão revogável (docs/adr/0039): a versão vai no token e é conferida
+	// com cache curto; os refresh tokens vencidos saem do banco.
+	a.authService.SetSessionVersions(auth.NewVersionCache(a.authRepository, auth.SessionVersionTTL))
+	go auth.RunRefreshCleanup(a.ctx, a.authRepository, auth.RefreshCleanupInterval)
 	a.authMiddleware = auth.AuthMiddleware(a.authService)
 	a.memberOrGuest = auth.MemberOrGuestMiddleware(a.authService)
 
@@ -39,6 +43,8 @@ func (a *app) wireCore() {
 
 	// WebSocket hub (criado antes dos serviços que publicam eventos)
 	a.hub = websocket.NewHub()
+	// Saiu de todos os dispositivos / redefiniu a senha: os WS abertos caem.
+	a.authService.OnSessionsRevoked(a.hub.DisconnectUser)
 	a.mobileApps = websocket.NewMobileApps()
 	a.hub.SetStatusLookup(a.userRepository.GetStatus)
 	a.hub.SetAudience(websocket.NewSQLAudience(a.db))

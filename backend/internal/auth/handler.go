@@ -209,22 +209,7 @@ func (h *Handler) Register(c *gin.Context) {
 		}
 	}
 
-	accessToken, err := h.service.GenerateAccessToken(newUser.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-		return
-	}
-
-	refreshToken, err := h.service.GenerateRefreshToken(c.Request.Context(), newUser.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-	})
+	h.respondTokens(c, http.StatusCreated, newUser.ID)
 }
 
 // respondCreateError responde a falha do cadastro. Só o nome/e-mail já usado
@@ -275,13 +260,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	var foundUser *user.User
-	var err error
-	if identifier.Kind == IdentifierEmail {
-		foundUser, err = h.logins.FindLoginByEmail(c.Request.Context(), identifier.Value)
-	} else {
-		foundUser, err = h.logins.FindLoginByUsername(c.Request.Context(), identifier.Value)
-	}
+	foundUser, err := h.findLogin(c.Request.Context(), identifier)
 	if err != nil && !errors.Is(err, user.ErrLoginNotFound) {
 		// Banco fora do ar: responde igual, fica no log e não conta.
 		log.Printf("[auth] login lookup: %v", err)
@@ -290,21 +269,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	// Conta inexistente gasta o mesmo bcrypt de uma senha errada, para o
-	// tempo de resposta também não denunciar que ela não existe.
-	hash := dummyPasswordHash
-	if foundUser != nil {
-		hash = []byte(foundUser.PasswordHash)
-	}
-	// O release é deferido: um panic no compare (recuperado pelo gin.Recovery)
-	// não pode vazar a vaga.
-	gotSlot, err := func() (bool, error) {
-		if !h.guard.acquireBcrypt(c.Request.Context()) {
-			return false, nil
-		}
-		defer h.guard.releaseBcrypt()
-		return true, h.compareHash(hash, []byte(input.Password))
-	}()
+	gotSlot, err := h.compareLogin(c.Request.Context(), foundUser, input.Password)
 	if !gotSlot {
 		h.guard.undo(identifier)
 		tooManyAttempts(c, h.guard.bcryptWait)
@@ -317,20 +282,47 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 	h.guard.succeeded(identifier)
 
-	accessToken, err := h.service.GenerateAccessToken(foundUser.ID)
+	h.respondTokens(c, http.StatusOK, foundUser.ID)
+}
+
+// respondTokens emite o par de tokens da sessão nova e responde.
+func (h *Handler) respondTokens(c *gin.Context, status int, userID string) {
+	accessToken, err := h.service.GenerateAccessToken(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
 	}
-
-	refreshToken, err := h.service.GenerateRefreshToken(c.Request.Context(), foundUser.ID)
+	refreshToken, err := h.service.GenerateRefreshToken(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
+	c.JSON(status, gin.H{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 	})
+}
+
+// findLogin busca a conta pelo e-mail ou pelo @.
+func (h *Handler) findLogin(ctx context.Context, identifier LoginIdentifier) (*user.User, error) {
+	if identifier.Kind == IdentifierEmail {
+		return h.logins.FindLoginByEmail(ctx, identifier.Value)
+	}
+	return h.logins.FindLoginByUsername(ctx, identifier.Value)
+}
+
+// compareLogin roda o bcrypt numa vaga. Conta inexistente gasta o mesmo bcrypt
+// de uma senha errada, para o tempo de resposta não denunciar que ela não
+// existe. O release é deferido: um panic no compare (recuperado pelo
+// gin.Recovery) não pode vazar a vaga. gotSlot = false: sem vaga.
+func (h *Handler) compareLogin(ctx context.Context, found *user.User, password string) (gotSlot bool, err error) {
+	hash := dummyPasswordHash
+	if found != nil {
+		hash = []byte(found.PasswordHash)
+	}
+	if !h.guard.acquireBcrypt(ctx) {
+		return false, nil
+	}
+	defer h.guard.releaseBcrypt()
+	return true, h.compareHash(hash, []byte(password))
 }

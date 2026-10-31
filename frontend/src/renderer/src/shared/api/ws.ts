@@ -1,5 +1,5 @@
 import { WS_URL } from '../lib/config'
-import { isPlannedRestart, reconnectDelay } from '../lib/wsReconnect'
+import { isPlannedRestart, isSessionRevoked, reconnectDelay } from '../lib/wsReconnect'
 
 export type WsEventType =
   | 'message:create'
@@ -191,6 +191,12 @@ export class WsClient {
       if (this.ws !== ws) return
       this.ws = null
       if (this.closedByUser) return
+      if (isSessionRevoked(event.code)) {
+        // Quem cuida é o ouvinte de session:revoked (features/auth).
+        this.closedByUser = true
+        emitWsEvent({ type: 'session:revoked', payload: null })
+        return
+      }
       if (isPlannedRestart(event.code)) this.serverRestarting = true
       this.scheduleReconnect()
       this.config.onLost?.({ attempt: this.attempt, planned: this.serverRestarting })

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -23,7 +24,7 @@ func TestMediaTokenRoundTrip(t *testing.T) {
 
 func TestMediaTokenRejectsAccessToken(t *testing.T) {
 	s := NewService(nil, []byte("segredo-de-teste"))
-	access, err := s.GenerateAccessToken("u1")
+	access, err := s.GenerateAccessToken(context.Background(), "u1")
 	if err != nil {
 		t.Fatal(err)
 	}

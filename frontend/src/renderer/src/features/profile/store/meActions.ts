@@ -1,4 +1,4 @@
-import { logout } from '../../auth/api/auth'
+import { logout, logoutAll } from '../../auth/api/auth'
 import { clearSession } from '../../../shared/api/client'
 import { setStatus } from '../api/users'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
@@ -22,9 +22,10 @@ import { showToast } from '../../../shared/store/toastStore'
 export async function logoutAndReset(): Promise<void> {
   // Antes de fechar o WebSocket: o aviso de saída da chamada vai por ele, e a
   // chamada (microfone, LiveKit) não pode passar para a próxima conta.
+  const refreshToken = useAuthStore.getState().refreshToken
   endSessionState()
   try {
-    await logout()
+    await logout(refreshToken)
   } catch {
     // Limpa a sessão local mesmo assim.
   } finally {
@@ -44,6 +45,12 @@ async function resetLocalSession(): Promise<void> {
   useSettingsStore.getState().forceClose()
   await clearSession()
   void router.navigate('/login')
+}
+
+/** Sai de todos os dispositivos; erro do servidor sobe para quem chamou. */
+export async function logoutEverywhere(): Promise<void> {
+  await logoutAll()
+  await endLocalSession()
 }
 
 /**

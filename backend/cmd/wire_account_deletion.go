@@ -55,5 +55,6 @@ func (a *app) afterAccountDeleted(userID string, e *accountdeletion.Erasure) {
 		a.permissionService.InvalidateServer(id)
 		a.hub.PublishMemberLeave(server.MemberLeaveEvent{ServerID: id, UserID: userID})
 	}
+	a.authService.ForgetSession(userID)
 	a.hub.DisconnectUser(userID)
 }

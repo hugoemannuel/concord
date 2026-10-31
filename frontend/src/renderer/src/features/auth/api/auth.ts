@@ -64,6 +64,15 @@ export function resetPassword(token: string, password: string): Promise<void> {
   })
 }
 
-export function logout(): Promise<void> {
-  return request<void>('/auth/logout', { method: 'POST' })
+/** Sai deste dispositivo: o servidor apaga só o refresh token dele. */
+export function logout(refreshToken?: string | null): Promise<void> {
+  return request<void>('/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {})
+  })
+}
+
+/** Sai de todos os dispositivos (docs/adr/0039): os tokens emitidos param de valer. */
+export function logoutAll(): Promise<void> {
+  return request<void>('/auth/logout-all', { method: 'POST' })
 }
