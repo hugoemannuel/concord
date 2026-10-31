@@ -47,7 +47,10 @@ func (f *fakeAccountChanges) ChangeEmail(_ context.Context, _ string, email stri
 
 type fakeVerifier struct{ sentTo []string }
 
-func (f *fakeVerifier) SendVerification(u *user.User) { f.sentTo = append(f.sentTo, u.Email) }
+func (f *fakeVerifier) SendNewAddressVerification(_ context.Context, u *user.User) error {
+	f.sentTo = append(f.sentTo, u.Email)
+	return nil
+}
 
 type accountEnv struct {
 	h        *AccountHandler

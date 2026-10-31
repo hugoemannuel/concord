@@ -24,9 +24,37 @@ func newFakeTokens() *fakeTokens {
 	return &fakeTokens{byHash: map[string]string{}, used: map[string]bool{}}
 }
 
-func (f *fakeTokens) CreateEmailToken(_ context.Context, userID, purpose, hash string, _ time.Time) error {
+// CreateEmailToken: como o banco, invalida os pendentes da mesma finalidade.
+func (f *fakeTokens) CreateEmailToken(ctx context.Context, userID, purpose, hash string, expiresAt time.Time) error {
+	for h, v := range f.byHash {
+		if v == purpose+"|"+userID {
+			f.used[h] = true
+		}
+	}
+	return f.AddEmailToken(ctx, userID, purpose, hash, expiresAt)
+}
+
+// InvalidateEmailTokens: como o banco, todos os pendentes da conta.
+func (f *fakeTokens) InvalidateEmailTokens(_ context.Context, userID string) error {
+	for h, v := range f.byHash {
+		if strings.HasSuffix(v, "|"+userID) {
+			f.used[h] = true
+		}
+	}
+	return nil
+}
+
+func (f *fakeTokens) AddEmailToken(_ context.Context, userID, purpose, hash string, _ time.Time) error {
 	f.byHash[hash] = purpose + "|" + userID
 	return nil
+}
+
+func (f *fakeTokens) EmailTokenOwner(_ context.Context, purpose, hash string) (string, error) {
+	v, ok := f.byHash[hash]
+	if !ok || !strings.HasPrefix(v, purpose+"|") {
+		return "", ErrInvalidEmailToken
+	}
+	return strings.TrimPrefix(v, purpose+"|"), nil
 }
 
 func (f *fakeTokens) ConsumeEmailToken(_ context.Context, purpose, hash string) (string, error) {
@@ -53,6 +81,10 @@ func (f *fakeEmailUsers) FindByEmailFold(_ context.Context, email string) (*user
 }
 func (f *fakeEmailUsers) MarkEmailVerified(context.Context, string) error {
 	f.verified = true
+	if f.u.EmailVerifiedAt == nil {
+		now := time.Now()
+		f.u.EmailVerifiedAt = &now
+	}
 	return nil
 }
 func (f *fakeEmailUsers) SetPassword(_ context.Context, _, hash string) error {
@@ -117,10 +149,16 @@ func (e *emailEnv) post(path string, handler gin.HandlerFunc, body string, userI
 // tokenFromMail tira o token do link do último e-mail enviado.
 func (e *emailEnv) tokenFromMail(t *testing.T) string {
 	t.Helper()
-	if len(e.mail.sent) == 0 {
-		t.Fatal("nenhum e-mail enviado")
+	return e.tokenFromMailAt(t, len(e.mail.sent)-1)
+}
+
+// tokenFromMailAt tira o token do link do i-ésimo e-mail enviado.
+func (e *emailEnv) tokenFromMailAt(t *testing.T, n int) string {
+	t.Helper()
+	if n < 0 || n >= len(e.mail.sent) {
+		t.Fatalf("e-mail %d não enviado (enviados: %d)", n, len(e.mail.sent))
 	}
-	text := e.mail.sent[len(e.mail.sent)-1].Text
+	text := e.mail.sent[n].Text
 	i := strings.Index(text, "?token=")
 	if i < 0 {
 		t.Fatalf("sem link no e-mail: %s", text)
