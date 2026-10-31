@@ -2,6 +2,7 @@ import { useCallStore } from '../store/callStore'
 import { boostRank } from '../../levels/lib/boost'
 import { useMyBoostPercent } from '../../levels/hooks/useMyBoost'
 import { formatDuration, useElapsed } from '../lib/callUtils'
+import '../../levels/components/boost.css'
 
 /**
  * Por cima da chamada em que estou: a aura do boost (falando) e o selo "Voz

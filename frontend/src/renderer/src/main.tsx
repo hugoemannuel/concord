@@ -56,7 +56,7 @@ window.addEventListener('drop', (e) => e.preventDefault())
 
 // Dev: `__salinhaLevelUp(85)` no console toca a animação de subir de nível;
 // `__salinhaLevelUp('marco')` toca o pr�ximo marco depois do seu n�vel.
-// `__salinhaBoost(175)` liga um buff de XP falso (125/150/175/200) na sua call.
+// `__salinhaBoost(175)` liga um buff de XP falso (125/150/175/200/250/300/400) na sua call.
 if (import.meta.env.DEV) {
   const dev = window as unknown as {
     __salinhaLevelUp: (level: number | 'marco') => void

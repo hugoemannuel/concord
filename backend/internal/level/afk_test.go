@@ -40,12 +40,14 @@ func TestVoiceXPStopsAfterTenMinutesWithoutSpeaking(t *testing.T) {
 		s.tick(context.Background(), clock)
 	}
 
-	if got, want := store.xp["ana"], int64(20*XPPerMinute); got != want {
+	// Enquanto a bia conta, a call tem duas pessoas elegíveis (rank D, x1,25);
+	// quando ela cai por AFK, a ana fica sozinha e volta ao XP normal.
+	if got, want := store.xp["ana"], int64((9*XPPerMinute*125+11*XPPerMinute*100)/100); got != want {
 		t.Fatalf("ana (falando) = %d XP, want %d", got, want)
 	}
 	// A bia conta da entrada até os 10 min sem falar e para: o tick dos
 	// 10:00 já não conta, então fecha 9 minutos (os 50 s do décimo se perdem).
-	if got, want := store.xp["bia"], int64(9*XPPerMinute); got != want {
+	if got, want := store.xp["bia"], int64(9*XPPerMinute*125/100); got != want {
 		t.Fatalf("bia (calada) = %d XP, want %d", got, want)
 	}
 
@@ -56,7 +58,7 @@ func TestVoiceXPStopsAfterTenMinutesWithoutSpeaking(t *testing.T) {
 		clock = clock.Add(tickInterval)
 		s.tick(context.Background(), clock)
 	}
-	if got := store.xp["bia"] - before; got != int64(XPPerMinute) {
-		t.Fatalf("bia depois de voltar a falar = +%d XP em 1 min, want %d", got, XPPerMinute)
+	if got := store.xp["bia"] - before; got != int64(XPPerMinute*125/100) {
+		t.Fatalf("bia depois de voltar a falar = +%d XP em 1 min, want %d", got, XPPerMinute*125/100)
 	}
 }

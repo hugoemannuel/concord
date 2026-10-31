@@ -58,19 +58,33 @@ describe('boostStore', () => {
   })
 
   it('heartbeat no mesmo rank, ou o buff mudando dentro do rank, não celebra de novo', () => {
-    boost('c1', 125, 4)
-    vi.advanceTimersByTime(boostRank(125)!.durationMs)
-    boost('c1', 125, 4) // heartbeat
-    boost('c1', 125, 5) // 5 pessoas ainda é A
+    boost('c1', 400, 10)
+    vi.advanceTimersByTime(boostRank(400)!.durationMs)
+    boost('c1', 400, 10) // heartbeat
+    boost('c1', 400, 12) // 12 pessoas ainda é SSS
     expect(useBoostStore.getState().celebration).toBeNull()
   })
 
   it('descer de rank não celebra', () => {
-    boost('c1', 200, 10)
-    vi.advanceTimersByTime(boostRank(200)!.durationMs)
-    boost('c1', 150, 6)
+    boost('c1', 400, 10)
+    vi.advanceTimersByTime(boostRank(400)!.durationMs)
+    boost('c1', 250, 6)
     expect(useBoostStore.getState().celebration).toBeNull()
-    expect(useBoostStore.getState().byCall.c1?.percent).toBe(150)
+    expect(useBoostStore.getState().byCall.c1?.percent).toBe(250)
+  })
+
+  it('subindo D, C, B, A, S, SS e SSS, cada degrau celebra uma vez', () => {
+    const ladder = [125, 150, 175, 200, 250, 300, 400]
+    let lastKey = 0
+    ladder.forEach((percent, i) => {
+      boost('c1', percent, i + 2)
+      const celebration = useBoostStore.getState().celebration
+      expect(celebration, `${percent}%`).toMatchObject({ callId: 'c1', percent })
+      expect(celebration!.key).toBeGreaterThan(lastKey)
+      lastKey = celebration!.key
+      boost('c1', percent, i + 2) // heartbeat no mesmo degrau: não repete
+      expect(useBoostStore.getState().celebration!.key).toBe(lastKey)
+    })
   })
 
   it('a prévia (dev) liga o buff e a celebração', () => {

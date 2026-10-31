@@ -16,16 +16,16 @@ describe('VoiceConnectedBadges', () => {
   })
 
   it('com buff de XP não mostra o rank de estilo por cima da chamada', () => {
-    boost.percent = 175
+    boost.percent = 300
     const html = renderToStaticMarkup(<VoiceConnectedBadges />)
 
     expect(html).toContain('Voz conectada')
     expect(html).not.toContain('Showtime!')
-    expect(html).not.toContain('XP x1.75')
+    expect(html).not.toContain('x3.0')
   })
 
   it('a aura do boost continua no rank máximo', () => {
-    boost.percent = 200
+    boost.percent = 400
     expect(renderToStaticMarkup(<VoiceConnectedBadges />)).toContain('boost-aura')
   })
 
