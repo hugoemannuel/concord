@@ -22,6 +22,7 @@ import { getMe } from '../../profile/api/users'
 import { useAuthStore } from '../store/authStore'
 import { useInviteLinkStore } from '../../servers/store/inviteLinkStore'
 import { authPathWithInvite, inviteCodeFromSearch } from '../../servers/lib/inviteLink'
+import { SignupConsent } from '../../legal/components/LegalLinks'
 
 const STRENGTH_LABEL = ['', 'Fraca', 'Razoável', 'Boa', 'Forte']
 const STRENGTH_COLOR = ['', 'bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-emerald-400']
@@ -179,6 +180,7 @@ function Register(): React.JSX.Element {
             {error}
           </p>
         )}
+        <SignupConsent />
         <Button type="submit" className="mt-1 w-full py-2.5" disabled={loading}>
           {loading ? 'Criando conta...' : 'Continuar'}
         </Button>

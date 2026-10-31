@@ -1,0 +1,44 @@
+/* Páginas de texto do site (política de privacidade e termos de uso). */
+:root {
+  --bg: #050508;
+  --text: #f2f3f5;
+  --muted: #a4a8b8;
+  --border: rgba(255, 255, 255, 0.1);
+  --card: rgba(255, 255, 255, 0.035);
+  --link: #a78bfa;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 780px; margin: 0 auto; padding: 32px 20px 64px; }
+header.top { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+header.top a.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); text-decoration: none; }
+header.top a.brand img { width: 28px; height: 28px; }
+nav.legal a { margin-right: 16px; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 8px 0 4px; }
+h2 { font-size: 1.3rem; margin: 36px 0 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+h3 { font-size: 1.05rem; margin: 20px 0 4px; }
+p, li { color: var(--text); }
+.muted { color: var(--muted); }
+a { color: var(--link); }
+a:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 4px; }
+ul { padding-left: 1.25rem; }
+li { margin: 4px 0; }
+.box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+.table-wrap { overflow-x: auto; margin: 12px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 560px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; }
+.placeholder { background: rgba(250, 204, 21, 0.15); color: #fde68a; padding: 0 4px; border-radius: 4px; }
+footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; }
+@media (max-width: 480px) {
+  main { padding: 20px 16px 48px; }
+  h1 { font-size: 1.6rem; }
+}

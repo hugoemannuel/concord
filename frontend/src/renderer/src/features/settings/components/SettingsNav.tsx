@@ -1,6 +1,7 @@
 import type { User } from '../../auth/store/authStore'
 import Avatar from '../../../shared/ui/Avatar'
 import { PencilIcon, SearchIcon } from '../../../shared/ui/icons'
+import { LegalFooter } from '../../legal/components/LegalLinks'
 import {
   SETTINGS_GROUPS,
   type SettingsSection,
@@ -103,6 +104,7 @@ function SettingsNav({
           >
             {loggingOut ? 'Saindo…' : 'Sair'}
           </button>
+          <LegalFooter className="mt-3 px-2" />
         </div>
       </nav>
     </>

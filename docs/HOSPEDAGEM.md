@@ -1104,6 +1104,8 @@ O teste de ponta a ponta fica em `scripts/e2e-music.mjs` (backend com
 ## Segurança
 
 Com o playit, login e mensagens trafegam **sem criptografia** (HTTP). Na VPS
-com Caddy, tudo vai por HTTPS/WSS. A mídia das chamadas é sempre
-criptografada (WebRTC). Numa VPS sem firewall, o `docker-compose.yml` já deixa
+com Caddy, tudo vai por HTTPS/WSS. A mídia das chamadas vai criptografada
+no trajeto (DTLS-SRTP do WebRTC) até o LiveKit, que a descriptografa para
+repassar: não é criptografia de ponta a ponta (o servidor poderia acessar a
+mídia). O que guardamos e por quanto tempo está em `site/privacidade.html`. Numa VPS sem firewall, o `docker-compose.yml` já deixa
 o Postgres e a API do LiveKit só em `127.0.0.1`.
