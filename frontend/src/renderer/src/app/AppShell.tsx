@@ -34,6 +34,7 @@ import GuestVisitConfirmModal from '../features/guests/components/GuestVisitConf
 import { sectionKind } from '../features/navigation/lib/mobileNav'
 import { useAuthStore } from '../features/auth/store/authStore'
 import { useSessionConnection } from '../features/auth/hooks/useSessionConnection'
+import { useAccountRefresh } from '../features/auth/hooks/useAccountRefresh'
 import { useUIStore } from '../shared/store/uiStore'
 import { useAppViewportHeight } from '../shared/hooks/useAppViewportHeight'
 import { useMobileShell } from '../features/navigation/hooks/useMobileShell'
@@ -62,6 +63,8 @@ function AppShell(): React.JSX.Element {
   const hasToken = Boolean(useAuthStore((s) => s.accessToken))
 
   useSessionConnection(hasToken)
+  // A conta salva no aparelho pode estar velha (ex.: e-mail confirmado no navegador).
+  useAccountRefresh(hasToken)
   useGuestVisitsSync(hasToken)
   useAppViewportHeight()
   // Celular: uma coluna por vez (a lista ou o conteúdo). Desktop: as duas.
