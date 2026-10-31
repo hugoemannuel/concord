@@ -39,9 +39,10 @@ type accountChanges interface {
 	ChangeEmail(ctx context.Context, userID, email string) (*user.User, bool, error)
 }
 
-// verificationSender manda o link de confirmação para o e-mail novo.
+// verificationSender manda o link de confirmação para o e-mail novo (os links
+// mandados ao endereço antigo param de valer).
 type verificationSender interface {
-	SendVerification(u *user.User)
+	SendNewAddressVerification(ctx context.Context, u *user.User) error
 }
 
 // AccountHandler troca o nome de usuário e o e-mail, sempre com a senha atual.
@@ -117,9 +118,17 @@ func (h *AccountHandler) ChangeEmail(c *gin.Context) {
 		return
 	}
 	if confirm && h.verify != nil {
-		h.verify.SendVerification(u)
+		h.sendNewAddressLink(c.Request.Context(), u)
 	}
 	c.JSON(http.StatusOK, u.Self())
+}
+
+// sendNewAddressLink: o e-mail já foi trocado, então uma falha aqui só vai
+// para o log (a pessoa pode pedir o reenvio).
+func (h *AccountHandler) sendNewAddressLink(ctx context.Context, u *user.User) {
+	if err := h.verify.SendNewAddressVerification(ctx, u); err != nil {
+		log.Printf("[auth] links do e-mail antigo de %s: %v", u.ID, err)
+	}
 }
 
 func respondAccountError(c *gin.Context, err error) {

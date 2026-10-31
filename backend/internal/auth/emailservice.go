@@ -35,9 +35,15 @@ var ErrInvalidEmailToken = errors.New("invalid or expired token")
 type emailTokenStore interface {
 	// CreateEmailToken invalida os tokens pendentes da mesma finalidade e grava o novo.
 	CreateEmailToken(ctx context.Context, userID, purpose, tokenHash string, expiresAt time.Time) error
+	// AddEmailToken grava o novo e mantém os pendentes valendo.
+	AddEmailToken(ctx context.Context, userID, purpose, tokenHash string, expiresAt time.Time) error
 	// ConsumeEmailToken marca o token como usado e devolve o dono; falha se
 	// não existir, tiver expirado ou já tiver sido usado.
 	ConsumeEmailToken(ctx context.Context, purpose, tokenHash string) (string, error)
+	// EmailTokenOwner devolve o dono do token, mesmo usado ou vencido.
+	EmailTokenOwner(ctx context.Context, purpose, tokenHash string) (string, error)
+	// InvalidateEmailTokens invalida os pendentes da conta, de qualquer finalidade.
+	InvalidateEmailTokens(ctx context.Context, userID string) error
 }
 
 // emailUsers é a parte do user.Service que os e-mails usam.
@@ -98,16 +104,32 @@ type emailKind struct {
 	purpose string
 	ttl     time.Duration
 	build   buildMail
+	// replace: o link novo invalida os pendentes da mesma finalidade.
+	replace bool
 }
 
 var (
-	verifyEmailKind   = emailKind{purposeVerifyEmail, verifyEmailTTL, mailer.VerifyEmail}
-	resetPasswordKind = emailKind{purposeResetPassword, resetPasswordTTL, mailer.ResetPassword}
+	// Cadastro, reenvio e e-mail novo: os links anteriores continuam valendo.
+	// Quem reenvia antes de o primeiro e-mail chegar pode clicar em qualquer um.
+	verifyEmailKind = emailKind{purpose: purposeVerifyEmail, ttl: verifyEmailTTL, build: mailer.VerifyEmail, replace: false}
+	// Reset de senha: só o último link vale.
+	resetPasswordKind = emailKind{purpose: purposeResetPassword, ttl: resetPasswordTTL, build: mailer.ResetPassword, replace: true}
 )
 
 // SendVerification envia (em segundo plano) o link de confirmação de e-mail.
 func (s *EmailService) SendVerification(u *user.User) {
 	s.sendLater(u, verifyEmailKind)
+}
+
+// SendNewAddressVerification invalida na hora os links pendentes de qualquer
+// finalidade (nada mandado ao endereço antigo pode confirmar o novo nem trocar
+// a senha) e envia, em segundo plano, o link de confirmação do e-mail novo.
+func (s *EmailService) SendNewAddressVerification(ctx context.Context, u *user.User) error {
+	if err := s.tokens.InvalidateEmailTokens(ctx, u.ID); err != nil {
+		return err
+	}
+	s.sendLater(u, verifyEmailKind)
+	return nil
 }
 
 // SendPasswordReset envia (em segundo plano) o link de redefinição de senha.
@@ -131,7 +153,7 @@ func (s *EmailService) send(ctx context.Context, userID, email, name string, kin
 	if err != nil {
 		return err
 	}
-	if err := s.tokens.CreateEmailToken(ctx, userID, kind.purpose, hash, time.Now().Add(kind.ttl)); err != nil {
+	if err := s.saveToken(ctx, userID, hash, kind); err != nil {
 		return err
 	}
 	msg, err := kind.build(email, name, s.appURL, token, kind.ttl)
@@ -141,13 +163,48 @@ func (s *EmailService) send(ctx context.Context, userID, email, name string, kin
 	return s.mailer.Send(ctx, msg)
 }
 
-// VerifyEmail confirma o e-mail da conta dona do token.
+func (s *EmailService) saveToken(ctx context.Context, userID, hash string, kind emailKind) error {
+	expiresAt := time.Now().Add(kind.ttl)
+	if kind.replace {
+		return s.tokens.CreateEmailToken(ctx, userID, kind.purpose, hash, expiresAt)
+	}
+	return s.tokens.AddEmailToken(ctx, userID, kind.purpose, hash, expiresAt)
+}
+
+// VerifyEmail confirma o e-mail da conta dona do token. Link já usado ou
+// vencido de uma conta que já confirmou também é sucesso (sem gravar nada):
+// aberto duas vezes, ou antes por um scanner de links, ele não pode dizer
+// "inválido" para quem está com o e-mail confirmado.
 func (s *EmailService) VerifyEmail(ctx context.Context, token string) error {
-	userID, err := s.tokens.ConsumeEmailToken(ctx, purposeVerifyEmail, hashEmailToken(token))
+	hash := hashEmailToken(token)
+	userID, err := s.tokens.ConsumeEmailToken(ctx, purposeVerifyEmail, hash)
+	if errors.Is(err, ErrInvalidEmailToken) {
+		return s.alreadyVerified(ctx, hash)
+	}
 	if err != nil {
 		return err
 	}
 	return s.users.MarkEmailVerified(ctx, userID)
+}
+
+// alreadyVerified: nil se o dono do link já confirmou o e-mail; senão o link
+// é inválido.
+func (s *EmailService) alreadyVerified(ctx context.Context, hash string) error {
+	userID, err := s.tokens.EmailTokenOwner(ctx, purposeVerifyEmail, hash)
+	if err != nil {
+		return err
+	}
+	u, err := s.users.FindByID(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInvalidEmailToken
+	}
+	if err != nil {
+		return err
+	}
+	if u.EmailVerifiedAt == nil {
+		return ErrInvalidEmailToken
+	}
+	return nil
 }
 
 // ResetPassword troca a senha com o token do e-mail. Derruba todas as sessões
