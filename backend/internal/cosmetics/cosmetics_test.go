@@ -42,3 +42,23 @@ func TestResolve(t *testing.T) {
 		t.Errorf("custom: %+v", got)
 	}
 }
+
+func TestModeAfterSet(t *testing.T) {
+	url := "/api/profile-media/n"
+	cases := []struct {
+		current string
+		url     *string
+		want    string
+	}{
+		{"off", &url, "custom"},
+		{"banner", &url, "custom"},
+		{"custom", nil, "off"},
+		{"banner", nil, "banner"},
+		{"off", nil, "off"},
+	}
+	for _, c := range cases {
+		if got := ModeAfterSet(c.current, c.url); got != c.want {
+			t.Errorf("ModeAfterSet(%q, %v) = %q, quer %q", c.current, c.url != nil, got, c.want)
+		}
+	}
+}

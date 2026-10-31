@@ -58,3 +58,16 @@ func Resolve(mode string, bannerURL, customURL, decorationURL *string) Look {
 	}
 	return look
 }
+
+// ModeAfterSet é o modo depois de gravar (url) ou apagar (nil) a imagem
+// própria da faixa: enviar liga a imagem própria; apagar a que estava em uso
+// desliga a faixa; apagar no modo banner não muda nada.
+func ModeAfterSet(current string, url *string) string {
+	if url != nil {
+		return ModeCustom
+	}
+	if current == ModeCustom {
+		return ModeOff
+	}
+	return current
+}
