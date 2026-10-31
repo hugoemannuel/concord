@@ -25,7 +25,9 @@ cp backend/.env.example backend/.env
 
 Edite `backend/.env`:
 
-- `JWT_SECRET` e `LIVEKIT_API_SECRET`: gere com `openssl rand -hex 32`.
+- `JWT_SECRET` e `LIVEKIT_API_SECRET`: gere com `openssl rand -hex 32`. Sem
+  `JWT_SECRET` (ou com menos de 32 caracteres, ou o valor do `.env.example`)
+  o backend não sobe: não existe mais segredo padrão no código.
 - `PORT`: porta do backend. Se a 8080 já estiver em uso, troque (ex.: `8090`).
 - `POSTGRES_PORT` e a porta no `DATABASE_URL`: troque se a 5432 estiver em uso.
 - As portas do LiveKit e o `LIVEKIT_NODE_IP` saem do passo 3 (só com playit;

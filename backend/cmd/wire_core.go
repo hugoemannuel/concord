@@ -23,7 +23,11 @@ import (
 // amizades, canais e DMs, que é a base de todas as outras áreas.
 func (a *app) wireCore() {
 	a.authRepository = auth.AuthRepository(a.db)
-	a.authService = auth.AuthService(a.authRepository)
+	secret, err := auth.SecretFromEnv()
+	if err != nil {
+		log.Fatalf("[auth] %v", err)
+	}
+	a.authService = auth.NewService(a.authRepository, secret)
 	a.authMiddleware = auth.AuthMiddleware(a.authService)
 	a.memberOrGuest = auth.MemberOrGuestMiddleware(a.authService)
 

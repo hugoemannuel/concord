@@ -9,9 +9,8 @@ import (
 )
 
 func TestMiddlewareRejectsMediaTokenAsBearer(t *testing.T) {
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
 	gin.SetMode(gin.TestMode)
-	s := AuthService(nil)
+	s := NewService(nil, []byte("segredo-de-teste"))
 	router := gin.New()
 	router.GET("/x", AuthMiddleware(s), func(c *gin.Context) { c.Status(http.StatusOK) })
 
@@ -37,9 +36,8 @@ func TestMiddlewareRejectsMediaTokenAsBearer(t *testing.T) {
 // Rotas públicas que mostram mais a quem está logado (prévia do convite):
 // token de acesso válido vira userID; sem token ou inválido, segue anônimo.
 func TestOptionalAuthMiddleware(t *testing.T) {
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
 	gin.SetMode(gin.TestMode)
-	s := AuthService(nil)
+	s := NewService(nil, []byte("segredo-de-teste"))
 	router := gin.New()
 	router.GET("/x", OptionalAuthMiddleware(s), func(c *gin.Context) {
 		c.String(http.StatusOK, c.GetString("userID"))

@@ -10,8 +10,7 @@ import (
 // O WebSocket aceita a conta e o visitante sem conta (que só consegue entrar
 // nas salas da própria call e do próprio usuário: o validador confere).
 func TestWSUserAcceptsAccountAndGuest(t *testing.T) {
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
-	s := auth.AuthService(nil)
+	s := auth.NewService(nil, []byte("segredo-de-teste"))
 	h := &Handler{authService: s}
 	access, _ := s.GenerateAccessToken("u1")
 	guest, _ := s.GenerateGuestToken("g1", time.Now().Add(time.Hour))

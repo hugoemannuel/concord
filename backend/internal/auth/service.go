@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -21,14 +20,11 @@ type Service struct {
 	secret     []byte
 }
 
-func AuthService(repository *Repository) *Service {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "fallback_secret"
-	}
+// NewService monta o serviço com o segredo dos tokens (SecretFromEnv).
+func NewService(repository *Repository, secret []byte) *Service {
 	return &Service{
 		repository: repository,
-		secret:     []byte(secret),
+		secret:     secret,
 	}
 }
 
