@@ -92,6 +92,8 @@ func (c *Client) dispatch(ctx context.Context, ev inboundEvent) {
 		if c.typing != nil {
 			c.typing.Handle(ctx, c.userID, ev.Type, ev.Payload)
 		}
+	case "ping":
+		c.pong()
 	case "activity:set", "activity:clear":
 		c.hub.HandleActivity(c.userID, ev.Type, ev.Payload)
 	default:
