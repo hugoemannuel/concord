@@ -17,6 +17,7 @@ import { DEFAULT_BANNER } from '../../../../profile/lib/profileMedia'
 import StatusIcon from '../../../../../shared/ui/StatusIcon'
 import { STATUS_META, type PresenceStatus } from '../../../../friends/lib/presenceStatus'
 import MediaTiles from './MediaTiles'
+import CosmeticsTile from '../cosmetics/CosmeticsTile'
 import { Tile, TileRow, TileSection } from './Tile'
 
 type Open = (modal: ProfileModalId) => void
@@ -173,6 +174,7 @@ export default function ProfileTiles({
         onPick={onPick}
         onRemove={onRemove}
       />
+      <CosmeticsTile user={user} onOpen={() => onOpen('cosmetics')} />
       <BannerColorTile color={user.banner_color ?? null} onOpen={onOpen} />
       <ThemeTile user={user} onOpen={onOpen} />
       <NameTile user={user} onOpen={onOpen} />
