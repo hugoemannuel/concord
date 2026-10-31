@@ -117,16 +117,12 @@ só faz deploy a cada merge na `main`: **quem garante os testes é você, localm
   convencionais (`feat(área):`, `fix(área):`, `refactor:`, `docs:`).
 - **Nunca** coloque `Co-Authored-By` de IA nem qualquer atribuição a IA em commits
   ou PRs.
-- Trabalho novo numa branch própria (de preferência um `git worktree`) a partir
-  de `origin/develop`, com PR para `develop` usando o
-  [modelo](.github/pull_request_template.md). Merge na `main` publica atualização
-  para todos os apps instalados.
-- PR para a `main` é só `release:` (de `develop`) ou `hotfix:` (de `hotfix/<slug>`),
-  com o template do tipo; hotfix volta para a `develop` depois. Um workflow reprova o
-  resto. → [docs/ai/release-e-hotfix.md](docs/ai/release-e-hotfix.md)
-- Commit estrutural (refatorar/mover) separado do commit de comportamento.
+- **Git flow** (branches a partir de `origin/develop`, PR para `develop`, `release:` e
+  `hotfix:` para a `main`, commit estrutural separado, confirmação antes de push, PR,
+  merge e deploy): [.claude/rules/git-flow.md](.claude/rules/git-flow.md). Leia antes de
+  commitar, dar push ou abrir PR.
 - Texto que o usuário final lê (UI, bot, e-mail) precisa de aprovação humana.
-- Peça confirmação antes de push, PR, deploy ou qualquer coisa difícil de desfazer.
+- Peça confirmação antes de qualquer coisa difícil de desfazer.
 
 ## Pegadinhas do ambiente (Windows)
 
@@ -137,6 +133,7 @@ só faz deploy a cada merge na `main`: **quem garante os testes é você, localm
   para testar chamada local, use o `livekit-server.exe` nativo.
 - Recusar o seletor de tela no main do Electron é `callback(null)`; `callback({})` lança.
 
-Regras que valem só para uma parte do código estão em `.claude/rules/`
-([backend-go](.claude/rules/backend-go.md), [frontend-ts](.claude/rules/frontend-ts.md)).
+Regras por área ficam em `.claude/rules/`: [git-flow](.claude/rules/git-flow.md) (vale
+para tudo), [backend-go](.claude/rules/backend-go.md) e
+[frontend-ts](.claude/rules/frontend-ts.md) (só para a parte do código).
 Outros agentes: leia o arquivo da área antes de editar nela.
