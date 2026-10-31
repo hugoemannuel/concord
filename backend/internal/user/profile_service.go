@@ -18,6 +18,9 @@ type profileRepo interface {
 	SetBanner(ctx context.Context, id string, url *string) (*User, *string, error)
 	SetEntranceSound(ctx context.Context, id string, url *string) (*User, *string, error)
 	SetStatus(ctx context.Context, id string, status string) (*User, error)
+	SetNameplate(ctx context.Context, id string, url *string) (*User, *string, error)
+	SetDecoration(ctx context.Context, id string, url *string) (*User, *string, error)
+	SetNameplateMode(ctx context.Context, id string, mode string) (*User, error)
 	ApplySnapshot(ctx context.Context, id string, s ProfileSnapshot) (*User, []*string, error)
 }
 

@@ -3,6 +3,7 @@ package conversation
 import (
 	"time"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
 )
 
@@ -38,6 +39,7 @@ type OtherUser struct {
 	DisplayName string  `json:"display_name"`
 	AvatarURL   *string `json:"avatar_url,omitempty"`
 	NameStyle   namestyle.Style `json:"name_style"`
+	cosmetics.Look
 }
 
 type LastMessage struct {

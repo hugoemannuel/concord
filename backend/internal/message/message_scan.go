@@ -56,7 +56,7 @@ func scanMessages(rows rowScanner) ([]Message, error) {
 func scanMessageRow(row scannable, extra ...any) (Message, error) {
 	var msg Message
 	var replyID, replyAuthorID, replyUsername, replyDisplayName, replyContent *string
-	var replyAvatarURL *string
+	var replyAvatarURL, replyDecorationURL *string
 	var replyStyle namestyle.Style
 	var stickerServerID, stickerName, stickerContentType *string
 	var rawGifMeta, rawCallInvite []byte
@@ -69,6 +69,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 		&msg.Author.DisplayName,
 		&msg.Author.AvatarURL,
 		&msg.Author.NameStyle,
+		&msg.Author.AvatarDecorationURL,
 		&msg.ChannelID,
 		&msg.ConversationID,
 		&msg.ReplyToID,
@@ -83,6 +84,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 		&replyDisplayName,
 		&replyAvatarURL,
 		&replyStyle,
+		&replyDecorationURL,
 		&replyContent,
 		&msg.StickerID,
 		&stickerServerID,
@@ -109,6 +111,8 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 				DisplayName: *replyDisplayName,
 				AvatarURL:   replyAvatarURL,
 				NameStyle:   replyStyle,
+
+				AvatarDecorationURL: replyDecorationURL,
 			},
 			Content: *replyContent,
 		}

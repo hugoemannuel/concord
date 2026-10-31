@@ -3,6 +3,7 @@ package user
 import (
 	"time"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
 	"gin-quickstart/backend/internal/profiletheme"
 	"gin-quickstart/backend/internal/relationship"
@@ -30,6 +31,12 @@ type User struct {
 	NameStyle        namestyle.Style `json:"name_style"`
 	// ProfileTheme: borda, fundo e efeito do cartão de perfil.
 	ProfileTheme profiletheme.Theme `json:"profile_theme"`
+	// Look: a faixa efetiva e a moldura (o que os outros veem).
+	cosmetics.Look
+	// NameplateMode e NameplateCustomURL: a escolha da faixa e a imagem
+	// própria guardada. Só a própria pessoa vê (vai no SelfUser).
+	NameplateMode      string  `json:"-"`
+	NameplateCustomURL *string `json:"-"`
 	// Privacidade: só a própria pessoa vê (vai no SelfUser).
 	FriendRequestPolicy string `json:"-"`
 	AllowServerDMs      bool   `json:"-"`
@@ -53,6 +60,8 @@ type SelfUser struct {
 	// UsernameChangeAvailableAt: a partir de quando pode trocar o @ de novo
 	// (ausente = nunca trocou). O app compara com a hora atual.
 	UsernameChangeAvailableAt *time.Time `json:"username_change_available_at,omitempty"`
+	NameplateMode             string     `json:"nameplate_mode"`
+	NameplateCustomURL        *string    `json:"nameplate_custom_url,omitempty"`
 }
 
 // Privacy: quem pode mandar pedido de amizade e se membros de servidores em
@@ -90,6 +99,8 @@ func (u *User) Self() SelfUser {
 		Email:                     u.Email,
 		EmailVerified:             u.EmailVerifiedAt != nil,
 		UsernameChangeAvailableAt: usernameAvailableAt(u.UsernameChangedAt),
+		NameplateMode:             u.NameplateMode,
+		NameplateCustomURL:        u.NameplateCustomURL,
 	}
 }
 
@@ -120,7 +131,8 @@ type PublicProfile struct {
 	// Username vem vazio). Fica de fora no evento user:update.
 	Relationship relationship.Kind  `json:"relationship,omitempty"`
 	ProfileTheme profiletheme.Theme `json:"profile_theme"`
-	CreatedAt    time.Time          `json:"created_at"`
+	cosmetics.Look
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Public monta o perfil público com o status já calculado por quem chama.
@@ -143,6 +155,7 @@ func (u *User) Public(status string) PublicProfile {
 		Status:       status,
 		NameStyle:    u.NameStyle,
 		ProfileTheme: u.ProfileTheme,
+		Look:         u.Look,
 		CreatedAt:    u.CreatedAt,
 	}
 }

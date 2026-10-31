@@ -5,6 +5,7 @@ import { SALINHA_BOT_USER_ID } from '../../features/music/lib/bots'
 import MaestroImage from '../../features/music/components/MaestroImage'
 import { SalinhaMarkIcon } from './icons'
 import { isAnimatedMedia, profileMediaSrc } from '../../features/profile/lib/profileMedia'
+import { decorationBox, mediaLayers } from '../../features/profile/lib/cosmetics'
 import { STATUS_META, type PresenceStatus } from '../../features/friends/lib/presenceStatus'
 import { useUserLook } from '../../features/profile/store/profileStore'
 import StatusIcon from './StatusIcon'
@@ -24,6 +25,13 @@ interface AvatarProps {
    * (listas, chat, call); 'never' fica parado.
    */
   animate?: AvatarAnimate
+  /** Moldura por cima do avatar (#482); sem ela, nada. */
+  decorationUrl?: string | null
+  /**
+   * A linha em volta está em hover/foco: com animate 'hover', só então a
+   * moldura GIF é montada (fora disso, só o quadro parado é baixado).
+   */
+  active?: boolean
   /** Bolinha de status no canto (sem ela, nada). */
   status?: PresenceStatus | null
   /** Cor do fundo atrás do avatar: recorta a bolinha, como no Discord. */
@@ -57,6 +65,51 @@ function AvatarStatus({
   )
 }
 
+/** Moldura: 1,2× o avatar, centralizada, sem pegar clique nem mexer no layout. */
+function AvatarDecoration({
+  url,
+  size,
+  animate,
+  active
+}: {
+  url: string
+  size: number
+  animate: AvatarAnimate
+  active: boolean
+}): React.JSX.Element | null {
+  const { still, moving } = mediaLayers(url, API_BASE_URL, { animate, active })
+  if (!still) return null
+  const { side, offset } = decorationBox(size)
+  const style = { width: side, height: side, left: offset, top: offset }
+  const className = 'pointer-events-none absolute max-w-none select-none'
+  return (
+    <>
+      <img
+        data-decoration
+        loading="lazy"
+        src={still}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        decoding="async"
+        style={style}
+        className={className}
+      />
+      {moving && (
+        <img
+          data-decoration
+          src={moving}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          style={style}
+          className={className}
+        />
+      )}
+    </>
+  )
+}
+
 /** Avatar redondo: foto (GIF anima como no Discord) ou a inicial do nome. */
 function Avatar({
   userId,
@@ -67,9 +120,11 @@ function Avatar({
   status,
   cutoutColor = 'var(--bg-floating)',
   fallbackClassName = 'bg-brand',
-  className = ''
+  className = '',
+  decorationUrl,
+  active = false
 }: AvatarProps): React.JSX.Element {
-  const look = useUserLook(userId, { name, avatarUrl })
+  const look = useUserLook(userId, { name, avatarUrl, decorationUrl })
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
 
   const animated = isAnimatedMedia(look.avatarUrl)
@@ -116,6 +171,9 @@ function Avatar({
         >
           {(look.name || '?').charAt(0).toUpperCase()}
         </div>
+      )}
+      {look.decorationUrl && (
+        <AvatarDecoration url={look.decorationUrl} size={size} animate={animate} active={active} />
       )}
       {status && <AvatarStatus status={status} size={size} cutoutColor={cutoutColor} />}
     </div>

@@ -6,6 +6,7 @@ import type { ProfileFields } from '../lib/profileValidation'
 import type { NameStyle } from '../lib/nameStyle'
 import type { ProfileTheme } from '../lib/profileTheme'
 import type { ProfileRelationship } from '../lib/profileRelationship'
+import type { NameplateMode } from '../lib/cosmetics'
 
 export function getMe(): Promise<User> {
   return request<User>('/users/me')
@@ -32,6 +33,10 @@ export interface PublicProfile {
   name_style?: NameStyle
   /** Borda, fundo e efeito do cartão (ausente = padrão). */
   profile_theme?: ProfileTheme
+  /** Faixa efetiva (o banner ou a imagem própria); ausente = sem faixa. */
+  nameplate_url?: string | null
+  /** Moldura do avatar; ausente = sem moldura. */
+  avatar_decoration_url?: string | null
   /** Vínculo comigo; sem vínculo (none), username vem vazio. Não vem no user:update. */
   relationship?: ProfileRelationship
   created_at: string
@@ -70,6 +75,31 @@ export function uploadProfileImage(
   onProgress?: (fraction: number) => void
 ): Promise<User> {
   return uploadImage<User>(`/users/me/${kind}`, kind, file, staticFrame, onProgress)
+}
+
+/** Faixa (imagem própria) e moldura do avatar (#482). */
+export type CosmeticImageKind = 'nameplate' | 'decoration'
+
+/** Sobe a imagem da faixa ou da moldura (GIF com o quadro parado em "static"). */
+export function uploadCosmetic(
+  kind: CosmeticImageKind,
+  file: Blob,
+  staticFrame?: Blob,
+  onProgress?: (fraction: number) => void
+): Promise<User> {
+  return uploadImage<User>(`/users/me/${kind}`, kind, file, staticFrame, onProgress)
+}
+
+export function deleteCosmetic(kind: CosmeticImageKind): Promise<User> {
+  return request<User>(`/users/me/${kind}`, { method: 'DELETE' })
+}
+
+/** Liga ou desliga a faixa, ou troca entre o banner e a imagem própria. */
+export function setNameplateMode(mode: NameplateMode): Promise<User> {
+  return request<User>('/users/me/nameplate-mode', {
+    method: 'PUT',
+    body: JSON.stringify({ mode })
+  })
 }
 
 /** Mesmo upload do avatar, para o caminho dado (ícone do grupo também usa). */

@@ -65,13 +65,41 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
  * Nome e avatar mais novos de alguém: o do perfil conhecido, senão o que veio
  * junto com a mensagem/membro/amigo.
  */
-export function useUserLook(
-  userId: string | undefined,
-  fallback: { name: string; avatarUrl?: string | null }
-): { name: string; avatarUrl: string | null } {
+export function useUserLook(userId: string | undefined, fallback: LookFallback): UserLook {
   const profile = useProfileStore((s) => (userId ? s.profiles[userId] : undefined))
+  return lookOf(profile, fallback)
+}
+
+/** O que veio junto com a mensagem/membro/amigo. */
+export interface LookFallback {
+  name: string
+  avatarUrl?: string | null
+  nameplateUrl?: string | null
+  decorationUrl?: string | null
+}
+
+export interface UserLook {
+  name: string
+  avatarUrl: string | null
+  /** Faixa efetiva (banner ou imagem própria); null = sem faixa. */
+  nameplateUrl: string | null
+  decorationUrl: string | null
+}
+
+/** O perfil conhecido ganha de tudo (inclusive quando tirou a faixa). */
+export function lookOf(profile: PublicProfile | undefined, fallback: LookFallback): UserLook {
+  if (!profile) {
+    return {
+      name: fallback.name,
+      avatarUrl: fallback.avatarUrl ?? null,
+      nameplateUrl: fallback.nameplateUrl ?? null,
+      decorationUrl: fallback.decorationUrl ?? null
+    }
+  }
   return {
-    name: profile?.display_name || fallback.name,
-    avatarUrl: profile ? (profile.avatar_url ?? null) : (fallback.avatarUrl ?? null)
+    name: profile.display_name || fallback.name,
+    avatarUrl: profile.avatar_url ?? null,
+    nameplateUrl: profile.nameplate_url ?? null,
+    decorationUrl: profile.avatar_decoration_url ?? null
   }
 }

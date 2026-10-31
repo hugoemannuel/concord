@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/platform/media"
 	"gin-quickstart/backend/internal/relationship"
 
@@ -64,8 +65,37 @@ func (r *fakeProfileRepo) UpdateProfile(_ context.Context, id string, in Profile
 func (r *fakeProfileRepo) swap(id string, field **string, url *string) (*User, *string, error) {
 	old := *field
 	*field = url
-	copied := *r.users[id]
+	u := r.users[id]
+	u.Look = cosmetics.Resolve(u.NameplateMode, u.BannerURL, u.NameplateCustomURL, u.AvatarDecorationURL)
+	copied := *u
 	return &copied, old, nil
+}
+
+func (r *fakeProfileRepo) SetNameplate(_ context.Context, id string, url *string) (*User, *string, error) {
+	u, err := r.find(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	u.NameplateMode = cosmetics.ModeAfterSet(u.NameplateMode, url)
+	return r.swap(id, &u.NameplateCustomURL, url)
+}
+
+func (r *fakeProfileRepo) SetDecoration(_ context.Context, id string, url *string) (*User, *string, error) {
+	u, err := r.find(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return r.swap(id, &u.AvatarDecorationURL, url)
+}
+
+func (r *fakeProfileRepo) SetNameplateMode(_ context.Context, id, mode string) (*User, error) {
+	u, err := r.find(id)
+	if err != nil {
+		return nil, err
+	}
+	u.NameplateMode = mode
+	got, _, err := r.swap(id, &u.NameplateCustomURL, u.NameplateCustomURL)
+	return got, err
 }
 
 func (r *fakeProfileRepo) SetAvatar(_ context.Context, id string, url *string) (*User, *string, error) {
@@ -157,7 +187,7 @@ func newProfileEnv(t *testing.T) *profileEnv {
 		t.Fatal(err)
 	}
 	repo := &fakeProfileRepo{users: map[string]*User{
-		meID:    {ID: meID, Username: "mugis", DisplayName: "Mugis", Email: "m@x.com", Status: StatusOnline, Links: []ProfileLink{}},
+		meID:    {ID: meID, Username: "mugis", DisplayName: "Mugis", Email: "m@x.com", Status: StatusOnline, Links: []ProfileLink{}, NameplateMode: cosmetics.ModeOff},
 		otherID: {ID: otherID, Username: "baal", DisplayName: "Baal", Email: "b@x.com", Status: StatusInvisible, Links: []ProfileLink{}},
 	}}
 	events := &fakeEvents{statuses: map[string]string{otherID: StatusInvisible}}

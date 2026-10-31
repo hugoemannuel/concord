@@ -28,6 +28,11 @@ func ProfileRoutes(router *gin.RouterGroup, handler *ProfileHandler, authMiddlew
 		users.DELETE("/me/avatar", handler.DeleteAvatar)
 		users.POST("/me/banner", handler.UploadBanner)
 		users.DELETE("/me/banner", handler.DeleteBanner)
+		users.POST("/me/nameplate", handler.UploadNameplate)
+		users.DELETE("/me/nameplate", handler.DeleteNameplate)
+		users.PUT("/me/nameplate-mode", handler.SetNameplateMode)
+		users.POST("/me/decoration", handler.UploadDecoration)
+		users.DELETE("/me/decoration", handler.DeleteDecoration)
 	}
 
 	router.GET("/profile-media/:id", handler.ServeMedia)

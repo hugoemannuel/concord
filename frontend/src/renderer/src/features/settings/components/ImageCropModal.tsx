@@ -1,19 +1,33 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { fitFrame, runCrop } from '../../profile/lib/cropView'
-import { AVATAR_OUTPUT, BANNER_OUTPUT, type Point, type Size } from '../../profile/lib/imageCrop'
+import {
+  AVATAR_OUTPUT,
+  BANNER_OUTPUT,
+  DECORATION_OUTPUT,
+  NAMEPLATE_OUTPUT,
+  type Point,
+  type Size
+} from '../../profile/lib/imageCrop'
 import type { MediaChange } from '../../profile/lib/profileValidation'
 import { CropFooter, ZoomSlider } from './CropControls'
 import CropViewport from './CropViewport'
 
-export type ImageKind = 'avatar' | 'banner'
+export type ImageKind = 'avatar' | 'banner' | 'nameplate' | 'decoration'
 
-/** Quadro do recorte na tela (o banner tem a proporção do Discord, 17:6). */
+/** Quadro do recorte na tela (o banner tem a proporção do Discord, 17:6; a faixa, 6:1). */
 const FRAME: Record<ImageKind, Size> = {
   avatar: { width: 300, height: 300 },
-  banner: { width: 476, height: 168 }
+  banner: { width: 476, height: 168 },
+  nameplate: { width: 480, height: 80 },
+  decoration: { width: 300, height: 300 }
 }
-const OUTPUT: Record<ImageKind, Size> = { avatar: AVATAR_OUTPUT, banner: BANNER_OUTPUT }
+const OUTPUT: Record<ImageKind, Size> = {
+  avatar: AVATAR_OUTPUT,
+  banner: BANNER_OUTPUT,
+  nameplate: NAMEPLATE_OUTPUT,
+  decoration: DECORATION_OUTPUT
+}
 const ORIGIN: Point = { x: 0, y: 0 }
 
 /** ESC fecha só o recorte, não as Configurações por trás (captura + preventDefault). */

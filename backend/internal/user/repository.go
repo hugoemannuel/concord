@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/profiletheme"
 
 	"github.com/jackc/pgx/v5"
@@ -47,6 +48,9 @@ const userColumns = `
 	profile_background_colors,
 	profile_effect,
 	profile_theme_extras,
+	nameplate_mode,
+	nameplate_url,
+	avatar_decoration_url,
 	friend_request_policy,
 	allow_server_dms,
 	active,
@@ -82,6 +86,9 @@ func scanUser(row pgx.Row) (*User, error) {
 		&user.ProfileTheme.BackgroundColors,
 		&user.ProfileTheme.Effect,
 		&user.ProfileTheme.Extras,
+		&user.NameplateMode,
+		&user.NameplateCustomURL,
+		&user.AvatarDecorationURL,
 		&user.FriendRequestPolicy,
 		&user.AllowServerDMs,
 		&user.Active,
@@ -97,6 +104,7 @@ func scanUser(row pgx.Row) (*User, error) {
 		user.Links = []ProfileLink{}
 	}
 	user.ProfileTheme.Extras = user.ProfileTheme.Extras.Filled()
+	user.Look = cosmetics.Resolve(user.NameplateMode, user.BannerURL, user.NameplateCustomURL, user.AvatarDecorationURL)
 	return user, nil
 }
 
@@ -343,7 +351,8 @@ func (r *Repository) SetEntranceSound(ctx context.Context, id string, url *strin
 }
 
 // swapMedia lê a URL antiga e grava a nova na mesma transação. column vem
-// sempre de SetAvatar/SetBanner/SetEntranceSound, nunca do cliente.
+// sempre de SetAvatar/SetBanner/SetEntranceSound/SetDecoration, nunca do
+// cliente.
 func (r *Repository) swapMedia(ctx context.Context, id, column string, url *string) (*User, *string, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
