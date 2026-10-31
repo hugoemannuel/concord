@@ -20,6 +20,7 @@ PR #469 (`release: Ouvir também direto, GIFs favoritos, ...`, de `develop` para
 | Entrada no workflow | Título e branch por variável de ambiente, nunca interpolados no shell | Título de PR é texto livre: evita injeção de comando. |
 | Obrigatoriedade | Marcar a checagem como obrigatória na proteção da `main` (configuração do GitHub, feita pelo dono do repo) | Sem isso a checagem avisa, mas não bloqueia o merge. |
 | Mensagens do release | Geradas por `scripts/release-notes.mjs` (funções puras `parseMergedPrs`, `extractCloses`, `buildRelease` + CLI com `git` e `gh`; `--create` pergunta `[s/N]` e abre o PR). Título `release: <feat1, feat2 e feat3>` (corte em 100 caracteres: `e mais N`; sem `feat` usa os `fix`; sem nenhum, `manutenção`). Corpo: um item por `feat`/`fix`/`perf` no formato do #469, `Manutenção: #N` para o resto, `Como testar` copiado do template de release. | Pedido do usuário (2026-10-31): mensagens do release automatizadas, sem escrever à mão. Os `closes #N` vêm do texto dos PRs porque o `closingIssuesReferences` do GitHub vem vazio para PRs que entram na develop. Hotfix continua manual. |
+| PR de release automático | Workflow `release-pr.yml` a cada push na `develop` roda `release-notes.mjs --sync` (`syncAction`: pular, criar ou atualizar o PR `develop` → `main` aberto). Só abre/edita o PR; **o merge é humano**. Token: `RELEASE_PR_TOKEN` se existir, senão `GITHUB_TOKEN`. | Pedido do usuário (2026-10-31): totalmente automatizado, escolhida a opção "PR automático, merge humano"; merge automático publicaria para todos os apps sem revisão. PR aberto com `GITHUB_TOKEN` não dispara outros workflows (o check `tipo-do-pr` não rodaria) e criar PR por Actions exige configuração de admin: ambos documentados. |
 | ADR | Não | Sem dependência nova e sem fuga de padrão. |
 
 ## Regras da checagem
@@ -35,6 +36,7 @@ PR #469 (`release: Ouvir também direto, GIFs favoritos, ...`, de `develop` para
 - `.github/workflows/pr-main.yml` (novo)
 - `scripts/check-pr-main.mjs` e `scripts/check-pr-main.test.mjs` (novos)
 - `scripts/release-notes.mjs` e `scripts/release-notes.test.mjs` (novos)
+- `.github/workflows/release-pr.yml` (novo)
 - `docs/ai/release-e-hotfix.md` (novo): passo a passo (criar a branch, abrir o PR, voltar o hotfix para a develop)
 - `AGENTS.md § Convenções do repo`: um bullet com a regra e o link para o doc
 

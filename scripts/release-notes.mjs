@@ -3,6 +3,8 @@
 //
 //   node scripts/release-notes.mjs            # imprime título e corpo
 //   node scripts/release-notes.mjs --create   # mostra, pergunta [s/N] e abre o PR com o gh
+//   node scripts/release-notes.mjs --sync     # abre ou atualiza o PR de release sem perguntar
+//                                             # (.github/workflows/release-pr.yml, a cada push na develop)
 //
 // Os `closes #N` vêm do texto dos PRs: o GitHub só liga issues a PRs que entram
 // na branch padrão, então o `closingIssuesReferences` vem vazio na develop.
@@ -116,27 +118,60 @@ async function confirm(question) {
   return /^s(im)?$/i.test(answer.trim())
 }
 
-async function main(create) {
+/**
+ * O que o `--sync` faz com o PR de release: nada (develop sem PR novo), criar
+ * (ainda não há PR aberto) ou atualizar o PR aberto.
+ */
+export function syncAction(prCount, openPrNumber) {
+  if (prCount === 0) return { action: 'skip' }
+  return openPrNumber ? { action: 'update', number: openPrNumber } : { action: 'create' }
+}
+
+/** Os PRs mergeados na develop desde a main, já com título e corpo do release. */
+function collectRelease(repo) {
   git(['fetch', 'origin', '--quiet'])
-  const repo = repoOfOrigin()
   const subjects = git(['log', '--first-parent', '--format=%s', 'origin/main..origin/develop']).split('\n')
   const numbers = parseMergedPrs(subjects).reverse()
-  if (numbers.length === 0) {
+  if (numbers.length === 0) return { count: 0 }
+  const prs = numbers.map((n) => loadPr(n, repo))
+  return { count: numbers.length, ...buildRelease(prs, readFileSync(TEMPLATE, 'utf8')) }
+}
+
+function gh(args) {
+  return execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] })
+}
+
+function findOpenReleasePr(repo) {
+  const json = gh(['pr', 'list', '--repo', repo, '--base', 'main', '--head', 'develop', '--state', 'open', '--json', 'number'])
+  return JSON.parse(json)[0]?.number
+}
+
+/** Abre ou atualiza o PR develop → main sem perguntar (roda no workflow release-pr.yml). */
+function sync(repo, release) {
+  const { action, number } = syncAction(release.count, findOpenReleasePr(repo))
+  const text = ['--title', release.title, '--body', release.body]
+  if (action === 'skip') console.log('nada novo na develop: sem PR de release')
+  if (action === 'create') console.log(gh(['pr', 'create', '--repo', repo, '--base', 'main', '--head', 'develop', ...text]).trim())
+  if (action === 'update') {
+    gh(['pr', 'edit', String(number), '--repo', repo, ...text])
+    console.log(`PR de release #${number} atualizado`)
+  }
+}
+
+async function main(args) {
+  const repo = repoOfOrigin()
+  const release = collectRelease(repo)
+  if (args.includes('--sync')) return sync(repo, release)
+  if (release.count === 0) {
     console.error('nenhum PR novo na develop desde a main')
     process.exit(1)
   }
-  const { title, body } = buildRelease(
-    numbers.map((n) => loadPr(n, repo)),
-    readFileSync(TEMPLATE, 'utf8')
-  )
-  console.log(`${title}\n\n${body}`)
-  if (create && (await confirm('Abrir o PR develop → main com este texto? [s/N] '))) {
-    execFileSync('gh', ['pr', 'create', '--repo', repo, '--base', 'main', '--head', 'develop', '--title', title, '--body', body], {
-      stdio: 'inherit'
-    })
+  console.log(`${release.title}\n\n${release.body}`)
+  if (args.includes('--create') && (await confirm('Abrir o PR develop → main com este texto? [s/N] '))) {
+    console.log(gh(['pr', 'create', '--repo', repo, '--base', 'main', '--head', 'develop', '--title', release.title, '--body', release.body]).trim())
   }
 }
 
 if (process.argv[1]?.endsWith('release-notes.mjs')) {
-  await main(process.argv.includes('--create'))
+  await main(process.argv.slice(2))
 }
