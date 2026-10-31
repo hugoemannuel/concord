@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
 	"gin-quickstart/backend/internal/permission"
 )
@@ -40,7 +41,8 @@ func (r *Repository) ListMembers(ctx context.Context, serverID string) ([]Server
 			u.username,
 			u.display_name,
 			u.avatar_url,
-			` + namestyle.Expr("u") + `,
+			`+namestyle.Expr("u")+`,
+			`+cosmetics.Expr("u")+`,
 			u.is_bot,
 			sm.nickname,
 			`+legacyRoleColumn+`,
@@ -69,6 +71,7 @@ func (r *Repository) ListMembers(ctx context.Context, serverID string) ([]Server
 			&m.DisplayName,
 			&m.AvatarURL,
 			&m.NameStyle,
+			&m.Look,
 			&m.IsBot,
 			&m.Nickname,
 			&m.Role,
@@ -110,7 +113,8 @@ func (r *Repository) FindMemberByUserID(ctx context.Context, serverID string, us
 			u.username,
 			u.display_name,
 			u.avatar_url,
-			` + namestyle.Expr("u") + `,
+			`+namestyle.Expr("u")+`,
+			`+cosmetics.Expr("u")+`,
 			u.is_bot,
 			sm.nickname,
 			`+legacyRoleColumn+`,
@@ -130,6 +134,7 @@ func (r *Repository) FindMemberByUserID(ctx context.Context, serverID string, us
 		&m.DisplayName,
 		&m.AvatarURL,
 		&m.NameStyle,
+		&m.Look,
 		&m.IsBot,
 		&m.Nickname,
 		&m.Role,
