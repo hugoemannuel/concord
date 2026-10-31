@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { PROFILE_IMAGE_TYPES } from '../../../profile/lib/profileValidation'
-import ImageCropModal, { type ImageKind } from '../ImageCropModal'
+import ImageCropModal from '../ImageCropModal'
+import type { ProfileImageKind as ImageKind } from '../../../profile/api/users'
 import { useProfileApply, type ProfileApply } from '../../hooks/useProfileApply'
 import { spotOpensFile, type CardSpot } from '../../../profile/lib/cardSpots'
 import { savingLabel } from '../../lib/profileTiles'

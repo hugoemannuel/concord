@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { clampOffset, clampZoom, coversWhole, coverScale, gifOutput, sourceRect } from './imageCrop'
+import {
+  DECORATION_OUTPUT,
+  NAMEPLATE_OUTPUT,
+  clampOffset,
+  clampZoom,
+  coversWhole,
+  coverScale,
+  gifOutput,
+  sourceRect
+} from './imageCrop'
 
 const square = { width: 300, height: 300 }
 
@@ -113,5 +122,12 @@ describe('coversWhole', () => {
     expect(coversWhole(sourceRect(gif, square, 1.5, { x: 0, y: 0 }), gif)).toBe(false)
     const wide = { width: 706, height: 368 }
     expect(coversWhole(sourceRect(wide, square, 1, { x: 0, y: 0 }), wide)).toBe(false)
+  })
+})
+
+describe('saídas da faixa e da moldura', () => {
+  it('faixa 6:1 em 600×100 e moldura quadrada em 240×240', () => {
+    expect(NAMEPLATE_OUTPUT).toEqual({ width: 600, height: 100 })
+    expect(DECORATION_OUTPUT).toEqual({ width: 240, height: 240 })
   })
 })

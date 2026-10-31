@@ -91,6 +91,18 @@ describe('applyUserUpdate', () => {
     expect(env.setFriends).not.toHaveBeenCalled()
   })
 
+  it('o meu: faixa e moldura removidas em outro aparelho somem da sessão', () => {
+    env.auth.user = {
+      ...env.auth.user,
+      nameplate_url: '/n',
+      avatar_decoration_url: '/d'
+    } as typeof env.auth.user
+    applyUserUpdate(profile({ id: 'me' }))
+    expect(env.auth.setUser).toHaveBeenLastCalledWith(
+      expect.objectContaining({ nameplate_url: null, avatar_decoration_url: null })
+    )
+  })
+
   it('sem servidor aberto: não mexe em membros', () => {
     env.servers.currentServer = null
     applyUserUpdate(profile())

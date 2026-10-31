@@ -6,9 +6,14 @@ vi.mock('../../auth/store/authStore', () => ({
 }))
 vi.mock('../store/chatStore', () => ({ usePresenceStatus: () => state.status }))
 vi.mock('../../profile/store/profileStore', () => ({
-  useUserLook: (_id: string, fallback: { name: string; avatarUrl?: string | null }) => ({
+  useUserLook: (
+    _id: string,
+    fallback: { name: string; avatarUrl?: string | null; nameplateUrl?: string | null }
+  ) => ({
     name: fallback.name,
-    avatarUrl: fallback.avatarUrl ?? null
+    avatarUrl: fallback.avatarUrl ?? null,
+    nameplateUrl: fallback.nameplateUrl ?? null,
+    decorationUrl: null
   })
 }))
 vi.mock('../../profile/store/profileCardStore', () => ({ profileCardHandler: () => () => {} }))
@@ -17,6 +22,9 @@ vi.mock('../../profile/components/StyledName', () => ({
   default: ({ name }: { name: string }) => <b>{name}</b>
 }))
 vi.mock('../../../shared/ui/Avatar', () => ({ default: () => <u data-avatar /> }))
+vi.mock('../../profile/components/Nameplate', () => ({
+  default: ({ url }: { url: string | null }) => (url ? <i data-nameplate={url} /> : null)
+}))
 
 import { renderToStaticMarkup } from 'react-dom/server'
 import GroupMemberRow from './GroupMemberRow'
@@ -36,6 +44,16 @@ function render(over: Partial<React.ComponentProps<typeof GroupMemberRow>> = {})
 }
 
 describe('GroupMemberRow', () => {
+  it('mostra a faixa de quem ativou, atrás do conteúdo', () => {
+    const html = render({ member: { ...member, nameplate_url: '/api/profile-media/n' } })
+    expect(html).toContain('data-nameplate="/api/profile-media/n"')
+    expect(html).toMatch(/class="[^"]*relative[^"]*"[^>]*role="button"|role="button"[^>]*class="[^"]*relative/)
+  })
+
+  it('sem faixa, nada a mais', () => {
+    expect(render()).not.toContain('data-nameplate')
+  })
+
   it('mostra avatar e nome do participante', () => {
     state.status = 'online'
     const html = render()

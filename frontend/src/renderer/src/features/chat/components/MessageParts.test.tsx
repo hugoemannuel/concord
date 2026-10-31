@@ -7,7 +7,12 @@ vi.mock('../../../app/router', () => ({
 vi.mock('../../call/lib/noiseSuppression', () => ({ openMicrophone: vi.fn() }))
 vi.mock('../../call/lib/rtc', () => ({}))
 
-import { replyPreview } from './MessageParts'
+vi.mock('../../../shared/ui/Avatar', () => ({
+  default: (p: { decorationUrl?: string | null }) => <u data-decoration={p.decorationUrl ?? ''} />
+}))
+
+import { renderToStaticMarkup } from 'react-dom/server'
+import { MessageGutter, replyPreview } from './MessageParts'
 import type { Message, ReplyPreview } from '../api/messages'
 
 describe('replyPreview', () => {
@@ -50,5 +55,26 @@ describe('replyPreview', () => {
     expect(replyPreview(undefined, replyTo)).toEqual({ icon: null, text: '' })
     expect(replyPreview(undefined, null)).toEqual({ icon: null, text: '' })
     expect(replyPreview(undefined, undefined)).toEqual({ icon: null, text: '' })
+  })
+})
+
+describe('MessageGutter', () => {
+  it('o avatar do autor leva a moldura', () => {
+    const message: Message = {
+      id: 'm5',
+      author_id: 'u1',
+      author: {
+        id: 'u1',
+        username: 'ana',
+        display_name: 'Ana',
+        avatar_decoration_url: '/api/profile-media/d'
+      },
+      content: 'oi',
+      created_at: '2026-01-01T00:00:00Z'
+    }
+    const html = renderToStaticMarkup(
+      <MessageGutter compact={false} message={message} name="Ana" onOpenProfile={() => {}} />
+    )
+    expect(html).toContain('data-decoration="/api/profile-media/d"')
   })
 })

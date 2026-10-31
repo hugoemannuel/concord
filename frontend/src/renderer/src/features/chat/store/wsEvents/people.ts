@@ -29,7 +29,14 @@ function applyToSession(profile: PublicProfile): void {
   const auth = useAuthStore.getState()
   // O status da sessão é o escolhido (ex.: invisível), não o efetivo.
   if (auth.user?.id === profile.id)
-    auth.setUser({ ...auth.user, ...profile, status: auth.user.status })
+    auth.setUser({
+      ...auth.user,
+      ...profile,
+      // Ausente no evento = tirou (o JSON omite): não fica a faixa velha.
+      nameplate_url: profile.nameplate_url ?? null,
+      avatar_decoration_url: profile.avatar_decoration_url ?? null,
+      status: auth.user.status
+    })
 }
 
 function applyToMembers(userId: string, look: Look): void {

@@ -12,6 +12,8 @@ type Author struct {
 	DisplayName string  `json:"display_name"`
 	AvatarURL   *string `json:"avatar_url,omitempty"`
 	NameStyle   namestyle.Style `json:"name_style"`
+	// AvatarDecorationURL: a moldura do avatar (#482).
+	AvatarDecorationURL *string `json:"avatar_decoration_url,omitempty"`
 }
 
 type ReplyPreview struct {

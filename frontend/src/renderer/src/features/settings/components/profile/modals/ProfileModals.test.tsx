@@ -17,6 +17,7 @@ vi.mock('../../../../../shared/ui/Avatar', () => ({ default: () => <span data-av
 vi.mock('../../../../profile/components/EntranceSoundSettings', () => ({
   default: () => <i>som</i>
 }))
+vi.mock('../cosmetics/CosmeticsEditor', () => ({ default: () => <i data-cosmetics /> }))
 vi.mock('../../../../profile/store/meActions', () => ({
   changeMyStatus: vi.fn()
 }))
@@ -151,6 +152,9 @@ describe('ProfileEditModal', () => {
     expect(render('banner_color')).toContain('data-title="Cor do banner"')
     expect(render('sound')).toContain('data-title="Som de entrada"')
     expect(render('status')).toContain('data-title="Status"')
+  })
+  it('faixa e moldura abre o editor deles', () => {
+    expect(render('cosmetics')).toContain('data-cosmetics')
   })
   it('o tema abre largo, com as predefinições', () => {
     const html = render('theme')

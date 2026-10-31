@@ -19,6 +19,8 @@ import { ActivityLine } from '../../activity/components/ActivityLine'
 import { useActivity, useInVoice } from '../../activity/store/presenceActivityStore'
 import { useListening } from '../../activity/store/listeningStore'
 import StyledName from '../../profile/components/StyledName'
+import Nameplate from '../../profile/components/Nameplate'
+import { useHoverActive } from '../../../shared/hooks/useHoverActive'
 import type { NameStyle } from '../../profile/lib/nameStyle'
 import type { Server } from '../api/servers'
 import OwnerCrown from './OwnerCrown'
@@ -32,6 +34,9 @@ interface MemberRowProps {
   nameStyle?: NameStyle
   handle: string
   avatarUrl?: string | null
+  /** Faixa atrás do nome e moldura do avatar (#482). */
+  nameplateUrl?: string | null
+  decorationUrl?: string | null
   colorClass: string
   nameClass: string
   /** Cor do cargo mais alto que tem cor (CSS); sem ela vale nameClass. */
@@ -49,6 +54,8 @@ export function MemberRow({
   nameStyle,
   handle,
   avatarUrl,
+  nameplateUrl,
+  decorationUrl,
   colorClass,
   nameClass,
   nameColor,
@@ -64,11 +71,13 @@ export function MemberRow({
   const hasActivity = playing || listening
   const inVoice = useInVoice(userId)
   const activityShown = hasActivity || inVoice
-  const look = useUserLook(userId, { name: displayName, avatarUrl })
+  const look = useUserLook(userId, { name: displayName, avatarUrl, nameplateUrl, decorationUrl })
   const name = serverDisplayName({ nickname }, { display_name: look.name })
+  const hover = useHoverActive()
   return (
     <div
       key={userId}
+      {...hover.bind}
       // Na lista de membros o menu abre até em você (para "Alterar apelido").
       onContextMenu={userMenuHandler(userId, name, meId, handle, { allowSelf: true })}
       onClick={profileCardHandler(userId, name, handle, 'left')}
@@ -76,6 +85,7 @@ export function MemberRow({
         online ? '' : 'opacity-60 hover:opacity-100'
       }`}
     >
+      <Nameplate url={look.nameplateUrl} active={hover.active} fade="var(--bg-members)" />
       <LevelRowShimmer userId={userId} />
       <div className="relative shrink-0">
         <LevelUpBurst userId={userId} />
@@ -83,6 +93,8 @@ export function MemberRow({
           userId={userId}
           name={name}
           avatarUrl={avatarUrl}
+          decorationUrl={look.decorationUrl}
+          active={hover.active}
           size={32}
           // O Maestro não tem websocket: está sempre online.
           status={isBot ? 'online' : status}
@@ -177,6 +189,8 @@ export function ServerMemberGroups({ server }: { server: Server }): React.JSX.El
                     nickname={m.nickname}
                     nameStyle={m.name_style}
                     avatarUrl={m.avatar_url}
+                    nameplateUrl={m.nameplate_url}
+                    decorationUrl={m.avatar_decoration_url}
                     handle={look.handle}
                     colorClass={look.colorClass}
                     nameClass={look.nameClass}

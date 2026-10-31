@@ -1,7 +1,7 @@
 import Avatar from '../../../../../shared/ui/Avatar'
 import { API_BASE_URL } from '../../../../../shared/lib/config'
 import { DEFAULT_BANNER, profileMediaSrc } from '../../../../profile/lib/profileMedia'
-import type { ImageKind } from '../../ImageCropModal'
+import type { ProfileImageKind as ImageKind } from '../../../../profile/api/users'
 import { Tile, TileAction, TileSection } from './Tile'
 
 /** Os "Remover" que aparecem só quando há imagem. */

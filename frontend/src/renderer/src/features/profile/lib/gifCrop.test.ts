@@ -21,6 +21,21 @@ const draw = (image: CanvasImageSource): Uint8ClampedArray => {
 }
 
 describe('cropGif', () => {
+  it('moldura: o pixel transparente continua transparente em todos os quadros', async () => {
+    // Quadro 0 vermelho e quadro 1 azul, com o canto de cima à esquerda vazado.
+    const ring = (image: CanvasImageSource): Uint8ClampedArray => {
+      const id = (image as unknown as { id: number }).id
+      const color = [id === 0 ? 255 : 0, 0, id === 0 ? 0 : 255, 255]
+      return Uint8ClampedArray.from([0, 0, 0, 0, ...color, ...color, ...color])
+    }
+    const gif = decodeGif(await cropGif(source(50, 50), rect, out, ring))
+    expect(gif.frames).toHaveLength(2)
+    for (const frame of gif.frames) {
+      expect(frame.rgba[3]).toBe(0)
+      expect(frame.rgba[7]).toBe(255)
+    }
+  })
+
   it('gera um GIF com todos os quadros, no tamanho de saída', async () => {
     const bytes = await cropGif(source(50, 80, 30), rect, out, draw)
     expect(String.fromCharCode(...bytes.slice(0, 6))).toBe('GIF89a')

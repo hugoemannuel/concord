@@ -3,6 +3,7 @@ package server
 import (
 	"time"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
 )
 
@@ -25,6 +26,8 @@ type ServerMember struct {
 	DisplayName string  `json:"display_name"`
 	AvatarURL   *string `json:"avatar_url,omitempty"`
 	NameStyle   namestyle.Style `json:"name_style"`
+	// Look: a faixa e a moldura (#482).
+	cosmetics.Look
 	// Nickname: apelido neste servidor (null = sem; vale o display_name).
 	Nickname *string `json:"nickname"`
 	IsBot    bool    `json:"is_bot"`
