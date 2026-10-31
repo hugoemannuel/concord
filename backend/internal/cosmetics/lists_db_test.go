@@ -17,8 +17,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Faixa e moldura chegam junto com as listas (membros do servidor, conversas
-// e autor das mensagens), num Postgres de verdade (TEST_DATABASE_URL).
+// Faixa e moldura chegam junto com os membros do servidor e o autor das
+// mensagens (os participantes das conversas: conversation/member_db_test.go), num Postgres de verdade (TEST_DATABASE_URL).
 func TestListsCarryLookDB(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -75,33 +75,6 @@ func TestListsCarryLookDB(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Exec(ctx, `DELETE FROM conversations WHERE id = $1`, convID) })
-
-	t.Run("participantes da conversa", func(t *testing.T) {
-		members, err := repo.Members(ctx, convID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, m := range members {
-			switch m.ID {
-			case styled:
-				assertLook(t, m, "/api/profile-media/b", "/api/profile-media/a_d")
-			case plain:
-				assertLook(t, m, "", "")
-			}
-		}
-		list, err := repo.ListByUserID(ctx, plain)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(list) == 0 {
-			t.Fatal("conversa não aparece na lista")
-		}
-		for _, m := range list[0].Members {
-			if m.ID == styled {
-				assertLook(t, m, "/api/profile-media/b", "/api/profile-media/a_d")
-			}
-		}
-	})
 
 	t.Run("autor da mensagem", func(t *testing.T) {
 		msgs := message.MessageRepository(db)
