@@ -3,6 +3,7 @@ import type { ScreenEntry } from '../lib/screenWatch'
 import type { CallUserInfo } from '../store/callStore'
 import { useCallStore } from '../store/callStore'
 import { useScreenTileProps } from '../hooks/useScreenTileProps'
+import { HOVER_REVEAL } from '../lib/hoverReveal'
 import { participantStripState } from '../lib/participantStrip'
 import { watchedExtras } from '../lib/stagePeople'
 import { useParticipantStripStore } from '../store/participantStripStore'
@@ -37,8 +38,8 @@ function FocusedStage({
 
   return (
     <div className="flex h-full w-full flex-col gap-4">
-      <div className="relative flex min-h-0 flex-1 items-center justify-center [container-type:size]">
-        <div className="absolute inset-x-0 top-0 z-10 flex items-start gap-2 px-1">
+      <div className="group/tile relative flex min-h-0 flex-1 items-center justify-center [container-type:size]">
+        <div className={`absolute inset-x-0 top-0 z-10 flex items-start gap-2 px-1 ${HOVER_REVEAL}`}>
           <button
             onClick={() => setFocused(null)}
             aria-label="Sair do modo foco"

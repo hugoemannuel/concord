@@ -350,3 +350,46 @@ func TestSetOverwriteRules(t *testing.T) {
 		}
 	}
 }
+
+// Canal de sala de evento (managed): só o evento cria e apaga. Quem gerencia
+// canais não renomeia, não apaga e não mexe nas permissões dele pelo app.
+func TestManagedChannelCannotBeEditedByHand(t *testing.T) {
+	// users: quem teria a permissão de fazer a ação num canal comum (renomear e
+	// apagar pedem Gerenciar canais; permissões do canal pedem Gerenciar cargos).
+	cases := []struct {
+		name, method, path, body string
+		users                    []string
+	}{
+		{"renomear", http.MethodPut, "/servers/s1/channels/sala", `{"name":"x"}`, []string{"mod", "dono"}},
+		{"apagar", http.MethodDelete, "/servers/s1/channels/sala", "", []string{"mod", "dono"}},
+		{"mudar permissão", http.MethodPut, "/servers/s1/channels/sala/overwrites/role/everyone", `{"allow":0,"deny":256}`, []string{"gerente", "dono"}},
+		{"tirar permissão", http.MethodDelete, "/servers/s1/channels/sala/overwrites/member/ana", "", []string{"gerente", "dono"}},
+	}
+	for _, c := range cases {
+		store := newPermStore()
+		store.channels["sala"] = &Channel{ID: "sala", ServerID: "s1", Name: "evento-sala", Type: TypeText, Managed: true}
+		store.snap.WithChannel("sala", TypeText)
+		for _, user := range c.users {
+			rec := doRequest(t, store, &permPublisher{}, user, c.method, c.path, c.body)
+			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"managed_channel"`) {
+				t.Errorf("%s por %s: status %d (%s), esperava 403 managed_channel", c.name, user, rec.Code, rec.Body.String())
+			}
+		}
+		if _, ok := store.channels["sala"]; !ok {
+			t.Errorf("%s: o canal gerido sumiu", c.name)
+		}
+	}
+}
+
+func TestManagedFlagIsNeverSetByTheCreateEndpoint(t *testing.T) {
+	store := newPermStore()
+	rec := doRequest(t, store, &permPublisher{}, "mod", http.MethodPost, "/servers/s1/channels", `{"name":"fake","type":"text","managed":true}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	for _, ch := range store.channels {
+		if ch.Name == "fake" && ch.Managed {
+			t.Fatal("o pedido do usuário não pode criar canal gerido")
+		}
+	}
+}

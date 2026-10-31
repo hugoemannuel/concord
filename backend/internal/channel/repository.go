@@ -33,9 +33,9 @@ func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permi
 	err = tx.QueryRow(
 		ctx,
 		`
-		INSERT INTO channels (id, server_id, name, type, created_by, is_system, position)
+		INSERT INTO channels (id, server_id, name, type, created_by, is_system, managed, position)
 		VALUES (
-			$1, $2, $3, $4::varchar, $5, $6,
+			$1, $2, $3, $4::varchar, $5, $6, $7,
 			-- Canal novo vai para o fim da seção dele.
 			(SELECT COALESCE(MAX(position) + 1, 0) FROM channels WHERE server_id = $2 AND type = $4::varchar)
 		)
@@ -46,6 +46,7 @@ func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permi
 			type,
 			position,
 			is_system,
+			managed,
 			created_by,
 			created_at,
 			updated_at
@@ -56,6 +57,7 @@ func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permi
 		ch.Type,
 		ch.CreatedBy,
 		ch.IsSystem,
+		ch.Managed,
 	).Scan(
 		&ch.ID,
 		&ch.ServerID,
@@ -63,6 +65,7 @@ func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permi
 		&ch.Type,
 		&ch.Position,
 		&ch.IsSystem,
+		&ch.Managed,
 		&ch.CreatedBy,
 		&ch.CreatedAt,
 		&ch.UpdatedAt,
@@ -121,6 +124,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 			type,
 			position,
 			is_system,
+			managed,
 			created_by,
 			created_at,
 			updated_at
@@ -135,6 +139,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 		&ch.Type,
 		&ch.Position,
 		&ch.IsSystem,
+		&ch.Managed,
 		&ch.CreatedBy,
 		&ch.CreatedAt,
 		&ch.UpdatedAt,
@@ -230,6 +235,7 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			type,
 			position,
 			is_system,
+			managed,
 			created_by,
 			created_at,
 			updated_at
@@ -254,6 +260,7 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			&ch.Type,
 			&ch.Position,
 			&ch.IsSystem,
+		&ch.Managed,
 			&ch.CreatedBy,
 			&ch.CreatedAt,
 			&ch.UpdatedAt,

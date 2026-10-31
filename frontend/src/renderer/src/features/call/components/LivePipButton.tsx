@@ -1,4 +1,5 @@
 import { PictureInPictureIcon } from '../../../shared/ui/icons'
+import { HOVER_REVEAL } from '../lib/hoverReveal'
 import { pipButtonLabel } from '../lib/livePip'
 import { livePipSupported, toggleLivePip } from '../lib/livePipBrowser'
 import { useLivePipStore } from '../store/livePipStore'
@@ -26,7 +27,7 @@ export function PipToggle({
       aria-label={label}
       aria-pressed={active}
       title={label}
-      className={`on-media absolute right-2 top-18 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full backdrop-blur-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+      className={`on-media absolute right-2 top-18 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full backdrop-blur-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${HOVER_REVEAL} ${
         active
           ? 'bg-brand text-white'
           : 'bg-black/60 text-gray-200 hover:bg-black/80 hover:text-white'

@@ -149,6 +149,7 @@ export function ChannelMenuHost({
     hasServer: true,
     isText: type === 'text',
     isSystem: Boolean(channel.is_system),
+    isManaged: Boolean(channel.managed),
     isPrimary: channel.id === primaryId,
     index,
     sectionLength: section.length,

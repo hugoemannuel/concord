@@ -12,6 +12,8 @@ export interface Channel {
   position?: number
   /** Canal do Maestro ("musica"): não pode ser editado nem removido, só movido. */
   is_system?: boolean
+  /** Canal da sala de um evento: só o evento o cria e apaga. */
+  managed?: boolean
   created_by: string
   created_at: string
   updated_at: string

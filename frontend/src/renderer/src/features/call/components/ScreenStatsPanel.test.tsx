@@ -69,3 +69,18 @@ describe('ScreenStatsCard', () => {
     expect(html).not.toContain('<dl')
   })
 })
+
+describe('StatsCorner: visibilidade do ícone', () => {
+  const render = (open: boolean): string =>
+    renderToStaticMarkup(<StatsCorner owner={bia} open={open} onToggle={() => {}} onClose={() => {}} />)
+
+  it('fechado: só aparece com o mouse no tile', () => {
+    expect(render(false)).toContain('group-hover/tile:opacity-100')
+  })
+
+  it('aberto: fica sempre visível junto do painel', () => {
+    const html = render(true)
+    const button = html.slice(html.indexOf('<button'), html.indexOf('>', html.indexOf('<button')))
+    expect(button).not.toContain('opacity-0')
+  })
+})

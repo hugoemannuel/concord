@@ -20,13 +20,15 @@ const (
 )
 
 type Channel struct {
-	ID        string    `json:"id"`
-	ServerID  string    `json:"server_id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	Position  int       `json:"position"`
+	ID       string `json:"id"`
+	ServerID string `json:"server_id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Position int    `json:"position"`
 	// IsSystem: canal fixo do servidor ("musica" e "avisos"); não pode ser editado nem removido, só movido.
-	IsSystem  bool      `json:"is_system"`
+	IsSystem bool `json:"is_system"`
+	// Managed: canal de uma sala de evento. Só o evento o cria e o apaga; o app não o edita.
+	Managed   bool      `json:"managed"`
 	CreatedBy string    `json:"created_by"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

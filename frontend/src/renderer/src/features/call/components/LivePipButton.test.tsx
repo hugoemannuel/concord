@@ -33,3 +33,10 @@ describe('LivePipButton', () => {
     expect(renderToStaticMarkup(<LivePipButton userId="bia" />)).toBe('')
   })
 })
+
+describe('PipToggle: visibilidade', () => {
+  it('só aparece com o mouse no tile, como a barra de volume', () => {
+    const html = renderToStaticMarkup(<PipToggle active={false} onToggle={() => {}} />)
+    expect(html).toContain('group-hover/tile:opacity-100')
+  })
+})

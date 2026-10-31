@@ -126,6 +126,7 @@ func wire(ctx context.Context, db *pgxpool.Pool) *app {
 	a.wireGuests()
 	a.wireMusic()
 	a.wireEngagement()
+	a.wireEvents()
 	a.wireServerLevel()
 	a.wireMusicSessions()
 	a.wireRealtime()

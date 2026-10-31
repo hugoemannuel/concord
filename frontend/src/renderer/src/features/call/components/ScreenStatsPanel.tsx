@@ -1,3 +1,4 @@
+import { HOVER_REVEAL } from '../lib/hoverReveal'
 import { useScreenStats } from '../hooks/useScreenStats'
 import { useScreenStatsStore } from '../store/screenStatsStore'
 import { XIcon } from '../../../shared/ui/icons'
@@ -106,6 +107,8 @@ export function StatsCorner({
         aria-expanded={open}
         title="Estatísticas da transmissão"
         className={`on-media absolute right-2 top-10 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
+          open ? '' : HOVER_REVEAL
+        } ${
           open
             ? 'bg-brand text-white'
             : 'bg-black/60 text-normal hover:bg-black/80 hover:text-white'

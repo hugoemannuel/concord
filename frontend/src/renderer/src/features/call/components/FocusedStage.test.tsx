@@ -53,3 +53,13 @@ describe('FocusedStage', () => {
     expect(render(false)).toContain('Fechar transmissão')
   })
 })
+
+describe('FocusedStage: botões do cabeçalho', () => {
+  it('sair do foco e fechar só aparecem com o mouse no palco', () => {
+    const html = render(false)
+    expect(html).toContain('group/tile')
+    const at = html.indexOf('Sair do modo foco')
+    const header = html.slice(html.lastIndexOf('<div', at), at)
+    expect(header).toContain('group-hover/tile:opacity-100')
+  })
+})

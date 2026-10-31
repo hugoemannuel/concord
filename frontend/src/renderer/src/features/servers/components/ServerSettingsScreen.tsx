@@ -19,13 +19,16 @@ import ServerSettingsNav from './ServerSettingsNav'
 import MembersSection from './MembersSection'
 import BansSection from './BansSection'
 import ServerLevelSection from '../../serverlevel/components/ServerLevelSection'
+import EventsSettingsSection from '../../events/components/EventsSettingsSection'
+import { useEventAccess } from '../../events/hooks/useEventAccess'
 
 const SECTION_VIEW = {
   overview: OverviewSection,
   level: ServerLevelSection,
   roles: RolesSection,
   members: MembersSection,
-  bans: BansSection
+  bans: BansSection,
+  events: EventsSettingsSection
 } as const
 
 /**
@@ -47,8 +50,10 @@ function ServerSettingsContent(): React.JSX.Element | null {
   const [leaving, setLeaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const sections = visibleServerSections(access.perms)
-  const current = resolveServerSection(access.perms, wanted)
+  // Quem recebeu "Configurar eventos" abre a seção Eventos mesmo sem nenhuma permissão de servidor.
+  const canConfigureEvents = Boolean(useEventAccess(server?.id)?.configure)
+  const sections = visibleServerSections(access.perms, access.isOwner, canConfigureEvents)
+  const current = resolveServerSection(access.perms, wanted, access.isOwner, canConfigureEvents)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
