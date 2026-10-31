@@ -4,7 +4,7 @@ import type { PublicProfile } from '../api/users'
 const getProfile = vi.fn<(id: string) => Promise<PublicProfile>>()
 vi.mock('../api/users', () => ({ getProfile: (id: string) => getProfile(id) }))
 
-const { useProfileStore } = await import('./profileStore')
+const { useProfileStore, lookOf } = await import('./profileStore')
 
 const profile = (over: Partial<PublicProfile> = {}): PublicProfile => ({
   id: 'u1',
@@ -69,5 +69,29 @@ describe('profileStore', () => {
     getProfile.mockRejectedValue(new Error('offline'))
     const result = await useProfileStore.getState().fetchProfile('u1')
     expect(result?.display_name).toBe('Mugis')
+  })
+})
+
+describe('lookOf', () => {
+  it('o perfil conhecido ganha do que veio junto, também na faixa e na moldura', () => {
+    const known = profile({ nameplate_url: '/n2', avatar_decoration_url: '/d2' })
+    expect(lookOf(known, { name: 'x', nameplateUrl: '/n1', decorationUrl: '/d1' })).toMatchObject({
+      nameplateUrl: '/n2',
+      decorationUrl: '/d2'
+    })
+  })
+  it('perfil conhecido sem faixa tira a que veio junto (ela saiu)', () => {
+    expect(lookOf(profile(), { name: 'x', nameplateUrl: '/n1', decorationUrl: '/d1' })).toMatchObject({
+      nameplateUrl: null,
+      decorationUrl: null
+    })
+  })
+  it('sem perfil conhecido usa o que veio junto', () => {
+    expect(lookOf(undefined, { name: 'x', nameplateUrl: '/n1' })).toEqual({
+      name: 'x',
+      avatarUrl: null,
+      nameplateUrl: '/n1',
+      decorationUrl: null
+    })
   })
 })

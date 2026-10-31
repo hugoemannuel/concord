@@ -27,6 +27,10 @@ export interface ConversationOtherUser {
   display_name: string
   avatar_url?: string | null
   name_style?: NameStyle
+  /** Faixa efetiva (o banner ou a imagem própria; ausente = sem faixa). */
+  nameplate_url?: string | null
+  /** Moldura do avatar (ausente = sem moldura). */
+  avatar_decoration_url?: string | null
 }
 
 export interface ConversationLastMessage {

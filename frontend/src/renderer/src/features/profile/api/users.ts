@@ -32,6 +32,10 @@ export interface PublicProfile {
   name_style?: NameStyle
   /** Borda, fundo e efeito do cartão (ausente = padrão). */
   profile_theme?: ProfileTheme
+  /** Faixa efetiva (o banner ou a imagem própria); ausente = sem faixa. */
+  nameplate_url?: string | null
+  /** Moldura do avatar; ausente = sem moldura. */
+  avatar_decoration_url?: string | null
   /** Vínculo comigo; sem vínculo (none), username vem vazio. Não vem no user:update. */
   relationship?: ProfileRelationship
   created_at: string

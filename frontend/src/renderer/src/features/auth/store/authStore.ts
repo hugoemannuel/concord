@@ -4,6 +4,7 @@ import { AUTH_STORAGE_KEY } from '../lib/authRefresh'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 import type { NameStyle } from '../../profile/lib/nameStyle'
 import type { ProfileTheme } from '../../profile/lib/profileTheme'
+import type { NameplateMode } from '../../profile/lib/cosmetics'
 
 export interface ProfileLink {
   url: string
@@ -33,6 +34,10 @@ export interface PublicUser {
   name_style?: NameStyle
   /** Borda, fundo e efeito do cartão de perfil (ausente = padrão). */
   profile_theme?: ProfileTheme
+  /** Faixa efetiva (o banner ou a imagem própria; ausente = sem faixa). */
+  nameplate_url?: string | null
+  /** Moldura do avatar (ausente = sem moldura). */
+  avatar_decoration_url?: string | null
   created_at: string
   updated_at: string
 }
@@ -44,6 +49,10 @@ export interface User extends PublicUser {
   email_verified?: boolean
   /** Quando dá para trocar o @ de novo (uma vez a cada 7 dias; ausente = nunca trocou). */
   username_change_available_at?: string | null
+  /** Faixa: desligada, o banner ou a imagem própria (nameplate_custom_url). */
+  nameplate_mode?: NameplateMode
+  /** A imagem própria da faixa guardada (mesmo com o modo em "banner"). */
+  nameplate_custom_url?: string | null
 }
 
 interface AuthState {

@@ -8,6 +8,8 @@ export interface MessageAuthor {
   display_name: string
   avatar_url?: string | null
   name_style?: NameStyle
+  /** Moldura do avatar (ausente = sem moldura). */
+  avatar_decoration_url?: string | null
 }
 
 export interface ReplyPreview {
