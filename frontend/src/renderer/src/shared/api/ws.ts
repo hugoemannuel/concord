@@ -1,5 +1,6 @@
 import { WS_URL } from '../lib/config'
 import { isPlannedRestart, reconnectDelay } from '../lib/wsReconnect'
+import { HEARTBEAT_EVERY_MS, heartbeatStep, type HeartbeatState } from '../lib/wsHeartbeat'
 
 export type WsEventType =
   | 'message:create'
@@ -98,6 +99,9 @@ export class WsClient {
   /** Já abriu alguma vez desde o connect(). */
   private everOpened = false
   private retryTimer: ReturnType<typeof setTimeout> | null = null
+  /** Batimento da conexão aberta (ver lib/wsHeartbeat). */
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  private heartbeat: HeartbeatState = { pingSentAt: null, lastMessageAt: 0, pongSeen: false }
 
   constructor(config: WsClientConfig) {
     this.config = config
@@ -112,6 +116,7 @@ export class WsClient {
   disconnect(): void {
     this.closedByUser = true
     this.clearRetry()
+    this.stopHeartbeat()
     this.subscriptions.clear()
     if (this.ws) {
       this.ws.close()
@@ -172,12 +177,14 @@ export class WsClient {
       }
       const reconnected = this.everOpened
       this.everOpened = true
+      this.startHeartbeat()
       this.config.onOpen?.(reconnected)
     }
 
     ws.onmessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data as string) as WsEvent
+        if (this.noteAlive(data)) return
         this.config.onEvent(data)
         emitWsEvent(data)
       } catch {
@@ -189,11 +196,7 @@ export class WsClient {
       // Conexão antiga (disconnect() e connect() logo em seguida): a nova já
       // está no lugar; o fechamento atrasado desta não é queda.
       if (this.ws !== ws) return
-      this.ws = null
-      if (this.closedByUser) return
-      if (isPlannedRestart(event.code)) this.serverRestarting = true
-      this.scheduleReconnect()
-      this.config.onLost?.({ attempt: this.attempt, planned: this.serverRestarting })
+      this.lost(isPlannedRestart(event.code))
     }
 
     ws.onerror = () => {
@@ -201,6 +204,52 @@ export class WsClient {
     }
 
     this.ws = ws
+  }
+
+  /** A conexão atual caiu (fechou ou parou de responder): agenda a volta e avisa. */
+  private lost(planned: boolean): void {
+    this.ws = null
+    this.stopHeartbeat()
+    if (this.closedByUser) return
+    if (planned) this.serverRestarting = true
+    this.scheduleReconnect()
+    this.config.onLost?.({ attempt: this.attempt, planned: this.serverRestarting })
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat()
+    this.heartbeat = { pingSentAt: null, lastMessageAt: Date.now(), pongSeen: false }
+    this.heartbeatTimer = setInterval(() => this.beat(), HEARTBEAT_EVERY_MS)
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = null
+    }
+  }
+
+  /** Mensagem do servidor: a conexão está viva. Devolve true se era só o pong. */
+  private noteAlive(data: WsEvent): boolean {
+    this.heartbeat.lastMessageAt = Date.now()
+    if ((data.type as string) !== 'pong') return false
+    this.heartbeat.pongSeen = true
+    return true
+  }
+
+  private beat(): void {
+    const ws = this.ws
+    if (!ws) return
+    const step = heartbeatStep(this.heartbeat, Date.now())
+    if (step === 'ping') {
+      this.heartbeat.pingSentAt = Date.now()
+      this.sendRaw(JSON.stringify({ type: 'ping', payload: null }))
+    } else if (step === 'dead') {
+      // Meio aberta: o onclose pode demorar minutos. Larga esta (o fechamento
+      // atrasado dela é ignorado) e reconecta já.
+      this.lost(false)
+      ws.close()
+    }
   }
 
   private send(event: WsEvent): void {

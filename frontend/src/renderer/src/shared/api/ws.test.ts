@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WsClient, onWsEvent } from './ws'
+import { HEARTBEAT_EVERY_MS } from '../lib/wsHeartbeat'
 
 /** WebSocket de mentira: o teste abre e fecha à mão. */
 class FakeSocket {
@@ -186,6 +187,100 @@ describe('WsClient — reconexão', () => {
     vi.advanceTimersByTime(60_000)
     expect(onLost).not.toHaveBeenCalled()
     expect(FakeSocket.instances).toHaveLength(2)
+  })
+})
+
+// Regressão (31/10/2026): a rede trocou de IP no meio da call e o WS ficou
+// meio aberto. Sem erro nem onclose, o app seguiu achando que estava conectado
+// por mais de 10 min: não reconectou, a presença ficou offline e a call não
+// foi ressincronizada.
+describe('WsClient — batimento (ping/pong)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    FakeSocket.instances = []
+    vi.stubGlobal('WebSocket', FakeSocket)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  const pings = (socket: FakeSocket): number =>
+    socket.sent.filter((raw) => JSON.parse(raw).type === 'ping').length
+  const pong = (socket: FakeSocket): void =>
+    socket.onmessage?.({ data: JSON.stringify({ type: 'pong', payload: null }) })
+
+  const connected = (): {
+    ws: WsClient
+    onLost: ReturnType<typeof vi.fn>
+    onEvent: ReturnType<typeof vi.fn>
+    socket: FakeSocket
+  } => {
+    const onLost = vi.fn()
+    const onEvent = vi.fn()
+    const ws = new WsClient({ getToken: () => 'tok', getUserId: () => 'eu', onEvent, onLost })
+    ws.connect()
+    latest().open()
+    return { ws, onLost, onEvent, socket: latest() }
+  }
+
+  it('manda ping a cada batimento e segue conectado enquanto o pong volta', () => {
+    const { onLost, socket } = connected()
+    for (let i = 0; i < 10; i++) {
+      vi.advanceTimersByTime(HEARTBEAT_EVERY_MS)
+      pong(socket)
+    }
+    expect(pings(socket)).toBe(10)
+    expect(onLost).not.toHaveBeenCalled()
+    expect(FakeSocket.instances).toHaveLength(1)
+  })
+
+  it('conexão meio aberta (o pong parou de vir): conta como queda e reconecta', () => {
+    const { onLost, socket } = connected()
+    vi.advanceTimersByTime(HEARTBEAT_EVERY_MS)
+    pong(socket) // o servidor responde: sabe o que é ping
+
+    vi.advanceTimersByTime(HEARTBEAT_EVERY_MS) // ping sem resposta
+    expect(onLost).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(HEARTBEAT_EVERY_MS) // passou do prazo
+
+    expect(onLost).toHaveBeenCalledWith({ attempt: 1, planned: false })
+    vi.advanceTimersByTime(1000)
+    expect(FakeSocket.instances).toHaveLength(2)
+    // A conexão morta não manda mais nada nem derruba a nova ao fechar atrasada.
+    socket.drop(1006)
+    expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it('servidor antigo (não responde pong): nunca derruba a conexão', () => {
+    const { onLost } = connected()
+    vi.advanceTimersByTime(HEARTBEAT_EVERY_MS * 20)
+    expect(onLost).not.toHaveBeenCalled()
+    expect(FakeSocket.instances).toHaveLength(1)
+  })
+
+  it('qualquer evento do servidor conta como sinal de vida', () => {
+    const { onLost, socket } = connected()
+    vi.advanceTimersByTime(HEARTBEAT_EVERY_MS)
+    pong(socket)
+    for (let i = 0; i < 5; i++) {
+      vi.advanceTimersByTime(HEARTBEAT_EVERY_MS)
+      socket.onmessage?.({ data: JSON.stringify({ type: 'presence:update', payload: {} }) })
+    }
+    expect(onLost).not.toHaveBeenCalled()
+  })
+
+  it('o pong não chega ao onEvent (não é evento do app)', () => {
+    const { onEvent, socket } = connected()
+    pong(socket)
+    expect(onEvent).not.toHaveBeenCalled()
+  })
+
+  it('disconnect() para o batimento', () => {
+    const { ws, socket } = connected()
+    ws.disconnect()
+    vi.advanceTimersByTime(HEARTBEAT_EVERY_MS * 3)
+    expect(pings(socket)).toBe(0)
   })
 })
 
