@@ -28,18 +28,24 @@ export async function logoutAndReset(): Promise<void> {
   } catch {
     // Limpa a sessão local mesmo assim.
   } finally {
-    useFriendStore.getState().reset()
-    useServerStore.getState().reset()
-    useInviteStore.getState().reset()
-    useProfileStore.getState().reset()
-    useChannelNameStore.getState().reset()
-    useChatStore.getState().disconnect()
-    useProfileCardStore.getState().close()
-    useSettingsStore.getState().forceClose()
-    await clearSession()
-    void router.navigate('/login')
+    await resetLocalSession()
   }
 }
+
+/** Limpa tudo o que é da conta neste app e volta para o login. */
+async function resetLocalSession(): Promise<void> {
+  useFriendStore.getState().reset()
+  useServerStore.getState().reset()
+  useInviteStore.getState().reset()
+  useProfileStore.getState().reset()
+  useChannelNameStore.getState().reset()
+  useChatStore.getState().disconnect()
+  useProfileCardStore.getState().close()
+  useSettingsStore.getState().forceClose()
+  await clearSession()
+  void router.navigate('/login')
+}
+
 
 /** Troca o status na hora e desfaz se o servidor recusar. */
 export async function changeMyStatus(status: ChosenStatus): Promise<void> {
