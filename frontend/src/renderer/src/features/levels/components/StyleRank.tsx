@@ -1,4 +1,5 @@
 import { boostRank } from '../lib/boost'
+import './boost.css'
 
 interface StyleRankProps {
   percent: number
@@ -9,7 +10,7 @@ interface StyleRankProps {
 }
 
 /**
- * Letra do rank do buff de XP (A/S/SS/SSS), o texto ("Sweet!") e o
+ * Letra do rank do buff de XP (D a SSS), o texto ("Sweet!") e o
  * multiplicador. Não renderiza nada sem buff. Trocar de rank remonta a letra
  * (a `key`), o que dispara de novo o slam.
  */

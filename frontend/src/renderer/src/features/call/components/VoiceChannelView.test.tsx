@@ -111,7 +111,7 @@ describe('VoiceChannelView', () => {
   })
 
   it('conectado: palco, selo de voz conectada, música e controles', () => {
-    call.state = { ...call.state, status: 'active', type: 'channel', channelId: 'v1', boost: 200 }
+    call.state = { ...call.state, status: 'active', type: 'channel', channelId: 'v1', boost: 400 }
     const html = render()
     expect(html).toContain('data-palco')
     expect(html).toContain('Voz conectada')
@@ -126,7 +126,7 @@ describe('VoiceChannelView', () => {
       status: 'active',
       type: 'channel',
       channelId: 'v1',
-      boost: 200,
+      boost: 400,
       muted: true
     }
     expect(render()).not.toContain('boost-aura')

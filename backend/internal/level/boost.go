@@ -4,16 +4,22 @@ import "gin-quickstart/backend/internal/call"
 
 // boostPercent é o multiplicador de XP (em %) de uma call com `eligible`
 // pessoas ganhando XP: 100 = sem buff. Os degraus seguem o ranking de estilo
-// do cliente: A (4–5), S (6–7), SS (8–9), SSS (10+).
+// do cliente: D (2), C (3), B (4), A (5), S (6–7), SS (8–9), SSS (10+).
 func boostPercent(eligible int) int {
 	switch {
 	case eligible >= 10:
-		return 200
+		return 400
 	case eligible >= 8:
-		return 175
+		return 300
 	case eligible >= 6:
-		return 150
+		return 250
+	case eligible >= 5:
+		return 200
 	case eligible >= 4:
+		return 175
+	case eligible >= 3:
+		return 150
+	case eligible >= 2:
 		return 125
 	default:
 		return 100

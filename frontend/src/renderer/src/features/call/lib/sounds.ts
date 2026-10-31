@@ -38,7 +38,7 @@ export const noteVolume = (note: Note): number => note.volume ?? BASE_VOLUME
  * Nota dos sons de nível: `share` é a fração do BASE_VOLUME, mais baixa que
  * os sons de interface, para não passar das vozes.
  */
-const soft = (
+export const soft = (
   freq: number,
   at: number,
   duration: number,
@@ -47,7 +47,7 @@ const soft = (
 ): Note => ({ freq, at, duration, volume: BASE_VOLUME * share, wave })
 
 /** Nota de nível com glissando de `freq` até `to`. */
-const glide = (
+export const glide = (
   freq: number,
   to: number,
   at: number,
@@ -57,7 +57,7 @@ const glide = (
 ): Note => ({ ...soft(freq, at, duration, share, wave), slide: to })
 
 /** Várias notas ao mesmo tempo (acorde). */
-const chord = (
+export const chord = (
   freqs: number[],
   at: number,
   duration: number,
@@ -66,7 +66,7 @@ const chord = (
 ): Note[] => freqs.map((f) => soft(f, at, duration, share, wave))
 
 /** Notas em sequência, `step` segundos entre uma e outra. */
-const run = (
+export const run = (
   freqs: number[],
   at: number,
   step: number,

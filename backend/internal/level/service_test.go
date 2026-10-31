@@ -162,11 +162,14 @@ func TestBoostMultipliesXP(t *testing.T) {
 		users int
 		want  int64
 	}{
-		{3, XPPerMinute},              // sem buff
-		{4, XPPerMinute * 125 / 100},  // A (12,5 vira 12; o resto é carregado)
-		{6, XPPerMinute * 150 / 100},  // S
-		{8, XPPerMinute * 175 / 100},  // SS
-		{10, XPPerMinute * 200 / 100}, // SSS
+		{1, XPPerMinute},              // sem buff
+		{2, XPPerMinute * 125 / 100},  // D (12,5 vira 12; o resto é carregado)
+		{3, XPPerMinute * 150 / 100},  // C
+		{4, XPPerMinute * 175 / 100},  // B (17,5 vira 17)
+		{5, XPPerMinute * 200 / 100},  // A
+		{6, XPPerMinute * 250 / 100},  // S
+		{8, XPPerMinute * 300 / 100},  // SS
+		{10, XPPerMinute * 400 / 100}, // SSS
 	}
 	for _, c := range cases {
 		s, store, _, _ := newTestService(usersN(c.users)...)
@@ -180,7 +183,7 @@ func TestBoostMultipliesXP(t *testing.T) {
 }
 
 func TestBoostEventOnlyWhenBuffed(t *testing.T) {
-	s, _, pub, _ := newTestService(usersN(3)...)
+	s, _, pub, _ := newTestService(usersN(1)...)
 	run(s, t0, 6)
 
 	if len(pub.boosts) != 0 {
@@ -195,7 +198,7 @@ func TestBoostEventIsHeartbeatWhileBuffed(t *testing.T) {
 	if len(pub.boosts) != 3 {
 		t.Fatalf("boosts = %d, want 1 por tick (3)", len(pub.boosts))
 	}
-	want := BoostEvent{CallID: "call-1", Percent: 125, Eligible: 4}
+	want := BoostEvent{CallID: "call-1", Percent: 175, Eligible: 4}
 	for _, got := range pub.boosts {
 		if got != want {
 			t.Errorf("boost = %+v, want %+v", got, want)
@@ -204,18 +207,18 @@ func TestBoostEventIsHeartbeatWhileBuffed(t *testing.T) {
 }
 
 func TestBoostEndIsAnnouncedOnce(t *testing.T) {
-	s, _, pub, voice := newTestService(usersN(4)...)
+	s, _, pub, voice := newTestService(usersN(2)...)
 	now := run(s, t0, 1)
 
-	voice.active = voice.active[:3] // alguém mutou: sobram 3
+	voice.active = voice.active[:1] // alguém mutou: sobra 1
 	now = run(s, now, 1)
 	run(s, now, 2) // sem buff: nada mais é enviado
 
 	if len(pub.boosts) != 2 {
-		t.Fatalf("boosts = %+v, want buff (125) e depois um único aviso de fim (100, 3 elegíveis)", pub.boosts)
+		t.Fatalf("boosts = %+v, want buff (125) e depois um único aviso de fim (100, 1 elegível)", pub.boosts)
 	}
-	if last := pub.boosts[1]; last.Percent != 100 || last.Eligible != 3 {
-		t.Fatalf("boosts = %+v, want buff (125) e depois um único aviso de fim (100, 3 elegíveis)", pub.boosts)
+	if last := pub.boosts[1]; last.Percent != 100 || last.Eligible != 1 {
+		t.Fatalf("boosts = %+v, want buff (125) e depois um único aviso de fim (100, 1 elegível)", pub.boosts)
 	}
 }
 
@@ -239,7 +242,7 @@ func TestBoostStepChangePublishesNewPercent(t *testing.T) {
 	now := run(s, t0, 1)
 
 	serverID := "server-1"
-	for _, id := range usersN(6)[4:] { // entram mais 2: A (125) vira S (150)
+	for _, id := range usersN(6)[4:] { // entram mais 2: B (175) vira S (250)
 		voice.active = append(voice.active, call.VoiceActivity{UserID: id, CallID: "call-1", ServerID: &serverID})
 	}
 	run(s, now, 1)
@@ -247,7 +250,7 @@ func TestBoostStepChangePublishesNewPercent(t *testing.T) {
 	if len(pub.boosts) != 2 {
 		t.Fatalf("boosts = %+v, want 2 avisos", pub.boosts)
 	}
-	if got, want := pub.boosts[1], (BoostEvent{CallID: "call-1", Percent: 150, Eligible: 6}); got != want {
+	if got, want := pub.boosts[1], (BoostEvent{CallID: "call-1", Percent: 250, Eligible: 6}); got != want {
 		t.Errorf("boost = %+v, want %+v", got, want)
 	}
 }
@@ -269,7 +272,7 @@ func TestBoostIsPublishedAgainAfterCallDisappears(t *testing.T) {
 	if len(pub.boosts) != 3 {
 		t.Fatalf("boosts = %+v, want buff, fim e buff de novo", pub.boosts)
 	}
-	if got, want := pub.boosts[2], (BoostEvent{CallID: "call-1", Percent: 125, Eligible: 4}); got != want {
+	if got, want := pub.boosts[2], (BoostEvent{CallID: "call-1", Percent: 175, Eligible: 4}); got != want {
 		t.Errorf("boost = %+v, want %+v", got, want)
 	}
 }
@@ -317,11 +320,14 @@ func TestBoostCarriesFractionalXP(t *testing.T) {
 		users int
 		want  []int64
 	}{
-		{3, []int64{10, 10, 10, 10}},  // sem buff: nunca sobra resto
-		{4, []int64{12, 13, 12, 13}},  // A: 12,5 por minuto
-		{6, []int64{15, 15, 15, 15}},  // S: 15 exato
-		{8, []int64{17, 18, 17, 18}},  // SS: 17,5 por minuto
-		{10, []int64{20, 20, 20, 20}}, // SSS
+		{1, []int64{10, 10, 10, 10}},  // sem buff: nunca sobra resto
+		{2, []int64{12, 13, 12, 13}},  // D: 12,5 por minuto
+		{3, []int64{15, 15, 15, 15}},  // C: 15 exato
+		{4, []int64{17, 18, 17, 18}},  // B: 17,5 por minuto
+		{5, []int64{20, 20, 20, 20}},  // A
+		{6, []int64{25, 25, 25, 25}},  // S
+		{8, []int64{30, 30, 30, 30}},  // SS
+		{10, []int64{40, 40, 40, 40}}, // SSS
 	}
 	for _, c := range cases {
 		s, store, _, _ := newTestService(usersN(c.users)...)
@@ -332,14 +338,14 @@ func TestBoostCarriesFractionalXP(t *testing.T) {
 				break
 			}
 		}
-		if c.users == 3 && s.remainder["ua"] != 0 {
+		if c.users == 1 && s.remainder["ua"] != 0 {
 			t.Errorf("remainder sem buff = %d, want 0", s.remainder["ua"])
 		}
 	}
 }
 
 func TestRemainderIsDroppedWhenUserStopsBeingEligible(t *testing.T) {
-	s, store, _, voice := newTestService(usersN(4)...)
+	s, store, _, voice := newTestService(usersN(2)...)
 	active := voice.active
 	now := run(s, t0, 6)
 	if store.xp["ua"] != 12 || s.remainder["ua"] != 50 {
@@ -360,8 +366,8 @@ func TestRemainderIsDroppedWhenUserStopsBeingEligible(t *testing.T) {
 }
 
 func TestLevelUpUsesMultipliedXP(t *testing.T) {
-	s, store, pub, _ := newTestService(usersN(4)...)
-	// Faltam 11 XP: 10 (sem buff) não passa de nível, 12 (rank A) passa.
+	s, store, pub, _ := newTestService(usersN(2)...)
+	// Faltam 11 XP: 10 (sem buff) não passa de nível, 12 (rank D) passa.
 	store.xp["ua"] = XPToNext(1) - 11
 	run(s, t0, 6)
 
