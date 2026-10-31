@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ServerEvent } from '../api/events'
 import { DEFAULT_REMINDERS } from './reminders'
+import { OTHER_GAME, NO_GAME } from './eventGame'
 import { emptyForm, formFromEvent, toInput, type EventFormValues } from './eventForm'
 
 const now = new Date(2026, 10, 1, 12, 0)
@@ -39,6 +40,7 @@ describe('formulário do evento', () => {
       banner_id: null,
       starts_at: new Date(2026, 10, 4, 20, 0).toISOString(),
       duration_minutes: 120,
+      game_name: '',
       recurrence: 'none',
       recurrence_until: null,
       recurrence_count: null,
@@ -105,6 +107,7 @@ describe('formulário do evento', () => {
       starts_at: new Date(2026, 10, 4, 20, 0).toISOString(),
       next_start_at: new Date(2026, 10, 11, 20, 0).toISOString(),
       duration_minutes: 180,
+      game_name: 'Minecraft',
       voice_channel_id: null,
       text_channel_id: null,
       recurrence: 'weekly',
@@ -119,6 +122,8 @@ describe('formulário do evento', () => {
       title: 'Noite',
       description: 'Desc',
       durationMinutes: 180,
+      gameChoice: 'Minecraft',
+      customGame: '',
       startsAt: '2026-11-04T20:00',
       recurrence: 'weekly',
       endMode: 'until',
@@ -130,4 +135,50 @@ describe('formulário do evento', () => {
     expect(formFromEvent({ ...event, recurrence_until: null, recurrence_count: 4 }).endMode).toBe('count')
     expect(formFromEvent({ ...event, recurrence_until: null }).endMode).toBe('never')
   })
+
+  it('o jogo do catálogo vai pelo nome; "outro" vai pelo texto digitado; "nenhum" vai vazio', () => {
+    const named = toInput(valid({ gameChoice: 'VALORANT' }), now)
+    expect(named.ok && named.input.game_name).toBe('VALORANT')
+    const other = toInput(valid({ gameChoice: OTHER_GAME, customGame: '  Xadrez  ' }), now)
+    expect(other.ok && other.input.game_name).toBe('Xadrez')
+    const none = toInput(valid({ gameChoice: NO_GAME, customGame: 'sobra' }), now)
+    expect(none.ok && none.input.game_name).toBe('')
+  })
+
+  it('"Outro jogo…" sem nome e nome grande demais são recusados', () => {
+    expect(err(valid({ gameChoice: OTHER_GAME, customGame: '   ' }))).toBe('Digite o nome do jogo.')
+    expect(err(valid({ gameChoice: OTHER_GAME, customGame: 'j'.repeat(65) }))).toBe(
+      'O nome do jogo pode ter até 64 caracteres.'
+    )
+  })
+
+  it('formFromEvent abre "Outro jogo…" para jogo fora do catálogo e "nenhum" sem jogo', () => {
+    const base = formFromEvent({ ...eventWith('Meu jogo') })
+    expect(base.gameChoice).toBe(OTHER_GAME)
+    expect(base.customGame).toBe('Meu jogo')
+    expect(formFromEvent(eventWith(null)).gameChoice).toBe(NO_GAME)
+  })
 })
+
+function eventWith(gameName: string | null): ServerEvent {
+  return {
+    id: 'e1',
+    server_id: 's1',
+    title: 'Noite',
+    description: '',
+    banner_id: null,
+    starts_at: new Date(2026, 10, 4, 20, 0).toISOString(),
+    next_start_at: new Date(2026, 10, 4, 20, 0).toISOString(),
+    duration_minutes: 120,
+    game_name: gameName,
+    voice_channel_id: null,
+    text_channel_id: null,
+    recurrence: 'none',
+    recurrence_until: null,
+    recurrence_count: null,
+    reminder_offsets: [10, 5],
+    created_by: 'u1',
+    going_count: 0,
+    my_rsvp: null
+  }
+}

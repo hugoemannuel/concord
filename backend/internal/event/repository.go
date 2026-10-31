@@ -45,7 +45,7 @@ func reminderRows(occurrence time.Time, offsets []int, now time.Time) []Reminder
 // ($2) na ocorrência atual. O filtro (WHERE) vem de quem usa.
 const eventSelect = `
 	SELECT e.id, e.server_id, e.scope, e.title, e.description, e.banner_id,
-	       e.starts_at, e.next_start_at, e.duration_minutes, e.voice_channel_id, e.text_channel_id, e.recurrence, e.recurrence_until, e.recurrence_count,
+	       e.starts_at, e.next_start_at, e.duration_minutes, e.game_name, e.voice_channel_id, e.text_channel_id, e.recurrence, e.recurrence_until, e.recurrence_count,
 	       e.occurrences_done, e.reminder_offsets, e.created_by, e.canceled_at, e.finished_at, e.created_at,
 	       COALESCE((SELECT COUNT(*) FROM event_rsvps r
 	                 WHERE r.event_id = e.id AND r.occurrence_start = e.next_start_at AND r.going), 0),
@@ -57,7 +57,7 @@ func scanEvent(row pgx.Row) (Event, error) {
 	var e Event
 	var rule string
 	err := row.Scan(&e.ID, &e.ServerID, &e.Scope, &e.Title, &e.Description, &e.BannerID,
-		&e.StartsAt, &e.NextStartAt, &e.DurationMinutes, &e.VoiceChannelID, &e.TextChannelID, &rule, &e.RecurrenceUntil, &e.RecurrenceCount,
+		&e.StartsAt, &e.NextStartAt, &e.DurationMinutes, &e.GameName, &e.VoiceChannelID, &e.TextChannelID, &rule, &e.RecurrenceUntil, &e.RecurrenceCount,
 		&e.OccurrencesDone, &e.ReminderOffsets, &e.CreatedBy, &e.CanceledAt, &e.FinishedAt, &e.CreatedAt,
 		&e.GoingCount, &e.MyRSVP)
 	e.Recurrence = Recurrence(rule)
@@ -69,12 +69,12 @@ func (r *Repository) Create(ctx context.Context, e *Event, reminders []ReminderR
 	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
 			INSERT INTO server_events (id, server_id, scope, title, description, banner_id,
-				starts_at, next_start_at, duration_minutes, recurrence, recurrence_until, recurrence_count,
+				starts_at, next_start_at, duration_minutes, game_name, recurrence, recurrence_until, recurrence_count,
 				occurrences_done, reminder_offsets, created_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 			RETURNING created_at`,
 			e.ID, e.ServerID, e.Scope, e.Title, e.Description, e.BannerID,
-			e.StartsAt, e.NextStartAt, e.DurationMinutes, string(e.Recurrence), e.RecurrenceUntil, e.RecurrenceCount,
+			e.StartsAt, e.NextStartAt, e.DurationMinutes, e.GameName, string(e.Recurrence), e.RecurrenceUntil, e.RecurrenceCount,
 			e.OccurrencesDone, e.ReminderOffsets, e.CreatedBy,
 		).Scan(&e.CreatedAt)
 		if err != nil {
@@ -90,11 +90,11 @@ func (r *Repository) Update(ctx context.Context, e *Event, reminders []ReminderR
 	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `
 			UPDATE server_events SET title = $3, description = $4, banner_id = $5,
-				starts_at = $6, next_start_at = $7, duration_minutes = $8, recurrence = $9, recurrence_until = $10,
-				recurrence_count = $11, occurrences_done = $12, reminder_offsets = $13, updated_at = NOW()
+				starts_at = $6, next_start_at = $7, duration_minutes = $8, game_name = $9, recurrence = $10, recurrence_until = $11,
+				recurrence_count = $12, occurrences_done = $13, reminder_offsets = $14, updated_at = NOW()
 			WHERE id = $1 AND server_id = $2 AND canceled_at IS NULL AND finished_at IS NULL`,
 			e.ID, e.ServerID, e.Title, e.Description, e.BannerID,
-			e.StartsAt, e.NextStartAt, e.DurationMinutes, string(e.Recurrence), e.RecurrenceUntil,
+			e.StartsAt, e.NextStartAt, e.DurationMinutes, e.GameName, string(e.Recurrence), e.RecurrenceUntil,
 			e.RecurrenceCount, e.OccurrencesDone, e.ReminderOffsets)
 		if err != nil {
 			return err

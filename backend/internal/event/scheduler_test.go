@@ -335,3 +335,22 @@ func TestTickWithoutRoomsOnlyHandlesReminders(t *testing.T) {
 		t.Fatalf("avançou %d vezes", store.advanced)
 	}
 }
+
+func TestReminderTextWithGame(t *testing.T) {
+	d := DueReminder{Title: "Noite de jogos", ChannelName: "evento-noite-de-jogos", ServerName: "Salinha", Game: "Minecraft"}
+	cases := []struct {
+		offset  int
+		channel string
+		want    string
+	}{
+		{10, "", `🔔 O evento "Noite de jogos" começa em 10 minutos, no servidor Salinha. Jogo: Minecraft. A sala abre na hora de começar.`},
+		{0, "evento-noite-de-jogos", `📅 O evento "Noite de jogos" está começando agora. Jogo: Minecraft. Entre na sala #evento-noite-de-jogos, no servidor Salinha.`},
+		{0, "", `📅 O evento "Noite de jogos" está começando agora, no servidor Salinha. Jogo: Minecraft.`},
+	}
+	for _, c := range cases {
+		d.OffsetMinutes, d.ChannelName = c.offset, c.channel
+		if got := reminderText(d); got != c.want {
+			t.Errorf("offset %d canal %q: %q, esperava %q", c.offset, c.channel, got, c.want)
+		}
+	}
+}

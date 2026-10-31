@@ -25,6 +25,7 @@ const DefaultDuration = 120
 const (
 	MaxTitleRunes       = 100
 	MaxDescriptionRunes = 1000
+	MaxGameRunes        = 64
 )
 
 var (
@@ -41,6 +42,7 @@ var (
 	ErrInvalidDuration    = errors.New("duração do evento inválida")
 	ErrEventRunning       = errors.New("com o evento em andamento só dá para mudar título, descrição e banner")
 	ErrInvalidBanner      = errors.New("banner inválido")
+	ErrInvalidGame        = errors.New("o nome do jogo precisa ter até 64 caracteres, sem símbolos de controle")
 	ErrEventEnded         = errors.New("este evento já terminou")
 )
 
@@ -55,6 +57,8 @@ type Event struct {
 	StartsAt        time.Time `json:"starts_at"`
 	NextStartAt     time.Time `json:"next_start_at"`
 	DurationMinutes int       `json:"duration_minutes"`
+	// GameName: o jogo do evento (nome do catálogo ou digitado); nulo = sem jogo.
+	GameName *string `json:"game_name"`
 	// A sala da ocorrência em andamento (voz e texto); nil fora do horário do evento.
 	VoiceChannelID  *string    `json:"voice_channel_id"`
 	TextChannelID   *string    `json:"text_channel_id"`
@@ -85,7 +89,9 @@ type Input struct {
 	BannerID    *string   `json:"banner_id"`
 	StartsAt    time.Time `json:"starts_at"`
 	// 0 = DefaultDuration; senão, uma das AllowedDurations.
-	DurationMinutes int        `json:"duration_minutes"`
+	DurationMinutes int `json:"duration_minutes"`
+	// GameName: vazio = sem jogo.
+	GameName        string     `json:"game_name"`
 	Recurrence      Recurrence `json:"recurrence"`
 	RecurrenceUntil *time.Time `json:"recurrence_until"`
 	RecurrenceCount *int       `json:"recurrence_count"`

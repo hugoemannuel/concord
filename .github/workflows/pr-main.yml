@@ -1,0 +1,26 @@
+# Todo PR para a main é release (de develop) ou hotfix (de hotfix/<slug>):
+# docs/ai/release-e-hotfix.md. Só confere título e branch de origem; não roda a
+# suíte. Para bloquear o merge, marque o check "tipo-do-pr" como obrigatório na
+# proteção da main (configuração do GitHub).
+name: PR para a main
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  tipo-do-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Título é texto livre: entra por env, nunca interpolado no comando.
+      - name: Conferir título e branch de origem
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_HEAD: ${{ github.head_ref }}
+        run: node scripts/check-pr-main.mjs

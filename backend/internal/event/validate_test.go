@@ -33,6 +33,8 @@ func TestNormalizeRejects(t *testing.T) {
 			i.RecurrenceUntil = &d
 			i.Recurrence = RecWeekly
 		}, ErrInvalidRecurrence},
+		{"jogo com 65 caracteres", func(i *Input) { i.GameName = strings.Repeat("j", 65) }, ErrInvalidGame},
+		{"jogo com caractere de controle", func(i *Input) { i.GameName = "CS\x00" }, ErrInvalidGame},
 		{"banner que não é um id de arquivo", func(i *Input) { b := "../../etc/passwd"; i.BannerID = &b }, ErrInvalidBanner},
 		{"duração fora da lista", func(i *Input) { i.DurationMinutes = 45 }, ErrInvalidDuration},
 		{"duração negativa", func(i *Input) { i.DurationMinutes = -30 }, ErrInvalidDuration},
@@ -93,5 +95,33 @@ func TestNormalizeDuration(t *testing.T) {
 		if err != nil || got.DurationMinutes != minutes {
 			t.Errorf("%d min: veio %d (%v)", minutes, got.DurationMinutes, err)
 		}
+	}
+}
+
+func TestNormalizeGame(t *testing.T) {
+	now := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
+	cases := map[string]string{
+		"":                      "",
+		"   ":                   "",
+		"  Minecraft  ":         "Minecraft",
+		strings.Repeat("j", 64): strings.Repeat("j", 64),
+		"Counter-Strike 2":      "Counter-Strike 2",
+		"Jogo de Tabuleiro 🎲":   "Jogo de Tabuleiro 🎲",
+	}
+	for in, want := range cases {
+		input := validInput(now)
+		input.GameName = in
+		got, err := input.normalize(now)
+		if err != nil || got.GameName != want {
+			t.Errorf("jogo %q → %q (%v), esperava %q", in, got.GameName, err, want)
+		}
+	}
+}
+
+// A edição simples (evento em andamento) também não aceita jogo inválido.
+func TestCleanTextValidatesTheGameToo(t *testing.T) {
+	in := Input{Title: "Noite", GameName: strings.Repeat("j", 65)}
+	if _, err := in.cleanText(); !errors.Is(err, ErrInvalidGame) {
+		t.Fatalf("erro = %v, esperava ErrInvalidGame", err)
 	}
 }

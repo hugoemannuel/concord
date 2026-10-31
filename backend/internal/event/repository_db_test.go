@@ -235,3 +235,50 @@ func TestRepositoryLiveBannerIDsIgnoresCanceledAndFinished(t *testing.T) {
 		t.Fatalf("banners em uso = %v: só o do evento vivo conta", live)
 	}
 }
+
+func TestRepositoryStoresTheGame(t *testing.T) {
+	db, ctx := eventDB(t)
+	repo := NewRepository(db)
+	owner, server := seedUserAndServer(t, db, "Servidor")
+	start := time.Now().Add(3 * time.Hour).Truncate(time.Second)
+
+	game := "Minecraft"
+	withGame := newTestEvent(server, owner, start)
+	withGame.GameName = &game
+	withoutGame := newTestEvent(server, owner, start.Add(time.Hour))
+	for _, e := range []*Event{withGame, withoutGame} {
+		if err := repo.Create(ctx, e, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := repo.Find(ctx, server, withGame.ID)
+	if err != nil || got.GameName == nil || *got.GameName != "Minecraft" {
+		t.Fatalf("com jogo: %+v err=%v", got, err)
+	}
+	if none, _ := repo.Find(ctx, server, withoutGame.ID); none.GameName != nil {
+		t.Fatalf("sem jogo tem que voltar nil: %v", *none.GameName)
+	}
+	list, err := repo.ListUpcoming(ctx, server, owner)
+	if err != nil || len(list) != 2 || list[0].GameName == nil || list[1].GameName != nil {
+		t.Fatalf("a lista tem que trazer o jogo de cada evento: %+v err=%v", list, err)
+	}
+
+	other := "VALORANT"
+	withGame.GameName = &other
+	if err := repo.Update(ctx, withGame, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := repo.Find(ctx, server, withGame.ID); *got.GameName != "VALORANT" {
+		t.Fatalf("Update tem que gravar o jogo: %v", *got.GameName)
+	}
+
+	// A edição simples não mexe no jogo.
+	third := "Roblox"
+	withGame.GameName = &third
+	if err := repo.UpdateBasics(ctx, withGame); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := repo.Find(ctx, server, withGame.ID); *got.GameName != "VALORANT" {
+		t.Fatalf("UpdateBasics não pode trocar o jogo: %v", *got.GameName)
+	}
+}

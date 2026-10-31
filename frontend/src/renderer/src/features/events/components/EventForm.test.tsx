@@ -20,6 +20,7 @@ const event: ServerEvent = {
   starts_at: new Date(2099, 10, 4, 20, 0).toISOString(),
   next_start_at: new Date(2099, 10, 4, 20, 0).toISOString(),
   duration_minutes: 180,
+  game_name: null,
   voice_channel_id: null,
   text_channel_id: null,
   recurrence: 'none',
@@ -102,5 +103,26 @@ describe('EventForm', () => {
     expect(html.match(/<input[^>]*type="checkbox"[^>]*disabled/g)).toHaveLength(6)
     expect(tag(html, 'event-title')).not.toContain('disabled')
     expect(html).toContain('Traga a galera')
+  })
+
+  it('tem o campo de jogo opcional, em "nenhum jogo" para evento novo', () => {
+    const html = render()
+    expect(html).toContain('Jogo (opcional)')
+    expect(html).toMatch(/<option[^>]*value=""[^>]*selected[^>]*>Nenhum jogo/)
+  })
+
+  it('editar abre o seletor no jogo do evento, do catálogo ou digitado', () => {
+    expect(render({ event: { ...event, game_name: 'VALORANT' } })).toMatch(
+      /<option[^>]*value="VALORANT"[^>]*selected[^>]*>/
+    )
+    const custom = render({ event: { ...event, game_name: 'Xadrez' } })
+    expect(custom).toMatch(/<option[^>]*value="__outro__"[^>]*selected[^>]*>Outro jogo…/)
+    expect(custom).toContain('value="Xadrez"')
+  })
+
+  it('em andamento, o jogo fica travado junto do resto', () => {
+    const running = { ...event, game_name: 'VALORANT', next_start_at: new Date(Date.now() - 10 * 60_000).toISOString() }
+    expect(tag(render({ event: running }), 'event-game')).toContain('disabled')
+    expect(tag(render({ event }), 'event-game')).not.toContain('disabled')
   })
 })

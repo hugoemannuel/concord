@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -62,7 +63,16 @@ func (in Input) cleanText() (Input, error) {
 	if in.BannerID != nil && uuid.Validate(*in.BannerID) != nil {
 		return in, ErrInvalidBanner
 	}
+	in.GameName = strings.TrimSpace(in.GameName)
+	if !validGame(in.GameName) {
+		return in, ErrInvalidGame
+	}
 	return in, nil
+}
+
+// validGame: até 64 caracteres e nenhum símbolo de controle (vazio = sem jogo).
+func validGame(name string) bool {
+	return utf8.RuneCountInString(name) <= MaxGameRunes && !strings.ContainsFunc(name, unicode.IsControl)
 }
 
 // cleanDuration: sem escolha vale o padrão; senão, uma das durações da lista.

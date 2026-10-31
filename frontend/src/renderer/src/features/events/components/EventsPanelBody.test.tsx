@@ -8,6 +8,14 @@ vi.mock('../api/events', async (original) => ({
   fetchGoing: () => Promise.resolve([])
 }))
 
+// O selo "Jogando" lê a atividade dos stores de presença/chat, que puxam o áudio da chamada.
+vi.mock('../../activity/store/presenceActivityStore', () => ({
+  usePresenceActivityStore: (select: (s: { byUser: Record<string, never> }) => unknown) => select({ byUser: {} })
+}))
+vi.mock('../../chat/store/chatStore', () => ({
+  useChatStore: { getState: () => ({ fetchPresenceFor: () => Promise.resolve() }) }
+}))
+
 import EventsPanelBody from './EventsPanelBody'
 
 function ev(id: string, extra: Partial<ServerEvent> = {}): ServerEvent {
@@ -15,6 +23,7 @@ function ev(id: string, extra: Partial<ServerEvent> = {}): ServerEvent {
     id,
     server_id: 's1',
     duration_minutes: 120,
+    game_name: null,
     voice_channel_id: null,
     text_channel_id: null,
     title: `Evento ${id}`,
@@ -86,6 +95,19 @@ describe('EventsPanelBody', () => {
     const html = render({ events: undefined, error: 'Não foi possível carregar os eventos.' })
     expect(html).toContain('Não foi possível carregar os eventos.')
     expect(html).toContain('Tentar de novo')
+  })
+
+  it('o cartão da lista mostra o jogo do evento, e só quando há', () => {
+    const withGame = render({ events: [ev('a', { game_name: 'Minecraft' })] })
+    expect(withGame).toContain('Minecraft')
+    expect(withGame).toContain('Jogo: ')
+    expect(render({ events: [ev('a')] })).not.toContain('Jogo')
+  })
+
+  it('o detalhe mostra o jogo do evento, e só quando há', () => {
+    const withGame = render({ events: [ev('a', { game_name: 'Valorant' })], selectedId: 'a' })
+    expect(withGame.match(/Valorant/g)?.length).toBeGreaterThanOrEqual(2)
+    expect(render({ selectedId: 'a' })).not.toContain('Jogo')
   })
 
   it('evento selecionado abre o detalhe com a descrição, a duração e a repetição', () => {

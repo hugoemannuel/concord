@@ -6,7 +6,9 @@ import { durationLabel } from '../lib/duration'
 import { endTimeLabel, formatWhen } from '../lib/eventTime'
 import { goingText } from '../lib/eventText'
 import { recurrenceLabel } from '../lib/recurrence'
+import { isRunning } from '../lib/running'
 import EventBanner from './EventBanner'
+import EventGame from './EventGame'
 import GoingList from './GoingList'
 import RsvpButtons from './RsvpButtons'
 
@@ -93,6 +95,7 @@ export default function EventDetail({
           {`Dura ${durationLabel(event.duration_minutes)}, até ${endTimeLabel(event.next_start_at, event.duration_minutes)}`}
         </Fact>
         <Fact icon={<VolumeIcon size={16} />}>{roomText(event, roomName)}</Fact>
+        <EventGame name={event.game_name} />
       </div>
       {event.description && (
         <p className="whitespace-pre-wrap break-words text-ds-sm text-normal">{event.description}</p>
@@ -103,6 +106,8 @@ export default function EventDetail({
         eventId={event.id}
         occurrence={event.next_start_at}
         count={event.going_count}
+        game={event.game_name}
+        running={isRunning(event)}
       />
       {(canEdit || canDelete) && (
         <div className="flex flex-wrap items-center gap-2 border-t border-subtle pt-4">

@@ -1,19 +1,27 @@
 import { useEffect, useState } from 'react'
+import { usePresenceActivityStore } from '../../activity/store/presenceActivityStore'
+import { useChatStore } from '../../chat/store/chatStore'
 import { fetchGoing, type EventGoing } from '../api/events'
+import GoingPeople from './GoingPeople'
 
 /** Quem vai na ocorrência atual; recarrega quando a contagem muda. */
 export default function GoingList({
   serverId,
   eventId,
   occurrence,
-  count
+  count,
+  game,
+  running
 }: {
   serverId: string
   eventId: string
   occurrence: string
   count: number
+  game: string | null
+  running: boolean
 }): React.JSX.Element | null {
   const [people, setPeople] = useState<EventGoing[]>([])
+  const activity = usePresenceActivityStore((s) => s.byUser)
 
   useEffect(() => {
     if (count === 0) {
@@ -29,14 +37,12 @@ export default function GoingList({
     }
   }, [serverId, eventId, occurrence, count])
 
-  if (people.length === 0) return null
-  return (
-    <ul aria-label="Quem vai" className="flex flex-wrap gap-2">
-      {people.map((p) => (
-        <li key={p.user_id} className="max-w-full truncate rounded-md bg-fg/5 px-2.5 py-1 text-ds-xs text-normal">
-          {p.display_name || p.username}
-        </li>
-      ))}
-    </ul>
-  )
+  // A atividade só importa para o selo: busca quando há jogo e o evento corre.
+  useEffect(() => {
+    if (!game || !running || people.length === 0) return
+    void useChatStore.getState().fetchPresenceFor(people.map((p) => p.user_id))
+  }, [game, running, people])
+
+  const playing = Object.fromEntries(Object.entries(activity).map(([id, a]) => [id, a.name]))
+  return <GoingPeople people={people} game={game} running={running} playing={playing} />
 }

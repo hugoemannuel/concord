@@ -43,6 +43,8 @@ type DueReminder struct {
 	Occurrence    time.Time
 	DueAt         time.Time
 	OffsetMinutes int
+	// Game: o jogo do evento (vazio = sem jogo).
+	Game string
 }
 
 // Scheduler manda os avisos dos eventos e avança as ocorrências que acabaram.

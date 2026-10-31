@@ -3,6 +3,7 @@ import type { ServerEvent } from '../api/events'
 import { formatWhen } from '../lib/eventTime'
 import { goingText } from '../lib/eventText'
 import { recurrenceLabel } from '../lib/recurrence'
+import EventGame from './EventGame'
 
 /** Uma linha da lista de eventos: abre o detalhe ao clicar. */
 export default function EventListItem({
@@ -26,6 +27,7 @@ export default function EventListItem({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-ds-md font-semibold text-strong">{event.title}</span>
         <span className="block text-ds-xs text-secondary">{formatWhen(event.next_start_at)}</span>
+        <EventGame name={event.game_name} className="text-ds-xs text-secondary" />
         <span className="block text-ds-xs text-muted">
           {`${recurrenceLabel(event.recurrence, new Date(event.starts_at))} · ${goingText(event.going_count)}`}
         </span>

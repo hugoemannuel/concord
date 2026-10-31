@@ -121,6 +121,9 @@ só faz deploy a cada merge na `main`: **quem garante os testes é você, localm
   de `origin/develop`, com PR para `develop` usando o
   [modelo](.github/pull_request_template.md). Merge na `main` publica atualização
   para todos os apps instalados.
+- PR para a `main` é só `release:` (de `develop`) ou `hotfix:` (de `hotfix/<slug>`),
+  com o template do tipo; hotfix volta para a `develop` depois. Um workflow reprova o
+  resto. → [docs/ai/release-e-hotfix.md](docs/ai/release-e-hotfix.md)
 - Commit estrutural (refatorar/mover) separado do commit de comportamento.
 - Texto que o usuário final lê (UI, bot, e-mail) precisa de aprovação humana.
 - Peça confirmação antes de push, PR, deploy ou qualquer coisa difícil de desfazer.

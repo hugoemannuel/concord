@@ -18,6 +18,7 @@ function ev(id: string, next = '2026-12-01T20:00:00Z', extra: Partial<ServerEven
     id,
     server_id: 's1',
     duration_minutes: 120,
+    game_name: null,
     voice_channel_id: null,
     text_channel_id: null,
     title: `Evento ${id}`,

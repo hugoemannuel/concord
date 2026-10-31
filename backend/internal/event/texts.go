@@ -16,12 +16,20 @@ const (
 // na hora, o aviso diz onde entrar (textos aguardando aprovação).
 func reminderText(d DueReminder) string {
 	if d.OffsetMinutes > 0 {
-		return fmt.Sprintf(`🔔 O evento "%s" começa em %s, no servidor %s. A sala abre na hora de começar.`, d.Title, spanText(d.OffsetMinutes), d.ServerName)
+		return fmt.Sprintf(`🔔 O evento "%s" começa em %s, no servidor %s.%s A sala abre na hora de começar.`, d.Title, spanText(d.OffsetMinutes), d.ServerName, gameSentence(d))
 	}
 	if d.ChannelName == "" {
-		return fmt.Sprintf(`📅 O evento "%s" está começando agora, no servidor %s.`, d.Title, d.ServerName)
+		return fmt.Sprintf(`📅 O evento "%s" está começando agora, no servidor %s.%s`, d.Title, d.ServerName, gameSentence(d))
 	}
-	return fmt.Sprintf(`📅 O evento "%s" está começando agora. Entre na sala #%s, no servidor %s.`, d.Title, d.ChannelName, d.ServerName)
+	return fmt.Sprintf(`📅 O evento "%s" está começando agora.%s Entre na sala #%s, no servidor %s.`, d.Title, gameSentence(d), d.ChannelName, d.ServerName)
+}
+
+// gameSentence: " Jogo: X." quando o evento tem jogo, senão nada (os textos sem jogo não mudam).
+func gameSentence(d DueReminder) string {
+	if d.Game == "" {
+		return ""
+	}
+	return " Jogo: " + d.Game + "."
 }
 
 // spanText: "10 minutos", "1 hora", "1 dia".

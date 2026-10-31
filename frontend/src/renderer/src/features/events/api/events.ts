@@ -15,6 +15,8 @@ export interface ServerEvent {
   next_start_at: string
   /** A sala fecha quando a duração acaba. */
   duration_minutes: number
+  /** O jogo do evento (nome); null = sem jogo. */
+  game_name: string | null
   /** A sala da ocorrência em andamento (voz e texto); null fora do horário do evento. */
   voice_channel_id: string | null
   text_channel_id: string | null
@@ -35,6 +37,8 @@ export interface EventInput {
   banner_id: string | null
   starts_at: string
   duration_minutes: number
+  /** O nome do jogo ('' = sem jogo). */
+  game_name: string
   recurrence: Recurrence
   recurrence_until: string | null
   recurrence_count: number | null

@@ -7,6 +7,11 @@ import { MemoryRouter } from 'react-router-dom'
 vi.mock('../../chat/store/chatStore', () => ({
   useChatStore: Object.assign((sel: (s: unknown) => unknown) => sel({}), { getState: () => ({}) })
 }))
+// O selo "Jogando" dos eventos lê a atividade de presença, que também puxa o callStore.
+vi.mock('../../activity/store/presenceActivityStore', () => ({
+  usePresenceActivityStore: (select: (s: { byUser: Record<string, never> }) => unknown) =>
+    select({ byUser: {} })
+}))
 vi.mock('../../call/store/moderationStore', () => ({
   useModerationStore: Object.assign(() => null, { getState: () => ({ askNickname: vi.fn() }) })
 }))

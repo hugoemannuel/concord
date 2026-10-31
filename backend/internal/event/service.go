@@ -124,7 +124,7 @@ func newEvent(serverID, actorID string, in Input) *Event {
 func (e *Event) apply(in Input) {
 	e.Title, e.Description, e.BannerID = in.Title, in.Description, in.BannerID
 	e.StartsAt, e.NextStartAt, e.OccurrencesDone = in.StartsAt, in.StartsAt, 0
-	e.DurationMinutes = in.DurationMinutes
+	e.DurationMinutes, e.GameName = in.DurationMinutes, gamePtr(in.GameName)
 	e.Recurrence, e.RecurrenceUntil, e.RecurrenceCount = in.Recurrence, in.RecurrenceUntil, in.RecurrenceCount
 	e.ReminderOffsets = in.ReminderOffsets
 }
@@ -261,12 +261,21 @@ func sameSchedule(e *Event, in Input) error {
 		return err
 	}
 	if !in.StartsAt.Equal(e.StartsAt) || duration != e.DurationMinutes || in.Recurrence != e.Recurrence ||
+		!sameValue(gamePtr(in.GameName), e.GameName, func(a, b string) bool { return a == b }) ||
 		!sameValue(in.RecurrenceUntil, e.RecurrenceUntil, time.Time.Equal) ||
 		!sameValue(in.RecurrenceCount, e.RecurrenceCount, func(a, b int) bool { return a == b }) ||
 		!slices.Equal(offsets, e.ReminderOffsets) {
 		return ErrEventRunning
 	}
 	return nil
+}
+
+// gamePtr: o nome do jogo como o evento o guarda (vazio = nil, sem jogo).
+func gamePtr(name string) *string {
+	if name == "" {
+		return nil
+	}
+	return &name
 }
 
 // sameValue compara dois opcionais: os dois vazios ou os dois com valor igual.

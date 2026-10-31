@@ -35,6 +35,7 @@ const input: EventInput = {
   banner_id: null,
   starts_at: '2026-12-01T20:00:00.000Z',
   duration_minutes: 120,
+  game_name: '',
   recurrence: 'weekly',
   recurrence_until: null,
   recurrence_count: null,

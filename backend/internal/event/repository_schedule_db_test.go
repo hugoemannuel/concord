@@ -234,3 +234,31 @@ func TestDeletingTheChannelsClearsTheRoom(t *testing.T) {
 		t.Fatalf("apagar os canais zera a sala: %+v err=%v", got, err)
 	}
 }
+
+func TestClaimDueCarriesTheGame(t *testing.T) {
+	db, ctx := eventDB(t)
+	repo := NewRepository(db)
+	owner, server := seedUserAndServer(t, db, "Salinha")
+	start := time.Now().Add(time.Minute).Truncate(time.Second)
+	game := "Minecraft"
+	withGame, withoutGame := newTestEvent(server, owner, start), newTestEvent(server, owner, start)
+	withGame.GameName = &game
+	for _, e := range []*Event{withGame, withoutGame} {
+		if err := repo.Create(ctx, e, nil); err != nil {
+			t.Fatal(err)
+		}
+		mustExec(t, db, `INSERT INTO event_reminders (event_id, occurrence_start, offset_minutes, due_at)
+			VALUES ($1, $2, 0, NOW() - INTERVAL '1 minute')`, e.ID, start)
+	}
+	got, err := repo.ClaimDue(ctx, time.Now(), 50)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("reivindicados = %+v err=%v", got, err)
+	}
+	games := map[string]string{}
+	for _, d := range got {
+		games[d.EventID] = d.Game
+	}
+	if games[withGame.ID] != "Minecraft" || games[withoutGame.ID] != "" {
+		t.Fatalf("jogos = %v", games)
+	}
+}

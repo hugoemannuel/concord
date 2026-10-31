@@ -22,7 +22,7 @@ func (r *Repository) ClaimDue(ctx context.Context, now time.Time, limit int) ([]
 		        WHERE sent_at IS NULL AND due_at <= $1
 		        ORDER BY due_at LIMIT $2 FOR UPDATE SKIP LOCKED)
 		  AND e.id = r.event_id AND e.canceled_at IS NULL
-		RETURNING r.id, e.id, s.id, s.name, COALESCE(c.name, ''), e.title, r.occurrence_start, r.due_at, r.offset_minutes`,
+		RETURNING r.id, e.id, s.id, s.name, COALESCE(c.name, ''), e.title, COALESCE(e.game_name, ''), r.occurrence_start, r.due_at, r.offset_minutes`,
 		now, limit)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (r *Repository) ClaimDue(ctx context.Context, now time.Time, limit int) ([]
 	out := make([]DueReminder, 0)
 	for rows.Next() {
 		var d DueReminder
-		if err := rows.Scan(&d.ID, &d.EventID, &d.ServerID, &d.ServerName, &d.ChannelName, &d.Title,
+		if err := rows.Scan(&d.ID, &d.EventID, &d.ServerID, &d.ServerName, &d.ChannelName, &d.Title, &d.Game,
 			&d.Occurrence, &d.DueAt, &d.OffsetMinutes); err != nil {
 			return nil, err
 		}

@@ -15,6 +15,7 @@ import { isRunning } from '../lib/running'
 import { useEventsStore } from '../store/eventsStore'
 import BannerField from './BannerField'
 import DurationField from './DurationField'
+import GameField from './GameField'
 import RecurrenceFields from './RecurrenceFields'
 import ReminderPicker from './ReminderPicker'
 
@@ -118,6 +119,12 @@ export default function EventForm({
           value={values.durationMinutes}
           onChange={(durationMinutes) => patch({ durationMinutes })}
           disabled={running}
+        />
+        <GameField
+          choice={values.gameChoice}
+          custom={values.customGame}
+          disabled={running}
+          onChange={patch}
         />
         <RecurrenceFields values={values} onChange={patch} disabled={running} />
         <ReminderPicker selected={values.reminders} onChange={(reminders) => patch({ reminders })} disabled={running} />

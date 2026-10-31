@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -566,5 +567,67 @@ func TestRunningEventEditNeedsPermission(t *testing.T) {
 	e, _, created := runningEvent(t, nil)
 	if _, err := e.svc.Update(context.Background(), "s1", created.ID, "membro", goodInput()); !errors.Is(err, ErrMissingPermission) {
 		t.Fatalf("erro = %v", err)
+	}
+}
+
+func gameInput(name string) Input {
+	in := goodInput()
+	in.GameName = name
+	return in
+}
+
+func TestCreateStoresTheGameOrNone(t *testing.T) {
+	e := newEnv()
+	with, err := e.svc.Create(context.Background(), "s1", "mod", gameInput("Minecraft"))
+	if err != nil || with.GameName == nil || *with.GameName != "Minecraft" {
+		t.Fatalf("com jogo: %+v err=%v", with, err)
+	}
+	without, err := e.svc.Create(context.Background(), "s1", "mod", gameInput(""))
+	if err != nil || without.GameName != nil {
+		t.Fatalf("sem jogo tem que ficar nil: %+v err=%v", without, err)
+	}
+}
+
+func TestUpdateChangesAndClearsTheGame(t *testing.T) {
+	e := newEnv()
+	created, _ := e.svc.Create(context.Background(), "s1", "mod", gameInput("Minecraft"))
+	changed, err := e.svc.Update(context.Background(), "s1", created.ID, "mod", gameInput("VALORANT"))
+	if err != nil || changed.GameName == nil || *changed.GameName != "VALORANT" {
+		t.Fatalf("trocar: %+v err=%v", changed, err)
+	}
+	cleared, err := e.svc.Update(context.Background(), "s1", created.ID, "mod", gameInput(""))
+	if err != nil || cleared.GameName != nil {
+		t.Fatalf("tirar: %+v err=%v", cleared, err)
+	}
+}
+
+func TestInvalidGameIsRefused(t *testing.T) {
+	e := newEnv()
+	if _, err := e.svc.Create(context.Background(), "s1", "mod", gameInput(strings.Repeat("j", 65))); !errors.Is(err, ErrInvalidGame) {
+		t.Fatalf("erro = %v, esperava ErrInvalidGame", err)
+	}
+}
+
+// Com o evento em andamento o jogo fica travado, como o horário e a duração.
+func TestRunningEventGameIsLocked(t *testing.T) {
+	e := newEnv()
+	created, err := e.svc.Create(context.Background(), "s1", "mod", gameInput("Minecraft"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.store.events[created.ID].NextStartAt = testNow.Add(-10 * time.Minute)
+
+	for _, name := range []string{"VALORANT", ""} {
+		if _, err := e.svc.Update(context.Background(), "s1", created.ID, "mod", gameInput(name)); !errors.Is(err, ErrEventRunning) {
+			t.Errorf("trocar o jogo para %q com o evento em andamento: %v", name, err)
+		}
+	}
+	in := gameInput("Minecraft")
+	in.Title = "Novo título"
+	if _, err := e.svc.Update(context.Background(), "s1", created.ID, "mod", in); err != nil {
+		t.Fatalf("manter o jogo e mudar só o título: %v", err)
+	}
+	if got := e.store.events[created.ID]; got.Title != "Novo título" || got.GameName == nil || *got.GameName != "Minecraft" {
+		t.Fatalf("evento = %+v", got)
 	}
 }

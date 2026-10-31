@@ -35,6 +35,13 @@ na hora de começar. Spec:
   começa sem respostas.
 - **Avisos**: até **2 antecedências** da lista (1 dia, 1 h, 30, 15, 10 e 5 min;
   padrão 10 e 5) e **sempre** o aviso na hora de começar.
+- **Jogo** (opcional): o evento pode ter um jogo, escolhido da lista de jogos conhecidos do app
+  ou digitado em "Outro jogo…" (até 64 caracteres, sem caractere de controle). Fica na coluna
+  `server_events.game_name` (nula = sem jogo) e é só texto: não liga a appid, filtro nem XP.
+  Aparece no cartão, no detalhe e nas DMs do bot (`Jogo: X.`). Com o evento em andamento o jogo
+  não muda (`event_running`, como o horário). No detalhe, quem confirmou e está jogando esse
+  jogo agora ganha o selo "Jogando" (compara o nome sem acento nem maiúsculas com a atividade
+  de presença; só durante a ocorrência). Código: `event/validate.go`, `frontend/.../events/lib/eventGame.ts`.
 - **Banner**: PNG, JPEG ou WEBP de até 10 MB, em `uploads/event-media/<id>`
   (fora da limpeza dos anexos do chat). O evento guarda só o `banner_id`; o app
   monta a URL com o token de mídia (`GET /event-banners/:bannerId?token=`).
@@ -79,7 +86,10 @@ Os textos das DMs estão em `event/texts.go`.
 Erros vêm com `code`: `missing_permission`, `not_member`, `event_not_found`,
 `event_ended`, `event_in_past`, `invalid_title`, `invalid_description`,
 `invalid_recurrence`, `invalid_reminder`, `too_many_reminders`,
-`invalid_duration`, `event_running`, `role_not_found`, `invalid_banner`.
+`invalid_duration`, `event_running`, `role_not_found`, `invalid_banner`, `invalid_game`.
+
+O evento (`Event`) e o corpo de criar/editar (`Input`) levam `game_name` (texto; vazio ou
+nulo = sem jogo).
 
 ## Tempo real
 
@@ -89,5 +99,5 @@ going_count}` (quantos vão agora na ocorrência atual, sem dizer quem).
 
 ## Fora de escopo (por enquanto)
 
-Jogo associado ao evento (o bônus de XP da fase 3 só vale para quem confirmou presença), objetivos e XP na call (fases 2 e 3), evento global
+Objetivos e XP na call (fase 3; o bônus só vale para quem confirmou presença), evento global
 aberto a todo o Salinha (fase 4), resposta "talvez" e app mobile.

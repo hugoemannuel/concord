@@ -1,5 +1,6 @@
 import type { EventInput, ServerEvent } from '../api/events'
 import { DEFAULT_DURATION } from './duration'
+import { NO_GAME, gameChoiceOf, gameNameOf } from './eventGame'
 import { endOfLocalDay, fromLocalInput, toLocalDate, toLocalInput } from './eventTime'
 import type { Recurrence } from './recurrence'
 import { DEFAULT_REMINDERS } from './reminders'
@@ -9,6 +10,7 @@ import { DEFAULT_REMINDERS } from './reminders'
 
 export const MAX_TITLE = 100
 export const MAX_DESCRIPTION = 1000
+export const MAX_GAME = 64
 
 export type EndMode = 'never' | 'until' | 'count'
 
@@ -18,6 +20,10 @@ export interface EventFormValues {
   /** "AAAA-MM-DDTHH:mm", horário local. */
   startsAt: string
   durationMinutes: number
+  /** Opção do seletor de jogo: NO_GAME, um jogo do catálogo ou OTHER_GAME. */
+  gameChoice: string
+  /** O nome digitado quando a opção é "Outro jogo…". */
+  customGame: string
   recurrence: Recurrence
   endMode: EndMode
   /** "AAAA-MM-DD", horário local. */
@@ -41,6 +47,8 @@ export function emptyForm(now: Date = new Date()): EventFormValues {
     description: '',
     startsAt: toLocalInput(start.toISOString()),
     durationMinutes: DEFAULT_DURATION,
+    gameChoice: NO_GAME,
+    customGame: '',
     recurrence: 'none',
     endMode: 'never',
     until: '',
@@ -62,6 +70,8 @@ export function formFromEvent(event: ServerEvent): EventFormValues {
     description: event.description,
     startsAt: toLocalInput(event.starts_at),
     durationMinutes: event.duration_minutes,
+    gameChoice: gameChoiceOf(event.game_name).choice,
+    customGame: gameChoiceOf(event.game_name).custom,
     recurrence: event.recurrence,
     endMode: endModeOf(event),
     until: event.recurrence_until ? toLocalDate(event.recurrence_until) : '',
@@ -69,6 +79,13 @@ export function formFromEvent(event: ServerEvent): EventFormValues {
     reminders: [...event.reminder_offsets],
     bannerId: event.banner_id
   }
+}
+
+/** O jogo "Outro jogo…" sem nome, ou com nome grande demais. */
+function gameError(v: EventFormValues): string | null {
+  const name = gameNameOf(v.gameChoice, v.customGame)
+  if (v.gameChoice !== NO_GAME && !name) return 'Digite o nome do jogo.'
+  return name.length > MAX_GAME ? `O nome do jogo pode ter até ${MAX_GAME} caracteres.` : null
 }
 
 function textError(v: EventFormValues): string | null {
@@ -109,7 +126,7 @@ function startError(startIso: string | null, now: Date, running: boolean): strin
 
 /** Confere o formulário e monta o pedido da API (ou diz o que está errado). */
 export function toInput(v: EventFormValues, now: Date = new Date(), running = false): FormResult {
-  const text = textError(v)
+  const text = textError(v) ?? gameError(v)
   if (text) return fail(text)
   const startIso = fromLocalInput(v.startsAt)
   const start = startError(startIso, now, running)
@@ -124,6 +141,7 @@ export function toInput(v: EventFormValues, now: Date = new Date(), running = fa
       banner_id: v.bannerId,
       starts_at: startIso,
       duration_minutes: v.durationMinutes,
+      game_name: gameNameOf(v.gameChoice, v.customGame),
       recurrence: v.recurrence,
       recurrence_until: end.until,
       recurrence_count: end.count,
