@@ -46,6 +46,14 @@ async function resetLocalSession(): Promise<void> {
   void router.navigate('/login')
 }
 
+/**
+ * A conta foi excluída (ou todas as sessões encerradas): o servidor já não
+ * aceita os tokens, então só limpa o local, sem chamar o /auth/logout.
+ */
+export async function endLocalSession(): Promise<void> {
+  endSessionState()
+  await resetLocalSession()
+}
 
 /** Troca o status na hora e desfaz se o servidor recusar. */
 export async function changeMyStatus(status: ChosenStatus): Promise<void> {

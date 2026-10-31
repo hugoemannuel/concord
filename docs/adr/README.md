@@ -74,3 +74,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0034. GIFs favoritos guardados no backend, por usuário, dentro de `internal/giphy`](0034-gifs-favoritos.md)
 - [0035. Sons do app por pessoa: pacotes sintetizados no cliente, escolhas e áudio próprio no backend](0035-sons-do-app-personalizados.md)
 - [0036. Registro de auditoria do servidor com gravação central depois da ação](0036-registro-de-auditoria.md)
+- [0038. Excluir a própria conta apagando a linha do usuário e passando as mensagens que ficam para "Usuário removido"](0038-excluir-a-propria-conta.md)
