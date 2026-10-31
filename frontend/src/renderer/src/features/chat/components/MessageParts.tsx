@@ -157,7 +157,13 @@ export function MessageGutter({
       aria-label={`Perfil de ${name}`}
       className="h-10 shrink-0 cursor-pointer self-start rounded-full"
     >
-      <Avatar userId={message.author_id} name={name} avatarUrl={avatarUrl} size={40} />
+      <Avatar
+        userId={message.author_id}
+        name={name}
+        avatarUrl={avatarUrl}
+        decorationUrl={message.author?.avatar_decoration_url}
+        size={40}
+      />
     </button>
   )
 }
