@@ -10,7 +10,7 @@ import {
 } from '../../profile/api/users'
 import type { NameplateMode } from '../../profile/lib/cosmetics'
 import { imageFileError, type MediaChange } from '../../profile/lib/profileValidation'
-import { nameplateChoice } from '../lib/cosmeticsEditor'
+import { nameplateEffect } from '../lib/cosmeticsEditor'
 import { saveErrorMessage } from '../lib/saveProfile'
 
 export interface CosmeticsCropping {
@@ -49,9 +49,9 @@ export function useCosmeticsEditor(pick: (kind: CosmeticImageKind) => void): {
   }
 
   const choose = (mode: NameplateMode): void => {
-    const action = nameplateChoice(mode, user ?? {})
-    if (action.kind === 'pick') pick('nameplate')
-    else if (action.mode !== user?.nameplate_mode) void run(() => setNameplateMode(action.mode))
+    const effect = nameplateEffect(mode, user)
+    if (effect === 'pick') pick('nameplate')
+    else if (effect) void run(() => setNameplateMode(effect))
   }
 
   const pickFile = (kind: CosmeticImageKind, file: File | undefined): void => {

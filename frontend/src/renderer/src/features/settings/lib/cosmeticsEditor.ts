@@ -23,6 +23,17 @@ export function nameplateChoice(choice: NameplateMode, user: NameplateState): Na
   return { kind: 'pick' }
 }
 
+/** O efeito de escolher uma opção: abrir o arquivo, o modo a gravar ou nada. */
+export function nameplateEffect(
+  choice: NameplateMode,
+  user: NameplateState | null
+): 'pick' | NameplateMode | null {
+  const state = user ?? {}
+  const action = nameplateChoice(choice, state)
+  if (action.kind === 'pick') return 'pick'
+  return action.mode === resolveNameplateMode(state.nameplate_mode) ? null : action.mode
+}
+
 export function hasAnimation(...urls: (string | null | undefined)[]): boolean {
   return urls.some((url) => isAnimatedMedia(url))
 }

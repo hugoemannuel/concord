@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { hasAnimation, nameplateChoice, previewRows, radioStep } from './cosmeticsEditor'
+import {
+  hasAnimation,
+  nameplateChoice,
+  nameplateEffect,
+  previewRows,
+  radioStep
+} from './cosmeticsEditor'
 
 const gif = '/api/profile-media/a_x'
 const png = '/api/profile-media/y'
@@ -48,5 +54,20 @@ describe('radioStep', () => {
     expect(radioStep(0, 'ArrowUp', 3)).toBe(2)
     expect(radioStep(1, 'ArrowLeft', 3)).toBe(0)
     expect(radioStep(1, 'Enter', 3)).toBeNull()
+  })
+})
+
+describe('nameplateEffect', () => {
+  it('pede o arquivo, troca o modo ou não faz nada (já está nele)', () => {
+    expect(nameplateEffect('custom', { nameplate_mode: 'off' })).toBe('pick')
+    expect(nameplateEffect('banner', { nameplate_mode: 'off' })).toBe('banner')
+    expect(nameplateEffect('off', { nameplate_mode: 'off' })).toBeNull()
+  })
+})
+
+describe('nameplateEffect sem sessão', () => {
+  it('sem usuário trata como desligada', () => {
+    expect(nameplateEffect('banner', null)).toBe('banner')
+    expect(nameplateEffect('off', null)).toBeNull()
   })
 })
