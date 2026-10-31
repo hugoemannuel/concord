@@ -16,17 +16,27 @@ tipo. Editar o título refaz a checagem. Para testar na mão:
 
 ## Release
 
-1. `git fetch origin` e confira que a `develop` está como deve ir.
-2. `node scripts/affected-tests.mjs full` e `node scripts/check-migrations.mjs origin/main`.
-3. Gere o título e o corpo: `node scripts/release-notes.mjs`. Ele lê os PRs mergeados
-   na `develop` desde a `main` (precisa do `gh` logado) e imprime o `release: ...` e o
-   "O que muda" (um item por `feat`/`fix`/`perf`, com link e `closes #N` lido do texto do
-   PR; `refactor`, `docs`, `chore` etc. viram uma linha `Manutenção: #N`). O "Como
-   testar" vem de `.github/PULL_REQUEST_TEMPLATE/release.md`.
-4. Confira o texto e abra o PR `develop` → `main`:
-   `node scripts/release-notes.mjs --create` mostra o texto, pergunta `[s/N]` e roda
-   `gh pr create`. Peça confirmação do usuário antes.
-5. Marque os itens de "Como testar" que você rodou de fato.
+O PR de release é aberto e atualizado **sozinho**: a cada push na `develop`, o workflow
+`.github/workflows/release-pr.yml` roda `node scripts/release-notes.mjs --sync`, que
+cria o PR `develop` → `main` ou atualiza título e corpo do que já está aberto. Se a
+`develop` não tem nada novo, não faz nada.
+
+O texto sai dos PRs mergeados na `develop` desde a `main`: título `release: ...` com os
+`feat` (sem `feat`, os `fix`), um item por `feat`/`fix`/`perf` com link e `closes #N`
+(lido do texto do PR, porque o GitHub não preenche isso na `develop`), e `Manutenção: #N`
+para o resto. O "Como testar" vem de `.github/PULL_REQUEST_TEMPLATE/release.md`.
+
+O que **você** faz:
+
+1. `node scripts/affected-tests.mjs full` e `node scripts/check-migrations.mjs origin/main`.
+2. Marque os itens de "Como testar" que rodou de fato. Um push novo na `develop` regera o
+   corpo e desmarca tudo (código novo pede teste de novo); não edite o texto na mão, ele
+   seria sobrescrito.
+3. **Merge**: é humano, porque publica atualização para todos os apps instalados.
+
+Para ver o texto sem abrir nada, ou abrir na hora com confirmação (sem esperar o workflow):
+`node scripts/release-notes.mjs` e `node scripts/release-notes.mjs --create` (precisa do
+`gh` logado).
 
 ## Hotfix
 
@@ -38,8 +48,13 @@ tipo. Editar o título refaz a checagem. Para testar na mão:
 4. **Depois do merge**, abra o PR `hotfix/<slug>` → `develop`. Sem isso o próximo
    release desfaz a correção.
 
-## Obrigatoriedade
+## Configuração do repositório (quem administra)
 
-A checagem só bloqueia o merge se for marcada como obrigatória na proteção da `main`
-(Settings → Branches, check `tipo-do-pr`). É configuração do GitHub, feita pelo dono
-do repositório.
+- Settings → Actions → General → **Allow GitHub Actions to create and approve pull
+  requests**: sem isso o `release-pr.yml` não consegue abrir o PR.
+- Secret `RELEASE_PR_TOKEN` (opcional; PAT ou token de GitHub App com `pull-requests: write`):
+  PR aberto com o `GITHUB_TOKEN` não dispara outros workflows, então sem o secret o check
+  `tipo-do-pr` não roda no PR de release.
+- Settings → Branches → regra da `main`: marcar o check `tipo-do-pr` como obrigatório. Sem
+  isso a checagem avisa, mas não bloqueia o merge. Se marcar sem o `RELEASE_PR_TOKEN`, o PR de
+  release fica esperando esse check para sempre.
