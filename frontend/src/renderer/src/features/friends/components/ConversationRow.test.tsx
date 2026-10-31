@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 vi.mock('../../chat/store/chatStore', () => ({ usePresenceStatus: () => 'online' }))
 vi.mock('../../profile/store/profileStore', () => ({
-  useUserLook: (_id: string, fallback: { name: string }) => ({ name: fallback.name })
+  useUserLook: (_id: string, fallback: { name: string; nameplateUrl?: string | null }) => ({
+    name: fallback.name,
+    nameplateUrl: fallback.nameplateUrl ?? null
+  })
 }))
 vi.mock('../../profile/store/userMenuStore', () => ({ useUserMenuStore: { getState: () => ({}) } }))
 vi.mock('../../profile/components/StyledName', () => ({
@@ -12,6 +15,9 @@ vi.mock('../../profile/components/StyledName', () => ({
 vi.mock('../../activity/components/ActivityLine', () => ({ CompactActivityLine: () => <i>jogo</i> }))
 vi.mock('../../../shared/ui/Avatar', () => ({ default: () => <u data-avatar /> }))
 vi.mock('./GroupIcon', () => ({ default: () => <u data-group-icon /> }))
+vi.mock('../../profile/components/Nameplate', () => ({
+  default: ({ url }: { url: string | null }) => (url ? <i data-nameplate={url} /> : null)
+}))
 
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ConversationSummary } from '../../chat/api/conversations'
@@ -48,6 +54,19 @@ function render(
 }
 
 describe('ConversationRow', () => {
+  it('DM com faixa: a faixa da outra pessoa atrás da linha', () => {
+    const withPlate = {
+      ...dm,
+      other_user: { ...dm.other_user, nameplate_url: '/api/profile-media/n' }
+    } as ConversationSummary
+    expect(render(withPlate)).toContain('data-nameplate="/api/profile-media/n"')
+    expect(render(dm)).not.toContain('data-nameplate')
+  })
+
+  it('grupo não tem faixa', () => {
+    expect(render(group)).not.toContain('data-nameplate')
+  })
+
   it('DM: avatar e nome da outra pessoa, e o botão de fechar a DM', () => {
     const html = render(dm)
     expect(html).toContain('data-avatar')
