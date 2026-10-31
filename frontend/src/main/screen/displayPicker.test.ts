@@ -12,6 +12,15 @@ describe('PendingDisplayRequest', () => {
     expect(callback).toHaveBeenCalledExactlyOnceWith(null)
   })
 
+  it('só existe pedido pendente entre o getDisplayMedia e a resposta', () => {
+    const pending = new PendingDisplayRequest()
+    expect(pending.pending()).toBe(false)
+    pending.hold(vi.fn())
+    expect(pending.pending()).toBe(true)
+    pending.take()
+    expect(pending.pending()).toBe(false)
+  })
+
   it('a resposta é entregue uma única vez', () => {
     const pending = new PendingDisplayRequest()
     const callback = vi.fn()

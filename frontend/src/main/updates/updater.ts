@@ -313,7 +313,8 @@ export function setupUpdater(getWindow: () => BrowserWindow | null, config: Upda
   )
   // Botão Atualizar: instala na hora se já baixou e verificou; senão baixa
   // agora (fura o sorteio e a espera) e instala quando terminar.
-  ipcMain.on('update:install', () => {
+  ipcMain.on('update:install', (event) => {
+    if (event.sender !== getWindow()?.webContents) return
     if (readyVersion) {
       installUpdate()
       return
