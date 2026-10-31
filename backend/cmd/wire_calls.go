@@ -44,6 +44,8 @@ func (a *app) wireCalls() {
 	// Quem não está na sala de mídia não fica na lista da call (app reaberto
 	// sem voltar, cliente travado).
 	a.callPresence = call.NewMediaPresence(a.callService, a.liveKitAdmin, time.Now)
+	// WS caído (troca de rede, reinício) não tira da call quem segue no LiveKit.
+	a.callPresence.KeepWhoIsInMedia()
 	go a.callPresence.Run(a.ctx, call.MediaSweepEvery)
 	callHandler := call.CallHandler(a.callService, a.liveKitTokens)
 	callHandler.SetAudit(a.audit, a.channelService)
