@@ -21,8 +21,9 @@ export function ExternalLink({
 export function SignupConsent(): React.JSX.Element {
   return (
     <p className="text-ds-xs text-muted">
-      Ao criar a conta você concorda com os <ExternalLink href={TERMS_URL}>Termos de uso</ExternalLink>{' '}
-      e a <ExternalLink href={PRIVACY_URL}>Política de privacidade</ExternalLink>.
+      Ao criar a conta você concorda com os{' '}
+      <ExternalLink href={TERMS_URL}>Termos de uso</ExternalLink> e a{' '}
+      <ExternalLink href={PRIVACY_URL}>Política de privacidade</ExternalLink>.
     </p>
   )
 }
@@ -44,8 +45,8 @@ export function PrivacyPolicyNote(): React.JSX.Element {
     <section className="border-b border-subtle pb-6">
       <h2 className="mb-3 text-ds-sm font-medium text-muted">Política de privacidade</h2>
       <p className="text-ds-md text-secondary">
-        O que guardamos, por quanto tempo, com quem compartilhamos e como excluir a sua conta
-        estão na <ExternalLink href={PRIVACY_URL}>Política de privacidade</ExternalLink> e nos{' '}
+        O que guardamos, por quanto tempo, com quem compartilhamos e como excluir a sua conta estão
+        na <ExternalLink href={PRIVACY_URL}>Política de privacidade</ExternalLink> e nos{' '}
         <ExternalLink href={TERMS_URL}>Termos de uso</ExternalLink>.
       </p>
     </section>
