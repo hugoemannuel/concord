@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { buildRelease, extractCloses, parseMergedPrs } from './release-notes.mjs'
+import { buildRelease, extractCloses, parseMergedPrs, syncAction } from './release-notes.mjs'
 
 const pr = (number, title, body = '') => ({ number, title, body, url: `https://github.com/o/r/pull/${number}` })
 
@@ -93,4 +94,33 @@ test('buildRelease: o "Como testar" vem do template, sem o resto dele', () => {
 test('buildRelease: título fora do padrão tipo(área): conta como manutenção', () => {
   const { body } = buildRelease([pr(5, 'Atualiza o README')], TEMPLATE)
   assert.match(body, /Manutenção: #5/)
+})
+
+test('syncAction: develop sem PR novo não abre PR de release', () => {
+  assert.deepEqual(syncAction(0, undefined), { action: 'skip' })
+  assert.deepEqual(syncAction(0, 12), { action: 'skip' })
+})
+
+test('syncAction: com PRs novos e sem PR de release aberto, cria', () => {
+  assert.deepEqual(syncAction(3, undefined), { action: 'create' })
+})
+
+test('syncAction: com PR de release já aberto, atualiza o mesmo', () => {
+  assert.deepEqual(syncAction(3, 471), { action: 'update', number: 471 })
+})
+
+const workflow = readFileSync(new URL('../.github/workflows/release-pr.yml', import.meta.url), 'utf8')
+
+test('release-pr.yml roda a cada push na develop e é serializado', () => {
+  assert.match(workflow, /push:\n {4}branches: \[develop\]/)
+  assert.match(workflow, /concurrency:\n {2}group: release-pr\n {2}cancel-in-progress: false/)
+})
+
+test('release-pr.yml: histórico completo, permissão de PR e token por env', () => {
+  assert.match(workflow, /fetch-depth: 0/)
+  assert.match(workflow, /pull-requests: write/)
+  assert.match(workflow, /GH_TOKEN: \$\{\{ secrets\.RELEASE_PR_TOKEN \|\| github\.token \}\}/)
+  const run = /^\s+run: (.+)$/m.exec(workflow)?.[1] ?? ''
+  assert.equal(run, 'node scripts/release-notes.mjs --sync')
+  assert.doesNotMatch(run, /\$\{\{/)
 })

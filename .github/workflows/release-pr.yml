@@ -1,0 +1,41 @@
+# Mantém o PR de release (develop → main) aberto e atualizado sozinho: a cada
+# push na develop gera o título e o corpo (scripts/release-notes.mjs) e cria ou
+# edita o PR. Só abre/edita o PR: o merge, que publica para todos os apps, é humano
+# (docs/ai/release-e-hotfix.md).
+#
+# Configuração do repositório (Settings, feita por quem administra):
+#   Actions → General → "Allow GitHub Actions to create and approve pull requests"
+#   Secret RELEASE_PR_TOKEN (opcional, PAT ou token de GitHub App com pull-requests:
+#     write): PRs abertos com o GITHUB_TOKEN não disparam outros workflows, então
+#     sem o secret o check "tipo-do-pr" (pr-main.yml) não roda no PR de release.
+name: PR de release
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+# Um por vez, na ordem dos pushes (o último gera o texto final).
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  release-pr:
+    # Só a develop (workflow_dispatch em outra branch não).
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # O token entra por env; título e corpo vêm dos PRs mergeados, nunca do shell.
+      - name: Abrir ou atualizar o PR de release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+        run: node scripts/release-notes.mjs --sync
