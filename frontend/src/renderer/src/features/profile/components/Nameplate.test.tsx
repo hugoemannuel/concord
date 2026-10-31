@@ -30,7 +30,9 @@ describe('Nameplate', () => {
   })
 
   it('forceAnimate (prévia "Animando") roda sem hover', () => {
-    const list = imgs(renderToStaticMarkup(<Nameplate url={gif} active={false} fade={fade} forceAnimate />))
+    const list = imgs(
+      renderToStaticMarkup(<Nameplate url={gif} active={false} fade={fade} forceAnimate />)
+    )
     expect(list).toHaveLength(1)
     expect(list[0]).toContain('/a_n"')
   })
