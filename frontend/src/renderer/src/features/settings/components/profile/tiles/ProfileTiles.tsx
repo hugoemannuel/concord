@@ -11,7 +11,7 @@ import {
   textSummary,
   themeName
 } from '../../../lib/profileTiles'
-import type { ImageKind } from '../../ImageCropModal'
+import type { ProfileImageKind as ImageKind } from '../../../../profile/api/users'
 import type { ProfileModalId } from '../modals/ProfileEditModal'
 import { DEFAULT_BANNER } from '../../../../profile/lib/profileMedia'
 import StatusIcon from '../../../../../shared/ui/StatusIcon'

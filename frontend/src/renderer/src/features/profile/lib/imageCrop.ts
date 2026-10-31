@@ -18,6 +18,9 @@ export const MAX_ZOOM = 3
 /** Saídas: avatar 512×512 e banner 680×240 (a proporção do Discord). */
 export const AVATAR_OUTPUT: Size = { width: 512, height: 512 }
 export const BANNER_OUTPUT: Size = { width: 680, height: 240 }
+/** Faixa atrás do nome (6:1) e moldura do avatar (quadrada, com transparência). */
+export const NAMEPLATE_OUTPUT: Size = { width: 600, height: 100 }
+export const DECORATION_OUTPUT: Size = { width: 240, height: 240 }
 
 /** Menor escala que faz a imagem cobrir o quadro inteiro. */
 export function coverScale(image: Size, frame: Size): number {

@@ -2,11 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuthStore, type User } from '../../auth/store/authStore'
 import { commitMe } from '../../auth/store/accountActions'
 import { showToast } from '../../../shared/store/toastStore'
-import { deleteProfileImage, updateProfile, uploadProfileImage } from '../../profile/api/users'
+import {
+  deleteProfileImage,
+  updateProfile,
+  uploadProfileImage,
+  type ProfileImageKind as ImageKind
+} from '../../profile/api/users'
 import { imageFileError, type MediaChange } from '../../profile/lib/profileValidation'
 import { applyProfileChange, type ProfileChange } from '../lib/profileApply'
 import { previewMedia } from '../lib/saveProfile'
-import type { ImageKind } from '../components/ImageCropModal'
 
 export interface Cropping {
   file: File
