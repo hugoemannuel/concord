@@ -91,38 +91,50 @@ func hashEmailToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+type buildMail func(to, name, appURL, token string, ttl time.Duration) (mailer.Message, error)
+
+// emailKind é o que muda de um e-mail com link para o outro.
+type emailKind struct {
+	purpose string
+	ttl     time.Duration
+	build   buildMail
+}
+
+var (
+	verifyEmailKind   = emailKind{purposeVerifyEmail, verifyEmailTTL, mailer.VerifyEmail}
+	resetPasswordKind = emailKind{purposeResetPassword, resetPasswordTTL, mailer.ResetPassword}
+)
+
 // SendVerification envia (em segundo plano) o link de confirmação de e-mail.
 func (s *EmailService) SendVerification(u *user.User) {
-	s.sendLater(u, purposeVerifyEmail, verifyEmailTTL, mailer.VerifyEmail)
+	s.sendLater(u, verifyEmailKind)
 }
 
 // SendPasswordReset envia (em segundo plano) o link de redefinição de senha.
 func (s *EmailService) SendPasswordReset(u *user.User) {
-	s.sendLater(u, purposeResetPassword, resetPasswordTTL, mailer.ResetPassword)
+	s.sendLater(u, resetPasswordKind)
 }
 
-type buildMail func(to, name, appURL, token string, ttl time.Duration) (mailer.Message, error)
-
-func (s *EmailService) sendLater(u *user.User, purpose string, ttl time.Duration, build buildMail) {
+func (s *EmailService) sendLater(u *user.User, kind emailKind) {
 	id, email, name := u.ID, u.Email, u.DisplayName
 	s.async(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
-		if err := s.send(ctx, id, email, name, purpose, ttl, build); err != nil {
-			log.Printf("[auth] e-mail %s para %s: %v", purpose, id, err)
+		if err := s.send(ctx, id, email, name, kind); err != nil {
+			log.Printf("[auth] e-mail %s para %s: %v", kind.purpose, id, err)
 		}
 	})
 }
 
-func (s *EmailService) send(ctx context.Context, userID, email, name, purpose string, ttl time.Duration, build buildMail) error {
+func (s *EmailService) send(ctx context.Context, userID, email, name string, kind emailKind) error {
 	token, hash, err := newEmailToken()
 	if err != nil {
 		return err
 	}
-	if err := s.tokens.CreateEmailToken(ctx, userID, purpose, hash, time.Now().Add(ttl)); err != nil {
+	if err := s.tokens.CreateEmailToken(ctx, userID, kind.purpose, hash, time.Now().Add(kind.ttl)); err != nil {
 		return err
 	}
-	msg, err := build(email, name, s.appURL, token, ttl)
+	msg, err := kind.build(email, name, s.appURL, token, kind.ttl)
 	if err != nil {
 		return err
 	}
