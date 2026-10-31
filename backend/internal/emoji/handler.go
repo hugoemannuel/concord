@@ -3,6 +3,7 @@ package emoji
 import (
 	"context"
 	"errors"
+	"gin-quickstart/backend/internal/audit"
 	"log"
 	"mime"
 	"net/http"
@@ -49,6 +50,7 @@ type Handler struct {
 	permissions permissionChecker
 	tokens      mediaTokens
 	publisher   eventPublisher
+	audit       AuditRecorder
 }
 
 func NewHandler(
@@ -106,6 +108,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		log.Printf("failed to remove emoji file %s: %v", e.ID, err)
 	}
 	h.broadcast(serverID, "emoji:deleted", DeletedEvent{ServerID: serverID, EmojiID: e.ID})
+	h.record(c.Request.Context(), audit.EmojiDelete, actorID, serverID, e.ID, e.Name)
 	c.JSON(http.StatusOK, gin.H{"message": "emoji deleted"})
 }
 

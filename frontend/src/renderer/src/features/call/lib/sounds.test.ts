@@ -7,8 +7,11 @@ import {
   noteVolume,
   oncePerKey,
   peakVolume,
+  playNotes,
   playSound,
+  setSoundHandler,
   SOUNDS,
+  stopSound,
   type Note,
   type SoundName
 } from './sounds'
@@ -79,10 +82,16 @@ describe('SOUNDS', () => {
 
   it('os sons de interface são curtos (menos de meio segundo)', () => {
     for (const [name, notes] of Object.entries(SOUNDS)) {
-      if (LEVEL_SOUNDS.includes(name as never)) continue
+      if (LEVEL_SOUNDS.includes(name as never) || name === 'ring') continue
       const end = Math.max(...notes.map((n) => n.at + n.duration))
       expect(end).toBeLessThan(0.5)
     }
+  })
+
+  it('o toque da chamada (o de antes, repetido a cada 2 s) cabe no intervalo e é baixo', () => {
+    const end = Math.max(...SOUNDS.ring.map((n) => n.at + n.duration))
+    expect(end).toBeLessThan(1.5)
+    expect(peakGain('ring')).toBeLessThanOrEqual(0.16)
   })
 
   it('alguém entrando na call é bem mais alto que os outros sons, sem estourar', () => {
@@ -104,7 +113,8 @@ describe('SOUNDS', () => {
   it('os outros sons de interface continuam no volume de antes', () => {
     // Os de subir de nível são novos e de propósito mais baixos (ver abaixo).
     const levelSounds: readonly SoundName[] = LEVEL_SOUNDS
-    for (const name of names.filter((n) => n !== 'userJoin' && !levelSounds.includes(n))) {
+    const own: SoundName[] = ['userJoin', 'ring']
+    for (const name of names.filter((n) => !own.includes(n) && !levelSounds.includes(n))) {
       for (const note of SOUNDS[name]) expect(noteVolume(note)).toBe(0.12)
     }
   })
@@ -291,5 +301,71 @@ describe('playSound: sons de nível nunca se sobrepõem', () => {
     const fade = levelGroup.gain.ramps.at(-1)!
     expect(fade.to).toBe(0)
     expect(fade.at).toBeLessThanOrEqual(0.5 + 0.05)
+  })
+})
+
+describe('playSound: troca pelos sons escolhidos', () => {
+  afterEach(() => {
+    setSoundHandler(null)
+    vi.unstubAllGlobals()
+  })
+
+  it('o handler que tocou (ou silenciou) o som substitui o padrão', () => {
+    vi.stubGlobal('AudioContext', FakeContext)
+    playSound('mute')
+    const ctx = FakeContext.last
+    const before = ctx.oscs.length
+    const play = vi.fn(() => true)
+    setSoundHandler({ play, stop: vi.fn() })
+    playSound('mention')
+    expect(play).toHaveBeenCalledWith('mention')
+    expect(ctx.oscs.length).toBe(before)
+  })
+
+  it('o handler que recusa deixa tocar o som padrão', () => {
+    vi.stubGlobal('AudioContext', FakeContext)
+    playSound('mute')
+    const ctx = FakeContext.last
+    const before = ctx.oscs.length
+    setSoundHandler({ play: () => false, stop: vi.fn() })
+    playSound('mention')
+    expect(ctx.oscs.length).toBe(before + SOUNDS.mention.length)
+  })
+
+  it('stopSound passa para o handler', () => {
+    const stop = vi.fn()
+    setSoundHandler({ play: () => true, stop })
+    stopSound('ring')
+    expect(stop).toHaveBeenCalledWith('ring')
+    setSoundHandler(null)
+    expect(() => stopSound('ring')).not.toThrow()
+  })
+})
+
+describe('playNotes', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('gain multiplica o volume de cada nota', () => {
+    vi.stubGlobal('AudioContext', FakeContext)
+    playSound('mute')
+    const ctx = FakeContext.last
+    const from = ctx.gains.length
+    playNotes([{ freq: 440, at: 0, duration: 0.1, volume: 0.1 }], { gain: 1.5 })
+    const peak = ctx.gains[from].gain.ramps[0].to
+    expect(peak).toBeCloseTo(0.15)
+  })
+
+  it('volume zero não toca nada', () => {
+    vi.stubGlobal('AudioContext', FakeContext)
+    playSound('mute')
+    const ctx = FakeContext.last
+    const before = ctx.oscs.length
+    playNotes(SOUNDS.mute, { gain: 0 })
+    expect(ctx.oscs.length).toBe(before)
+  })
+
+  it('sem Web Audio (teste, SSR): não quebra', () => {
+    vi.stubGlobal('AudioContext', undefined)
+    expect(() => playNotes(SOUNDS.mute)).not.toThrow()
   })
 })

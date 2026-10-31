@@ -46,6 +46,7 @@ func (a *app) wireCalls() {
 	a.callPresence = call.NewMediaPresence(a.callService, a.liveKitAdmin, time.Now)
 	go a.callPresence.Run(a.ctx, call.MediaSweepEvery)
 	callHandler := call.CallHandler(a.callService, a.liveKitTokens)
+	callHandler.SetAudit(a.audit, a.channelService)
 	// Live pelo helper nativo: o participante "tela" de quem sai da chamada sai junto.
 	a.callService.OnParticipantLeft(call.ScreenPublisherCleanup(a.liveKitAdmin))
 	screenTokens := call.NewScreenTokenHandler(a.callService, a.liveKitTokens)

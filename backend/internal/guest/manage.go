@@ -3,6 +3,7 @@ package guest
 import (
 	"context"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/permission"
 
@@ -89,6 +90,7 @@ func (s *Service) CreateInvite(ctx context.Context, actorID string, in CreateInp
 	if err := s.store.CreateInvite(ctx, inv, hashToken(token)); err != nil {
 		return nil, err
 	}
+	s.record(ctx, inviteEvent(audit.GuestInviteCreate, actorID, inv, createdChanges(in)))
 	return &CreatedInvite{Invite: *inv, Token: token}, nil
 }
 
@@ -148,6 +150,7 @@ func (s *Service) RevokeInvite(ctx context.Context, actorID, inviteID string) er
 	if err := s.store.RevokeInvite(ctx, inv.ID, s.now()); err != nil {
 		return err
 	}
+	s.record(ctx, inviteEvent(audit.GuestInviteDelete, actorID, inv, nil))
 	for _, p := range s.active.matching(func(p Pass) bool { return p.InviteID == inv.ID }) {
 		s.end(ctx, p, EndRevoked)
 	}
@@ -170,5 +173,9 @@ func (s *Service) EndGuest(ctx context.Context, actorID, serverID, guestID strin
 		return err
 	}
 	s.end(ctx, p, EndRemoved)
+	s.record(ctx, audit.Event{
+		ServerID: serverID, ActorID: actorID, Action: audit.GuestRemove,
+		TargetType: audit.TargetMember, TargetID: guestID, ChannelID: p.ChannelID,
+	})
 	return nil
 }

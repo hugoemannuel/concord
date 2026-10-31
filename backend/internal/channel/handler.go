@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ type Permissions interface {
 type Handler struct {
 	service *Service
 	perms   Permissions
+	audit   AuditRecorder
 }
 
 func ChannelHandler(service *Service, perms Permissions) *Handler {
@@ -89,6 +91,7 @@ func (h *Handler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	h.record(c.Request.Context(), channelEvent(audit.ChannelCreate, ch.CreatedBy, ch, createdChanges(ch, input.Private)))
 
 	c.JSON(http.StatusCreated, ch)
 }
@@ -207,6 +210,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	updated.Overwrites = OverwritesOf(snap, channelID)
+	h.recordUpdate(c.Request.Context(), userID.(string), current, updated)
 
 	c.JSON(http.StatusOK, updated)
 }
@@ -238,6 +242,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete channel"})
 		return
 	}
+	h.record(c.Request.Context(), channelEvent(audit.ChannelDelete, userID.(string), current, nil))
 
 	c.JSON(http.StatusOK, gin.H{"message": "channel deleted"})
 }
@@ -278,6 +283,10 @@ func (h *Handler) Reorder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reorder channels"})
 		return
 	}
+	h.record(c.Request.Context(), audit.Event{
+		ServerID: serverID, ActorID: userID.(string), Action: audit.ChannelReorder,
+		Changes: []audit.Change{{Field: "type", After: input.Type}},
+	})
 
 	c.JSON(http.StatusOK, gin.H{"type": input.Type, "channel_ids": input.ChannelIDs})
 }

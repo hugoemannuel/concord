@@ -47,6 +47,8 @@ type NicknameEvent struct {
 type nicknameStore interface {
 	// SetNickname grava o apelido; false se a pessoa não é (mais) membro.
 	SetNickname(ctx context.Context, serverID, userID string, nickname *string) (bool, error)
+	// MemberNickname: o apelido atual (o registro de auditoria guarda o de antes).
+	MemberNickname(ctx context.Context, serverID, userID string) (*string, error)
 }
 
 // NicknamePublisher avisa o servidor inteiro (server:member:nickname).
@@ -61,6 +63,7 @@ type Nicknames struct {
 	store     nicknameStore
 	perms     snapshots
 	publisher NicknamePublisher
+	audit     AuditRecorder
 }
 
 func NicknameService(repository *Repository, perms *permission.Service, publisher NicknamePublisher) *Nicknames {
@@ -101,6 +104,7 @@ func (n *Nicknames) Set(ctx context.Context, serverID, actorID, targetID, raw st
 	if err != nil {
 		return nil, err
 	}
+	before := n.previousNickname(ctx, serverID, actorID, targetID)
 	found, err := n.store.SetNickname(ctx, serverID, targetID, nick)
 	if err != nil {
 		return nil, err
@@ -108,6 +112,7 @@ func (n *Nicknames) Set(ctx context.Context, serverID, actorID, targetID, raw st
 	if !found {
 		return nil, ErrMemberNotFound
 	}
+	n.recordNickname(ctx, serverID, actorID, targetID, before, nick)
 	if n.publisher != nil {
 		n.publisher.PublishMemberNickname(NicknameEvent{ServerID: serverID, UserID: targetID, Nickname: nick})
 	}

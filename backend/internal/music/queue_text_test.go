@@ -26,7 +26,7 @@ func TestQueueTextListsNowPlayingAndQueue(t *testing.T) {
 		text, ok = m.queueText(p)
 		return ok
 	})
-	if !strings.Contains(text, "Bohemian Rhapsody") {
+	if !strings.Contains(text, "Never") {
 		t.Fatalf("texto = %q", text)
 	}
 }

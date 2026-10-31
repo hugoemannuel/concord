@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import router from '../../../app/router'
 import { setWebNotifier } from '../lib/notifications'
 import { titleWithUnread, webNotificationAction } from '../lib/webNotifications'
-import { browserPermission } from '../lib/browserNotifications'
+import { browserPermission, showBrowserNotification } from '../lib/browserNotifications'
 
 const BASE_TITLE = 'Salinha'
 const ICON = '/apple-touch-icon.png'
@@ -28,21 +28,10 @@ function WebNotificationBridge(): null {
       const page = { visible: document.visibilityState === 'visible', focused: document.hasFocus() }
       const action = webNotificationAction(payload, browserPermission(), page)
       if (action.show) {
-        try {
-          const notification = new Notification(payload.title, {
-            body: payload.body,
-            icon: ICON,
-            // Chamada fica na tela até a pessoa atender ou fechar.
-            requireInteraction: payload.urgent === true
-          })
-          notification.onclick = () => {
-            window.focus()
-            void router.navigate(payload.route)
-            notification.close()
-          }
-        } catch {
-          // Navegador que só notifica via service worker (ex.: Chrome no Android).
-        }
+        showBrowserNotification(payload, ICON, () => {
+          window.focus()
+          void router.navigate(payload.route)
+        })
       }
       if (action.countUnread) {
         unread++

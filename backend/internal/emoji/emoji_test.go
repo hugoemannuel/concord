@@ -115,6 +115,7 @@ type env struct {
 	router *gin.Engine
 	repo   *mockRepo
 	pub    *fakePublisher
+	h      *Handler
 }
 
 func newEnv(t *testing.T) env {
@@ -142,7 +143,7 @@ func newEnv(t *testing.T) env {
 		}
 		c.Next()
 	})
-	return env{router: r, repo: repo, pub: pub}
+	return env{router: r, repo: repo, pub: pub, h: h}
 }
 
 func (e env) upload(t *testing.T, user, name string, file []byte) *httptest.ResponseRecorder {

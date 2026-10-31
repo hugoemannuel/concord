@@ -11,6 +11,7 @@ import { useLevelStore } from './features/levels/store/levelStore'
 import { startThemeSync } from './features/settings/store/themeStore'
 import { startEntranceSounds } from './features/call/lib/entranceSoundStart'
 import { startScreenSounds } from './features/call/lib/screenSoundsStart'
+import { startAppSounds } from './features/appsounds/lib/appSoundsStart'
 import { startArrivalBadges } from './features/call/lib/arrivalEventsStart'
 import { startCallInvites } from './features/call/lib/callInviteStart'
 import { startSpeechReport } from './features/call/lib/speechReportStart'
@@ -20,6 +21,9 @@ import { startServerLevels } from './features/serverlevel/lib/serverLevelStart'
 
 // Tema salvo antes do primeiro render: o app já abre com as cores certas.
 startThemeSync()
+
+// Sons escolhidos em Configurações → Notificações (trocam os do playSound).
+startAppSounds()
 
 // Som de quem entra na call (o som de entrada da pessoa ou o padrão).
 startEntranceSounds()

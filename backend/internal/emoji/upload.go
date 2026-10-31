@@ -2,9 +2,10 @@ package emoji
 
 import (
 	"bytes"
-	"encoding/binary"
 	"context"
+	"encoding/binary"
 	"errors"
+	"gin-quickstart/backend/internal/audit"
 	"log"
 	"net/http"
 	"syscall"
@@ -44,6 +45,7 @@ func (h *Handler) Upload(c *gin.Context) {
 		return
 	}
 	h.broadcast(e.ServerID, "emoji:created", CreatedEvent{ServerID: e.ServerID, Emoji: *e})
+	h.record(c.Request.Context(), audit.EmojiCreate, userID, e.ServerID, e.ID, e.Name)
 	c.JSON(http.StatusCreated, e)
 }
 

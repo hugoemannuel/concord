@@ -45,6 +45,12 @@ describe('ListeningActions', () => {
     expect(html).not.toContain('Entre numa call')
   })
 
+  it('ao abrir, avisa que está buscando a faixa (links de busca já clicáveis)', () => {
+    const html = render()
+    expect(html).toContain('aria-busy="true"')
+    expect(html).toContain('href="https://open.spotify.com/search/')
+  })
+
   it('é um menu com itens (toque e teclado)', () => {
     const html = render()
     expect(html).toContain('role="menu"')

@@ -3,6 +3,7 @@ package soundboard
 import (
 	"context"
 	"errors"
+	"gin-quickstart/backend/internal/audit"
 	"log"
 	"net/http"
 	"strconv"
@@ -38,6 +39,7 @@ func (h *Handler) Upload(c *gin.Context) {
 			Sound:    *sound,
 		}))
 	}
+	h.record(c.Request.Context(), audit.SoundCreate, sound.UploaderID, sound.ServerID, sound.ID, sound.Name)
 	c.JSON(http.StatusCreated, sound)
 }
 

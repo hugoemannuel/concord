@@ -7,6 +7,8 @@ import (
 	"slices"
 	"time"
 
+	"gin-quickstart/backend/internal/audit"
+
 	"github.com/google/uuid"
 )
 
@@ -59,6 +61,7 @@ type Service struct {
 	now     func() time.Time
 	rooms   roomControl
 	banners bannerFiles
+	audit   AuditRecorder
 }
 
 func NewService(s store, a accessStore, m memberChecker, pub publisher) *Service {
@@ -107,6 +110,7 @@ func (s *Service) Create(ctx context.Context, serverID, actorID string, in Input
 		return nil, fmt.Errorf("gravar evento: %w", err)
 	}
 	s.broadcast(serverID, "event:create", e)
+	s.recordChange(ctx, audit.EventCreate, actorID, Event{}, e)
 	return e, nil
 }
 
@@ -135,8 +139,11 @@ func (s *Service) Update(ctx context.Context, serverID, eventID, actorID string,
 	if err != nil {
 		return nil, err
 	}
+	before := *e
 	if !s.now().Before(e.NextStartAt) {
-		return s.updateBasics(ctx, e, in)
+		updated, err := s.updateBasics(ctx, e, in)
+		s.recordChange(ctx, audit.EventUpdate, actorID, before, updated)
+		return updated, err
 	}
 	in, err = in.normalize(s.now())
 	if err != nil {
@@ -149,6 +156,7 @@ func (s *Service) Update(ctx context.Context, serverID, eventID, actorID string,
 	}
 	s.dropOldBanner(oldBanner, e.BannerID)
 	s.broadcast(serverID, "event:update", e)
+	s.recordChange(ctx, audit.EventUpdate, actorID, before, e)
 	return e, nil
 }
 
@@ -179,6 +187,7 @@ func (s *Service) Cancel(ctx context.Context, serverID, eventID, actorID string)
 	s.closeRoom(ctx, e)
 	s.dropOldBanner(e.BannerID, nil)
 	s.broadcast(serverID, "event:delete", map[string]string{"server_id": serverID, "event_id": eventID})
+	s.record(ctx, eventEvent(audit.EventDelete, actorID, e, nil))
 	return nil
 }
 

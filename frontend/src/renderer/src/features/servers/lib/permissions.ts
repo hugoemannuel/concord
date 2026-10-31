@@ -23,6 +23,8 @@ export const Perm = {
   MENTION_EVERYONE: 1 << 11,
   MANAGE_MESSAGES: 1 << 12,
   READ_MESSAGE_HISTORY: 1 << 13,
+  /** Ver o registro de auditoria do servidor (fora do @everyone; ADR 0036). */
+  VIEW_AUDIT_LOG: 1 << 14,
   /** Enviar emojis personalizados ao servidor (ADR 0028). */
   ADD_EMOJIS: 1 << 15,
   CONNECT: 1 << 16,

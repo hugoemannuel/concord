@@ -65,14 +65,22 @@ Decisão e alternativas: [ADR 0006](adr/0006-musica-em-atividade.md).
    coluna Atividade abre o menu `ListeningActions`: "Ouvir no" YouTube, Spotify,
    YouTube Music, Deezer e Apple Music (`lib/listeningLinks.ts`) e "Adicionar à
    fila do Maestro". A atividade só guarda app, título, artista e álbum (sem URL
-   nem ID da faixa), então os links são sempre **busca por "artista - título"**;
-   abrem no navegador de fora (`target="_blank"`, que o main manda para
+   nem ID da faixa): o menu mostra na hora a **busca por "artista - título"** e
+   pede ao servidor os **links diretos da faixa** (`GET /api/music/links`,
+   `internal/musiclinks`, [ADR 0033](adr/0033-links-diretos-do-ouvir-tambem.md)):
+   iTunes → Apple Music, Deezer, a busca do Maestro → YouTube/YouTube Music
+   (abre tocando) e Spotify só com `SPOTIFY_CLIENT_ID`/`SECRET`. O que não
+   bater com a faixa ou falhar fica na busca. Clique antes da resposta espera
+   até 3 s (`lib/directLinks.ts`). Os links abrem no navegador de fora
+   (`target="_blank"`/`window.open`, que o main manda para
    `shell.openExternal` só para http/https). A fila usa
    `POST /api/servers/:id/music/enqueue {query}` (`music/activity_enqueue.go`):
    mesmas travas do `/play` (Maestro no servidor, quem pede na call, ao vivo e
    longo demais recusados, um pedido por vez por pessoa), mas sem seletor: entra
-   o primeiro resultado tocável. Fora de call de servidor o item fica
-   desabilitado com o motivo (`lib/queueTarget.ts`).
+   o primeiro resultado tocável, direto da busca (sem resolver o link de novo) e
+   reaproveitando a busca que o menu já fez (`music/search_cache.go`). O botão
+   mostra "Adicionando…" até o servidor responder. Fora de call de servidor o
+   item fica desabilitado com o motivo (`lib/queueTarget.ts`).
 
 ## Privacidade
 

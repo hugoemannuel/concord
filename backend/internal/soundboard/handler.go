@@ -3,6 +3,7 @@ package soundboard
 import (
 	"context"
 	"errors"
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 	"log"
 	"mime"
@@ -54,6 +55,7 @@ type Handler struct {
 	visitors      visitorChecker
 	maxSoundBytes int64
 	maxPerServer  int
+	audit         AuditRecorder
 }
 
 func NewHandler(
@@ -79,46 +81,21 @@ func NewHandler(
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
+	actorID := c.GetString("userID")
+	if actorID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	actorID := userID.(string)
 	serverID := c.Param("id")
-	soundID := c.Param("soundId")
 	ctx := c.Request.Context()
-
-	sound, err := h.repo.FindByID(ctx, soundID)
-	if errors.Is(err, ErrSoundNotFound) || (sound != nil && sound.ServerID != serverID) {
-		c.JSON(http.StatusNotFound, gin.H{"error": ErrSoundNotFound.Error()})
-		return
-	}
+	sound, status, err := h.deletable(ctx, serverID, c.Param("soundId"), actorID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load sound"})
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-
-	allowed := sound.UploaderID == actorID
-	if !allowed {
-		perms, err := h.permissions.ServerPerms(ctx, serverID, actorID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check permissions"})
-			return
-		}
-		allowed = permission.Has(perms, permission.ManageExpressions)
-	}
-	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": ErrCannotDeleteSound.Error()})
-		return
-	}
-
 	if err := h.repo.Delete(ctx, sound.ID); err != nil {
-		if errors.Is(err, ErrSoundNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": ErrSoundNotFound.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete sound"})
+		status, msg := deleteError(err)
+		c.JSON(status, gin.H{"error": msg})
 		return
 	}
 
@@ -133,7 +110,37 @@ func (h *Handler) Delete(c *gin.Context) {
 		}))
 	}
 
+	h.record(ctx, audit.SoundDelete, actorID, sound.ServerID, sound.ID, sound.Name)
 	c.JSON(http.StatusOK, gin.H{"message": "sound deleted"})
+}
+
+// deletable: o item do servidor, se quem pede o enviou ou modera expressões.
+func (h *Handler) deletable(ctx context.Context, serverID, id, actorID string) (*Sound, int, error) {
+	sound, err := h.repo.FindByID(ctx, id)
+	if errors.Is(err, ErrSoundNotFound) || (sound != nil && sound.ServerID != serverID) {
+		return nil, http.StatusNotFound, ErrSoundNotFound
+	}
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to load sound")
+	}
+	if sound.UploaderID == actorID {
+		return sound, 0, nil
+	}
+	perms, err := h.permissions.ServerPerms(ctx, serverID, actorID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to check permissions")
+	}
+	if !permission.Has(perms, permission.ManageExpressions) {
+		return nil, http.StatusForbidden, ErrCannotDeleteSound
+	}
+	return sound, 0, nil
+}
+
+func deleteError(err error) (int, string) {
+	if errors.Is(err, ErrSoundNotFound) {
+		return http.StatusNotFound, ErrSoundNotFound.Error()
+	}
+	return http.StatusInternalServerError, "failed to delete sound"
 }
 
 // ServeFile entrega o arquivo do som (o <audio> manda o media token na URL).

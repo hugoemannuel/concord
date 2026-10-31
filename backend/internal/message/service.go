@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"errors"
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/bot"
 	"gin-quickstart/backend/internal/permission"
 	"log"
@@ -68,6 +69,7 @@ type Service struct {
 	perms           PermissionChecker
 	mentionLimiter  *mentionLimiter
 	stickerChecker  StickerChecker
+	audit           AuditRecorder
 }
 
 func MessageService(repository *Repository, publisher EventPublisher, channelResolver ChannelResolver, convResolver ConversationResolver, files FileRemover, perms PermissionChecker) *Service {
@@ -288,6 +290,7 @@ func (s *Service) DeleteChannelMessage(ctx context.Context, channelID string, me
 		ServerID:  serverID,
 		MessageID: messageID,
 	})
+	s.recordModeration(ctx, audit.MessageDelete, serverID, channelID, msg.AuthorID, userID)
 
 	return nil
 }
@@ -511,80 +514,5 @@ func (s *Service) canManageChannelMessages(ctx context.Context, channelID string
 	if !permission.Has(perms, permission.ManageMessages) {
 		return permission.ErrMissingPermission
 	}
-	return nil
-}
-
-func (s *Service) ListChannelPins(ctx context.Context, channelID string, userID string) ([]PinnedMessage, error) {
-	if s.perms != nil {
-		perms, err := s.perms.ChannelPerms(ctx, channelID, userID)
-		if err != nil || perms&permission.ViewChannel == 0 {
-			return nil, ErrMessageNotFound
-		}
-	}
-	return s.repository.ListPinnedMessages(ctx, channelID)
-}
-
-func (s *Service) PinChannelMessage(ctx context.Context, channelID string, messageID string, userID string) (*PinnedMessage, error) {
-	msg, err := s.repository.FindByID(ctx, messageID)
-	if err != nil {
-		return nil, ErrMessageNotFound
-	}
-	if msg.ChannelID == nil || *msg.ChannelID != channelID {
-		return nil, ErrMessageNotFound
-	}
-	if err := s.canManageChannelMessages(ctx, channelID, userID); err != nil {
-		return nil, err
-	}
-
-	pinned, err := s.repository.PinMessage(ctx, channelID, messageID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	serverID := ""
-	if s.channelResolver != nil {
-		serverID, _ = s.channelResolver.ChannelServerID(ctx, channelID)
-	}
-
-	if s.publisher != nil {
-		s.publisher.PublishMessagePin(PinEvent{
-			ChannelID: channelID,
-			ServerID:  serverID,
-			Message:   *pinned,
-		})
-	}
-
-	return pinned, nil
-}
-
-func (s *Service) UnpinChannelMessage(ctx context.Context, channelID string, messageID string, userID string) error {
-	msg, err := s.repository.FindByID(ctx, messageID)
-	if err != nil {
-		return ErrMessageNotFound
-	}
-	if msg.ChannelID == nil || *msg.ChannelID != channelID {
-		return ErrMessageNotFound
-	}
-	if err := s.canManageChannelMessages(ctx, channelID, userID); err != nil {
-		return err
-	}
-
-	if err := s.repository.UnpinMessage(ctx, channelID, messageID); err != nil {
-		return err
-	}
-
-	serverID := ""
-	if s.channelResolver != nil {
-		serverID, _ = s.channelResolver.ChannelServerID(ctx, channelID)
-	}
-
-	if s.publisher != nil {
-		s.publisher.PublishMessageUnpin(UnpinEvent{
-			ChannelID: channelID,
-			ServerID:  serverID,
-			MessageID: messageID,
-		})
-	}
-
 	return nil
 }

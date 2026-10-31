@@ -11,6 +11,11 @@ import {
 const ids = (query: string): string[] => filterSections(query).map((s) => s.id)
 
 describe('filterSections', () => {
+  it('acha os sons do app em Notificações', () => {
+    expect(ids('pacote de sons')).toEqual(['notifications'])
+    expect(ids('audio proprio')).toEqual(['notifications'])
+  })
+
   it('sem busca mostra tudo', () => {
     expect(filterSections('  ')).toHaveLength(SETTINGS_SECTIONS.length)
   })

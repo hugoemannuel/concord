@@ -6,6 +6,7 @@ import { listeningQuery } from './listeningLinks'
 import type { QueueTarget } from './queueTarget'
 
 export const QUEUE_DONE = 'Adicionada à fila do Maestro.'
+export const QUEUE_ADDING = 'Adicionando…'
 export const QUEUE_FAILED = 'Não deu para adicionar à fila.'
 
 interface QueueDeps {
@@ -35,4 +36,9 @@ export async function queueListening(
   } catch (err) {
     deps.notify('error', errorMessage(err, QUEUE_FAILED))
   }
+}
+
+/** Texto do botão: "Adicionando…" enquanto o servidor não responde. */
+export function queueButtonLabel(adding: boolean): string {
+  return adding ? QUEUE_ADDING : 'Adicionar à fila do Maestro'
 }

@@ -10,6 +10,7 @@ import { Toggle } from './Toggle'
 import { AutostartCard, CloseToTrayCard, NothingToConfigure } from './DesktopCards'
 import { useDesktopPrefs } from '../hooks/useDesktopPrefs'
 import MutedNotifications from '../../notifications/components/MutedNotifications'
+import AppSoundsSettings from '../../appsounds/components/AppSoundsSettings'
 
 type NotificationOption = { key: keyof NotificationPrefs; title: string; description: string }
 
@@ -101,6 +102,7 @@ export function NotificationSettings(): React.JSX.Element {
           ))}
         </div>
       </div>
+      <AppSoundsSettings />
       <MutedNotifications />
     </>
   )

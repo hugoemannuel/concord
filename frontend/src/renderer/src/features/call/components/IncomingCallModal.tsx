@@ -1,50 +1,25 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCallStore } from '../store/callStore'
+import { playSound, stopSound } from '../lib/sounds'
 import { PhoneIcon, PhoneOffIcon } from '../../../shared/ui/icons'
 import Button from '../../../shared/ui/Button'
 // Avatar de quem está na chamada: o GIF segue a regra da call (ver CallAvatar).
 import Avatar from './CallAvatar'
 import StyledName from '../../profile/components/StyledName'
 
-function useRingtone(ringing: boolean): void {
-  const ctxRef = useRef<AudioContext | null>(null)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+/** O toque repete enquanto a chamada toca (o som cabe no intervalo). */
+const RING_INTERVAL_MS = 2000
 
+/** Toque da chamada recebida: o som escolhido em Configurações → Notificações. */
+function useRingtone(ringing: boolean): void {
   useEffect(() => {
     if (!ringing) return
-
-    const playBurst = (): void => {
-      const Ctor = window.AudioContext
-      if (!Ctor) return
-      if (!ctxRef.current) ctxRef.current = new Ctor()
-      const ctx = ctxRef.current
-      void ctx.resume()
-      const now = ctx.currentTime
-      for (let i = 0; i < 2; i++) {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.type = 'sine'
-        osc.frequency.value = i === 0 ? 440 : 480
-        gain.gain.setValueAtTime(0.0001, now)
-        gain.gain.exponentialRampToValueAtTime(0.08, now + 0.05)
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9)
-        osc.connect(gain).connect(ctx.destination)
-        osc.start(now)
-        osc.stop(now + 1)
-      }
-    }
-
-    playBurst()
-    timerRef.current = setInterval(playBurst, 2000)
-
+    playSound('ring')
+    const timer = setInterval(() => playSound('ring'), RING_INTERVAL_MS)
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-      void ctxRef.current?.close()
-      ctxRef.current = null
+      clearInterval(timer)
+      stopSound('ring')
     }
   }, [ringing])
 }

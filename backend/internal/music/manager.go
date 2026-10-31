@@ -80,6 +80,8 @@ type Manager struct {
 	players  map[string]*Player // channelID -> player já iniciado
 	pending  map[string]*pendingPlayer
 	searches map[string]searchSession
+	// found: buscas por texto já feitas (search_cache.go).
+	found searchCache
 	// Um comando por vez por usuário: não deixa ninguém disparar yt-dlp sem limite.
 	busy map[string]struct{}
 	// onPlayed: quem pediu a música que tocou o bastante (badge DJ, played.go).
@@ -290,7 +292,7 @@ func (m *Manager) Pick(ctx context.Context, userID, token string, index int) err
 		say(TextNotInVoice)
 		return nil
 	}
-	m.enqueueURL(ctx, loc, s.textChannelID, userID, videoURL(s.results[index].VideoID), say)
+	m.enqueueTrack(ctx, loc, s.textChannelID, userID, s.results[index], say)
 	return nil
 }
 

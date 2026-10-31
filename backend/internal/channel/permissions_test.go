@@ -93,7 +93,12 @@ func (f *permStore) FindNoticesByServerID(context.Context, string) (*Channel, er
 	return nil, ErrChannelNotFound
 }
 
-func (f *permStore) Update(context.Context, string, string) error { return nil }
+func (f *permStore) Update(_ context.Context, id string, name string) error {
+	if ch, ok := f.channels[id]; ok {
+		ch.Name = name
+	}
+	return nil
+}
 func (f *permStore) Delete(_ context.Context, id string) error {
 	delete(f.channels, id)
 	return nil

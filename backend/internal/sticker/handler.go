@@ -3,6 +3,7 @@ package sticker
 import (
 	"context"
 	"errors"
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 	"log"
 	"mime"
@@ -51,6 +52,7 @@ type Handler struct {
 	publisher       eventPublisher
 	maxPerServer    int
 	maxStickerBytes int64
+	audit           AuditRecorder
 }
 
 func NewHandler(
@@ -103,46 +105,21 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
+	actorID := c.GetString("userID")
+	if actorID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	actorID := userID.(string)
 	serverID := c.Param("id")
-	stickerID := c.Param("stickerId")
 	ctx := c.Request.Context()
-
-	stk, err := h.repo.FindByID(ctx, stickerID)
-	if errors.Is(err, ErrStickerNotFound) || (stk != nil && stk.ServerID != serverID) {
-		c.JSON(http.StatusNotFound, gin.H{"error": ErrStickerNotFound.Error()})
-		return
-	}
+	stk, status, err := h.deletable(ctx, serverID, c.Param("stickerId"), actorID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load sticker"})
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-
-	allowed := stk.UploaderID == actorID
-	if !allowed {
-		perms, err := h.permissions.ServerPerms(ctx, serverID, actorID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check permissions"})
-			return
-		}
-		allowed = permission.Has(perms, permission.ManageExpressions)
-	}
-	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": ErrCannotDeleteSticker.Error()})
-		return
-	}
-
 	if err := h.repo.Delete(ctx, stk.ID); err != nil {
-		if errors.Is(err, ErrStickerNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": ErrStickerNotFound.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete sticker"})
+		status, msg := deleteError(err)
+		c.JSON(status, gin.H{"error": msg})
 		return
 	}
 
@@ -157,7 +134,37 @@ func (h *Handler) Delete(c *gin.Context) {
 		}))
 	}
 
+	h.record(ctx, audit.StickerDelete, actorID, stk.ServerID, stk.ID, stk.Name)
 	c.JSON(http.StatusOK, gin.H{"message": "sticker deleted"})
+}
+
+// deletable: o item do servidor, se quem pede o enviou ou modera expressões.
+func (h *Handler) deletable(ctx context.Context, serverID, id, actorID string) (*Sticker, int, error) {
+	stk, err := h.repo.FindByID(ctx, id)
+	if errors.Is(err, ErrStickerNotFound) || (stk != nil && stk.ServerID != serverID) {
+		return nil, http.StatusNotFound, ErrStickerNotFound
+	}
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to load sticker")
+	}
+	if stk.UploaderID == actorID {
+		return stk, 0, nil
+	}
+	perms, err := h.permissions.ServerPerms(ctx, serverID, actorID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to check permissions")
+	}
+	if !permission.Has(perms, permission.ManageExpressions) {
+		return nil, http.StatusForbidden, ErrCannotDeleteSticker
+	}
+	return stk, 0, nil
+}
+
+func deleteError(err error) (int, string) {
+	if errors.Is(err, ErrStickerNotFound) {
+		return http.StatusNotFound, ErrStickerNotFound.Error()
+	}
+	return http.StatusInternalServerError, "failed to delete sticker"
 }
 
 func (h *Handler) ServeFile(c *gin.Context) {

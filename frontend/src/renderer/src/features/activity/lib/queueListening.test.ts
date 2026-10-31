@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../shared/api/client'
-import { queueListening, QUEUE_DONE, QUEUE_FAILED } from './queueListening'
+import { queueButtonLabel, queueListening, QUEUE_ADDING, QUEUE_DONE, QUEUE_FAILED } from './queueListening'
 
 const track = { app: 'Spotify', title: 'Águas de Março', artist: 'Elis Regina', started_at: 1 }
 
@@ -33,5 +33,12 @@ describe('queueListening', () => {
     d.enqueue.mockRejectedValue('x')
     await queueListening({ serverId: 's1' }, track, d)
     expect(d.notify).toHaveBeenCalledWith('error', QUEUE_FAILED)
+  })
+})
+
+describe('queueButtonLabel', () => {
+  it('"Adicionando…" enquanto o servidor não responde', () => {
+    expect(queueButtonLabel(true)).toBe(QUEUE_ADDING)
+    expect(queueButtonLabel(false)).toBe('Adicionar à fila do Maestro')
   })
 })

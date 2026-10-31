@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -58,6 +59,7 @@ type Moderation struct {
 	publisher ModerationPublisher
 	// onRemoved: derruba o usuário da chamada de voz do servidor (main liga no call.Service).
 	onRemoved func(ctx context.Context, serverID, userID string)
+	audit     AuditRecorder
 }
 
 func ModerationService(repository *Repository, perms *permission.Service, publisher ModerationPublisher) *Moderation {
@@ -105,6 +107,7 @@ func (m *Moderation) Kick(ctx context.Context, serverID, actorID, targetID strin
 	if err := m.store.RemoveMember(ctx, serverID, targetID); err != nil {
 		return err
 	}
+	record(ctx, m.audit, memberEvent(serverID, actorID, audit.MemberKick, targetID))
 	m.removed(ctx, serverID, targetID, RemovedKick)
 	return nil
 }
@@ -127,6 +130,9 @@ func (m *Moderation) Ban(ctx context.Context, serverID, actorID, targetID, reaso
 	if err := m.store.BanMember(ctx, serverID, targetID, actorID, reasonPtr); err != nil {
 		return err
 	}
+	banned := memberEvent(serverID, actorID, audit.MemberBan, targetID)
+	banned.Reason = reason
+	record(ctx, m.audit, banned)
 	if wasMember {
 		m.removed(ctx, serverID, targetID, RemovedBan)
 	}
@@ -144,6 +150,7 @@ func (m *Moderation) Unban(ctx context.Context, serverID, actorID, targetID stri
 	if !found {
 		return ErrBanNotFound
 	}
+	record(ctx, m.audit, memberEvent(serverID, actorID, audit.MemberUnban, targetID))
 	return nil
 }
 
@@ -183,6 +190,7 @@ func (m *Moderation) Leave(ctx context.Context, serverID, userID string) error {
 	if err := m.store.RemoveMember(ctx, serverID, userID); err != nil {
 		return err
 	}
+	record(ctx, m.audit, memberEvent(serverID, userID, audit.MemberLeave, userID))
 	m.removed(ctx, serverID, userID, RemovedLeave)
 	return nil
 }

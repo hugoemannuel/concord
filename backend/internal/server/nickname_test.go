@@ -235,3 +235,7 @@ func TestSetNicknameValidatesAfterPermission(t *testing.T) {
 		t.Fatal("não devia gravar nada")
 	}
 }
+
+func (f *fakeNicknames) MemberNickname(_ context.Context, _ string, userID string) (*string, error) {
+	return f.nicks[userID], nil
+}

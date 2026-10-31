@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isSafeExternalUrl } from '../../../../../shared/externalUrl'
-import { listeningLinks, listeningQuery } from './listeningLinks'
+import { listeningLinks, listeningQuery, withDirectLinks } from './listeningLinks'
 import type { ListeningActivity } from './listeningActivity'
 
 const track = (extra: Partial<ListeningActivity> = {}): ListeningActivity => ({
@@ -49,5 +49,33 @@ describe('listeningLinks', () => {
 
   it('todo link passa no filtro de links externos do app', () => {
     for (const link of links) expect(isSafeExternalUrl(link.url)).toBe(true)
+  })
+})
+
+describe('withDirectLinks', () => {
+  const search = listeningLinks(track({ artist: 'Elis Regina' }))
+
+  it('troca a busca pelo link direto de cada serviço que o servidor achou', () => {
+    const merged = withDirectLinks(search, {
+      youtube: 'https://www.youtube.com/watch?v=FI1b9RK10JI',
+      youtube_music: 'https://music.youtube.com/watch?v=FI1b9RK10JI',
+      deezer: 'https://www.deezer.com/track/565340102'
+    })
+    expect(merged.map((l) => l.url)).toEqual([
+      'https://www.youtube.com/watch?v=FI1b9RK10JI',
+      search[1].url,
+      'https://music.youtube.com/watch?v=FI1b9RK10JI',
+      'https://www.deezer.com/track/565340102',
+      search[4].url
+    ])
+  })
+
+  it('ignora o que não for https (cai na busca)', () => {
+    const merged = withDirectLinks(search, { spotify: 'javascript:alert(1)', deezer: 'http://x.com' })
+    expect(merged.map((l) => l.url)).toEqual(search.map((l) => l.url))
+  })
+
+  it('sem links diretos, devolve as buscas', () => {
+    expect(withDirectLinks(search, {})).toEqual(search)
   })
 })

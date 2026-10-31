@@ -18,6 +18,16 @@ func (m *Manager) enqueueURL(ctx context.Context, loc Location, textChannelID, u
 		say(TextPrivate)
 	case err != nil:
 		say(TextVideoGone)
+	default:
+		m.enqueueTrack(ctx, loc, textChannelID, userID, t, say)
+	}
+}
+
+// enqueueTrack: um vídeo já conhecido (link resolvido ou resultado de busca,
+// que traz duração e "ao vivo"), sem rodar o yt-dlp de novo. Vídeo com
+// restrição de idade que escapar da busca falha no download (TextFailed).
+func (m *Manager) enqueueTrack(ctx context.Context, loc Location, textChannelID, userID string, t Track, say func(string)) {
+	switch {
 	case t.IsLive:
 		say(TextLive)
 	case t.DurationMs > maxVideoMs:

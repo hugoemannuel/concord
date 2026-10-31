@@ -32,6 +32,7 @@ func (a *app) wireChat() {
 
 	messageRepository := message.MessageRepository(a.db)
 	a.messageService = message.MessageService(messageRepository, push.WrapMessages(a.hub, a.pushTap), a.cachedChannels(), a.conversationRepository, uploads, a.permissionService)
+	a.messageService.SetAudit(a.audit)
 	// Limpeza horária de arquivos sem dono (cascatas e uploads abandonados).
 	go message.NewJanitor(messageRepository, uploads).Run(a.ctx, time.Hour)
 	a.messageHandler = message.MessageHandler(a.messageService, a.channelService, a.conversationService, a.friendshipService, a.permissionService)
@@ -50,12 +51,14 @@ func (a *app) wireChat() {
 	soundboardUploads := mustStore(filepath.Join(a.uploadsDir, "soundboard"), "soundboard uploads dir")
 	a.soundboardRepository = soundboard.NewRepository(a.db)
 	soundboardHandler := soundboard.NewHandler(a.soundboardRepository, soundboardUploads, a.uploadSpace, a.permissionService, a.permissionService, a.authService, a.hub)
+	soundboardHandler.SetAudit(a.audit)
 	soundboardHandler.SetVisitors(appVisitors{a})
 
 	// Figurinhas (Stickers) compartilhadas por servidor
 	stickersUploads := mustStore(filepath.Join(a.uploadsDir, "stickers"), "stickers uploads dir")
 	stickerRepository := sticker.NewRepository(a.db)
 	stickerHandler := sticker.NewHandler(stickerRepository, stickersUploads, a.uploadSpace, a.permissionService, a.permissionService, a.authService, a.hub)
+	stickerHandler.SetAudit(a.audit)
 	a.messageService.SetStickerChecker(stickerRepository)
 
 	giphyHandler := giphy.NewHandler(os.Getenv("GIPHY_API_KEY"))
@@ -67,11 +70,13 @@ func (a *app) wireChat() {
 	profileService := user.NewProfileService(a.userRepository, a.hub, relationship.NewRepository(a.db))
 	a.profileHandler = user.NewProfileHandler(profileService, profileMedia, profileStatic, a.uploadSpace)
 	a.wireSavedProfiles(profileService)
+	a.wireAppSounds()
 	entranceSounds := mustStore(filepath.Join(profileMediaDir, user.EntranceSoundDir), "entrance sounds dir")
 	entranceSoundHandler := user.NewEntranceSoundHandler(profileService, entranceSounds, a.uploadSpace)
 	conversationHandler := conversation.ConversationHandler(a.conversationService, a.userService, a.profileHandler)
 	// O ícone do servidor usa o mesmo upload do avatar.
 	serverHandler := server.ServerHandler(a.serverService, a.friendshipService, a.userService, a.channelService, a.permissionService, a.roleService, a.moderationService, a.nicknameService, a.profileHandler)
+	serverHandler.SetAudit(a.audit)
 
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) {
 		user.ProfileRoutes(api, a.profileHandler, a.authMiddleware)
@@ -85,6 +90,7 @@ func (a *app) wireChat() {
 		soundboard.FavoriteRoutes(api, soundboard.NewFavoritesHandler(a.soundboardRepository, a.soundboardRepository, a.permissionService), a.authMiddleware)
 		sticker.Routes(api, stickerHandler, a.authMiddleware)
 		giphy.Routes(api, giphyHandler, a.authMiddleware)
+		giphy.FavoriteRoutes(api, giphy.NewFavoritesHandler(giphy.NewFavoriteRepository(a.db)), a.authMiddleware)
 	})
 }
 

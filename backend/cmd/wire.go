@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/auth"
 	"gin-quickstart/backend/internal/call"
 	"gin-quickstart/backend/internal/channel"
@@ -32,6 +33,9 @@ type app struct {
 	ctx context.Context
 	db  *pgxpool.Pool
 	hub *websocket.Hub
+	// audit: ponto único de gravação do registro de auditoria dos servidores.
+	audit           *audit.Recorder
+	auditRepository *audit.Repository
 	// Conexões do app do celular (push): o desktop aberto na mesma conta não impede o push.
 	mobileApps *websocket.MobileApps
 
@@ -118,7 +122,10 @@ func mustStore(dir, what string) *media.Store {
 // wire monta todas as áreas na ordem em que uma depende da outra.
 func wire(ctx context.Context, db *pgxpool.Pool) *app {
 	a := &app{ctx: ctx, db: db, pushTap: push.NewTap()}
+	a.auditRepository = audit.NewRepository(db)
+	a.audit = audit.NewRecorder(a.auditRepository)
 	a.wireCore()
+	a.wireAudit()
 	a.wireChat()
 	a.wirePush()
 	a.wireCalls()

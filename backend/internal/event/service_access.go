@@ -3,6 +3,8 @@ package event
 import (
 	"context"
 	"fmt"
+
+	"gin-quickstart/backend/internal/audit"
 )
 
 // Access diz o que a pessoa pode fazer com os eventos (para o app mostrar só os
@@ -66,6 +68,11 @@ func (s *Service) SetRoleActions(ctx context.Context, serverID, actorID, roleID 
 		return err
 	}
 	s.broadcast(serverID, "event:access", map[string]string{"server_id": serverID})
+	s.record(ctx, audit.Event{
+		ServerID: serverID, ActorID: actorID, Action: audit.EventAccess,
+		TargetType: audit.TargetRole, TargetID: roleID,
+		Changes: []audit.Change{{Field: "event_actions", After: int(actions)}},
+	})
 	return nil
 }
 

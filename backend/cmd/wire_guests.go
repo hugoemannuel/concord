@@ -22,6 +22,7 @@ const guestSweepEvery = 30 * time.Second
 func (a *app) wireGuests() {
 	dir := guestDirectory{channels: a.channelService, servers: a.serverService, users: a.userService, bans: server.ServerRepository(a.db)}
 	a.guestService = guest.NewService(guest.NewRepository(a.db), a.permissionService, dir, a.callService, a.hub, a.authService)
+	a.guestService.SetAudit(a.audit)
 	must(a.guestService.Warm(a.ctx), "não foi possível carregar os acessos de visitante")
 	a.callService.SetGuests(a.guestService)
 	// Virou membro (convite do servidor ou outro caminho): deixa de ser visitante lá.

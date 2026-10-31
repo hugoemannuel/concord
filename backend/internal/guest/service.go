@@ -72,6 +72,7 @@ type Service struct {
 	tokens Tokens
 	now    func() time.Time
 	active *index
+	audit  AuditRecorder
 }
 
 func NewService(st store, perms PermissionSource, dir Directory, calls Calls, notify Notifier, tokens Tokens) *Service {

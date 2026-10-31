@@ -47,6 +47,7 @@ func (a *app) wireCore() {
 
 	a.roleRepository = role.RoleRepository(a.db)
 	a.roleService = role.RoleService(a.roleRepository, a.permissionService, a.hub)
+	a.roleService.SetAudit(a.audit)
 	roleHandler := role.RoleHandler(a.roleService)
 
 	serverRepository := server.ServerRepository(a.db)
@@ -55,8 +56,11 @@ func (a *app) wireCore() {
 	a.serverService = server.ServerService(serverRepository, a.hub, a.roleRepository)
 	// Online na prévia do link de convite (invisível conta como offline).
 	a.serverService.SetPresence(a.hub.PresenceMap)
+	a.serverService.SetAudit(a.audit)
 	a.moderationService = server.ModerationService(serverRepository, a.permissionService, a.hub)
+	a.moderationService.SetAudit(a.audit)
 	a.nicknameService = server.NicknameService(serverRepository, a.permissionService, a.hub)
+	a.nicknameService.SetAudit(a.audit)
 
 	a.friendAccepted = friendship.WithAcceptHook(push.WrapFriends(a.hub, a.pushTap))
 	a.friendshipService = friendship.FriendshipService(friendship.FriendshipRepository(a.db), a.userService, a.friendAccepted)
@@ -66,6 +70,7 @@ func (a *app) wireCore() {
 	a.channelService = channel.ChannelService(a.channelRepository, a.hub)
 	a.channelService.SetPermissionCache(a.permissionService)
 	channelHandler := channel.ChannelHandler(a.channelService, a.permissionService)
+	channelHandler.SetAudit(a.audit)
 
 	a.conversationRepository = conversation.ConversationRepository(a.db)
 	a.conversationService = conversation.ConversationService(a.conversationRepository)

@@ -199,6 +199,8 @@ export const SOUNDS = {
   // DM recebida: dois toques curtos subindo, mais graves que a menção.
   message: [tone(784, 0, 0.08), tone(1047, 0.09, 0.12)],
   mention: [tone(988, 0, 0.12), tone(1319, 0.13, 0.22)],
+  // Chamada recebida (repete a cada 2 s enquanto toca): duas senoides juntas.
+  ring: [tone(440, 0, 0.9, 0.08), tone(480, 0, 0.9, 0.08)],
   // Versão nova do app: três notas subindo, mais lentas que a menção.
   update: [tone(784, 0, 0.09), tone(988, 0.1, 0.09), tone(1319, 0.2, 0.2)],
   // Alguém abriu transmissão na call: varrida subindo e duas notas ("liga").
@@ -285,42 +287,89 @@ function stopLevelVoice(now: number): void {
   }
 }
 
-export function playSound(name: SoundName): void {
-  if (typeof AudioContext === 'undefined') return
+/** Contexto de áudio compartilhado (criado no primeiro som, na saída escolhida). */
+export function soundContext(): AudioContext | null {
+  if (typeof AudioContext === 'undefined') return null
   if (!ctx) {
     ctx = new AudioContext()
     if (outputId) setSoundOutput(outputId)
   }
   void ctx.resume()
-  // Sons de nível passam por um grupo próprio: um novo corta o anterior,
-  // então dois jingles nunca tocam juntos (e nunca somam acima do teto).
-  let out: AudioNode = ctx.destination
-  let voice: { group: GainNode; oscs: OscillatorNode[] } | null = null
-  if (LEVEL_SOUNDS.includes(name)) {
-    stopLevelVoice(ctx.currentTime)
-    const group = ctx.createGain()
-    group.gain.value = 1
-    group.connect(ctx.destination)
-    out = group
-    voice = { group, oscs: [] }
-    levelVoice = voice
-  }
-  const start = ctx.currentTime + 0.01
-  for (const note of SOUNDS[name]) {
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = note.wave ?? 'sine'
-    // ataque e queda curtos para não estalar
-    const t0 = start + note.at
-    const t1 = t0 + note.duration
-    osc.frequency.setValueAtTime(note.freq, t0)
-    if (note.slide) osc.frequency.exponentialRampToValueAtTime(note.slide, t1)
-    gain.gain.setValueAtTime(0, t0)
-    gain.gain.linearRampToValueAtTime(noteVolume(note), t0 + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.0001, t1)
-    osc.connect(gain).connect(out)
-    osc.start(t0)
-    osc.stop(t1 + 0.02)
+  return ctx
+}
+
+/**
+ * Quem troca os sons (Configurações → Notificações, features/appsounds):
+ * `play` devolve true quando já tocou (ou silenciou) o som; false = o padrão.
+ */
+export interface SoundHandler {
+  play: (name: SoundName) => boolean
+  stop: (name: SoundName) => void
+}
+
+let handler: SoundHandler | null = null
+
+export function setSoundHandler(next: SoundHandler | null): void {
+  handler = next
+}
+
+export function playSound(name: SoundName): void {
+  if (handler?.play(name)) return
+  playNotes(SOUNDS[name], { level: LEVEL_SOUNDS.includes(name) })
+}
+
+/** Corta o som que ainda está tocando (ex.: o toque da chamada ao atender). */
+export function stopSound(name: SoundName): void {
+  handler?.stop(name)
+}
+
+/**
+ * Sons de nível passam por um grupo próprio: um novo corta o anterior, então
+ * dois jingles nunca tocam juntos (e nunca somam acima do teto).
+ */
+function levelOutput(context: AudioContext): { group: GainNode; oscs: OscillatorNode[] } {
+  stopLevelVoice(context.currentTime)
+  const group = context.createGain()
+  group.gain.value = 1
+  group.connect(context.destination)
+  levelVoice = { group, oscs: [] }
+  return levelVoice
+}
+
+function scheduleNote(
+  context: AudioContext,
+  note: Note,
+  start: number,
+  out: AudioNode,
+  gainScale: number
+): OscillatorNode {
+  const osc = context.createOscillator()
+  const gain = context.createGain()
+  osc.type = note.wave ?? 'sine'
+  // ataque e queda curtos para não estalar
+  const t0 = start + note.at
+  const t1 = t0 + note.duration
+  osc.frequency.setValueAtTime(note.freq, t0)
+  if (note.slide) osc.frequency.exponentialRampToValueAtTime(note.slide, t1)
+  gain.gain.setValueAtTime(0, t0)
+  gain.gain.linearRampToValueAtTime(noteVolume(note) * gainScale, t0 + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t1)
+  osc.connect(gain).connect(out)
+  osc.start(t0)
+  osc.stop(t1 + 0.02)
+  return osc
+}
+
+/** Toca notas sintetizadas; `gain` multiplica o volume delas (1 = como estão). */
+export function playNotes(notes: Note[], { level = false, gain = 1 } = {}): void {
+  if (gain <= 0) return
+  const context = soundContext()
+  if (!context) return
+  const voice = level ? levelOutput(context) : null
+  const out = voice?.group ?? context.destination
+  const start = context.currentTime + 0.01
+  for (const note of notes) {
+    const osc = scheduleNote(context, note, start, out, gain)
     voice?.oscs.push(osc)
   }
 }

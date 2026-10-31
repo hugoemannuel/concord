@@ -82,6 +82,7 @@ func (h *Handler) changeOverwrite(c *gin.Context, next *permission.Overwrite) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to change permissions"})
 		return
 	}
+	h.recordOverwrite(c.Request.Context(), userID.(string), ch, targetType, targetID, current, next)
 
 	if next == nil {
 		c.JSON(http.StatusOK, gin.H{"message": "overwrite deleted", "previous": current})

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { desktopPayload, DEFAULT_NOTIFICATION_PREFS, type AppNotification } from './notifications'
-import { permissionView, titleWithUnread, webNotificationAction } from './webNotifications'
+import {
+  browserNotificationOptions,
+  permissionView,
+  titleWithUnread,
+  webNotificationAction
+} from './webNotifications'
 
 const message: AppNotification = { kind: 'message', title: 'Ana', body: 'oi', route: '/dm/1' }
 const call: AppNotification = {
@@ -103,5 +108,23 @@ describe('permissionView', () => {
       expect(view.status).not.toBe('')
     }
     expect(permissionView('denied').status).toMatch(/bloquead/i)
+  })
+})
+
+describe('browserNotificationOptions', () => {
+  it('chamada fica na tela até atender ou fechar; mensagem some sozinha', () => {
+    const prefs = DEFAULT_NOTIFICATION_PREFS
+    expect(browserNotificationOptions(desktopPayload(call, prefs), 'i.png')).toMatchObject({
+      body: call.body,
+      icon: 'i.png',
+      requireInteraction: true
+    })
+    expect(browserNotificationOptions(desktopPayload(message, prefs), 'i.png').requireInteraction).toBe(false)
+  })
+
+  it('sai sem o som do sistema: quem toca o som escolhido é o app', () => {
+    const prefs = DEFAULT_NOTIFICATION_PREFS
+    expect(browserNotificationOptions(desktopPayload(message, prefs), 'i.png').silent).toBe(true)
+    expect(browserNotificationOptions(desktopPayload(call, prefs), 'i.png').silent).toBe(true)
   })
 })

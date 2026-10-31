@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/ratelimit"
 	"gin-quickstart/backend/internal/user"
@@ -252,6 +253,11 @@ func (h *Handler) InvitePreview(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+// InviteCodeRotator troca o código de convite do servidor (Service).
+type InviteCodeRotator interface {
+	RotateInviteCode(ctx context.Context, serverID string) (string, error)
+}
+
 // RotateInviteCode responde POST /servers/:id/invite-code/reset ("Gerar novo
 // link"): só quem tem CREATE_INVITE.
 func (h *Handler) RotateInviteCode(c *gin.Context) {
@@ -267,11 +273,14 @@ func (h *Handler) RotateInviteCode(c *gin.Context) {
 		}
 		return
 	}
-	code, err := h.service.RotateInviteCode(c.Request.Context(), serverID)
+	code, err := h.codes.RotateInviteCode(c.Request.Context(), serverID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reset invite code"})
 		return
 	}
+	record(c.Request.Context(), h.audit, audit.Event{
+		ServerID: serverID, ActorID: userID, Action: audit.InviteReset, TargetType: audit.TargetInvite,
+	})
 	c.JSON(http.StatusOK, gin.H{"code": code})
 }
 

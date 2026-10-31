@@ -1069,6 +1069,7 @@ Todas opcionais; os padrões e comentários estão no `backend/.env.example`.
 | `MUSIC_YT_COOKIES` | caminho do `cookies.txt` de uma conta Premium (veja abaixo) |
 | `MUSIC_POT_URL` | provedor de PO token, ex.: `http://127.0.0.1:4416` (veja abaixo) |
 | `MUSIC_TEST_SOURCE=1` | só para testes/e2e: tons do ffmpeg no lugar do YouTube |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | app do Spotify for Developers: o "Ouvir no Spotify" da atividade abre a faixa em vez da busca ([ADR 0033](adr/0033-links-diretos-do-ouvir-tambem.md)) |
 
 ### Cookies do YouTube Premium (opcional, 256 kbps)
 

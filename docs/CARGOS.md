@@ -33,6 +33,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | | Gerenciar canais | Criar, editar, reordenar e apagar canais. |
 | | Gerenciar cargos | Criar/editar cargos abaixo do seu, dar e tirar cargos, editar permissões de canal. |
 | | Gerenciar servidor | Nome, ícone e canal principal. |
+| | Ver registro de auditoria | Ver em Configurações do servidor → Registro de auditoria quem fez cada ação de moderação e administração (últimos 90 dias). **Fora do @everyone**: só o dono, o Administrador e os cargos que ganharem. Ver [ADR 0036](adr/0036-registro-de-auditoria.md). |
 | | Criar convite | Convidar amigos e ver o código do servidor. |
 | | Gerenciar mesa de áudio | Apagar áudios (e figurinhas) de outras pessoas. |
 | | Adicionar sons | Enviar sons novos para a mesa de áudio do servidor. Vale no servidor todo (não há sobrescrita por canal). |
@@ -93,6 +94,7 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 | `POST /servers/:id/channels` com `private` e `role_ids` | Gerenciar canais |
 | `DELETE /servers/:id/members/:userId`, `POST /servers/:id/leave` | Expulsar / o próprio membro |
 | `GET/POST /servers/:id/bans`, `DELETE …/bans/:userId` | Banir |
+| `GET /servers/:id/audit-log?actor_id=&action=&before=&limit=` | Ver registro de auditoria |
 | `POST /calls/:id/participants/:userId/server-mute`, `…/server-deafen`, `DELETE …/participants/:userId` | Silenciar / Ensurdecer / Mover |
 | `POST /guest-invites` (estar na call do canal) | Convidar visitantes |
 | `GET /guest-invites?channel_id=`, `DELETE /guest-invites/:id`, `POST /guests/:userId/end` | Convidar visitantes ou Desconectar membros |

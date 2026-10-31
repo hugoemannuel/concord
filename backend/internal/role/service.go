@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -39,6 +40,7 @@ type Service struct {
 	repository store
 	perms      snapshots
 	publisher  EventPublisher
+	audit      AuditRecorder
 }
 
 func RoleService(repository *Repository, perms *permission.Service, publisher EventPublisher) *Service {
@@ -99,6 +101,7 @@ func (s *Service) Create(ctx context.Context, serverID, actorID string, in Input
 	if err := s.repository.Create(ctx, role); err != nil {
 		return nil, err
 	}
+	s.recordRole(ctx, actorID, audit.RoleCreate, Role{}, *role)
 
 	if s.publisher != nil {
 		s.publisher.PublishRoleCreate(RoleEvent{ServerID: serverID, Role: *role})
@@ -119,14 +122,8 @@ func (s *Service) Update(ctx context.Context, serverID, actorID, roleID string, 
 	if !ok {
 		return nil, ErrRoleNotFound
 	}
-	if !snap.CanManageRole(actorID, current) {
-		return nil, ErrRoleHierarchy
-	}
-	if current.IsDefault && (in.Name != nil || in.Color != nil || in.ClearColor || in.Hoist != nil) {
-		return nil, ErrEveryoneRole
-	}
-	if current.IsSystem && (in.Name != nil || in.Hoist != nil) {
-		return nil, ErrBotRole
+	if err := checkEditable(snap, actorID, current, in); err != nil {
+		return nil, err
 	}
 
 	updated := current
@@ -136,6 +133,7 @@ func (s *Service) Update(ctx context.Context, serverID, actorID, roleID string, 
 	if err := s.repository.Update(ctx, &updated); err != nil {
 		return nil, err
 	}
+	s.recordRole(ctx, actorID, audit.RoleUpdate, current, updated)
 
 	if s.publisher != nil {
 		s.publisher.PublishRoleUpdate(RoleEvent{ServerID: serverID, Role: updated})
@@ -144,6 +142,21 @@ func (s *Service) Update(ctx context.Context, serverID, actorID, roleID string, 
 		}
 	}
 	return &updated, nil
+}
+
+// checkEditable: o cargo está abaixo do ator; do @everyone só mudam as
+// permissões e do Bots, cor e permissões.
+func checkEditable(snap *permission.Snapshot, actorID string, current Role, in Input) error {
+	if !snap.CanManageRole(actorID, current) {
+		return ErrRoleHierarchy
+	}
+	if current.IsDefault && (in.Name != nil || in.Color != nil || in.ClearColor || in.Hoist != nil) {
+		return ErrEveryoneRole
+	}
+	if current.IsSystem && (in.Name != nil || in.Hoist != nil) {
+		return ErrBotRole
+	}
+	return nil
 }
 
 // apply valida e copia os campos de in para role. As permissões só mudam nos
@@ -199,6 +212,7 @@ func (s *Service) Delete(ctx context.Context, serverID, actorID, roleID string) 
 	if err := s.repository.Delete(ctx, serverID, roleID); err != nil {
 		return err
 	}
+	s.recordRole(ctx, actorID, audit.RoleDelete, current, current)
 	if s.publisher != nil {
 		s.publisher.PublishRoleDelete(DeleteEvent{ServerID: serverID, RoleID: roleID})
 		s.publisher.PublishPermissionsChanged(serverID)
@@ -238,6 +252,7 @@ func (s *Service) Reorder(ctx context.Context, serverID, actorID string, roleIDs
 		if err := s.repository.SetPositions(ctx, serverID, changed); err != nil {
 			return nil, err
 		}
+		s.record(ctx, audit.Event{ServerID: serverID, ActorID: actorID, Action: audit.RoleReorder})
 	}
 	roles, err := s.repository.List(ctx, serverID)
 	if err != nil {
@@ -312,6 +327,7 @@ func (s *Service) SetMemberRole(ctx context.Context, serverID, actorID, targetID
 	if err != nil {
 		return nil, err
 	}
+	s.recordMemberRole(ctx, serverID, actorID, targetID, snap.Roles[roleID], add)
 	ids, err := s.repository.MemberRoleIDs(ctx, serverID, targetID)
 	if err != nil {
 		return nil, err

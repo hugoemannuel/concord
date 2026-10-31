@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GiphyItem } from '../api/giphy'
 import { useGifSearch } from '../hooks/useGifSearch'
+import { useGifFavorites } from '../hooks/useGifFavorites'
 import type { ServerSticker } from '../api/stickers'
 import { useStickerStore } from '../store/stickerStore'
 import StickerUploadModal from './StickerUploadModal'
@@ -45,6 +46,7 @@ export default function UnifiedMediaPickerPopover({
   const [upload, setUpload] = useState<'stickers' | 'emojis' | null>(null)
 
   const { gifs, loading: loadingGifs } = useGifSearch(tab === 'gifs', search)
+  const { favorites: favoriteGifs, toggle: toggleFavoriteGif } = useGifFavorites(tab === 'gifs')
 
   // Stickers
   const loadStickers = useStickerStore((s) => s.loadStickers)
@@ -118,6 +120,9 @@ export default function UnifiedMediaPickerPopover({
             <GifsTab
               gifs={gifs}
               loading={loadingGifs}
+              favorites={favoriteGifs}
+              searching={search.trim() !== ''}
+              onToggleFavorite={toggleFavoriteGif}
               onSelect={(gif) => {
                 onSelectGif(gif)
                 onClose()

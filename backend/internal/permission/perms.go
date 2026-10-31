@@ -25,6 +25,10 @@ const (
 	MentionEveryone int64 = 1 << 11
 	ManageMessages  int64 = 1 << 12
 	ReadHistory     int64 = 1 << 13
+	// Ver o registro de auditoria do servidor (quem fez cada ação de
+	// moderação e administração). Fora do @everyone. Ver
+	// docs/adr/0036-registro-de-auditoria.md.
+	ViewAuditLog int64 = 1 << 14
 	// Enviar emojis personalizados novos ao servidor (vale no servidor todo).
 	// Ver docs/adr/0028-emojis-personalizados.md.
 	AddEmojis         int64 = 1 << 15
@@ -86,6 +90,7 @@ var Names = map[string]int64{
 	"ADD_STICKERS":         AddStickers,
 	"ADD_EMOJIS":           AddEmojis,
 	"SEND_TTS_MESSAGES":    SendTTSMessages,
+	"VIEW_AUDIT_LOG":       ViewAuditLog,
 }
 
 // All é a soma de todos os bits conhecidos (dono e ADMINISTRATOR).
@@ -93,7 +98,8 @@ const All = ViewChannel | ManageChannels | ManageRoles | ManageServer | CreateIn
 	KickMembers | BanMembers | Administrator | SendMessages | AttachFiles | AddReactions |
 	MentionEveryone | ManageMessages | ReadHistory | Connect | Speak | Stream |
 	MuteMembers | DeafenMembers | MoveMembers | DisconnectMembers | InviteGuests | UseSoundboard | ManageExpressions |
-	ChangeNickname | ManageNicknames | AddSounds | AddStickers | SendTTSMessages | AddEmojis
+	ChangeNickname | ManageNicknames | AddSounds | AddStickers | SendTTSMessages | AddEmojis |
+	ViewAuditLog
 
 // DefaultEveryone: o que qualquer membro faz num servidor novo. Nos servidores
 // que já existiam, a migration 000039 ligou o CHANGE_NICKNAME no @everyone, a

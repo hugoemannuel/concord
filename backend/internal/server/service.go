@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/bot"
 
 	"github.com/google/uuid"
@@ -39,6 +40,7 @@ type Service struct {
 	roles      RoleDefaults
 	presence   PresenceLookup
 	previews   *previewCache
+	audit      AuditRecorder
 
 	// Chamados quando o Maestro é removido de um servidor (fecha o player dele).
 	onMusicBotDisabled []func(serverID string)
@@ -101,28 +103,6 @@ func (s *Service) Create(
 	}
 
 	return nil
-}
-
-// OnMusicBotDisabled registra um hook para a remoção do Maestro (só no boot).
-func (s *Service) OnMusicBotDisabled(fn func(serverID string)) {
-	s.onMusicBotDisabled = append(s.onMusicBotDisabled, fn)
-}
-
-func (s *Service) notifyMusicBotDisabled(serverID string) {
-	for _, fn := range s.onMusicBotDisabled {
-		fn(serverID)
-	}
-}
-
-// OnMemberJoined registra um hook para quando um usuário novo entra no servidor.
-func (s *Service) OnMemberJoined(fn func(ctx context.Context, serverID string, member ServerMember)) {
-	s.onMemberJoined = append(s.onMemberJoined, fn)
-}
-
-func (s *Service) notifyMemberJoined(ctx context.Context, serverID string, member ServerMember) {
-	for _, fn := range s.onMemberJoined {
-		fn(ctx, serverID, member)
-	}
 }
 
 // NotifyMemberJoined dispara o hook de entrada para userID no servidor (ex.: dono na criação).
@@ -281,7 +261,14 @@ func (s *Service) InviteUser(ctx context.Context, serverID string, inviterID str
 		InviterID: inviterID,
 		InviteeID: inviteeID,
 	}
-	return s.repository.CreateInvite(ctx, invite)
+	if err := s.repository.CreateInvite(ctx, invite); err != nil {
+		return err
+	}
+	record(ctx, s.audit, audit.Event{
+		ServerID: serverID, ActorID: inviterID, Action: audit.InviteCreate,
+		TargetType: audit.TargetMember, TargetID: inviteeID,
+	})
+	return nil
 }
 
 func (s *Service) FindPendingInvite(ctx context.Context, serverID string, inviteeID string) (*ServerInvite, error) {

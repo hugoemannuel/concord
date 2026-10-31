@@ -34,6 +34,7 @@ func (a *app) wireMusic() {
 	a.serverService.OnMusicBotDisabled(a.musicManager.CloseServer)
 	a.messageHandler.SetCommandHandler(a.musicManager)
 	a.wireMusicCommands()
+	a.wireMusicLinks()
 
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) {
 		music.Routes(api, music.NewHandler(a.musicManager, a.authService), a.authMiddleware)

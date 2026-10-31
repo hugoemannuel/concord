@@ -132,7 +132,18 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     id: 'notifications',
     label: 'Notificações',
     group: 'app',
-    keywords: ['notificação', 'som', 'barra de tarefas', 'área de trabalho', 'não perturbe']
+    keywords: [
+      'notificação',
+      'som',
+      'sons',
+      'pacote de sons',
+      'volume dos sons',
+      'áudio próprio',
+      'toque',
+      'barra de tarefas',
+      'área de trabalho',
+      'não perturbe'
+    ]
   },
   {
     id: 'app',

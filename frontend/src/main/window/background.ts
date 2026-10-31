@@ -2,14 +2,14 @@ import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, Tray } fr
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { probeTrayHost } from './trayHost'
-import { badgeBitmap, badgeDescription, badgeLabel, taskbarAction } from './taskbarBadge'
+import { badgeBitmap, badgeDescription, badgeLabel } from './taskbarBadge'
+import { handleNotify, type NotifyPayload } from './nativeNotify'
 import { logNotification } from './toasts'
 import {
   closeToTrayEnabled,
   launchedHidden,
   LOGIN_ITEM_ARGS,
   shouldHideOnClose,
-  notifyPlan,
   staleLoginItem,
   trayTooltip
 } from './windowPolicy'
@@ -24,25 +24,10 @@ interface CallState {
   muted: boolean
 }
 
-interface NotifyPayload {
-  title: string
-  body: string
-  route: string
-  urgent?: boolean
-  /** "Notificações na área de trabalho" (padrão: ligada). */
-  toast?: boolean
-  /** "Mostrar na barra de tarefas": piscar + selo de não lidas (padrão: ligada). */
-  taskbar?: boolean
-  /** A conversa do aviso não está na tela: toast mesmo com a janela em foco. */
-  elsewhere?: boolean
-}
-
 let tray: Tray | null = null
 let trayWindow: () => BrowserWindow | null = () => null
 // "Minimizar para a bandeja ao fechar" (só Linux; no Windows é sempre assim).
 let closeToTray = true
-// Notificações vivas: sem referência o GC do Windows as coleta e o clique some.
-const activeNotifications = new Set<Notification>()
 let quitting = false
 // Mensagens que chegaram com a janela fora de vista (selo na barra de tarefas).
 let unseenCount = 0
@@ -287,37 +272,23 @@ export function setupBackground(
     return closeToTray
   })
 
-  ipcMain.on('notify', (_e, payload: NotifyPayload) => {
-    const win = getWindow()
-    if (!win || win.isDestroyed()) return
-    const plan = notifyPlan({ visible: win.isVisible(), focused: win.isFocused() }, payload)
-    if (!plan.toast) return
-    const wantsToast = payload.urgent || payload.toast !== false
-    const toast = wantsToast && Notification.isSupported()
-    if (wantsToast && !toast) logNotification('Notification.isSupported() = false')
-    if (toast) {
-      const notification = new Notification({ title: payload.title, body: payload.body, icon })
-      activeNotifications.add(notification)
-      notification.on('failed', (_event, error) => {
-        activeNotifications.delete(notification)
-        logNotification(`notificação falhou: ${error}`)
-      })
-      notification.on('click', () => {
-        activeNotifications.delete(notification)
+  ipcMain.on('notify', (_e, payload: NotifyPayload) =>
+    handleNotify(payload, {
+      window: getWindow,
+      icon,
+      supported: () => Notification.isSupported(),
+      createToast: (options) => new Notification(options),
+      open: (win, route) => {
         showWindow(win)
-        win.webContents.send('navigate', payload.route)
-      })
-      notification.on('close', () => activeNotifications.delete(notification))
-      notification.show()
-    }
-    if (!plan.taskbar) return
-    const action = taskbarAction(payload)
-    if (action.flash) win.flashFrame(true)
-    if (action.badge) {
-      unseenCount++
-      updateTaskbarBadge(win)
-    }
-  })
+        win.webContents.send('navigate', route)
+      },
+      countUnseen: (win) => {
+        unseenCount++
+        updateTaskbarBadge(win)
+      },
+      log: logNotification
+    })
+  )
 }
 
 const linuxTrayCreated = (): boolean =>

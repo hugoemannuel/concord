@@ -3,6 +3,7 @@ package sticker
 import (
 	"context"
 	"errors"
+	"gin-quickstart/backend/internal/audit"
 	"log"
 	"net/http"
 	"syscall"
@@ -46,6 +47,7 @@ func (h *Handler) Upload(c *gin.Context) {
 			Sticker:  *sticker,
 		}))
 	}
+	h.record(c.Request.Context(), audit.StickerCreate, sticker.UploaderID, sticker.ServerID, sticker.ID, sticker.Name)
 	c.JSON(http.StatusCreated, sticker)
 }
 

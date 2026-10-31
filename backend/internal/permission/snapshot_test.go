@@ -104,10 +104,10 @@ func TestRolesOfOrderedAndHighest(t *testing.T) {
 }
 
 func TestNormalizeDropsUnknownBits(t *testing.T) {
-	if got := Normalize(All | 1<<14 | 1<<40); got != All {
+	if got := Normalize(All | 1<<32 | 1<<40); got != All {
 		t.Fatalf("Normalize = %d, want %d", got, All)
 	}
-	snap := NewSnapshot("s1", "dono", ViewChannel|1<<14).WithMember("ana").WithChannel("c", ChannelText)
+	snap := NewSnapshot("s1", "dono", ViewChannel|1<<32).WithMember("ana").WithChannel("c", ChannelText)
 	if got := snap.Server("ana"); got != ViewChannel {
 		t.Fatalf("bit desconhecido vazou: %d", got)
 	}

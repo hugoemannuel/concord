@@ -3,7 +3,14 @@ import { Perm } from './permissions'
 // Seções das configurações do servidor (tela cheia, como as de usuário). Cada
 // uma aparece para quem tem ao menos uma das permissões que ela usa.
 
-export type ServerSettingsSectionId = 'overview' | 'roles' | 'members' | 'bans' | 'events' | 'level'
+export type ServerSettingsSectionId =
+  | 'overview'
+  | 'roles'
+  | 'members'
+  | 'bans'
+  | 'audit'
+  | 'events'
+  | 'level'
 
 export interface ServerSettingsSection {
   id: ServerSettingsSectionId
@@ -24,6 +31,7 @@ export const SERVER_SETTINGS_SECTIONS: ServerSettingsSection[] = [
   { id: 'roles', label: 'Cargos', anyOf: Perm.MANAGE_ROLES },
   { id: 'members', label: 'Membros', anyOf: MEMBER_PERMS },
   { id: 'bans', label: 'Banimentos', anyOf: Perm.BAN_MEMBERS },
+  { id: 'audit', label: 'Registro de auditoria', anyOf: Perm.VIEW_AUDIT_LOG },
   // O dono escolhe quais cargos criam, editam e excluem eventos (vale para todos os eventos).
   { id: 'events', label: 'Eventos', anyOf: 0, eventsConfig: true },
   // Só leitura, por último (não vira a seção padrão): aparece para quem abre

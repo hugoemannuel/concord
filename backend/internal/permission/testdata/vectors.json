@@ -30,12 +30,21 @@
     "ADD_SOUNDS": 268435456,
     "ADD_EMOJIS": 32768,
     "ADD_STICKERS": 536870912,
-    "SEND_TTS_MESSAGES": 1073741824
+    "SEND_TTS_MESSAGES": 1073741824,
+    "VIEW_AUDIT_LOG": 16384
   },
   "defaults": {
     "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES", "ATTACH_FILES", "ADD_REACTIONS", "READ_MESSAGE_HISTORY", "CREATE_INVITE", "CONNECT", "SPEAK", "STREAM", "USE_SOUNDBOARD", "CHANGE_NICKNAME", "ADD_SOUNDS", "ADD_STICKERS", "SEND_TTS_MESSAGES", "ADD_EMOJIS"]
   },
   "compute": [
+    {
+      "name": "ver o registro de auditoria vem do cargo, não do @everyone, e vale no servidor todo",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES"], "roles": [{"id": "auditor", "position": 2, "permissions": ["VIEW_AUDIT_LOG"]}], "member_roles": ["auditor"],
+      "channel": {"type": "text", "overwrites": [{"target_type": "role", "target_id": "auditor", "allow": [], "deny": ["VIEW_AUDIT_LOG"]}]},
+      "expect_base": ["VIEW_CHANNEL", "SEND_MESSAGES", "VIEW_AUDIT_LOG"],
+      "expect_channel": ["VIEW_CHANNEL", "SEND_MESSAGES"]
+    },
     {
       "name": "adicionar sons e figurinhas são do servidor: o canal não tira",
       "owner_id": "dono", "user_id": "ana",

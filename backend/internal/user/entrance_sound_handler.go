@@ -2,18 +2,13 @@ package user
 
 import (
 	"errors"
-	"io"
 	"log"
 	"net/http"
-	"syscall"
 
 	"gin-quickstart/backend/internal/platform/media"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
-
-var errNotAudio = errors.New("not an audio file")
 
 // EntranceSoundHandler sobe, remove e serve o som de entrada. O corpo do POST
 // é o próprio arquivo (sem multipart): é um arquivo só, pequeno.
@@ -75,36 +70,16 @@ func (h *EntranceSoundHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, u.Self())
 }
 
-// saveAudio grava o corpo com um nome novo e confere que é áudio de verdade
-// (pelos bytes, não pelo Content-Type). Qualquer erro não deixa arquivo.
+// saveAudio grava o corpo e confere que é áudio (ver media.SaveAudio).
 func (h *EntranceSoundHandler) saveAudio(r *http.Request) (string, error) {
-	incoming := max(r.ContentLength, h.maxBytes)
-	if !h.space.HasRoom(incoming) {
-		return "", syscall.ENOSPC
-	}
-	id := uuid.NewString()
-	_, head, err := h.store.Save(id, r.Body, h.maxBytes)
-	if err != nil {
-		return "", err
-	}
-	if _, ok := sniffAudio(head, r.Header.Get("Content-Type")); !ok {
-		h.removeFile(id)
-		return "", errNotAudio
-	}
-	return id, nil
+	return media.SaveAudio(h.store, h.space, r, h.maxBytes, nil)
 }
 
 func entranceSaveStatus(err error) (int, string) {
-	if errors.Is(err, errNotAudio) {
+	if errors.Is(err, media.ErrNotAudio) {
 		return http.StatusUnsupportedMediaType, "only audio files (mp3, wav, ogg, m4a, webm) are allowed"
 	}
 	return saveStatus(err)
-}
-
-// sniffAudio aceita só os áudios do media.Sniff (os mesmos da mesa de áudio).
-func sniffAudio(head []byte, declared string) (string, bool) {
-	kind, contentType, ok := media.Sniff(head, declared)
-	return contentType, ok && kind == media.KindAudio
 }
 
 func (h *EntranceSoundHandler) removeURL(url *string) {
@@ -119,41 +94,10 @@ func (h *EntranceSoundHandler) removeFile(id string) {
 	}
 }
 
-// Serve entrega o som sem token, como o avatar: o <audio> não manda Bearer e o
-// nome é um UUID novo a cada upload (não dá para adivinhar e pode ficar em
-// cache para sempre).
+// Serve entrega o som sem token (ver media.ServeAudio).
 func (h *EntranceSoundHandler) Serve(c *gin.Context) {
-	notFound := func() { c.JSON(http.StatusNotFound, gin.H{"error": "sound not found"}) }
 	id, ok := parseSoundID(c.Param("id"))
-	if !ok {
-		notFound()
-		return
+	if !ok || !media.ServeAudio(c.Writer, c.Request, h.store, id) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "sound not found"})
 	}
-	file, err := h.store.Open(id)
-	if err != nil {
-		notFound()
-		return
-	}
-	defer file.Close()
-
-	head := make([]byte, media.SniffLen)
-	n, _ := io.ReadFull(file, head)
-	// "audio/" desempata m4a e webm, que o Sniff também reconhece como vídeo.
-	contentType, ok := sniffAudio(head[:n], "audio/")
-	if !ok {
-		notFound()
-		return
-	}
-	info, err := file.Stat()
-	if err != nil {
-		notFound()
-		return
-	}
-
-	header := c.Writer.Header()
-	header.Set("Content-Type", contentType)
-	header.Set("X-Content-Type-Options", "nosniff")
-	header.Set("Cache-Control", "public, max-age=31536000, immutable")
-	// ServeContent volta ao começo do arquivo antes de responder.
-	http.ServeContent(c.Writer, c.Request, "", info.ModTime(), file)
 }

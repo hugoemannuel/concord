@@ -20,6 +20,7 @@ func (a *app) wireEvents() {
 	rooms := event.NewRooms(a.channelService, a.permissionService, a.callService, repo)
 	banners := mustStore(filepath.Join(a.uploadsDir, event.BannerDir), "event banners dir")
 	service := event.NewService(repo, repo, a.permissionService, a.hub).WithRooms(rooms).WithBanners(banners)
+	service.SetAudit(a.audit)
 	bannerHandler := event.NewBannerHandler(banners, a.uploadSpace, repo, a.permissionService, a.authService, repo)
 
 	notifier := salinhaBotNotifier{conversations: a.conversationService, messages: a.messageService}

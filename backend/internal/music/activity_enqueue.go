@@ -4,7 +4,7 @@ package music
 // a atividade de música de outra pessoa (docs/ATIVIDADE.md). Mesmas travas do
 // /play: Maestro no servidor, quem pede na call, uma música por vez por pessoa,
 // vídeo ao vivo ou longo demais recusado. Não há seletor: entra o primeiro
-// resultado que dá para tocar.
+// resultado que dá para tocar, direto da busca (com cache, search_cache.go).
 
 import (
 	"context"
@@ -78,19 +78,18 @@ func (m *Manager) enqueueQuery(ctx context.Context, userID, serverID, query stri
 		say(TextNotInVoice)
 		return
 	}
-	mctx, cancel := context.WithTimeout(ctx, metadataTimeout)
-	results, err := m.deps.Source.Search(mctx, query, searchCandidates)
-	cancel()
+	results, err := m.FindTracks(ctx, query)
 	if err != nil || len(results) == 0 {
 		say(TextSearchEmpty(query))
 		return
 	}
 	// O canal de voz serve de "canal de texto": o aviso público vai para o #musica.
-	m.enqueueURL(ctx, loc, loc.ChannelID, userID, videoURL(firstPlayable(results).VideoID), say)
+	// O resultado da busca já basta: resolver o link de novo custava ~4 s (#445).
+	m.enqueueTrack(ctx, loc, loc.ChannelID, userID, firstPlayable(results), say)
 }
 
 // firstPlayable: o primeiro resultado que não é ao vivo nem longo demais; sem
-// nenhum, o primeiro mesmo (o enqueueURL explica a recusa).
+// nenhum, o primeiro mesmo (o enqueueTrack explica a recusa).
 func firstPlayable(results []Track) Track {
 	for _, t := range results {
 		if !t.IsLive && t.DurationMs <= maxVideoMs {

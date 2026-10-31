@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import GifFavoriteButton from './GifFavoriteButton'
+import { gifFromMessage } from '../lib/gifFavorites'
+import { useGifFavorites } from '../hooks/useGifFavorites'
 
 interface MessageGifProps {
   gifUrl: string
@@ -11,6 +14,9 @@ interface MessageGifProps {
 
 export default function MessageGif({ gifUrl, metadata }: MessageGifProps): React.JSX.Element {
   const [failed, setFailed] = useState(false)
+  const gif = gifFromMessage(gifUrl, metadata)
+  const { favorites, toggle } = useGifFavorites(gif !== null)
+  const favorite = gif !== null && favorites.some((f) => f.id === gif.id)
 
   if (failed) {
     return (
@@ -39,7 +45,7 @@ export default function MessageGif({ gifUrl, metadata }: MessageGifProps): React
 
   return (
     <div
-      className="relative my-1 inline-block overflow-hidden rounded-xl bg-black/30 select-none"
+      className="group relative my-1 inline-block overflow-hidden rounded-xl bg-black/30 select-none"
       style={{
         maxWidth: maxWidth,
         maxHeight: maxHeight,
@@ -59,6 +65,14 @@ export default function MessageGif({ gifUrl, metadata }: MessageGifProps): React
       <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 text-ds-xxs font-bold tracking-wider text-white uppercase backdrop-blur-md">
         GIF
       </span>
+      {gif && (
+        <GifFavoriteButton
+          gif={gif}
+          favorite={favorite}
+          onToggle={toggle}
+          className="absolute right-1 top-1 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100 aria-pressed:opacity-100"
+        />
+      )}
     </div>
   )
 }

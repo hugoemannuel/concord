@@ -65,3 +65,11 @@ export function permissionView(permission: WebPermission): {
       }
   }
 }
+
+/**
+ * Opções do aviso do navegador: chamada fica na tela até atender ou fechar.
+ * Sem o som do sistema: o app toca o som escolhido (som dobrado, não).
+ */
+export function browserNotificationOptions(payload: DesktopPayload, icon: string): NotificationOptions {
+  return { body: payload.body, icon, requireInteraction: payload.urgent === true, silent: true }
+}

@@ -20,6 +20,7 @@ import MembersSection from './MembersSection'
 import BansSection from './BansSection'
 import ServerLevelSection from '../../serverlevel/components/ServerLevelSection'
 import EventsSettingsSection from '../../events/components/EventsSettingsSection'
+import AuditLogSection from '../../auditlog/components/AuditLogSection'
 import { useEventAccess } from '../../events/hooks/useEventAccess'
 
 const SECTION_VIEW = {
@@ -28,12 +29,13 @@ const SECTION_VIEW = {
   roles: RolesSection,
   members: MembersSection,
   bans: BansSection,
+  audit: AuditLogSection,
   events: EventsSettingsSection
 } as const
 
 /**
  * Configurações do servidor em tela cheia, como as de usuário: visão geral,
- * nível, cargos, membros e banimentos. Cada seção só aparece para quem tem a
+ * nível, cargos, membros, banimentos e registro de auditoria. Cada seção só aparece para quem tem a
  * permissão (o servidor confere de novo a cada ação).
  */
 function ServerSettingsScreen(): React.JSX.Element | null {
