@@ -19,6 +19,12 @@ import { validCallResume, type CallResume } from '../../shared/callResume'
 import { appendLog, logPath } from '../app/appLog'
 import { sandboxNoticeReason, updateBackendKind } from './linuxInstall'
 import { LinuxUpdater } from './linuxUpdater'
+import {
+  readSandboxNoticeShown,
+  readVerifiedVersion,
+  saveSandboxNoticeShown,
+  saveVerifiedVersion
+} from './updateMarks'
 
 // Atualização automática servida pelo próprio servidor da Salinha
 // (`<servidor>/updates/`). O instalador só é aceito com a assinatura Ed25519
@@ -89,39 +95,6 @@ function logUpdate(message: string, error: unknown): void {
   void stat(path)
     .then((info) => (info.size > LOG_MAX_BYTES ? rename(path, `${path}.1`) : undefined))
     .catch(() => {})
-}
-
-// Versão já baixada e verificada (sobrevive ao reinício do app): só ela pode
-// ser instalada sozinha ao abrir.
-const verifiedPath = (): string => join(app.getPath('userData'), 'update-verified.json')
-
-function readVerifiedVersion(): string | null {
-  try {
-    return (
-      (JSON.parse(readFileSync(verifiedPath(), 'utf8')) as { version?: string }).version ?? null
-    )
-  } catch {
-    return null
-  }
-}
-
-function saveVerifiedVersion(version: string): void {
-  void writeFile(verifiedPath(), JSON.stringify({ version })).catch(() => {})
-}
-
-const sandboxNoticePath = (): string => join(app.getPath('userData'), 'sandbox-notice.json')
-
-function readSandboxNoticeShown(): boolean {
-  try {
-    readFileSync(sandboxNoticePath())
-    return true
-  } catch {
-    return false
-  }
-}
-
-function saveSandboxNoticeShown(): void {
-  void writeFile(sandboxNoticePath(), JSON.stringify({ shown: true })).catch(() => {})
 }
 
 // Atualização recusada (assinatura ou pacote inválido): o mesmo par versão +
