@@ -23,6 +23,7 @@ import ServerSettingsScreen from '../features/servers/components/ServerSettingsS
 import ModerationHost from '../features/call/components/ModerationHost'
 import StreamJoinHost from './StreamJoinHost'
 import TitleBar from '../shared/ui/TitleBar'
+import TitleBarServerSlot from './TitleBarServerSlot'
 import WebNotificationBridge from '../features/notifications/components/WebNotificationBridge'
 import WebLeaveGuard from '../features/call/components/WebLeaveGuard'
 import CallPresenceBridge from '../features/call/components/CallPresenceBridge'
@@ -72,7 +73,7 @@ function App(): React.JSX.Element {
       <StreamJoinHost />
       {customTitleBar ? (
         <div className="flex h-full flex-col">
-          <TitleBar />
+          <TitleBar center={<TitleBarServerSlot />} />
           <div className="relative min-h-0 flex-1">
             <RouterProvider router={router} />
           </div>
