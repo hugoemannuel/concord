@@ -19,7 +19,11 @@ var (
 	fillFields    = []string{"accent", "background", "sidebar", "card"}
 	gradientTypes = []string{"linear", "radial"}
 	densities     = []string{"compact", "normal", "comfortable"}
-	fonts         = []string{"outfit", "system", "serif", "mono"}
+	// As fontes da interface (v3: as embutidas no app; ver docs/adr/0043).
+	fonts = []string{
+		"outfit", "system", "serif", "mono", "montserrat", "comfortaa", "fredoka",
+		"oswald", "bitter", "zilla", "jetbrains", "spacemono",
+	}
 )
 
 // Gradient: a cor base do campo + 1 ou 2 cores. Angle em graus (0–360).
@@ -57,7 +61,7 @@ func withDefaults(t Theme) Theme {
 	t.Radius = intOr(t.Radius, 100)
 	t.Density = strOr(t.Density, "normal")
 	t.Font = strOr(t.Font, "outfit")
-	return t
+	return backdropDefaults(t)
 }
 
 // Migrate devolve a lista lida do banco no formato v2 (padrões no que faltar).
