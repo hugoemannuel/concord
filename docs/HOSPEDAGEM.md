@@ -403,7 +403,36 @@ Confira com `ss -tulnp`.
   não mostra nada, que `getent hosts github.com` resolve e que backend
   (`curl 127.0.0.1:8090/healthz`) e LiveKit (`curl 127.0.0.1:7880/`) seguem
   respondendo.
-- SSH e firewall: veja a auditoria de segurança (tarefa à parte).
+- **SSH só por chave (2026-11-01).** O provedor deixa `01-meteorcloud.conf` e
+  `50-cloud-init.conf` ligando a senha, e no sshd vale o primeiro valor lido;
+  por isso o drop-in tem nome que vem antes deles,
+  `/etc/ssh/sshd_config.d/00-salinha.conf`:
+
+  ```
+  PasswordAuthentication no
+  KbdInteractiveAuthentication no
+  PermitRootLogin prohibit-password
+  ```
+
+  Depois: `sshd -t && systemctl reload ssh`. Antes de mexer, confira que a sua
+  chave está em `/root/.ssh/authorized_keys` e teste uma conexão nova por chave
+  com a atual ainda aberta. Eram ~13 mil tentativas de senha por dia.
+- **fail2ban (2026-11-01):** `/etc/fail2ban/jail.d/salinha-sshd.local`
+  (`backend = systemd`, 5 erros em 10 min = 1 h de bloqueio). Ver com
+  `fail2ban-client status sshd`.
+- **Firewall (2026-11-01):** tabela nft própria, `/etc/salinha-firewall.nft`,
+  carregada pelo `salinha-firewall.service` (habilitado no boot). Entra só o
+  que foi aberto acima (`22`, `80`, `443` TCP, `443` UDP, `7881/tcp`,
+  `7882/udp`) mais conexões já estabelecidas, `lo`, as pontes do Docker e
+  ICMP. É uma tabela separada (`inet salinha_fw`), então não apaga nem mexe nas
+  regras do Docker; **nunca use um `/etc/nftables.conf` com `flush ruleset`**,
+  que derrubaria a rede dos containers. Para abrir uma porta nova: edite o
+  arquivo, `nft -c -f /etc/salinha-firewall.nft` e
+  `systemctl restart salinha-firewall`. Para testar uma mudança sem risco de
+  ficar trancado: `systemd-run --unit=salinha-fw-rollback --on-active=600 nft
+  delete table inet salinha_fw` antes de aplicar e `systemctl stop
+  salinha-fw-rollback.timer` depois de conferir (SSH novo, site, e alguém
+  entrando numa call com áudio).
 
 **Caddy 2.6 e o reload.** O `stream_close_delay`, que faria o reload do Caddy
 não fechar os WebSockets, só existe a partir do 2.7. No 2.6.2 **todo
