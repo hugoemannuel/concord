@@ -57,6 +57,22 @@ const api = {
       ipcRenderer.send('window:title-bar-colors', colors)
     }
   },
+  windowDrag: {
+    /** Início do arraste manual da barra de título (ver TitleBar): posição e se está maximizada. */
+    start(): Promise<{ x: number; y: number; maximized: boolean } | null> {
+      return ipcRenderer.invoke('window:drag-start')
+    },
+    /** Só quando o gesto já passou do limiar de arraste: restaura e devolve a posição nova. */
+    restoreForDrag(): Promise<{ x: number; y: number } | null> {
+      return ipcRenderer.invoke('window:drag-restore')
+    },
+    move(x: number, y: number): void {
+      ipcRenderer.send('window:drag-move', { x, y })
+    },
+    toggleMaximize(): void {
+      ipcRenderer.send('window:drag-toggle-maximize')
+    }
+  },
   screenPicker: {
     /** Main avisa que um pedido de getDisplayMedia está aguardando seleção. */
     onShow(cb: () => void): () => void {

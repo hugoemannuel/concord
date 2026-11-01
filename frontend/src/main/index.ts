@@ -30,6 +30,7 @@ import {
   startHidden
 } from './window/background'
 import { watchWindowActivity } from './window/windowActivity'
+import { setupWindowDrag } from './window/windowDrag'
 import { setupUpdater } from './updates/updater'
 import { updateFeedFor } from './server/serverChoice'
 import { registerServerDiagnostics, startServerChoice } from './server/serverSetup'
@@ -350,6 +351,7 @@ app.whenReady().then(() => {
   registerScreenAudio()
   setupNativeLive()
   setupBackground(() => mainWindow, icon, { small: trayIcon, large: trayIcon2x })
+  setupWindowDrag(() => mainWindow)
   setupOverlay(() => mainWindow)
   setupGlobalKeybinds(() => mainWindow)
   setupActivities(() => mainWindow)

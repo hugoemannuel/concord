@@ -869,11 +869,13 @@
   }
 }
 
-/* Barra de título própria (Windows/Linux): faixa que arrasta a janela. */
-.app-drag {
-  -webkit-app-region: drag;
-}
-
+/*
+ * A barra de título própria (Windows/Linux) arrasta a janela manualmente
+ * (useWindowDrag), não com -webkit-app-region: drag (não cruza monitor no
+ * Windows) — não há mais região nativa de arrastar no renderer, então esta
+ * classe não tem efeito hoje. Os usos dela continuam por precaução: se algo
+ * voltar a usar app-region: drag, eles já escapam dessa região.
+ */
 .app-no-drag {
   -webkit-app-region: no-drag;
 }
