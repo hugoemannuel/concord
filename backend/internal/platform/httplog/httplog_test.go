@@ -12,6 +12,7 @@ func TestRedactQuery(t *testing.T) {
 	cases := map[string]string{
 		"/api/media/a1?token=segredo":           "/api/media/a1?token=REDACTED",
 		"/ws?token=abc":                         "/ws?token=REDACTED",
+		"/ws?ticket=abc&client=mobile":          "/ws?client=mobile&ticket=REDACTED",
 		"/rtc/v1?access_token=lk&auto_sub=true": "/rtc/v1?access_token=REDACTED&auto_sub=true",
 		"/api/channels/c1/messages?limit=50":    "/api/channels/c1/messages?limit=50",
 		"/api/servers":                          "/api/servers",

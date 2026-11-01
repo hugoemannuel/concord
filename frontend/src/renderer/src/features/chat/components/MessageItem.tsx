@@ -250,6 +250,7 @@ function MessageRow({
             meId={author.me?.id}
             canReact={item.canReact}
             serverId={item.serverId}
+            pickerAnchor={actions.pickerAnchor}
             onReact={item.onReact}
             onOpenPicker={actions.togglePicker}
           />

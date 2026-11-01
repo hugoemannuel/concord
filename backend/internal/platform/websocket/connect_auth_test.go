@@ -12,7 +12,7 @@ import (
 // nas salas da própria call e do próprio usuário: o validador confere).
 func TestWSUserAcceptsAccountAndGuest(t *testing.T) {
 	s := auth.NewService(nil, []byte("segredo-de-teste"))
-	h := &Handler{authService: s}
+	a := NewConnectAuth(s)
 	access, _ := s.GenerateAccessToken(context.Background(), "u1")
 	guest, _ := s.GenerateGuestToken("g1", time.Now().Add(time.Hour))
 	media, _, _ := s.GenerateMediaToken("u1")
@@ -27,7 +27,7 @@ func TestWSUserAcceptsAccountAndGuest(t *testing.T) {
 		{"lixo", "lixo", "", false},
 	}
 	for _, tc := range cases {
-		got, ok := h.wsUser(context.Background(), tc.token)
+		got, ok := a.tokenUser(context.Background(), tc.token)
 		if got != tc.want || ok != tc.ok {
 			t.Errorf("%s: (%q, %v), want (%q, %v)", tc.name, got, ok, tc.want, tc.ok)
 		}
@@ -50,17 +50,17 @@ func TestWSUserRecusaSessaoRevogada(t *testing.T) {
 	versions := versionsByUser{"u1": 0}
 	s := auth.NewService(nil, []byte("segredo-de-teste"))
 	s.SetSessionVersions(auth.NewVersionCache(versions, time.Minute))
-	h := &Handler{authService: s}
+	a := NewConnectAuth(s)
 	token, _ := s.GenerateAccessToken(context.Background(), "u1")
 
 	versions["u1"] = 1
 	s.ForgetSession("u1")
-	if _, ok := h.wsUser(context.Background(), token); ok {
+	if _, ok := a.tokenUser(context.Background(), token); ok {
 		t.Fatal("token de versão antiga conectou")
 	}
 	delete(versions, "u1")
 	s.ForgetSession("u1")
-	if _, ok := h.wsUser(context.Background(), token); ok {
+	if _, ok := a.tokenUser(context.Background(), token); ok {
 		t.Fatal("conta excluída conectou")
 	}
 }

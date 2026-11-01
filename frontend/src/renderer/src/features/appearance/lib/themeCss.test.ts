@@ -3,6 +3,10 @@ import { parseThemeCss, THEME_TOKENS } from '../../settings/lib/themes'
 import { PRESET_SEEDS } from './presetSeeds'
 import { customThemesCss } from './themeCss'
 
+/** Só os blocos principais: os @media e as Configurações opacas trocam valores em casos especiais. */
+const mainBlocks = (css: string): string =>
+  css.replace(/@media[^{]*\{[^{}]*\{[^{}]*\}\s*\}/g, '').replace(/\[data-theme='[^']+'\] \.settings-shell \{[^}]*\}/g, '')
+
 describe('customThemesCss', () => {
   const css = customThemesCss([
     { key: 'custom-abc', input: PRESET_SEEDS['discord-dark'] },
@@ -19,8 +23,7 @@ describe('customThemesCss', () => {
       }
     }
   ])
-  // Só os blocos principais (os @media trocam valores em casos especiais).
-  const parsed = parseThemeCss(css.replace(/@media[^{]*\{[^{}]*\{[^{}]*\}\s*\}/g, ''))
+  const parsed = parseThemeCss(mainBlocks(css))
 
   it('um bloco por tema, com todos os tokens', () => {
     expect(Object.keys(parsed).sort()).toEqual(['custom-abc', 'custom-deg', 'custom-luz', 'custom-neo'])
@@ -53,12 +56,32 @@ describe('customThemesCss', () => {
     expect(parsed['custom-neo']['panel-backdrop']).toBe('blur(10px)')
     expect(parsed['custom-neo']['app-image']).toMatch(/^linear-gradient\(/)
     expect(css).toContain("@media (prefers-reduced-transparency: reduce) { [data-theme='custom-neo'] {")
+    // As Configurações cobrem o app: sempre opacas (o chat não aparece atrás do texto delas).
+    expect(css).toMatch(/\[data-theme='custom-neo'\] \.settings-shell \{ [^}]*--bg-primary: #[0-9a-f]{6};/)
   })
 
   it('forma: cantos, densidade só com mouse e fonte', () => {
     expect(parsed['custom-deg']['radius-lg']).toBe('0rem')
     expect(parsed['custom-deg']['font-sans']).toMatch(/^Georgia/)
     expect(css).toContain("@media (pointer: fine) { [data-theme='custom-deg'] { --spacing: 0.225rem; } }")
+  })
+
+  it('imagem de fundo: véu por cima da imagem do servidor, desfoque e nada com menos transparência', () => {
+    const image = '/api/app-theme-images/0f8fad5b-d9cb-469f-a165-70867728950e'
+    const out = customThemesCss(
+      [{ key: 'custom-img', input: { ...PRESET_SEEDS['discord-dark'], image, imageDim: 50, imageBlur: 8 } }],
+      'https://s.exemplo'
+    )
+    const img = parseThemeCss(mainBlocks(out))['custom-img']
+    expect(img['app-image']).toBe(
+      `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("https://s.exemplo${image}")`
+    )
+    expect(img['app-image-filter']).toBe('blur(8px)')
+    expect(out).toMatch(/prefers-reduced-transparency[^}]*--app-image: none;/)
+  })
+
+  it('sem imagem: sem desfoque da janela', () => {
+    expect(parsed['custom-neo']['app-image-filter']).toBe('none')
   })
 
   it('lista vazia, CSS vazio', () => {

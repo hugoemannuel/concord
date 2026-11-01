@@ -46,15 +46,19 @@ function NameModals({
   )
 }
 
-/** Excluir e o aviso de que o perfil de agora (não salvo) vai se perder. */
+/** Excluir, atualizar e o aviso de que o perfil de agora (não salvo) vai se perder. */
 function Confirms({
   view,
   deleting,
-  onCloseDelete
+  onCloseDelete,
+  updating,
+  onCloseUpdate
 }: {
   view: SavedProfilesView
   deleting: SavedProfile | null
   onCloseDelete: () => void
+  updating: SavedProfile | null
+  onCloseUpdate: () => void
 }): React.JSX.Element {
   return (
     <>
@@ -68,6 +72,19 @@ function Confirms({
         onClose={onCloseDelete}
       >
         O perfil salvo some da lista. Seu perfil atual não muda.
+      </ConfirmModal>
+      <ConfirmModal
+        open={updating !== null}
+        title={`Atualizar "${updating?.name ?? ''}"?`}
+        confirmLabel="Atualizar"
+        danger={false}
+        onConfirm={async () => {
+          if (updating) await view.update(updating.id)
+        }}
+        onClose={onCloseUpdate}
+      >
+        O perfil salvo fica igual ao seu perfil atual (foto, banner e textos). O que estava
+        guardado nele se perde; o nome continua o mesmo.
       </ConfirmModal>
       <ConfirmModal
         open={view.pendingApply !== null}
@@ -92,6 +109,7 @@ export default function SavedProfilesPanel(): React.JSX.Element | null {
   const view = useSavedProfiles()
   const [modal, setModal] = useState<NameModal>(null)
   const [deleting, setDeleting] = useState<SavedProfile | null>(null)
+  const [updating, setUpdating] = useState<SavedProfile | null>(null)
   if (!view.user) return null
 
   return (
@@ -137,6 +155,7 @@ export default function SavedProfilesPanel(): React.JSX.Element | null {
               busy={view.busy !== null}
               onApply={() => view.choose(item)}
               onRename={() => setModal({ kind: 'rename', item })}
+              onUpdate={() => setUpdating(item)}
               onDelete={() => setDeleting(item)}
             />
           ))}
@@ -144,7 +163,13 @@ export default function SavedProfilesPanel(): React.JSX.Element | null {
       )}
 
       <NameModals view={view} modal={modal} onClose={() => setModal(null)} />
-      <Confirms view={view} deleting={deleting} onCloseDelete={() => setDeleting(null)} />
+      <Confirms
+        view={view}
+        deleting={deleting}
+        onCloseDelete={() => setDeleting(null)}
+        updating={updating}
+        onCloseUpdate={() => setUpdating(null)}
+      />
     </section>
   )
 }

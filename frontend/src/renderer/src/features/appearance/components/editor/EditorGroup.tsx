@@ -1,17 +1,12 @@
 import { useId, useState } from 'react'
 import { ChevronDownIcon } from '../../../../shared/ui/icons'
 
-/** Seção recolhível do editor de tema: o título é o botão que abre e fecha. */
-export function EditorGroup({
-  title,
-  defaultOpen = false,
-  children
-}: {
-  title: string
-  defaultOpen?: boolean
-  children: React.ReactNode
-}): React.JSX.Element {
-  const [open, setOpen] = useState(defaultOpen)
+/**
+ * Seção recolhível do editor de tema: o título é o botão que abre e fecha.
+ * Todas começam recolhidas (o editor abre mostrando só a lista das seções).
+ */
+export function EditorGroup({ title, children }: { title: string; children: React.ReactNode }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
   const id = useId()
   return (
     <section className="border-b border-subtle last:border-b-0">

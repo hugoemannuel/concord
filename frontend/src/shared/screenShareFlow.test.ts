@@ -4,8 +4,27 @@ import {
   portalMissingMessage,
   portalPackage,
   portalStatus,
+  screenFlowArgs,
+  screenFlowFromArgv,
   screenShareFlow
 } from './screenShareFlow'
+
+// O preload roda em sandbox (sem process.env de confiança): o main decide o
+// fluxo e passa por additionalArguments, como o endereço do servidor.
+describe('screenFlowArgs / screenFlowFromArgv', () => {
+  it('o fluxo decidido no main chega igual ao preload', () => {
+    expect(screenFlowFromArgv(['electron', ...screenFlowArgs('portal')])).toBe('portal')
+    expect(screenFlowFromArgv(['electron', ...screenFlowArgs('app')])).toBe('app')
+  })
+
+  it('sem o argumento (overlay, dev antigo) vale o modal do app', () => {
+    expect(screenFlowFromArgv(['electron', '--salinha-server=https://x'])).toBe('app')
+  })
+
+  it('valor desconhecido não vira fluxo', () => {
+    expect(screenFlowFromArgv(['--salinha-screen-flow=qualquer'])).toBe('app')
+  })
+})
 
 describe('screenShareFlow', () => {
   const wayland = { XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-1' }

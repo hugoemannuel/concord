@@ -42,10 +42,45 @@
     background-image: var(--fill-brand-hover, none);
   }
 
-  /* Janela atrás dos painéis de vidro: o fundo principal do tema próprio. */
+  /* Janela atrás dos painéis de vidro: o fundo principal do tema próprio ou a
+     imagem de fundo dele (com o véu por cima). */
   .app-window-fill {
     background-image: var(--app-image, none);
+    background-position: center;
+    background-size: cover;
   }
+}
+
+/* Imagem de fundo desfocada: o desfoque é de uma camada parada (custa uma vez,
+   não a cada quadro) e ela sobra pelas bordas para o desfoque não clarear a
+   beirada. */
+[data-theme^='custom-'] .app-window-fill {
+  inset: -2.5rem;
+  filter: var(--app-image-filter, none);
+}
+
+/* Brilho dos temas próprios (ADR 0043): as bolhas bem mais fortes que as dos
+   temas prontos e a vinheta pela metade, porque o brilho é escolha da pessoa e
+   tem que aparecer. A paleta (paletteSurfaces.ts, GLOW_PEAK) mede o contraste
+   do texto contra o pico delas. */
+[data-theme^='custom-'] .app-decor > :nth-child(1) {
+  background-color: color-mix(in oklab, var(--hero-1) 80%, transparent);
+}
+
+[data-theme^='custom-'] .app-decor > :nth-child(2) {
+  background-color: color-mix(in oklab, var(--hero-2) 70%, transparent);
+}
+
+[data-theme^='custom-'] .app-decor > :nth-child(3) {
+  background-color: color-mix(in oklab, var(--hero-3) 60%, transparent);
+}
+
+[data-theme^='custom-'] .app-decor > :nth-child(4) {
+  background-color: color-mix(in oklab, var(--hero-4) 50%, transparent);
+}
+
+[data-theme^='custom-'] .app-decor > :nth-child(5) {
+  opacity: 0.5;
 }
 
 /* Vidro dos temas próprios: o desfoque dos painéis segue o tema (sem vidro,

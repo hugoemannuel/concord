@@ -102,4 +102,23 @@ describe('createUpdateCheckGate', () => {
     gate.run()
     expect(check).toHaveBeenCalledTimes(2)
   })
+
+  it('quem chama run com uma checagem em andamento espera a mesma (a janelinha de abertura)', async () => {
+    const { check, finish } = pendingCheck()
+    const gate = createUpdateCheckGate(check, 1000)
+    gate.run()
+    let done = false
+    void gate.run().then(() => {
+      done = true
+    })
+    expect(check).toHaveBeenCalledTimes(1)
+    await finish()
+    for (let i = 0; i < 5; i++) await Promise.resolve()
+    expect(done).toBe(true)
+  })
+
+  it('run resolve mesmo quando a checagem falha', async () => {
+    const gate = createUpdateCheckGate(() => Promise.reject(new Error('sem rede')), 1000)
+    await expect(gate.run()).resolves.toBeUndefined()
+  })
 })

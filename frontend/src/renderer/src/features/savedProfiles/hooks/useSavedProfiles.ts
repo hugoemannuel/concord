@@ -25,12 +25,13 @@ export interface SavedProfilesView {
   save: (name: string) => Promise<boolean>
   rename: (id: string, name: string) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
+  update: (id: string) => Promise<boolean>
 }
 
 /** Perfis salvos da tela Perfis: carrega ao abrir e decide quando confirmar. */
 export function useSavedProfiles(): SavedProfilesView {
   const user = useAuthStore((s) => s.user)
-  const { items, loaded, busy, load, save, rename, remove, apply } = useSavedProfilesStore()
+  const { items, loaded, busy, load, save, rename, remove, update, apply } = useSavedProfilesStore()
   const [pendingApply, setPendingApply] = useState<SavedProfile | null>(null)
   const userId = user?.id
 
@@ -64,6 +65,7 @@ export function useSavedProfiles(): SavedProfilesView {
     cancelApply: () => setPendingApply(null),
     save,
     rename,
-    remove
+    remove,
+    update
   }
 }
