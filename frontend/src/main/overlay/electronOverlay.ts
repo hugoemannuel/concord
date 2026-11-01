@@ -13,6 +13,7 @@ import { appendLog } from '../app/appLog'
 import { overlayFrame, overlayWindowRect, type OverlayFrame, type Rect } from './overlayPolicy'
 import type { OverlayHost, OverlaySurface } from './overlaySurface'
 import { guardNavigation } from '../window/navigationGuard'
+import { SANDBOXED_PREFERENCES } from '../security/sandbox'
 
 // Overlay desenhado por uma janela do Electron: transparente, click-through e
 // sem foco por cima do jogo em tela cheia em janela (nada é injetado no jogo).
@@ -64,8 +65,8 @@ function createOverlayWindow(): BrowserWindow {
     type: 'toolbar',
     alwaysOnTop: true,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      ...SANDBOXED_PREFERENCES,
+      preload: join(__dirname, '../preload/index.js')
     }
   })
   // Cliques passam para o jogo; nível acima de janelas em tela cheia.

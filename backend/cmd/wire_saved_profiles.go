@@ -13,7 +13,7 @@ import (
 func (a *app) wireSavedProfiles(profiles *user.ProfileService) {
 	repository := savedprofile.NewRepository(a.db)
 	a.profileHandler.SetMediaKeeper(repository)
-	handler := savedprofile.NewHandler(savedprofile.NewService(repository, a.userService, profiles), a.profileHandler)
+	handler := savedprofile.NewHandler(savedprofile.NewService(repository, a.userService, profiles), a.profileHandler, a.hub)
 
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) {
 		savedprofile.Routes(api, handler, a.authMiddleware)

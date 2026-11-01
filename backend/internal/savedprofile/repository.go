@@ -102,6 +102,29 @@ func (r *Repository) Rename(ctx context.Context, userID, id, name string) (*Save
 	return sp, nameTaken(err)
 }
 
+// Overwrite troca o snapshot (campos, avatar e banner) mantendo nome e
+// posição. Devolve o perfil salvo novo e o anterior; a linha fica travada
+// para a leitura do anterior e a troca serem uma coisa só.
+func (r *Repository) Overwrite(ctx context.Context, userID, id string, snap user.ProfileSnapshot) (*SavedProfile, *SavedProfile, error) {
+	var sp, old *SavedProfile
+	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		var err error
+		old, err = scan(tx.QueryRow(ctx, `SELECT `+columns+` FROM saved_profiles WHERE id = $1 AND user_id = $2 FOR UPDATE`, id, userID))
+		if err != nil {
+			return err
+		}
+		sp, err = scan(tx.QueryRow(ctx, `
+			UPDATE saved_profiles SET avatar_url = $3, banner_url = $4, fields = $5, updated_at = NOW()
+			WHERE id = $1 AND user_id = $2
+			RETURNING `+columns, id, userID, snap.AvatarURL, snap.BannerURL, snap.Fields))
+		return err
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return sp, old, nil
+}
+
 // Delete apaga e devolve o que foi apagado.
 func (r *Repository) Delete(ctx context.Context, userID, id string) (*SavedProfile, error) {
 	return scan(r.db.QueryRow(ctx, `DELETE FROM saved_profiles WHERE id = $1 AND user_id = $2 RETURNING `+columns, id, userID))

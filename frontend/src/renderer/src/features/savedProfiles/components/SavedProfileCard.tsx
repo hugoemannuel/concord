@@ -1,5 +1,5 @@
 import Avatar from '../../../shared/ui/Avatar'
-import { PencilIcon, TrashIcon } from '../../../shared/ui/icons'
+import { PencilIcon, RefreshIcon, TrashIcon } from '../../../shared/ui/icons'
 import { API_BASE_URL } from '../../../shared/lib/config'
 import StyledName from '../../profile/components/StyledName'
 import { DEFAULT_BANNER, profileMediaSrc } from '../../profile/lib/profileMedia'
@@ -23,8 +23,9 @@ function BannerStrip({ item }: { item: SavedProfile }): React.JSX.Element {
 }
 
 /**
- * Um perfil salvo: tocar aplica; lápis e lixeira ficam sempre à mostra (no
- * toque não há hover). O que está em uso aparece marcado.
+ * Um perfil salvo: tocar aplica; atualizar, lápis e lixeira ficam sempre à
+ * mostra (no toque não há hover). Atualizar fica travado no que está em uso
+ * (já é igual ao perfil atual). O que está em uso aparece marcado.
  */
 export default function SavedProfileCard({
   item,
@@ -32,6 +33,7 @@ export default function SavedProfileCard({
   busy,
   onApply,
   onRename,
+  onUpdate,
   onDelete
 }: {
   item: SavedProfile
@@ -40,6 +42,7 @@ export default function SavedProfileCard({
   busy: boolean
   onApply: () => void
   onRename: () => void
+  onUpdate: () => void
   onDelete: () => void
 }): React.JSX.Element {
   const shown = item.fields.display_name
@@ -60,7 +63,7 @@ export default function SavedProfileCard({
         <span className="relative rounded-full border-4 border-[var(--bg-floating)]">
           <Avatar name={shown} avatarUrl={item.avatar_url} size={40} animate="never" />
         </span>
-        <span className="flex w-full min-w-0 items-center gap-2 pr-20">
+        <span className="flex w-full min-w-0 items-center gap-2 pr-32">
           <span className="min-w-0 truncate text-ds-sm font-semibold text-strong">{item.name}</span>
           {current && (
             <span className="shrink-0 rounded-md bg-brand/20 px-1.5 py-0.5 text-ds-xs font-semibold text-strong">
@@ -73,6 +76,16 @@ export default function SavedProfileCard({
         </span>
       </button>
       <div className="absolute bottom-1.5 right-1.5 flex">
+        <button
+          type="button"
+          aria-label={`Atualizar ${item.name} com o perfil atual`}
+          title={current ? 'Já está igual ao perfil atual' : 'Atualizar com o perfil atual'}
+          disabled={busy || current}
+          onClick={onUpdate}
+          className={ICON_BUTTON}
+        >
+          <RefreshIcon className="size-4" />
+        </button>
         <button
           type="button"
           aria-label={`Renomear ${item.name}`}

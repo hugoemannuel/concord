@@ -11,32 +11,35 @@ export const ON_DEMAND_DEBOUNCE_MS = 1_000
 export interface UpdateCheckGate {
   /** Pedido de fora (WS): checa depois do debounce. */
   request: () => void
-  /** Checa agora (ao abrir, periódica). */
-  run: () => void
+  /** Checa agora (ao abrir, periódica). Resolve quando a checagem (a nova ou a em andamento) termina. */
+  run: () => Promise<void>
 }
 
 export function createUpdateCheckGate(
   check: () => Promise<unknown>,
   debounceMs = ON_DEMAND_DEBOUNCE_MS
 ): UpdateCheckGate {
-  let inFlight = false
+  let inFlight: Promise<void> | null = null
   /** Pedido de fora chegou durante a checagem em andamento. */
   let again = false
   let timer: ReturnType<typeof setTimeout> | null = null
 
-  const run = (): void => {
-    if (inFlight) return
-    inFlight = true
+  const run = (): Promise<void> => {
+    if (inFlight) return inFlight
     // Quem passa `check` registra o erro; aqui só libera a próxima.
-    check()
-      .catch(() => {})
+    inFlight = check()
+      .then(
+        () => {},
+        () => {}
+      )
       .finally(() => {
-        inFlight = false
+        inFlight = null
         if (again) {
           again = false
-          run()
+          void run()
         }
       })
+    return inFlight
   }
 
   const request = (): void => {

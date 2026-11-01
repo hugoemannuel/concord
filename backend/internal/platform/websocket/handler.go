@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"gin-quickstart/backend/internal/auth"
 	"gin-quickstart/backend/internal/conversation"
 	"gin-quickstart/backend/internal/permission"
 
@@ -26,7 +25,7 @@ type ServerMembers interface {
 
 type Handler struct {
 	hub                 *Hub
-	authService         *auth.Service
+	connAuth            *ConnectAuth
 	perms               ChannelPermissions
 	members             ServerMembers
 	conversationService *conversation.Service
@@ -36,10 +35,10 @@ type Handler struct {
 	mobile *MobileApps
 }
 
-func WsHandler(hub *Hub, authService *auth.Service, perms ChannelPermissions, members ServerMembers, conversationService *conversation.Service, callRouter CallRouter, typing TypingRouter) *Handler {
+func WsHandler(hub *Hub, connAuth *ConnectAuth, perms ChannelPermissions, members ServerMembers, conversationService *conversation.Service, callRouter CallRouter, typing TypingRouter) *Handler {
 	return &Handler{
 		hub:                 hub,
-		authService:         authService,
+		connAuth:            connAuth,
 		perms:               perms,
 		members:             members,
 		conversationService: conversationService,
@@ -81,24 +80,8 @@ func (h *Handler) canJoinConversation(ctx context.Context, conversationID, userI
 	return err == nil && isParticipant
 }
 
-// wsUser: quem o token deixa conectar — a conta (token de acesso) ou o
-// visitante sem conta (token de visitante, docs/adr/0017-visitante-na-call.md).
-// O visitante não é membro de nada: o validador das salas só o deixa entrar na
-// sala do próprio usuário e na da call em que está.
-// O token de acesso também precisa ser da versão atual da sessão (ADR 0039).
-func (h *Handler) wsUser(ctx context.Context, token string) (string, bool) {
-	claims, err := h.authService.ValidateToken(token)
-	if err != nil || (claims.Type != "access" && claims.Type != auth.TokenGuest) {
-		return "", false
-	}
-	if h.authService.CheckSession(ctx, claims) != nil {
-		return "", false
-	}
-	return claims.UserID, true
-}
-
 func (h *Handler) ServeWS(c *gin.Context) {
-	userID, ok := h.wsUser(c.Request.Context(), c.Query("token"))
+	userID, ok := h.connAuth.connectUser(c.Request.Context(), c.Request)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 		return
@@ -106,7 +89,8 @@ func (h *Handler) ServeWS(c *gin.Context) {
 
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
 		// O app empacotado conecta a partir de file:// (sem host de origem) e a
-		// autenticação já é feita pelo ?token=, então a origem não é checada.
+		// autenticação já é feita pelo ?ticket= (ou ?token= legado), sem cookie:
+		// a origem não é checada.
 		InsecureSkipVerify: true,
 	})
 	if err != nil {

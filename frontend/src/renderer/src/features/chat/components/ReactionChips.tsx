@@ -77,13 +77,22 @@ function ReactionChip({
   )
 }
 
+/** Só aparece com o mouse na mensagem (hover), no foco do teclado e sempre no toque. */
+const ADD_HIDDEN_UNTIL_HOVER =
+  '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100'
+
 /**
  * "Adicionar reação" no fim das pílulas: aparece ao passar o mouse na
- * mensagem (como no Discord), no foco do teclado e sempre no toque.
+ * mensagem (como no Discord), no foco do teclado e sempre no toque. Com o
+ * seletor aberto por ele (`active`) fica visível mesmo com o mouse fora da
+ * mensagem, que é onde o mouse está quando usa o seletor.
  */
 function AddReactionChip({
+  active,
   onClick
 }: {
+  /** O seletor de emoji aberto por este botão está aberto. */
+  active: boolean
   /** Recebe o próprio botão: é nele que o seletor de emoji se ancora. */
   onClick: (button: HTMLElement) => void
 }): React.JSX.Element {
@@ -93,7 +102,10 @@ function AddReactionChip({
       onClick={(e) => onClick(e.currentTarget)}
       title="Adicionar reação"
       aria-label="Adicionar reação"
-      className="inline-flex h-7 w-9 cursor-pointer items-center justify-center rounded-lg border border-transparent bg-fg/5 text-muted transition-colors hover:border-strong hover:bg-fg/10 hover:text-strong focus-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+      aria-expanded={active}
+      className={`inline-flex h-7 w-9 cursor-pointer items-center justify-center rounded-lg border border-transparent bg-fg/5 text-muted transition-colors hover:border-strong hover:bg-fg/10 hover:text-strong focus-ring ${
+        active ? 'opacity-100' : ADD_HIDDEN_UNTIL_HOVER
+      }`}
     >
       <AddReactionIcon className="h-5 w-5" />
     </button>
@@ -106,6 +118,7 @@ function ReactionChips({
   meId,
   canReact,
   serverId,
+  pickerAnchor,
   onReact,
   onOpenPicker
 }: {
@@ -115,6 +128,11 @@ function ReactionChips({
   canReact: boolean
   /** Canal de servidor: o "quem reagiu" usa o apelido de lá. */
   serverId?: string
+  /**
+   * Botão que abriu o seletor de emoji aberto agora (null = fechado ou aberto
+   * pela barra de ações). Só o "+" abre ancorado, então não-nulo = foi ele.
+   */
+  pickerAnchor: HTMLElement | null
   onReact: (emoji: string) => void
   /** Abre o seletor de emoji ancorado no botão "+" (`anchor`). */
   onOpenPicker: (anchor: HTMLElement) => void
@@ -192,7 +210,7 @@ function ReactionChips({
           onMouseLeave={scheduleClose}
         />
       ))}
-      {canReact && <AddReactionChip onClick={onOpenPicker} />}
+      {canReact && <AddReactionChip active={pickerAnchor !== null} onClick={onOpenPicker} />}
       {hovered && hoveredReaction && hoveredReaction.user_ids.length > 0 && (
         <ReactionTooltip
           emoji={hoveredReaction.emoji}

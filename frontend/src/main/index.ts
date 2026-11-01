@@ -20,7 +20,9 @@ import { shareStreams, type ShareDeps } from './screen/shareSource'
 import { WindowWatch } from './screen/windowWatch'
 import { PreferredSource, findGameWindow, listProcessWindows } from './screen/gameWindow'
 import { checkScreenCastPortal } from './screen/screenPortal'
-import { portalMissingMessage, screenShareFlow } from '../shared/screenShareFlow'
+import { portalMissingMessage, screenFlowArgs, screenShareFlow } from '../shared/screenShareFlow'
+import { enforceSandbox, SANDBOXED_PREFERENCES } from './security/sandbox'
+import { appOrigins, setupSessionPermissions } from './security/sessionPermissions'
 import {
   attachCloseToTray,
   ensureSingleInstance,
@@ -46,12 +48,8 @@ import { handleInviteArgs, handleInviteUrl, setupInviteProtocol } from './app/in
 import { closeActivity, setupActivities } from './activity/activityWindow'
 import { APP_USER_MODEL_ID } from './window/toastPolicy'
 import { setupToasts } from './window/toasts'
-import {
-  parseTitleBarColors,
-  TITLE_BAR_COLOR,
-  TITLE_BAR_HEIGHT,
-  titleBarOptions
-} from './window/windowPolicy'
+import { TITLE_BAR_COLOR, titleBarOptions } from './window/windowPolicy'
+import { registerThemeHandlers } from './window/titleBarTheme'
 import { isSafeExternalUrl } from '../shared/externalUrl'
 import { fromWindow, parseSourceId } from './window/ipcGuard'
 import { guardNavigation } from './window/navigationGuard'
@@ -64,10 +62,18 @@ import {
   stopWindowAudio
 } from './screen/screenAudio'
 import { setupNativeLive } from './nativeLive/setupNativeLive'
+import { openSplash } from './splash/openSplash'
+import { takeHiddenRelaunch } from './splash/splashMarks'
 
 let mainWindow: BrowserWindow | null = null
 /** Endereço do servidor que respondeu ao abrir (undefined no dev: o do build). */
 let serverUrl: string | undefined
+/** Wayland usa o seletor do sistema; o preload (em sandbox) recebe por argumento. */
+const screenFlow = screenShareFlow(process.platform, process.env)
+/** Aberto pelo login do sistema (ou reaberto pela instalação dele): fica na bandeja. */
+let launchHidden = false
+/** Servidor do Vite no dev (só lá): a única origem http liberada além dos servidores do build. */
+const devRendererUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined
 
 // Picker de tela (Fase 3): o getDisplayMedia do renderer dispara este handler,
 // que pede ao renderer para abrir o modal de seleção e resolve com a fonte
@@ -89,30 +95,13 @@ const windowWatch = new WindowWatch(
   () => mainWindow?.webContents.send('screen-share:window-hidden')
 )
 
-/** Tema trocou no renderer: a barra de título nativa acompanha (Windows/Linux). */
-function registerThemeHandlers(): void {
-  ipcMain.on('window:title-bar-colors', (event, raw: unknown) => {
-    const win = mainWindow
-    if (!win || event.sender !== win.webContents) return
-    const colors = parseTitleBarColors(raw)
-    if (!colors) return
-    win.setBackgroundColor(colors.color)
-    if (process.platform === 'darwin') return
-    try {
-      win.setTitleBarOverlay({ ...colors, height: TITLE_BAR_HEIGHT })
-    } catch {
-      // Sem overlay nativo nesta plataforma/versão: só a faixa do renderer muda.
-    }
-  })
-}
-
 function registerScreenShareHandlers(): void {
   ipcMain.on('screen-share:ended', () => windowWatch.stop())
 
   // Wayland: o seletor é o do sistema (xdg-desktop-portal). Cada getSources
   // abre o seletor e devolve só a fonte escolhida, com id novo a cada vez —
   // por isso não dá para listar no modal do app e depois procurar pelo id.
-  const flow = screenShareFlow(process.platform, process.env)
+  const flow = screenFlow
 
   // O renderer pergunta antes de abrir o seletor: sem o portal, o getSources
   // falha igual a um "Cancelar" e ninguém saberia o motivo.
@@ -240,18 +229,18 @@ function createWindow(): void {
     ...titleBarOptions(process.platform),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
+      ...SANDBOXED_PREFERENCES,
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
       // Em chamada o throttling de segundo plano fica desligado (a live travaria
       // para quem assiste); fora dela, ligado. Quem decide é o watchWindowActivity.
       backgroundThrottling: false,
-      additionalArguments: serverArgs(serverUrl)
+      additionalArguments: [...serverArgs(serverUrl), ...screenFlowArgs(screenFlow)]
     }
   })
 
   mainWindow.on('ready-to-show', () => {
     // Aberto pelo "Iniciar com o Windows": fica só na bandeja.
-    if (!startHidden()) mainWindow?.show()
+    if (!launchHidden) mainWindow?.show()
   })
   attachCloseToTray(mainWindow)
   watchWindowActivity(mainWindow, { inCall: isInCall, onCallStateChange })
@@ -319,6 +308,7 @@ function loadRenderer(win: BrowserWindow): void {
 // O app se chamava Concord: a pasta de dados continua a mesma para ninguém
 // perder o login nem as configurações (antes do lock, que mora nela).
 app.setPath('userData', join(app.getPath('appData'), 'Concord'))
+enforceSandbox(app)
 if (
   !ensureSingleInstance(
     () => mainWindow,
@@ -335,6 +325,9 @@ if (
 app.whenReady().then(() => {
   // Primeiro de tudo: o tempo de abertura medido começa daqui. Sem --perf-log não faz nada.
   setupPerfLog(() => mainWindow)
+  // A janelinha de abertura aparece já: atualiza (se houver) antes de abrir.
+  launchHidden = startHidden() || takeHiddenRelaunch()
+  const splash = openSplash(launchHidden, icon)
   // Testa os endereços do servidor enquanto o resto inicia.
   const serverChoice = startServerChoice(__CONCORD_SERVER_URLS__)
   registerServerDiagnostics(serverChoice, __CONCORD_SERVER_URLS__)
@@ -343,11 +336,14 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId(APP_USER_MODEL_ID)
   // Antes de qualquer notificação: CLSID fixo e atalho do Menu Iniciar.
   setupToasts()
+  // Câmera, microfone, notificação...: só o próprio app e só o que ele usa.
+  const origins = appOrigins(join(__dirname, '../renderer'), devRendererUrl, __CONCORD_SERVER_URLS__)
+  setupSessionPermissions(app, session.defaultSession, origins)
   // Sem a barra "File Edit View Window" padrão do Electron (aparecia no Alt).
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
 
   registerScreenShareHandlers()
-  registerThemeHandlers()
+  registerThemeHandlers(() => mainWindow)
   registerScreenAudio()
   setupNativeLive()
   setupBackground(() => mainWindow, icon, { small: trayIcon, large: trayIcon2x })
@@ -369,13 +365,15 @@ app.whenReady().then(() => {
 
   // A janela abre já com o endereço que responde (o principal ou um
   // alternativo, se o principal estiver bloqueado na rede de quem usa).
-  void serverChoice.then((choice) => {
+  void serverChoice.then(async (choice) => {
     serverUrl = choice?.url
-    setupUpdater(() => mainWindow, {
+    const startupUpdate = setupUpdater(() => mainWindow, {
       feedUrl: updateFeedFor(__CONCORD_UPDATE_URL__, serverUrl),
       publicKeyPem: __CONCORD_UPDATE_PUBKEY__
     })
+    await splash.update(startupUpdate)
     createWindow()
+    if (mainWindow) splash.handOff(mainWindow)
   })
 
   app.on('activate', function () {

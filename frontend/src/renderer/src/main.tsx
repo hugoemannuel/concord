@@ -15,6 +15,7 @@ import { startScreenSounds } from './features/call/lib/screenSoundsStart'
 import { startAppSounds } from './features/appsounds/lib/appSoundsStart'
 import { startArrivalBadges } from './features/call/lib/arrivalEventsStart'
 import { startCallInvites } from './features/call/lib/callInviteStart'
+import { startSavedProfilesSync } from './features/savedProfiles/lib/savedProfilesStart'
 import { startSpeechReport } from './features/call/lib/speechReportStart'
 import { startPresenceActivity } from './features/activity/lib/presenceActivityStart'
 import { startTTS } from './features/tts/lib/ttsStart'
@@ -43,6 +44,9 @@ startSpeechReport()
 
 // Cartões de convite para a call na DM: viram "inválidos" quando a call acaba.
 startCallInvites()
+
+// Perfis salvos: a lista acompanha as mudanças feitas em outros aparelhos.
+startSavedProfilesSync()
 
 // O jogo e a música dos outros agora (presence:activity).
 startPresenceActivity()
