@@ -80,3 +80,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0040. Temas próprios da aparência: paleta gerada no cliente a partir de poucas cores, lista na conta](0040-aparencia-personalizada.md)
 - [0041. Aparência v2: edição ao vivo no app inteiro, degradês, vidro e forma nos temas próprios](0041-aparencia-v2.md)
 - [0042. Servidor próprio guiado por IA: build na própria VPS e app no navegador](0042-servidor-proprio-guiado-por-ia.md)
+- [0043. Aparência v3: brilho visível, efeitos animados e imagem no fundo do app, mais fontes](0043-aparencia-v3.md)

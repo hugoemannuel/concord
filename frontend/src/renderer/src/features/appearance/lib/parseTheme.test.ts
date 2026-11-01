@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { parseGradient, parseThemeInput } from './parseTheme'
+import { DEFAULT_BACKDROP } from './themeInput'
+
+const IMAGE = '/api/app-theme-images/0f8fad5b-d9cb-469f-a165-70867728950e'
 
 const V1 = {
   id: 'abc',
@@ -29,7 +32,8 @@ describe('parseThemeInput', () => {
       glass: 40,
       radius: 100,
       density: 'normal',
-      font: 'outfit'
+      font: 'outfit',
+      ...DEFAULT_BACKDROP
     })
     expect(parseThemeInput({ ...V1, glow: '' })?.glass).toBe(0)
   })
@@ -59,6 +63,46 @@ describe('parseThemeInput', () => {
   it('extra inválido cai no padrão sem perder o tema', () => {
     const t = parseThemeInput({ ...V1, glass: 300, radius: -1, density: 'x', font: 1, border: 'azul', gradients: 'x' })
     expect(t).toMatchObject({ glass: 40, radius: 100, density: 'normal', font: 'outfit', border: '', gradients: {} })
+  })
+
+  it('lê o fundo da v3 (efeito, imagem) e as fontes novas', () => {
+    const t = parseThemeInput({
+      ...V1,
+      effect: 'snow',
+      effectDensity: 80,
+      effectSpeed: 1,
+      effectColor: '#FFFFFF',
+      image: IMAGE,
+      imageDim: 70,
+      imageBlur: 12,
+      font: 'montserrat'
+    })
+    expect(t).toMatchObject({
+      effect: 'snow',
+      effectDensity: 80,
+      effectSpeed: 1,
+      effectColor: '#ffffff',
+      image: IMAGE,
+      imageDim: 70,
+      imageBlur: 12,
+      font: 'montserrat'
+    })
+  })
+
+  it('fundo inválido cai no padrão (imagem só do app: nada de URL de fora nem que escape do url())', () => {
+    const t = parseThemeInput({
+      ...V1,
+      effect: 'fumaça',
+      effectDensity: 0,
+      effectSpeed: 101,
+      effectColor: 'azul',
+      imageDim: 95,
+      imageBlur: 21,
+      image: 'https://exemplo.com/a.png'
+    })
+    expect(t).toMatchObject(DEFAULT_BACKDROP)
+    expect(parseThemeInput({ ...V1, image: `${IMAGE}");x:url("` })?.image).toBe('')
+    expect(parseThemeInput({ ...V1, image: '/api/profile-media/0f8fad5b-d9cb-469f-a165-70867728950e' })?.image).toBe('')
   })
 
   it('cores básicas inválidas: null', () => {

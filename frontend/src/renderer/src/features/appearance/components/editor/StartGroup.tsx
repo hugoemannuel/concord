@@ -15,7 +15,7 @@ const STARTER_CHIPS = STARTERS.map((s) => ({ id: s.id, label: s.label }))
 export function StartGroup({ draft, update }: GroupProps): React.JSX.Element {
   const [base, setBase] = useState(draft.accent)
   return (
-    <EditorGroup title="Nome e ponto de partida" defaultOpen={draft.isNew}>
+    <EditorGroup title="Nome e ponto de partida">
       <Input
         label="Nome"
         value={draft.name}
@@ -33,7 +33,7 @@ export function StartGroup({ draft, update }: GroupProps): React.JSX.Element {
             const starter = STARTERS.find((s) => s.id === id)
             if (starter) update(starter.input, 'start')
           }}
-          className="grid-cols-2 min-[400px]:grid-cols-3"
+          className="grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]"
         />
         <select
           aria-label="Começar de um tema do app"

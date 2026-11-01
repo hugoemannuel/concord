@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom'
 import { useThemeEditorKeys } from '../../hooks/useThemeEditorKeys'
 import { buildPalette } from '../../lib/palette'
 import { useThemeEditorStore, type Draft } from '../../store/themeEditorStore'
+import { BackdropGroup } from './BackdropGroup'
 import { ColorsGroup } from './ColorsGroup'
 import { EffectsGroup } from './EffectsGroup'
+import { ImageGroup } from './ImageGroup'
 import { PanelFooter } from './PanelFooter'
 import { PanelHeader } from './PanelHeader'
 import { ShapeGroup } from './ShapeGroup'
@@ -52,6 +54,8 @@ export function ThemeEditorPanel({ draft }: { draft: Draft }): React.JSX.Element
             <StartGroup draft={draft} update={update} />
             <ColorsGroup draft={draft} update={update} palette={palette} />
             <EffectsGroup draft={draft} update={update} scheme={palette.scheme} />
+            <BackdropGroup draft={draft} update={update} />
+            <ImageGroup draft={draft} update={update} scheme={palette.scheme} />
             <ShapeGroup draft={draft} update={update} />
           </div>
           <PanelFooter draft={draft} palette={palette} />

@@ -56,7 +56,7 @@ function SettingsShell({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      className="app-no-drag fixed inset-x-0 bottom-0 z-50 flex flex-col bg-primary pl-safe pr-safe pt-safe text-normal md:flex-row"
+      className="settings-shell app-no-drag fixed inset-x-0 bottom-0 z-50 flex flex-col bg-primary pl-safe pr-safe pt-safe text-normal md:flex-row"
       style={{ top: 'var(--titlebar-height, 0px)' }}
     >
       <aside

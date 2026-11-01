@@ -20,6 +20,7 @@ import UserProfileCard from '../features/profile/components/UserProfileCard'
 import FriendActionsHost from '../features/friends/components/FriendActionsHost'
 import SettingsScreen from '../features/settings/components/SettingsScreen'
 import { ThemeEditorHost } from '../features/appearance/components/ThemeEditorHost'
+import { ThemeBackdrop } from '../features/appearance/components/ThemeBackdrop'
 import ServerSettingsScreen from '../features/servers/components/ServerSettingsScreen'
 import ModerationHost from '../features/call/components/ModerationHost'
 import StreamJoinHost from './StreamJoinHost'
@@ -38,6 +39,7 @@ function App(): React.JSX.Element {
   return (
     <>
       <Background />
+      <ThemeBackdrop />
       <ToastContainer />
       <WindowActivityBridge />
       <CallPresenceBridge />

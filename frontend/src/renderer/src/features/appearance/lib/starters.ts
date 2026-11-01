@@ -19,9 +19,9 @@ const linear = (angle: number, ...colors: string[]): { type: 'linear'; angle: nu
 
 export const STARTERS: Starter[] = [
   {
-    // O exemplo da issue #486.
-    id: 'vermelho-branco',
-    label: 'Vermelho e branco',
+    // O exemplo da issue #486: o branco é a cor principal e o vermelho, o destaque.
+    id: 'branco-vermelho',
+    label: 'Branco e vermelho',
     input: {
       ...withDefaults({ accent: '#dc2626', background: '#ffffff', sidebar: '#fff1f2', card: '#ffffff', text: '#1f1f1f', glow: '' }),
       gradients: { accent: linear(135, '#991b1b'), background: linear(180, '#ffe4e6'), sidebar: linear(180, '#fecdd3') },
@@ -56,7 +56,7 @@ export const STARTERS: Starter[] = [
     input: {
       ...withDefaults({ accent: '#15803d', background: '#0b1020', sidebar: '#0a0e1c', card: '#121a30', text: '#e8fff1', glow: '#7c3aed' }),
       gradients: { accent: linear(120, '#0e7490'), background: linear(200, '#0d1a2a') },
-      highlight: '#a78bfa',
+      highlight: '#ddd6fe',
       glass: 75,
       radius: 150
     }

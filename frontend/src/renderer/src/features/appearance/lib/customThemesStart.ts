@@ -2,11 +2,17 @@ import { useAuthStore } from '../../auth/store/authStore'
 import { refreshTheme } from '../../settings/store/themeStore'
 import { useCustomThemesStore } from '../store/customThemesStore'
 import { CUSTOM_THEMES_STORAGE_KEY, customThemeKey, type CustomTheme } from './customThemes'
+import { API_BASE_URL } from '../../../shared/lib/config'
 import { customThemesCss } from './themeCss'
+import { imageOrigin } from './themeImage'
 import { SAVED_THEMES_STYLE, writeStyleSheet } from './themeStyleSheet'
 
+/** As imagens de fundo vêm do servidor (no web, da mesma origem). */
+const IMAGE_ORIGIN = imageOrigin(API_BASE_URL)
+
 function writeThemes(themes: CustomTheme[]): void {
-  writeStyleSheet(SAVED_THEMES_STYLE, customThemesCss(themes.map((t) => ({ key: customThemeKey(t.id), input: t }))))
+  const entries = themes.map((t) => ({ key: customThemeKey(t.id), input: t }))
+  writeStyleSheet(SAVED_THEMES_STYLE, customThemesCss(entries, IMAGE_ORIGIN))
 }
 
 /** Entrou ou trocou de conta: traz os temas dela. Ao sair, a cópia local fica. */
