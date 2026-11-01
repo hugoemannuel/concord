@@ -19,6 +19,11 @@ export function renameSavedProfile(id: string, name: string): Promise<SavedProfi
   return request<SavedProfile>(one(id), { method: 'PATCH', body: JSON.stringify({ name }) })
 }
 
+/** Sobrescreve o perfil salvo com o perfil atual (mantém nome e posição). */
+export function updateSavedProfile(id: string): Promise<SavedProfile> {
+  return request<SavedProfile>(one(id), { method: 'PUT' })
+}
+
 export function deleteSavedProfile(id: string): Promise<void> {
   return request<void>(one(id), { method: 'DELETE' })
 }

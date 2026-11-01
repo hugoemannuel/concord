@@ -20,10 +20,11 @@ type mediaRemover interface {
 type Handler struct {
 	service *Service
 	media   mediaRemover
+	notify  userNotifier
 }
 
-func NewHandler(service *Service, media mediaRemover) *Handler {
-	return &Handler{service: service, media: media}
+func NewHandler(service *Service, media mediaRemover, notify userNotifier) *Handler {
+	return &Handler{service: service, media: media, notify: notify}
 }
 
 // errorStatus: erro de domínio → status HTTP (0 = erro inesperado).
@@ -46,6 +47,11 @@ func fail(c *gin.Context, err error) {
 	}
 	log.Printf("[savedprofile] %v", err)
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+}
+
+// changed avisa os aparelhos da pessoa que a lista de perfis salvos mudou.
+func (h *Handler) changed(c *gin.Context) {
+	notifyChanged(h.notify, c.GetString("userID"))
 }
 
 func savedID(c *gin.Context) (string, bool) {
@@ -91,6 +97,7 @@ func (h *Handler) Create(c *gin.Context) {
 		fail(c, err)
 		return
 	}
+	h.changed(c)
 	c.JSON(http.StatusCreated, sp)
 }
 
@@ -109,6 +116,26 @@ func (h *Handler) Rename(c *gin.Context) {
 		fail(c, err)
 		return
 	}
+	h.changed(c)
+	c.JSON(http.StatusOK, sp)
+}
+
+// Overwrite: PUT /users/me/saved-profiles/:id sobrescreve o perfil salvo com
+// o perfil atual, mantendo nome e posição. A mídia que o perfil salvo usava e
+// ninguém mais usa sai do disco; a nova vai por referência (ADR 0011).
+func (h *Handler) Overwrite(c *gin.Context) {
+	id, ok := savedID(c)
+	if !ok {
+		return
+	}
+	sp, old, err := h.service.Overwrite(c.Request.Context(), c.GetString("userID"), id)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	h.media.RemoveMediaURL(old.AvatarURL)
+	h.media.RemoveMediaURL(old.BannerURL)
+	h.changed(c)
 	c.JSON(http.StatusOK, sp)
 }
 
@@ -126,6 +153,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 	h.media.RemoveMediaURL(sp.AvatarURL)
 	h.media.RemoveMediaURL(sp.BannerURL)
+	h.changed(c)
 	c.Status(http.StatusNoContent)
 }
 
@@ -144,5 +172,6 @@ func (h *Handler) Apply(c *gin.Context) {
 	for _, url := range old {
 		h.media.RemoveMediaURL(url)
 	}
+	h.changed(c)
 	c.JSON(http.StatusOK, u.Self())
 }

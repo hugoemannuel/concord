@@ -40,6 +40,7 @@ const view = (over: Partial<SavedProfilesView> = {}): SavedProfilesView => ({
   save: vi.fn(),
   rename: vi.fn(),
   remove: vi.fn(),
+  update: vi.fn(),
   ...over
 })
 
@@ -71,6 +72,14 @@ describe('SavedProfilesPanel', () => {
     expect(html).toContain('aria-label="Usar o perfil Gamer"')
     expect(html).toContain('aria-label="Renomear Gamer"')
     expect(html).toContain('aria-label="Excluir Gamer"')
+    expect(html).toContain('aria-label="Atualizar Gamer com o perfil atual"')
+  })
+
+  it('o perfil em uso já é igual ao atual: atualizar fica travado', () => {
+    state.view = view({ items: [item('a', 'Casual'), item('b', 'Gamer')], currentId: 'a' })
+    const html = render()
+    expect(html).toMatch(/aria-label="Atualizar Casual com o perfil atual"[^>]*disabled=""/)
+    expect(html).not.toMatch(/aria-label="Atualizar Gamer com o perfil atual"[^>]*disabled=""/)
   })
 
   it('no limite, o botão de salvar trava e explica', () => {
