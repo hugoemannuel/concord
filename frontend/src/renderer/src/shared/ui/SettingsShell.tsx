@@ -8,9 +8,6 @@ import {
   tappedCurrentSection
 } from '../lib/settingsMobileView'
 
-const NAV_BG = 'var(--bg-secondary)'
-const CONTENT_BG = 'var(--bg-primary)'
-
 interface SettingsShellProps {
   /** Rótulo do diálogo para leitor de tela. */
   ariaLabel: string
@@ -59,16 +56,15 @@ function SettingsShell({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      className="app-no-drag fixed inset-x-0 bottom-0 z-50 flex flex-col pl-safe pr-safe pt-safe text-normal md:flex-row"
-      style={{ top: 'var(--titlebar-height, 0px)', background: CONTENT_BG }}
+      className="app-no-drag fixed inset-x-0 bottom-0 z-50 flex flex-col bg-primary pl-safe pr-safe pt-safe text-normal md:flex-row"
+      style={{ top: 'var(--titlebar-height, 0px)' }}
     >
       <aside
         // Tocar na seção já marcada também abre ela (no celular).
         onClickCapture={(e) => {
           if (tappedCurrentSection(e.target)) dispatch({ type: 'pickCurrent' })
         }}
-        className={`flex w-full shrink-0 flex-col border-b border-subtle pb-safe max-md:pt-12 md:w-[260px] md:border-b-0 md:border-r ${columns.nav}`}
-        style={{ background: NAV_BG }}
+        className={`flex w-full shrink-0 flex-col border-b border-subtle bg-secondary pb-safe max-md:pt-12 md:w-[260px] md:border-b-0 md:border-r ${columns.nav}`}
       >
         {nav}
       </aside>

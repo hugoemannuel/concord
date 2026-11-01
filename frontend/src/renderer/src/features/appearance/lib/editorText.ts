@@ -7,7 +7,9 @@ const FIELD_NAMES: Record<PaletteField, string> = {
   background: 'o fundo principal',
   sidebar: 'a barra lateral',
   card: 'os cartões',
-  text: 'o texto'
+  text: 'o texto',
+  textMuted: 'o texto secundário',
+  highlight: 'o realce'
 }
 
 /** Aviso do que o gerador mudou para passar no contraste; null se nada. */

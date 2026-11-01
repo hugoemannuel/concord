@@ -8,6 +8,12 @@ import Button from '../../../shared/ui/Button'
 import { Skeleton } from '../../../shared/ui/skeleton/Skeleton'
 import ConfirmModal from '../../friends/components/ConfirmModal'
 import { ChevronRightIcon } from '../../../shared/ui/icons'
+import { IS_WEB } from '../../../shared/lib/config'
+
+/** No app web o link usa a própria origem (servidor próprio, sslip.io...). */
+function linkFor(code: string): string {
+  return IS_WEB ? inviteLink(code, location.origin) : inviteLink(code)
+}
 
 /** Link de convite do servidor para mandar aos amigos (entram sozinhos com ele). */
 function InviteCodeBox({ serverId }: { serverId: string }): React.JSX.Element {
@@ -35,7 +41,7 @@ function InviteCodeBox({ serverId }: { serverId: string }): React.JSX.Element {
     }
   }
 
-  const link = code ? inviteLink(code) : null
+  const link = code ? linkFor(code) : null
 
   const copy = (): void => {
     if (!link) return

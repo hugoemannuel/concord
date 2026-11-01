@@ -3,6 +3,7 @@ package apptheme
 import (
 	"context"
 	"os"
+	"reflect"
 	"testing"
 
 	"gin-quickstart/backend/internal/platform/database"
@@ -38,12 +39,15 @@ func TestDBRepository(t *testing.T) {
 	if err := repo.SaveThemes(ctx, userID, first); err != nil {
 		t.Fatal(err)
 	}
-	second := append(first, Theme{ID: "b2", Name: "Claro", Accent: "#5865f2", Background: "#ffffff", Sidebar: "#fbfbfb", Card: "#ffffff", Text: "#2e2e34"})
+	// O segundo já no formato v2: degradês, vidro e forma passam pelo JSONB.
+	v2, _ := Normalize([]Theme{{ID: "b2", Name: "Claro", Accent: "#5865f2", Background: "#ffffff", Sidebar: "#fbfbfb", Card: "#ffffff", Text: "#2e2e34",
+		Gradients: map[string]Gradient{"accent": {Type: "linear", Angle: 135, Colors: []string{"#991b1b"}}}, Glass: intp(30), Font: "serif"}})
+	second := append(first, v2[0])
 	if err := repo.SaveThemes(ctx, userID, second); err != nil {
 		t.Fatal(err)
 	}
 	got, err = repo.Themes(ctx, userID)
-	if err != nil || len(got) != 2 || got[0] != second[0] || got[1] != second[1] {
+	if err != nil || !reflect.DeepEqual(got, second) {
 		t.Fatalf("lista = %+v, %v", got, err)
 	}
 

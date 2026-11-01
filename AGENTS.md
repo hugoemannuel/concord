@@ -50,6 +50,7 @@ para áudio de janela no Windows.
 | `/ideia <texto>` | ideia vaga → spec aprovada | [docs/ai/pipeline-ideia.md](docs/ai/pipeline-ideia.md) |
 | `/feature <spec ou descrição>` | implementar até o PR | [docs/ai/pipeline-feature.md](docs/ai/pipeline-feature.md) |
 | `/bugfix <sintoma>` | corrigir com causa raiz e teste | [docs/ai/pipeline-bugfix.md](docs/ai/pipeline-bugfix.md) |
+| `/servidor-proprio` | uma pessoa (mesmo leiga) quer o próprio servidor da Salinha | [docs/ai/servidor-proprio.md](docs/ai/servidor-proprio.md) |
 
 Os comandos usam as skills do plugin **superpowers** (já vinculado em
 `.claude/settings.json`). Catálogo das skills, de onde vieram e como instalar

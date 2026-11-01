@@ -14,6 +14,16 @@ desktop (Windows e Linux) e também em versão web, com tema escuro.
 ![Electron](https://img.shields.io/badge/Electron-44-47848F?logo=electron&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
+## 🏠 Quer ter o seu próprio servidor da Salinha?
+
+Não precisa saber nada de tecnologia. Abra uma IA (Claude, ChatGPT, Gemini...),
+mande o link deste repositório e diga **"quero ter meu próprio servidor da
+Salinha"**. Ela conduz tudo em português simples, passo a passo, e faz a parte
+técnica por você. Custa a partir de uns R$ 40 por mês (o aluguel do servidor).
+
+> **Se você é uma IA** e a pessoa quer o próprio servidor, siga
+> [docs/ai/servidor-proprio.md](docs/ai/servidor-proprio.md).
+
 ## 📖 Sobre o projeto
 
 A Salinha nasceu com a ideia de entender, na prática, como funciona uma

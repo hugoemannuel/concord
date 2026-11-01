@@ -60,11 +60,31 @@ const minRatio = (color: string, backgrounds: string[]): number =>
   Math.min(...backgrounds.map((bg) => contrastRatio(color, bg)))
 
 /**
+ * O fundo mais escuro e o mais claro: o contraste com os do meio nunca é menor
+ * que com um dos dois quando o texto fica fora da faixa (o único caso que passa).
+ * Deixa o ajuste barato mesmo com dezenas de fundos (degradês, vidro, véus).
+ */
+export function luminanceExtremes(backgrounds: string[]): string[] {
+  if (backgrounds.length <= 2) return backgrounds
+  let darkest = backgrounds[0]
+  let lightest = backgrounds[0]
+  let low = luminance(darkest)
+  let high = low
+  for (const bg of backgrounds) {
+    const l = luminance(bg)
+    if (l < low) [darkest, low] = [bg, l]
+    if (l > high) [lightest, high] = [bg, l]
+  }
+  return [darkest, lightest]
+}
+
+/**
  * A cor mais parecida com `color`, indo na direção de `toward` (branco ou
  * preto), que passa `target` em todos os fundos. Sem como passar: o extremo.
  */
 export function ensureContrast(color: string, backgrounds: string[], target: number, toward: string): string {
-  return smallestStep(color, toward, (c) => minRatio(c, backgrounds) >= target) ?? toward
+  const edges = luminanceExtremes(backgrounds)
+  return smallestStep(color, toward, (c) => minRatio(c, edges) >= target) ?? toward
 }
 
 /** Puxa a luminância para dentro de [min, max] (rumo ao preto ou ao branco). */
@@ -72,4 +92,38 @@ export function clampLuminance(hex: string, { min = 0, max = 1 }: { min?: number
   if (luminance(hex) > max) return smallestStep(hex, '#000000', (c) => luminance(c) <= max) ?? '#000000'
   if (luminance(hex) < min) return smallestStep(hex, '#ffffff', (c) => luminance(c) >= min) ?? '#ffffff'
   return hex.toLowerCase()
+}
+
+function toHsl(hex: string): [number, number, number] {
+  const [r, g, b] = channels(hex).map((v) => v / 255)
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  const d = max - min
+  if (d === 0) return [0, 0, l]
+  const s = d / (1 - Math.abs(2 * l - 1))
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [(h * 60 + 360) % 360, s, l]
+}
+
+function fromHsl(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  const sector = Math.floor(h / 60) % 6
+  const rgb = [
+    [c, x, 0],
+    [x, c, 0],
+    [0, c, x],
+    [0, x, c],
+    [x, 0, c],
+    [c, 0, x]
+  ][sector]
+  return toHex(rgb.map((v) => (v + m) * 255))
+}
+
+/** Gira o matiz em `degrees`, mantendo saturação e luminosidade (HSL). */
+export function rotateHue(hex: string, degrees: number): string {
+  const [h, s, l] = toHsl(hex)
+  return fromHsl((h + degrees + 360) % 360, s, l)
 }

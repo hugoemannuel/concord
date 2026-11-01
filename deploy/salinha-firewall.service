@@ -1,0 +1,16 @@
+# /etc/systemd/system/salinha-firewall.service — carrega o
+# /etc/salinha-firewall.nft no boot (docs/HOSPEDAGEM.md, "Portas abertas na VPS").
+[Unit]
+Description=Firewall da Salinha (tabela nft inet salinha_fw)
+Wants=network-pre.target
+Before=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/salinha-firewall.nft
+ExecReload=/usr/sbin/nft -f /etc/salinha-firewall.nft
+ExecStop=/usr/sbin/nft delete table inet salinha_fw
+
+[Install]
+WantedBy=multi-user.target

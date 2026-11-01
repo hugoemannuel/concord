@@ -6,28 +6,34 @@ const stores = vi.hoisted(() => {
   const custom = { themes: [] as unknown[], error: null, saving: false }
   const prefs = { preference: 'discord-dark', theme: 'discord-dark', setPreference: () => {} }
   const hook = <T,>(state: T) => Object.assign((sel: (s: T) => unknown) => sel(state), { getState: () => state })
-  return { custom, prefs, useCustom: hook(custom), usePrefs: hook(prefs) }
+  const editor = { history: null as unknown }
+  return { custom, prefs, editor, useCustom: hook(custom), usePrefs: hook(prefs), useEditor: hook(editor) }
 })
 vi.mock('../store/customThemesStore', () => ({ useCustomThemesStore: stores.useCustom }))
 vi.mock('../../settings/store/themeStore', () => ({ useThemeStore: stores.usePrefs }))
+vi.mock('../store/themeEditorStore', () => ({ useThemeEditorStore: stores.useEditor }))
 
 import { MAX_CUSTOM_THEMES, type CustomTheme } from '../lib/customThemes'
+import { withDefaults } from '../lib/themeInput'
 import { CustomThemesSection } from './CustomThemesSection'
 
 const RED: CustomTheme = {
   id: 'red1',
   name: 'Rubro',
-  accent: '#e11d48',
-  background: '#2a0a0a',
-  sidebar: '#1f0707',
-  card: '#3b0d0d',
-  text: '#ffffff',
-  glow: ''
+  ...withDefaults({
+    accent: '#e11d48',
+    background: '#2a0a0a',
+    sidebar: '#1f0707',
+    card: '#3b0d0d',
+    text: '#ffffff',
+    glow: ''
+  })
 }
 
 beforeEach(() => {
   stores.custom.themes = []
   stores.prefs.preference = 'discord-dark'
+  stores.editor.history = null
 })
 
 describe('CustomThemesSection', () => {
@@ -54,5 +60,12 @@ describe('CustomThemesSection', () => {
     const html = renderToStaticMarkup(<CustomThemesSection />)
     expect(html).toMatch(/disabled=""[^>]*>.*Criar tema/s)
     expect(html).toContain(`Limite de ${MAX_CUSTOM_THEMES} temas`)
+  })
+
+  it('com o editor aberto: avisa que as mudanças já aparecem no app e não abre outro', () => {
+    stores.editor.history = { present: {} }
+    const html = renderToStaticMarkup(<CustomThemesSection />)
+    expect(html).toContain('cada mudança já aparece no app')
+    expect(html).toMatch(/disabled=""[^>]*>.*Criar tema/s)
   })
 })

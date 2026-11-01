@@ -1,0 +1,12 @@
+# /etc/systemd/system/concord-backup.timer — dispara o concord-backup.service
+# todo dia (Persistent: se a VPS estava desligada, roda ao voltar).
+[Unit]
+Description=Backup diário do banco da Salinha
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

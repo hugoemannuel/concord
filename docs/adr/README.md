@@ -78,3 +78,5 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0038. Excluir a própria conta apagando a linha do usuário e passando as mensagens que ficam para "Usuário removido"](0038-excluir-a-propria-conta.md)
 - [0039. Revogar sessões com uma versão no token de acesso e refresh token guardado como hash](0039-revogacao-de-sessao.md)
 - [0040. Temas próprios da aparência: paleta gerada no cliente a partir de poucas cores, lista na conta](0040-aparencia-personalizada.md)
+- [0041. Aparência v2: edição ao vivo no app inteiro, degradês, vidro e forma nos temas próprios](0041-aparencia-v2.md)
+- [0042. Servidor próprio guiado por IA: build na própria VPS e app no navegador](0042-servidor-proprio-guiado-por-ia.md)
