@@ -16,7 +16,13 @@ vi.mock('../api/serverLevel', () => ({ fetchServerLevel: () => new Promise(() =>
 
 import { useServerLevelStore } from '../store/serverLevelStore'
 import { useServerLevelUpStore } from '../store/serverLevelUpStore'
-import { isViewingServer, offerServerLevelUp, watchServerLevelUps } from './serverLevelUpStart'
+import { REPLAY_COOLDOWN_MS } from '../../levels/lib/levelAttention'
+import {
+  isViewingServer,
+  offerServerLevelUp,
+  replayServerLevelUp,
+  watchServerLevelUps
+} from './serverLevelUpStart'
 
 function memoryStorage(): Storage {
   const data: Record<string, string> = {}
@@ -129,5 +135,62 @@ describe('quem vê a subida de nível do servidor', () => {
     doc.visibilityState = 'visible'
     doc.listeners.forEach((l) => l())
     expect(shown()).toEqual({ level: 4, previous: 3 })
+  })
+
+  describe('rever a animação pelo selo de nível', () => {
+    let clock = 1_800_000_000_000
+    beforeEach(() => {
+      // Cada teste começa depois do intervalo mínimo do clique anterior.
+      vi.useFakeTimers()
+      clock += 10 * REPLAY_COOLDOWN_MS
+      vi.setSystemTime(clock)
+    })
+    afterEach(() => vi.useRealTimers())
+
+    it('toca o nível atual, com som, mesmo já visto e fora do servidor', () => {
+      servers.setState({ currentServer: { id: 's2' } })
+      progress('s1', 7)
+      expect(replayServerLevelUp('s1')).toBe(true)
+      expect(shown()).toEqual({ level: 7, previous: 6 })
+      expect(playSound).toHaveBeenCalledTimes(1)
+    })
+
+    it('não gasta a animação da próxima subida de verdade', () => {
+      servers.setState({ currentServer: { id: 's1' } })
+      progress('s1', 7)
+      replayServerLevelUp('s1')
+      useServerLevelUpStore.getState().close()
+      expect(offerServerLevelUp('s1', 8, 7)).toBe(true)
+      expect(shown()).toEqual({ level: 8, previous: 7 })
+    })
+
+    it('ensurdecido: a animação toca, o som não', () => {
+      call.deafened = true
+      progress('s1', 3)
+      expect(replayServerLevelUp('s1')).toBe(true)
+      expect(playSound).not.toHaveBeenCalled()
+    })
+
+    it('sem o nível carregado não toca', () => {
+      expect(replayServerLevelUp('s1')).toBe(false)
+      expect(shown()).toBeNull()
+    })
+
+    it('no nível 1 a contagem não desce abaixo do 1', () => {
+      progress('s1', 1)
+      replayServerLevelUp('s1')
+      expect(shown()).toEqual({ level: 1, previous: 1 })
+    })
+
+    it('cliques seguidos respeitam o intervalo mínimo', () => {
+      progress('s1', 4)
+      expect(replayServerLevelUp('s1')).toBe(true)
+      useServerLevelUpStore.getState().close()
+      vi.advanceTimersByTime(REPLAY_COOLDOWN_MS - 1)
+      expect(replayServerLevelUp('s1')).toBe(false)
+      expect(shown()).toBeNull()
+      vi.advanceTimersByTime(1)
+      expect(replayServerLevelUp('s1')).toBe(true)
+    })
   })
 })
