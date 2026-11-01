@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron'
+import { saveSplashColors } from '../splash/splashMarks'
 import { parseTitleBarColors, TITLE_BAR_HEIGHT } from './windowPolicy'
 
 /** Tema trocou no renderer: a barra de título nativa acompanha (Windows/Linux). */
@@ -9,6 +10,8 @@ export function registerThemeHandlers(getWindow: () => BrowserWindow | null): vo
     const colors = parseTitleBarColors(raw)
     if (!colors) return
     win.setBackgroundColor(colors.color)
+    // A janelinha de abertura usa o tema na próxima vez (abre antes do renderer).
+    saveSplashColors(colors)
     if (process.platform === 'darwin') return
     try {
       win.setTitleBarOverlay({ ...colors, height: TITLE_BAR_HEIGHT })

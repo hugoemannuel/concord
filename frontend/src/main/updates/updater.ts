@@ -4,29 +4,19 @@ import { homedir } from 'os'
 import { readFile, rm } from 'fs/promises'
 import { realpathSync } from 'fs'
 import { basename } from 'path'
-import { isInCall, markQuitting } from '../window/background'
-import {
-  autoUpdateUnavailable,
-  installOnStartup,
-  isRefusedRelease,
-  type ReleaseId
-} from './updatePolicy'
+import { markQuitting } from '../window/background'
+import { autoUpdateUnavailable, isRefusedRelease, type ReleaseId } from './updatePolicy'
 import { createDownloadScheduler } from './downloadScheduler'
 import { createUpdateCheckGate } from './updateCheck'
 import { verifyInstaller } from './updateSignature'
 import { clearCallResume, saveCallResume, takeCallResume } from './callResume'
 import { validCallResume, type CallResume } from '../../shared/callResume'
 import { logUpdate } from './updateLog'
-import { sandboxNoticeReason, updateBackendKind } from './linuxInstall'
+import { updateBackendKind } from './linuxInstall'
 import { LinuxUpdater } from './linuxUpdater'
-import {
-  readRefused,
-  readSandboxNoticeShown,
-  readVerifiedVersion,
-  saveRefused as writeRefused,
-  saveSandboxNoticeShown,
-  saveVerifiedVersion
-} from './updateMarks'
+import type { StartupUpdate, StartupWatcher } from './startupFlow'
+import { readRefused, saveRefused as writeRefused } from './updateMarks'
+import { registerSandboxNotice } from './sandboxNotice'
 
 // Atualização automática servida pelo próprio servidor da Salinha
 // (`<servidor>/updates/`). O instalador só é aceito com a assinatura Ed25519
@@ -39,7 +29,8 @@ import {
 //
 // Versão nova é baixada e verificada sozinha, em segundo plano (também em
 // chamada; ver downloadScheduler.ts): quando a barra mostra "Atualizar" pronto,
-// o clique só instala e reinicia.
+// o clique só instala e reinicia. Ao abrir, quem instala sem clique é a
+// janelinha de abertura (startupFlow.ts, ADR 0044), pelo StartupUpdate.
 
 // latest.yml tem poucas centenas de bytes: checar seguido não pesa. O caminho
 // principal é o aviso do servidor (WS app:update → update:check-now); a
@@ -76,6 +67,9 @@ interface UpdateBackend {
 }
 
 let backend: UpdateBackend = autoUpdater
+
+/** Janelinha de abertura ainda esperando (só no começo). */
+let startupWatch: StartupWatcher | null = null
 
 interface UpdaterConfig {
   /** ex.: http://abc.ply.gg:1234/updates/ */
@@ -158,6 +152,7 @@ const downloads = createDownloadScheduler({
   onFailure: (message, error, retryInMs) => {
     logUpdate(`${message} (nova tentativa em ${Math.round(retryInMs / 60_000)} min)`, error)
     sendToWindow('update:progress', 0)
+    startupWatch?.failed(message, error)
   },
   onSignatureUnavailable: () => {
     if (!installRequested) return
@@ -224,30 +219,34 @@ async function verifyDownloaded(event: DownloadedUpdate, publicKeyPem: string): 
     )
     installRequested = false
     sendToWindow('update:error', REFUSED_MESSAGE)
+    startupWatch?.failed('instalador recusado', err)
     return false
   }
 }
 
-/** Baixada e verificada: instala se a pessoa pediu (ou ao abrir); senão avisa. */
+const canAutoInstall = (version: string): boolean => backend.canAutoInstall?.(version) !== false
+
+function installFailed(message: string): void {
+  sendToWindow('update:error', message)
+  startupWatch?.failed(message)
+}
+
+/** Baixada e verificada: instala se a pessoa pediu (ou a janelinha de abertura); senão avisa. */
 function markReady(version: string): void {
   readyVersion = version
-  const verifiedBefore = readVerifiedVersion()
-  saveVerifiedVersion(version)
-  const startup =
-    installOnStartup({
-      version,
-      verifiedBefore,
-      msSinceStart: Date.now() - startedAt,
-      inCall: isInCall()
-    }) && backend.canAutoInstall?.(version) !== false
+  const startup = canAutoInstall(version) && !!startupWatch?.ready()
   if (installRequested || startup) {
-    install((message) => sendToWindow('update:error', message))
+    install(installFailed)
     return
   }
+  startupWatch?.failed('versão pronta não instala sozinha')
   sendToWindow('update:ready', version)
 }
 
-export function setupUpdater(getWindow: () => BrowserWindow | null, config: UpdaterConfig): void {
+export function setupUpdater(
+  getWindow: () => BrowserWindow | null,
+  config: UpdaterConfig
+): StartupUpdate | null {
   const send = (channel: string, value: unknown): void =>
     getWindow()?.webContents.send(channel, value)
   sendToWindow = send
@@ -293,19 +292,10 @@ export function setupUpdater(getWindow: () => BrowserWindow | null, config: Upda
     startDownload(true)
   })
 
-  // Linux: o lançador abriu sem o sandbox do Chromium — avisa uma vez.
-  let sandboxNotice = sandboxNoticeReason(process.platform, process.env)
-  ipcMain.handle('update:sandbox-notice', (event) => {
-    if (event.sender !== getWindow()?.webContents || !sandboxNotice) return null
-    const reason = sandboxNotice
-    sandboxNotice = null
-    if (readSandboxNoticeShown()) return null
-    saveSandboxNoticeShown()
-    return reason
-  })
+  registerSandboxNotice(getWindow)
 
   // Sem endereço ou sem chave (build de desenvolvimento): não atualiza.
-  if (!app.isPackaged || !config.feedUrl || !config.publicKeyPem) return
+  if (!app.isPackaged || !config.feedUrl || !config.publicKeyPem) return null
 
   let realExecPath = process.execPath
   try {
@@ -352,6 +342,7 @@ export function setupUpdater(getWindow: () => BrowserWindow | null, config: Upda
   })
   backend.on('download-progress', (progress: { percent: number }) => {
     send('update:progress', Math.round(progress.percent))
+    startupWatch?.progress(progress.percent)
   })
   backend.on('error', (err: unknown) => {
     if (installing) markQuitting(false)
@@ -364,6 +355,7 @@ export function setupUpdater(getWindow: () => BrowserWindow | null, config: Upda
     downloads.settled()
     logUpdate('erro', err)
     if (installRequested) send('update:error', String(err))
+    startupWatch?.failed('erro do atualizador', err)
   })
   backend.on('update-downloaded', async (event: DownloadedUpdate) => {
     downloads.settled()
@@ -372,6 +364,7 @@ export function setupUpdater(getWindow: () => BrowserWindow | null, config: Upda
       startDownload(installRequested)
       return
     }
+    startupWatch?.verifying()
     if (!(await verifyDownloaded(event, config.publicKeyPem))) return
     downloads.succeeded()
     markReady(event.version)
@@ -386,6 +379,13 @@ export function setupUpdater(getWindow: () => BrowserWindow | null, config: Upda
     if (event.sender !== getWindow()?.webContents) return
     gate.request()
   })
-  gate.run()
+  const boot = gate.run()
   setInterval(gate.run, CHECK_INTERVAL_MS)
+  return {
+    check: () => boot.then(() => !!availableVersion && canAutoInstall(availableVersion)),
+    download: () => startDownload(true),
+    watch: (watcher) => {
+      startupWatch = watcher
+    }
+  }
 }

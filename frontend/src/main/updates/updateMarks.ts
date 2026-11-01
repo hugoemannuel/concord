@@ -5,25 +5,7 @@ import { join } from 'path'
 import type { ReleaseId } from './updatePolicy'
 
 // Marcas do atualizador gravadas na pasta de dados do app (sobrevivem ao
-// reinício): versão já verificada, versão recusada e aviso do sandbox já mostrado.
-
-// Versão já baixada e verificada (sobrevive ao reinício do app): só ela pode
-// ser instalada sozinha ao abrir.
-const verifiedPath = (): string => join(app.getPath('userData'), 'update-verified.json')
-
-export function readVerifiedVersion(): string | null {
-  try {
-    return (
-      (JSON.parse(readFileSync(verifiedPath(), 'utf8')) as { version?: string }).version ?? null
-    )
-  } catch {
-    return null
-  }
-}
-
-export function saveVerifiedVersion(version: string): void {
-  void writeFile(verifiedPath(), JSON.stringify({ version })).catch(() => {})
-}
+// reinício): versão recusada e aviso do sandbox já mostrado.
 
 const sandboxNoticePath = (): string => join(app.getPath('userData'), 'sandbox-notice.json')
 
