@@ -11,16 +11,19 @@ import { useAuthStore } from '../../auth/store/authStore'
 import { useCustomThemesStore } from '../store/customThemesStore'
 import { syncThemesWithAccount, startCustomThemes } from './customThemesStart'
 import type { CustomTheme } from './customThemes'
+import { withDefaults } from './themeInput'
 
 const RED: CustomTheme = {
   id: 'red1',
   name: 'Vermelho',
-  accent: '#e11d48',
-  background: '#2a0a0a',
-  sidebar: '#1f0707',
-  card: '#3b0d0d',
-  text: '#ffffff',
-  glow: ''
+  ...withDefaults({
+    accent: '#e11d48',
+    background: '#2a0a0a',
+    sidebar: '#1f0707',
+    card: '#3b0d0d',
+    text: '#ffffff',
+    glow: ''
+  })
 }
 
 beforeEach(() => {

@@ -1,7 +1,7 @@
 // Package apptheme guarda, por pessoa, os temas próprios da aparência do app
-// (Configurações → Aparência): nome e as poucas cores que a pessoa escolhe. A
-// paleta inteira é gerada no app; qual tema está em uso é escolha de cada
-// aparelho. Ver docs/adr/0040-aparencia-personalizada.md.
+// (Configurações → Aparência): nome, as poucas cores que a pessoa escolhe e,
+// desde a v2, degradês, vidro e forma. A paleta inteira é gerada no app; qual
+// tema está em uso é escolha de cada aparelho. Ver docs/adr/0040 e 0041.
 package apptheme
 
 import (
@@ -24,16 +24,26 @@ var (
 	hexPattern = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 )
 
-// Theme é um tema próprio. Cores em #rrggbb; Glow "" = sem brilho.
+// Theme é um tema próprio. Cores em #rrggbb; Glow "" = sem brilho. Os campos
+// depois de Glow são da v2 (style.go); "" e nil = padrão.
 type Theme struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Accent     string `json:"accent"`
-	Background string `json:"background"`
-	Sidebar    string `json:"sidebar"`
-	Card       string `json:"card"`
-	Text       string `json:"text"`
-	Glow       string `json:"glow"`
+	ID           string              `json:"id"`
+	Name         string              `json:"name"`
+	Accent       string              `json:"accent"`
+	Background   string              `json:"background"`
+	Sidebar      string              `json:"sidebar"`
+	Card         string              `json:"card"`
+	Text         string              `json:"text"`
+	Glow         string              `json:"glow"`
+	Gradients    map[string]Gradient `json:"gradients"`
+	Highlight    string              `json:"highlight"`
+	TextMuted    string              `json:"textMuted"`
+	Border       string              `json:"border"`
+	GlowStrength *int                `json:"glowStrength"`
+	Glass        *int                `json:"glass"`
+	Radius       *int                `json:"radius"`
+	Density      string              `json:"density"`
+	Font         string              `json:"font"`
 }
 
 func validName(name string) bool {
@@ -50,11 +60,13 @@ func normalizeTheme(t Theme) (Theme, bool) {
 		ok = ok && hexPattern.MatchString(*c)
 	}
 	t.Glow = strings.ToLower(t.Glow)
-	return t, ok && (t.Glow == "" || hexPattern.MatchString(t.Glow))
+	ok = ok && (t.Glow == "" || hexPattern.MatchString(t.Glow))
+	t, styleOK := normalizeStyle(t)
+	return t, ok && styleOK
 }
 
 // Normalize confere a lista inteira (até MaxThemes, ids únicos) e devolve
-// nomes aparados e cores em minúsculas.
+// nomes aparados, cores em minúsculas e os padrões da v2 no que faltar.
 func Normalize(in []Theme) ([]Theme, error) {
 	if len(in) > MaxThemes {
 		return nil, ErrInvalidThemes

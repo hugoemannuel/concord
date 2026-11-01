@@ -16,8 +16,13 @@ func NewService(repo store) *Service {
 	return &Service{repo: repo}
 }
 
+// Get devolve os temas já no formato v2 (os gravados pela v1 ganham os padrões).
 func (s *Service) Get(ctx context.Context, userID string) ([]Theme, error) {
-	return s.repo.Themes(ctx, userID)
+	themes, err := s.repo.Themes(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return Migrate(themes), nil
 }
 
 // Save troca a lista inteira e devolve a versão limpa (a que ficou gravada).

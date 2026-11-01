@@ -85,6 +85,24 @@ func TestHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("PUT v2 guarda degradês e forma; GET de tema da v1 vem com os padrões", func(t *testing.T) {
+		store := &fakeStore{themes: map[string][]Theme{meID: {valid()}}}
+		r := newRouter(store)
+		_, out := do(r, http.MethodGet, "")
+		if !strings.Contains(string(out["themes"]), `"glass":0`) || !strings.Contains(string(out["themes"]), `"font":"outfit"`) {
+			t.Fatalf("GET v1 %s", out["themes"])
+		}
+		body := `{"themes":[{"id":"abc","name":"Deg","accent":"#e11d48","background":"#ffffff","sidebar":"#fff1f2","card":"#ffffff","text":"#1f1f1f","glow":"",` +
+			`"gradients":{"accent":{"type":"linear","angle":135,"colors":["#991B1B"]}},"glass":20,"radius":0,"density":"comfortable","font":"serif"}]}`
+		code, out := do(r, http.MethodPut, body)
+		if code != http.StatusOK || !strings.Contains(string(out["themes"]), `"colors":["#991b1b"]`) {
+			t.Fatalf("PUT %d %s", code, out["themes"])
+		}
+		if *store.themes[meID][0].Radius != 0 || store.themes[meID][0].Font != "serif" {
+			t.Fatalf("gravou %+v", store.themes[meID][0])
+		}
+	})
+
 	t.Run("PUT inválido é 400 e não grava", func(t *testing.T) {
 		store := &fakeStore{themes: map[string][]Theme{}}
 		for _, body := range []string{`{"themes":[{"id":"x","name":"a","accent":"vermelho"}]}`, `nada`} {

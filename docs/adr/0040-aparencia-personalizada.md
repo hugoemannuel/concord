@@ -1,6 +1,6 @@
 # 0040. Temas próprios da aparência: paleta gerada no cliente a partir de poucas cores, lista na conta
 
-- Status: aceito
+- Status: aceito (ampliado pela [0041](0041-aparencia-v2.md): edição ao vivo, degradês, vidro e forma)
 - Data: 2026-10-31
 
 ## Contexto

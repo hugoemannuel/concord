@@ -88,6 +88,7 @@ const LINE_GLYPHS = [
   'ReplyIcon',
   'SlashIcon',
   'UndoIcon',
+  'RedoIcon',
   'XIcon'
 ]
 

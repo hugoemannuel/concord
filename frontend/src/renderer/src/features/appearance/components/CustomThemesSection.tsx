@@ -1,11 +1,11 @@
 import IconButton from '../../../shared/ui/IconButton'
 import { PencilIcon, PlusIcon } from '../../../shared/ui/icons'
 import { useThemeStore } from '../../settings/store/themeStore'
-import { useCustomThemeEditor } from '../hooks/useCustomThemeEditor'
 import { customThemeKey, MAX_CUSTOM_THEMES } from '../lib/customThemes'
 import { schemeOf } from '../lib/palette'
 import { useCustomThemesStore } from '../store/customThemesStore'
-import { CustomThemeEditor } from './CustomThemeEditor'
+import { startEditTheme, startNewTheme } from '../store/themeEditorFlow'
+import { useThemeEditorStore } from '../store/themeEditorStore'
 import { ThemeCard } from './ThemeCard'
 
 /** Configurações → Aparência → Seus temas: os temas próprios, o "Criar tema" e o editor. */
@@ -13,7 +13,7 @@ export function CustomThemesSection(): React.JSX.Element {
   const themes = useCustomThemesStore((s) => s.themes)
   const preference = useThemeStore((s) => s.preference)
   const setPreference = useThemeStore((s) => s.setPreference)
-  const editor = useCustomThemeEditor()
+  const editing = useThemeEditorStore((s) => s.history !== null)
   const full = themes.length >= MAX_CUSTOM_THEMES
 
   return (
@@ -34,15 +34,15 @@ export function CustomThemesSection(): React.JSX.Element {
               selected={preference === key}
               onSelect={() => setPreference(key)}
               action={
-                <IconButton icon={PencilIcon} label={`Editar ${theme.name}`} onClick={() => editor.startEdit(theme.id)} />
+                <IconButton icon={PencilIcon} label={`Editar ${theme.name}`} onClick={() => startEditTheme(theme.id)} />
               }
             />
           )
         })}
         <button
           type="button"
-          disabled={full}
-          onClick={editor.startNew}
+          disabled={full || editing}
+          onClick={startNewTheme}
           className="focus-ring flex h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-normal text-ds-sm font-medium text-secondary transition-colors hover:border-strong hover:text-strong disabled:cursor-not-allowed disabled:opacity-50"
         >
           <PlusIcon size={20} />
@@ -52,8 +52,10 @@ export function CustomThemesSection(): React.JSX.Element {
       {full && (
         <p className="text-ds-xs text-muted">Limite de {MAX_CUSTOM_THEMES} temas: apague um para criar outro.</p>
       )}
-      {editor.draft && editor.palette && (
-        <CustomThemeEditor editor={editor} draft={editor.draft} palette={editor.palette} />
+      {editing && (
+        <p role="status" className="text-ds-xs text-muted">
+          Editando no painel: cada mudança já aparece no app. Use o olho do painel para ver o app sem as configurações.
+        </p>
       )}
     </fieldset>
   )

@@ -3,6 +3,8 @@
 @import './typography.css';
 /* Tokens de cor dos temas (lista e documentação no topo do arquivo). */
 @import './theme.css';
+/* Camadas decorativas dos temas: bolhas do fundo animado. */
+@import './themeDecor.css';
 /* Celular: altura visível, safe areas e animações de gaveta. */
 @import './mobile.css';
 /* Foco por teclado: utilitários focus-ring e o anel padrão dos interativos. */
@@ -189,43 +191,6 @@
     letter-spacing: 0.05em;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--red) 40%, transparent);
   }
-}
-
-/* Bolhas de luz do fundo (components/Background.tsx): só nos temas com
-   --decor-opacity > 0. Fora deles, display: none para não animar blur à toa. */
-.app-decor {
-  display: none;
-  opacity: var(--decor-opacity);
-}
-
-[data-theme='amoled'] .app-decor,
-[data-theme='neon'] .app-decor {
-  display: block;
-}
-
-@keyframes blob-float {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(45px, -60px) scale(1.12);
-  }
-  66% {
-    transform: translate(-35px, 35px) scale(0.92);
-  }
-}
-
-.animate-blob {
-  animation: blob-float 22s ease-in-out infinite;
-}
-
-.animate-blob-slow {
-  animation: blob-float 32s ease-in-out infinite reverse;
-}
-
-.animate-blob-fast {
-  animation: blob-float 16s ease-in-out infinite;
 }
 
 /* ===== Subida de nível (XP de voz) ===== */
