@@ -1,12 +1,16 @@
-// Lê um tema próprio vindo de fora (servidor ou localStorage) e migra o formato
-// v1 (só as seis cores) para o v2: o que faltar ganha o padrão que reproduz a v1
+// Lê um tema próprio vindo de fora (servidor ou localStorage) e migra os
+// formatos antigos (v1: só as seis cores; v2: sem o fundo da v3): o que faltar ganha o padrão que reproduz a v1
 // (withDefaults); extra inválido cai no padrão sem perder o tema. Puro.
 
 import { isHexColor } from './colorMath'
+import { PROFILE_EFFECTS } from '../../profile/lib/profileTheme'
+import { isThemeImage } from './themeImage'
 import {
   DENSITIES,
   FILL_FIELDS,
   FONTS,
+  IMAGE_BLUR_MAX,
+  IMAGE_DIM_MAX,
   MAX_GRADIENT_COLORS,
   RADIUS_MAX,
   withDefaults,
@@ -55,7 +59,25 @@ function parseGradients(raw: unknown): PaletteInput['gradients'] {
   return out
 }
 
-/** Os campos v2 que vieram válidos (o resto fica no padrão de withDefaults). */
+/** Inteiro em [1, 100] (quantidade e velocidade do efeito); outra coisa → undefined. */
+const level = (value: unknown): number | undefined => (intIn(value, 100) ? (value as number) : undefined)
+
+const EFFECT_IDS = PROFILE_EFFECTS.map((e) => e.id)
+
+/** Os campos v3 (fundo) que vieram válidos. */
+function backdrop(r: Raw): Partial<ThemeInput> {
+  return {
+    effect: oneOf(r.effect, EFFECT_IDS),
+    effectDensity: level(r.effectDensity),
+    effectSpeed: level(r.effectSpeed),
+    effectColor: optionalColor(r.effectColor),
+    image: isThemeImage(r.image) ? r.image : '',
+    imageDim: intIn(r.imageDim, IMAGE_DIM_MAX),
+    imageBlur: intIn(r.imageBlur, IMAGE_BLUR_MAX)
+  }
+}
+
+/** Os campos v2 e v3 que vieram válidos (o resto fica no padrão de withDefaults). */
 function extras(r: Raw): Partial<ThemeInput> {
   const picked: Partial<ThemeInput> = {
     gradients: parseGradients(r.gradients),
@@ -66,7 +88,8 @@ function extras(r: Raw): Partial<ThemeInput> {
     glass: intIn(r.glass, 100),
     radius: intIn(r.radius, RADIUS_MAX),
     density: oneOf(r.density, DENSITIES),
-    font: oneOf(r.font, FONTS)
+    font: oneOf(r.font, FONTS),
+    ...backdrop(r)
   }
   return Object.fromEntries(Object.entries(picked).filter(([, v]) => v !== undefined))
 }

@@ -17,7 +17,7 @@ const FILLS = [
 export function ColorsGroup({ draft, update, palette }: GroupProps & { palette: Palette }): React.JSX.Element {
   const { tokens } = palette
   return (
-    <EditorGroup title="Cores" defaultOpen>
+    <EditorGroup title="Cores">
       {FILLS.map(({ field, label }) => (
         <FillField key={field} field={field} label={label} draft={draft} update={update} />
       ))}

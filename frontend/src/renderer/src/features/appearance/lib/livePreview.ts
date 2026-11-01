@@ -7,9 +7,14 @@
 
 import { setThemePreview } from '../../settings/store/themeStore'
 import { schemeOf } from './palette'
+import { API_BASE_URL } from '../../../shared/lib/config'
 import { customThemesCss } from './themeCss'
+import { imageOrigin } from './themeImage'
 import type { ThemeInput } from './themeInput'
 import { DRAFT_THEME_STYLE, writeStyleSheet } from './themeStyleSheet'
+
+/** As imagens de fundo vêm do servidor (no web, da mesma origem). */
+const IMAGE_ORIGIN = imageOrigin(API_BASE_URL)
 
 /** data-theme do rascunho do editor. */
 export const DRAFT_KEY = 'custom-draft'
@@ -37,7 +42,7 @@ function flush(): void {
   const input = pending
   pending = null
   if (!input) return
-  writeStyleSheet(DRAFT_THEME_STYLE, customThemesCss([{ key: DRAFT_KEY, input }]))
+  writeStyleSheet(DRAFT_THEME_STYLE, customThemesCss([{ key: DRAFT_KEY, input }], IMAGE_ORIGIN))
   setThemePreview({ key: DRAFT_KEY, scheme: schemeOf(input.background) })
   markLive(true)
   clearTimeout(settle)

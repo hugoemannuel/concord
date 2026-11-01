@@ -51,6 +51,18 @@ func TestDBRepository(t *testing.T) {
 		t.Fatalf("lista = %+v, %v", got, err)
 	}
 
+	// v3: a faxina das imagens acha os temas que usam imagem de fundo.
+	img := "/api/app-theme-images/" + uuid.NewString()
+	v3, _ := Normalize([]Theme{{ID: "c3", Name: "Foto", Accent: "#5865f2", Background: "#101010", Sidebar: "#0c0c0c", Card: "#181818", Text: "#ffffff",
+		Effect: "snow", Image: img, ImageDim: intp(60)}})
+	if err := repo.SaveThemes(ctx, userID, append(second, v3[0])); err != nil {
+		t.Fatal(err)
+	}
+	withImages, err := repo.ThemesWithImages(ctx)
+	if err != nil || !hasImage(withImages, img) {
+		t.Fatalf("temas com imagem = %+v, %v", withImages, err)
+	}
+
 	if _, err := db.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID); err != nil {
 		t.Fatal(err)
 	}
@@ -58,4 +70,13 @@ func TestDBRepository(t *testing.T) {
 	if err := db.QueryRow(ctx, `SELECT count(*) FROM user_app_themes WHERE user_id = $1`, userID).Scan(&left); err != nil || left != 0 {
 		t.Fatalf("sobrou %d, %v", left, err)
 	}
+}
+
+func hasImage(themes []Theme, url string) bool {
+	for _, t := range themes {
+		if t.Image == url {
+			return true
+		}
+	}
+	return false
 }

@@ -25,7 +25,7 @@ var (
 )
 
 // Theme é um tema próprio. Cores em #rrggbb; Glow "" = sem brilho. Os campos
-// depois de Glow são da v2 (style.go); "" e nil = padrão.
+// depois de Glow são da v2 (style.go) e da v3 (backdrop.go); "" e nil = padrão.
 type Theme struct {
 	ID           string              `json:"id"`
 	Name         string              `json:"name"`
@@ -44,6 +44,14 @@ type Theme struct {
 	Radius       *int                `json:"radius"`
 	Density      string              `json:"density"`
 	Font         string              `json:"font"`
+	// v3 (backdrop.go): efeito animado e imagem no fundo do app.
+	Effect        string `json:"effect"`
+	EffectDensity *int   `json:"effectDensity"`
+	EffectSpeed   *int   `json:"effectSpeed"`
+	EffectColor   string `json:"effectColor"`
+	Image         string `json:"image"`
+	ImageDim      *int   `json:"imageDim"`
+	ImageBlur     *int   `json:"imageBlur"`
 }
 
 func validName(name string) bool {
@@ -62,7 +70,8 @@ func normalizeTheme(t Theme) (Theme, bool) {
 	t.Glow = strings.ToLower(t.Glow)
 	ok = ok && (t.Glow == "" || hexPattern.MatchString(t.Glow))
 	t, styleOK := normalizeStyle(t)
-	return t, ok && styleOK
+	t, backdropOK := normalizeBackdrop(t)
+	return t, ok && styleOK && backdropOK
 }
 
 // Normalize confere a lista inteira (até MaxThemes, ids únicos) e devolve

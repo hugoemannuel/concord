@@ -1,6 +1,6 @@
 # 0041. Aparência v2: edição ao vivo no app inteiro, degradês, vidro e forma nos temas próprios
 
-- Status: aceito
+- Status: aceito (ampliado pela [0043](0043-aparencia-v3.md): brilho visível, efeitos, imagem de fundo e mais fontes)
 - Data: 2026-11-01
 - Complementa: [0040](0040-aparencia-personalizada.md)
 

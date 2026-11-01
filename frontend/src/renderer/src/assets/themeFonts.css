@@ -1,0 +1,22 @@
+/* Fontes da interface dos temas próprios (features/appearance/lib/themeFonts.ts,
+   ADR 0043). Os mesmos pacotes OFL do estilo de nome (nameFonts.css), só o
+   subset latin, dois pesos por família (normal e seminegrito; o médio cai no
+   normal e o negrito no seminegrito). @font-face não baixa nada sozinho: o
+   navegador só busca o arquivo da fonte que alguém usa. Licenças no build
+   (vite.renderer.shared.ts). */
+@import '@fontsource/montserrat/latin-400.css';
+@import '@fontsource/montserrat/latin-600.css';
+@import '@fontsource/comfortaa/latin-400.css';
+@import '@fontsource/comfortaa/latin-700.css';
+@import '@fontsource/fredoka/latin-400.css';
+@import '@fontsource/fredoka/latin-600.css';
+@import '@fontsource/oswald/latin-400.css';
+@import '@fontsource/oswald/latin-600.css';
+@import '@fontsource/bitter/latin-400.css';
+@import '@fontsource/bitter/latin-600.css';
+@import '@fontsource/zilla-slab/latin-400.css';
+@import '@fontsource/zilla-slab/latin-600.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-600.css';
+@import '@fontsource/space-mono/latin-400.css';
+@import '@fontsource/space-mono/latin-700.css';

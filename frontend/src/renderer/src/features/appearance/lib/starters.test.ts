@@ -5,7 +5,7 @@ import { withDefaults } from './themeInput'
 
 describe('STARTERS', () => {
   it('tem o vermelho e branco da issue #486, claro e com degradê', () => {
-    const red = STARTERS.find((s) => s.id === 'vermelho-branco')!
+    const red = STARTERS.find((s) => s.id === 'branco-vermelho')!
     const p = buildPalette(red.input)
     expect(p.scheme).toBe('light')
     expect(p.fills.brand.stops.length).toBe(2)

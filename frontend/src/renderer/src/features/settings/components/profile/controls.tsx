@@ -1,12 +1,13 @@
-import type { ComponentType } from 'react'
+import type { ComponentType, CSSProperties } from 'react'
 import type { IconProps } from '../../../../shared/ui/icons'
 import SectionHeader from '../../../../shared/ui/SectionHeader'
 
 // Controles compactos do editor de perfil: chips de escolha única, amostra
 // de cor, régua curta e o bloco de seção. Alvo de toque ≥ 40 px.
 
+// O rótulo quebra linha em vez de cortar ("Branco e vermelho" inteiro em 360 px).
 const chipClass = (active: boolean): string =>
-  `flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2.5 text-ds-xs font-medium transition-colors focus-ring ${
+  `flex min-h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1 text-center text-ds-xs font-medium transition-colors focus-ring ${
     active
       ? 'border-brand bg-brand/15 text-strong'
       : 'border-subtle bg-fg/5 text-secondary hover:bg-fg/10 hover:text-strong'
@@ -19,10 +20,12 @@ export interface ChipOption {
   icon?: ComponentType<IconProps>
   /** Só o ícone à mostra; o rótulo vira o nome acessível. */
   iconOnly?: boolean
+  /** Estilo do rótulo (ex.: o nome da fonte escrito nela mesma). */
+  labelStyle?: CSSProperties
 }
 
 function Chip({
-  option: { id, label, icon: Icon, iconOnly },
+  option: { id, label, icon: Icon, iconOnly, labelStyle },
   active,
   onPick
 }: {
@@ -40,7 +43,11 @@ function Chip({
       onClick={() => onPick(id)}
     >
       {Icon && <Icon size={16} className="shrink-0" />}
-      {!iconOnly && <span className="truncate">{label}</span>}
+      {!iconOnly && (
+        <span className="min-w-0 break-words" style={labelStyle}>
+          {label}
+        </span>
+      )}
     </button>
   )
 }
