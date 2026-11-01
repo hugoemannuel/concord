@@ -1,0 +1,91 @@
+# Modelo do /etc/caddy/Caddyfile para um SERVIDOR PRÓPRIO da Salinha
+# (docs/ai/servidor-proprio.md). O deploy/Caddyfile é o da Salinha oficial;
+# este é a versão de um endereço só: o mesmo endereço serve o app no
+# navegador, a API, o chat, as chamadas e as atualizações do app desktop.
+#
+# Troque SEU-ENDERECO pelo endereço do servidor, sem https:// (ex.:
+# 1-2-3-4.sslip.io ou salinha.seudominio.com.br) e instale:
+#   sed 's/SEU-ENDERECO/1-2-3-4.sslip.io/g' deploy/Caddyfile.modelo > Caddyfile
+# Primeira vez (VPS nova, ninguém usando): copie para /etc/caddy/Caddyfile,
+# chmod 644 e systemctl reload caddy. Depois disso, mudanças só com
+# scripts/apply-caddyfile.sh root@IP Caddyfile (confere e volta se falhar).
+#
+# Portas: 8090 = concord-server.socket (PORT do .env), 7880 = LIVEKIT_PORT.
+# O Caddy tira o certificado HTTPS sozinho (precisa das portas 80 e 443).
+
+# Sinalização das chamadas direto no LiveKit (o backend pode reiniciar sem
+# travar a voz).
+(salinha_rtc) {
+	handle /rtc* {
+		reverse_proxy 127.0.0.1:7880
+	}
+}
+
+# Atualizações do app desktop, do disco (/opt/concord/updates). Só com
+# instaladores próprios (fork + GitHub Actions, docs/ai/servidor-proprio.md):
+# para os downloads pesados saírem da GitHub Release do SEU fork em vez da
+# VPS, descomente as duas linhas e troque SEU-USUARIO/SEU-REPO.
+(salinha_updates) {
+	handle /updates/* {
+		# @release path_regexp release ^/updates/(Salinha-([0-9]+\.[0-9]+\.[0-9]+)-[A-Za-z0-9._-]+)$
+		# redir @release https://github.com/SEU-USUARIO/SEU-REPO/releases/download/v{re.release.2}/{re.release.1} 302
+		uri strip_prefix /updates
+		root * /opt/concord/updates
+		file_server
+	}
+}
+
+(salinha_backend) {
+	reverse_proxy 127.0.0.1:8090 {
+		lb_try_duration 15s
+		lb_try_interval 100ms
+		transport http {
+			keepalive off
+		}
+	}
+}
+
+SEU-ENDERECO {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	import salinha_rtc
+	import salinha_updates
+
+	# API (inclui os arquivos do chat), WebSocket do chat e o /healthz, que o
+	# app desktop e o scripts/apply-caddyfile.sh conferem.
+	@backend path /api /api/* /ws /healthz
+	handle @backend {
+		import salinha_backend
+	}
+
+	# App no navegador (frontend/dist-web, enviado pelo scripts/deploy-vps.sh).
+	handle /assets/* {
+		root * /opt/concord/web
+		@exists file
+		header @exists Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+	handle {
+		root * /opt/concord/web
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Página de download (site/), só com instaladores próprios. sslip.io aceita
+# prefixo (baixar.1-2-3-4.sslip.io); com domínio, crie o registro DNS antes.
+# baixar.SEU-ENDERECO {
+# 	encode zstd gzip
+# 	import salinha_updates
+# 	handle {
+# 		root * /opt/concord/site
+# 		file_server
+# 	}
+# }
