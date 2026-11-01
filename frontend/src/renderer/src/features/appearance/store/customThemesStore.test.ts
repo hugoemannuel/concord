@@ -4,17 +4,20 @@ const api = vi.hoisted(() => ({ getAppThemes: vi.fn(), saveAppThemes: vi.fn() })
 vi.mock('../api/appThemes', () => api)
 
 import { CUSTOM_THEMES_STORAGE_KEY, type CustomTheme } from '../lib/customThemes'
+import { withDefaults } from '../lib/themeInput'
 import { useCustomThemesStore } from './customThemesStore'
 
 const RED: CustomTheme = {
   id: 'red1',
   name: 'Vermelho',
-  accent: '#e11d48',
-  background: '#2a0a0a',
-  sidebar: '#1f0707',
-  card: '#3b0d0d',
-  text: '#ffffff',
-  glow: ''
+  ...withDefaults({
+    accent: '#e11d48',
+    background: '#2a0a0a',
+    sidebar: '#1f0707',
+    card: '#3b0d0d',
+    text: '#ffffff',
+    glow: ''
+  })
 }
 const state = () => useCustomThemesStore.getState()
 

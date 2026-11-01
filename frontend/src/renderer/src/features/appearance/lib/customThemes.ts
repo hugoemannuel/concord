@@ -4,10 +4,10 @@
 
 import { isCustomThemeKey, type CustomThemeKey, type ThemeId } from '../../settings/lib/themes'
 import { PRESET_SEEDS } from './presetSeeds'
-import { isHexColor } from './colorMath'
-import type { PaletteInput } from './palette'
+import { parseThemeInput } from './parseTheme'
+import { inputOf, type ThemeInput } from './themeInput'
 
-export interface CustomTheme extends PaletteInput {
+export interface CustomTheme extends ThemeInput {
   /** [a-z0-9]{1,24}; vira data-theme="custom-<id>". */
   id: string
   name: string
@@ -20,7 +20,6 @@ export const DEFAULT_NAME = 'Meu tema'
 export const CUSTOM_THEMES_STORAGE_KEY = 'concord:custom-themes'
 
 const ID = /^[a-z0-9]{1,24}$/
-const COLOR_FIELDS = ['accent', 'background', 'sidebar', 'card', 'text'] as const
 
 export function customThemeKey(id: string): CustomThemeKey {
   return `custom-${id}`
@@ -42,22 +41,10 @@ export function cleanName(raw: unknown): string {
 }
 
 function parseTheme(raw: unknown): CustomTheme | null {
-  if (typeof raw !== 'object' || raw === null) return null
-  const r = raw as Record<string, unknown>
-  if (typeof r.id !== 'string' || !ID.test(r.id)) return null
-  if (!COLOR_FIELDS.every((f) => isHexColor(r[f]))) return null
-  if (r.glow !== '' && !isHexColor(r.glow)) return null
-  const color = (f: string): string => (r[f] as string).toLowerCase()
-  return {
-    id: r.id,
-    name: cleanName(r.name),
-    accent: color('accent'),
-    background: color('background'),
-    sidebar: color('sidebar'),
-    card: color('card'),
-    text: color('text'),
-    glow: color('glow')
-  }
+  const input = parseThemeInput(raw)
+  const id = (raw as Record<string, unknown> | null)?.id
+  if (!input || typeof id !== 'string' || !ID.test(id)) return null
+  return { id, name: cleanName((raw as Record<string, unknown>).name), ...input }
 }
 
 /** Lista vinda de fora → só temas válidos, sem id repetido, até o limite. */
@@ -91,21 +78,17 @@ function freshName(existing: CustomTheme[]): string {
 }
 
 /** As cores de partida de um tema em uso: as do próprio ou a semente do pronto. */
-export function seedOf(theme: string, existing: CustomTheme[]): PaletteInput {
+export function seedOf(theme: string, existing: CustomTheme[]): ThemeInput {
   const custom = existing.find((t) => customThemeKey(t.id) === theme)
-  if (custom) return colorsOf(custom)
+  if (custom) return inputOf(custom)
   return PRESET_SEEDS[theme as ThemeId] ?? PRESET_SEEDS['discord-dark']
 }
 
-export function colorsOf({ accent, background, sidebar, card, text, glow }: PaletteInput): PaletteInput {
-  return { accent, background, sidebar, card, text, glow }
-}
-
 /** Tema próprio novo, com id e nome livres, partindo das cores `seed`. */
-export function newCustomTheme(seed: PaletteInput, existing: CustomTheme[], random = Math.random): CustomTheme {
+export function newCustomTheme(seed: ThemeInput, existing: CustomTheme[], random = Math.random): CustomTheme {
   return {
     id: freshId(new Set(existing.map((t) => t.id)), random),
     name: freshName(existing),
-    ...colorsOf(seed)
+    ...inputOf(seed)
   }
 }

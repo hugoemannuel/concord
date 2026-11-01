@@ -10,16 +10,19 @@ import {
   type CustomTheme
 } from './customThemes'
 import { PRESET_SEEDS } from './presetSeeds'
+import { withDefaults } from './themeInput'
 
 const VALID: CustomTheme = {
   id: 'abc123',
   name: 'Vermelho e branco',
-  accent: '#e11d48',
-  background: '#ffffff',
-  sidebar: '#fff1f2',
-  card: '#ffffff',
-  text: '#1f1f1f',
-  glow: ''
+  ...withDefaults({
+    accent: '#e11d48',
+    background: '#ffffff',
+    sidebar: '#fff1f2',
+    card: '#ffffff',
+    text: '#1f1f1f',
+    glow: ''
+  })
 }
 
 describe('normalizeCustomThemes', () => {

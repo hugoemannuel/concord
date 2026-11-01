@@ -19,6 +19,7 @@ import ReactionLimitModal from '../features/chat/components/ReactionLimitModal'
 import UserProfileCard from '../features/profile/components/UserProfileCard'
 import FriendActionsHost from '../features/friends/components/FriendActionsHost'
 import SettingsScreen from '../features/settings/components/SettingsScreen'
+import { ThemeEditorHost } from '../features/appearance/components/ThemeEditorHost'
 import ServerSettingsScreen from '../features/servers/components/ServerSettingsScreen'
 import ModerationHost from '../features/call/components/ModerationHost'
 import StreamJoinHost from './StreamJoinHost'
@@ -68,6 +69,7 @@ function App(): React.JSX.Element {
       <ReactionLimitModal />
       <FriendActionsHost />
       <SettingsScreen />
+      <ThemeEditorHost />
       <ServerSettingsScreen />
       <ModerationHost />
       <StreamJoinHost />

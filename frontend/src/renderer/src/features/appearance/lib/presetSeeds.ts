@@ -2,13 +2,13 @@
 // (o "Começar de" dos temas próprios). Puro. Ver docs/adr/0040-aparencia-personalizada.md.
 
 import type { ThemeId } from '../../settings/lib/themes'
-import type { PaletteInput } from './palette'
+import { withDefaults, type ColorsV1, type ThemeInput } from './themeInput'
 
 /**
  * As escolhas que reproduzem cada tema pronto (fundos translúcidos já compostos
  * sobre o --bg-app). O teste confere contra o assets/theme.css.
  */
-export const PRESET_SEEDS: Record<ThemeId, PaletteInput> = {
+const COLORS: Record<ThemeId, ColorsV1> = {
   'discord-dark': { accent: '#5865f2', background: '#1a1a1e', sidebar: '#121214', card: '#242429', text: '#efeff1', glow: '' },
   'discord-light': { accent: '#5865f2', background: '#ffffff', sidebar: '#fbfbfb', card: '#ffffff', text: '#2e2e34', glow: '' },
   amoled: { accent: '#5865f2', background: '#07080b', sidebar: '#0a0b0e', card: '#111214', text: '#f2f3f5', glow: '#5b21b6' },
@@ -18,3 +18,7 @@ export const PRESET_SEEDS: Record<ThemeId, PaletteInput> = {
   neon: { accent: '#9333ea', background: '#180e29', sidebar: '#130a20', card: '#221438', text: '#f3e8ff', glow: '#5b21b6' },
   'high-contrast': { accent: '#1d4ed8', background: '#000000', sidebar: '#000000', card: '#0a0a0a', text: '#ffffff', glow: '' }
 }
+
+export const PRESET_SEEDS = Object.fromEntries(
+  Object.entries(COLORS).map(([id, colors]) => [id, withDefaults(colors)])
+) as Record<ThemeId, ThemeInput>
