@@ -72,6 +72,8 @@ let serverUrl: string | undefined
 const screenFlow = screenShareFlow(process.platform, process.env)
 /** Aberto pelo login do sistema (ou reaberto pela instalação dele): fica na bandeja. */
 let launchHidden = false
+/** Servidor do Vite no dev (só lá): a única origem http liberada além dos servidores do build. */
+const devRendererUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined
 
 // Picker de tela (Fase 3): o getDisplayMedia do renderer dispara este handler,
 // que pede ao renderer para abrir o modal de seleção e resolve com a fonte
@@ -335,8 +337,7 @@ app.whenReady().then(() => {
   // Antes de qualquer notificação: CLSID fixo e atalho do Menu Iniciar.
   setupToasts()
   // Câmera, microfone, notificação...: só o próprio app e só o que ele usa.
-  const devUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined
-  const origins = appOrigins(join(__dirname, '../renderer'), devUrl, __CONCORD_SERVER_URLS__)
+  const origins = appOrigins(join(__dirname, '../renderer'), devRendererUrl, __CONCORD_SERVER_URLS__)
   setupSessionPermissions(app, session.defaultSession, origins)
   // Sem a barra "File Edit View Window" padrão do Electron (aparecia no Alt).
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
