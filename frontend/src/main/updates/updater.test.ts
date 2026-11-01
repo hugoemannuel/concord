@@ -118,9 +118,26 @@ vi.mock('./callResume', () => ({
 
 const win = { webContents: { send: (ch: string, v: unknown) => h.state.sent.push([ch, v]) } }
 
-async function startUpdater(): Promise<void> {
+async function startUpdater(
+  feedUrl = 'http://srv/updates/'
+): Promise<import('./startupFlow').StartupUpdate | null> {
   const { setupUpdater } = await import('./updater')
-  setupUpdater(() => win as never, { feedUrl: 'http://srv/updates/', publicKeyPem: 'chave' })
+  return setupUpdater(() => win as never, { feedUrl, publicKeyPem: 'chave' })
+}
+
+/** Lado da janelinha de abertura (startupFlow.ts): quer instalar quando ficar pronto. */
+function fakeWatcher(wantsInstall = true): {
+  progress: ReturnType<typeof vi.fn>
+  verifying: ReturnType<typeof vi.fn>
+  ready: ReturnType<typeof vi.fn>
+  failed: ReturnType<typeof vi.fn>
+} {
+  return {
+    progress: vi.fn(),
+    verifying: vi.fn(),
+    ready: vi.fn(() => wantsInstall),
+    failed: vi.fn()
+  }
 }
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0))
@@ -143,7 +160,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-// O código só registra em update.log/avisa do sandbox no Linux; força a
+// O código só avisa do sandbox (e usa o updater próprio) no Linux; força a
 // plataforma nos blocos que testam isso (senão falham ao rodar no Windows).
 const realPlatform = process.platform
 function forceLinux(): void {
@@ -731,28 +748,38 @@ describe('updater', () => {
       expect(h.state.sent).toContainEqual(['update:ready', '0.7.0'])
     })
 
-    it('não instala sozinho ao abrir o que o updater do Linux bloqueia (migração, versão ruim)', async () => {
+    it('a janelinha de abertura não instala o que o updater do Linux bloqueia (migração, versão ruim)', async () => {
+      h.linux.canAutoInstall.mockReturnValue(false)
+      h.linux.checkForUpdates.mockImplementationOnce(async () => {
+        await h.linux.emit('update-available', offer)
+        return null
+      })
+      const startup = await startUpdater()
+      expect(await startup?.check()).toBe(false)
+      expect(h.linux.canAutoInstall).toHaveBeenCalledWith('0.7.0')
+    })
+
+    it('versão já verificada numa sessão anterior não instala sozinha sem a janelinha', async () => {
       h.state.files[join('/tmp/concord-teste', 'update-verified.json')] = JSON.stringify({
         version: '0.7.0'
       })
-      h.linux.canAutoInstall.mockReturnValue(false)
       await startUpdater()
       await h.linux.emit('update-available', offer)
       await settle()
       await h.linux.emit('update-downloaded', downloaded)
-      expect(h.linux.canAutoInstall).toHaveBeenCalledWith('0.7.0')
       expect(h.linux.quitAndInstall).not.toHaveBeenCalled()
       expect(h.state.sent).toContainEqual(['update:ready', '0.7.0'])
     })
 
-    it('versão já verificada antes instala sozinha ao abrir quando o updater deixa', async () => {
-      h.state.files[join('/tmp/concord-teste', 'update-verified.json')] = JSON.stringify({
-        version: '0.7.0'
-      })
-      await startUpdater()
+    it('a janelinha instala a versão do Linux assim que extrai', async () => {
+      h.linux.canAutoInstall.mockReturnValue(true)
+      const startup = await startUpdater()
+      const watcher = fakeWatcher()
+      startup?.watch(watcher)
       await h.linux.emit('update-available', offer)
       await settle()
       await h.linux.emit('update-downloaded', downloaded)
+      expect(h.linux.stage).toHaveBeenCalled()
       expect(h.linux.quitAndInstall).toHaveBeenCalledWith(true, true)
     })
   })
@@ -779,6 +806,158 @@ describe('updater', () => {
     it('com o sandbox ligado não avisa', async () => {
       await startUpdater()
       expect(h.state.handlers['update:sandbox-notice']({ sender: win.webContents })).toBeNull()
+    })
+  })
+
+  describe('atualização ao abrir (janelinha de abertura)', () => {
+    const settle = async (): Promise<void> => {
+      for (let i = 0; i < 20; i++) await Promise.resolve()
+    }
+    const available = (version = '0.7.0'): unknown =>
+      h.autoUpdater.checkForUpdates.mockImplementationOnce(async () => {
+        await h.autoUpdater.emit('update-available', { version, path: `Salinha-${version}.exe` })
+        return null
+      })
+
+    it('sem endereço de atualização (dev): não há o que checar', async () => {
+      expect(await startUpdater('')).toBeNull()
+    })
+
+    it('sem versão nova: a checagem responde que não', async () => {
+      const startup = await startUpdater()
+      expect(await startup?.check()).toBe(false)
+    })
+
+    it('versão nova: a checagem responde que sim, sem checar duas vezes ao abrir', async () => {
+      available()
+      const startup = await startUpdater()
+      expect(await startup?.check()).toBe(true)
+      expect(h.autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
+    })
+
+    it('checagem que falha (sem rede) responde que não', async () => {
+      h.autoUpdater.checkForUpdates.mockRejectedValueOnce(new Error('sem rede'))
+      const startup = await startUpdater()
+      expect(await startup?.check()).toBe(false)
+    })
+
+    it('versão recusada antes não é oferecida na abertura', async () => {
+      h.state.files[join('/tmp/concord-teste', 'update-refused.json')] = JSON.stringify({
+        version: '0.7.0',
+        sha512: ''
+      })
+      available()
+      const startup = await startUpdater()
+      expect(await startup?.check()).toBe(false)
+    })
+
+    it('download pedido pela janelinha fura o sorteio', async () => {
+      available()
+      const startup = await startUpdater()
+      await startup?.check()
+      startup?.download()
+      await settle()
+      expect(h.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
+    })
+
+    it('progresso, verificação e pronto vão para a janelinha, que instala sem clique', async () => {
+      available()
+      const startup = await startUpdater()
+      const watcher = fakeWatcher()
+      startup?.watch(watcher)
+      await startup?.check()
+      await h.autoUpdater.emit('download-progress', { percent: 42.3 })
+      expect(watcher.progress).toHaveBeenCalledWith(42.3)
+      await h.autoUpdater.emit('update-downloaded', {
+        version: '0.7.0',
+        downloadedFile: 'Salinha-0.7.0.exe'
+      })
+      expect(watcher.verifying).toHaveBeenCalled()
+      expect(watcher.ready).toHaveBeenCalled()
+      expect(h.autoUpdater.quitAndInstall).toHaveBeenCalledWith(true, true)
+    })
+
+    it('assinatura inválida: a janelinha abre a versão atual e nada instala', async () => {
+      h.state.validSignature = false
+      available()
+      const startup = await startUpdater()
+      const watcher = fakeWatcher()
+      startup?.watch(watcher)
+      await startup?.check()
+      await h.autoUpdater.emit('update-downloaded', {
+        version: '0.7.0',
+        downloadedFile: 'Salinha-0.7.0.exe'
+      })
+      expect(watcher.failed).toHaveBeenCalled()
+      expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
+    })
+
+    it('download que falha avisa a janelinha', async () => {
+      h.autoUpdater.downloadUpdate.mockRejectedValueOnce(new Error('caiu'))
+      available()
+      const startup = await startUpdater()
+      const watcher = fakeWatcher()
+      startup?.watch(watcher)
+      await startup?.check()
+      await settle()
+      expect(watcher.failed).toHaveBeenCalledWith(
+        expect.stringContaining('download'),
+        expect.any(Error)
+      )
+    })
+
+    it('erro do instalador avisa a janelinha', async () => {
+      const startup = await startUpdater()
+      const watcher = fakeWatcher()
+      startup?.watch(watcher)
+      const erro = new Error('instalador')
+      await h.autoUpdater.emit('error', erro)
+      expect(watcher.failed).toHaveBeenCalledWith(expect.any(String), erro)
+    })
+
+    it('instalação que lança avisa a janelinha', async () => {
+      h.autoUpdater.quitAndInstall.mockImplementationOnce(() => {
+        throw new Error('sem permissão')
+      })
+      available()
+      const startup = await startUpdater()
+      const watcher = fakeWatcher()
+      startup?.watch(watcher)
+      await startup?.check()
+      await h.autoUpdater.emit('update-downloaded', {
+        version: '0.7.0',
+        downloadedFile: 'Salinha-0.7.0.exe'
+      })
+      expect(watcher.failed).toHaveBeenCalledWith('Não foi possível instalar a atualização.')
+    })
+
+    it('pulou ou já abriu (janelinha solta): pronto só avisa, sem instalar', async () => {
+      available()
+      const startup = await startUpdater()
+      const watcher = fakeWatcher()
+      startup?.watch(watcher)
+      await startup?.check()
+      startup?.watch(null)
+      await h.autoUpdater.emit('update-downloaded', {
+        version: '0.7.0',
+        downloadedFile: 'Salinha-0.7.0.exe'
+      })
+      expect(watcher.ready).not.toHaveBeenCalled()
+      expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
+      expect(h.state.sent).toContainEqual(['update:ready', '0.7.0'])
+    })
+
+    it('janelinha que não quer mais instalar (pulou no meio): só avisa', async () => {
+      available()
+      const startup = await startUpdater()
+      startup?.watch(fakeWatcher(false))
+      await startup?.check()
+      await h.autoUpdater.emit('update-downloaded', {
+        version: '0.7.0',
+        downloadedFile: 'Salinha-0.7.0.exe'
+      })
+      expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
+      expect(h.state.sent).toContainEqual(['update:ready', '0.7.0'])
     })
   })
 })

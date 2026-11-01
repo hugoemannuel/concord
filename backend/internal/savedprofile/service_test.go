@@ -94,6 +94,17 @@ func (f *fakeStore) Rename(_ context.Context, userID, id, name string) (*SavedPr
 	return &sp, nil
 }
 
+func (f *fakeStore) Overwrite(_ context.Context, userID, id string, snap user.ProfileSnapshot) (*SavedProfile, *SavedProfile, error) {
+	i := f.index(userID, id)
+	if i < 0 {
+		return nil, nil, ErrNotFound
+	}
+	old := f.items[i]
+	f.items[i].ProfileSnapshot = snap
+	sp := f.items[i]
+	return &sp, &old, nil
+}
+
 func (f *fakeStore) Delete(_ context.Context, userID, id string) (*SavedProfile, error) {
 	i := f.index(userID, id)
 	if i < 0 {
@@ -255,5 +266,30 @@ func TestRenameAndDelete(t *testing.T) {
 	list, _ := s.List(ctx, meID)
 	if len(list) != 1 || list[0].Name != "B" {
 		t.Fatalf("lista = %+v", list)
+	}
+}
+
+func TestOverwriteTakesCurrentSnapshotKeepingName(t *testing.T) {
+	s, _, profiles := newTestService()
+	sp, _ := s.Save(context.Background(), meID, "Gamer")
+	b := avatarB
+	profiles.me.AvatarURL, profiles.me.DisplayName = &b, "Outro"
+
+	got, old, err := s.Overwrite(context.Background(), meID, sp.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "Gamer" || got.Fields.DisplayName != "Outro" || *got.AvatarURL != avatarB || *old.AvatarURL != avatarA {
+		t.Fatalf("novo = %+v, antigo = %+v", got, old)
+	}
+}
+
+func TestOverwriteErrors(t *testing.T) {
+	s, _, _ := newTestService()
+	if _, _, err := s.Overwrite(context.Background(), meID, "99999999-9999-4999-8999-999999999999"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("não existe: %v", err)
+	}
+	if _, _, err := s.Overwrite(context.Background(), "22222222-2222-4222-8222-222222222222", "x"); !errors.Is(err, user.ErrUserNotFound) {
+		t.Fatalf("conta que não existe: %v", err)
 	}
 }

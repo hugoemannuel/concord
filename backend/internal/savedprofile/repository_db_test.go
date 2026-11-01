@@ -115,6 +115,7 @@ func TestRepositoryDB(t *testing.T) {
 	if _, err := repo.Rename(ctx, other, sp.ID, "x"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("renomear de outra pessoa: %v", err)
 	}
+	checkOverwriteDB(t, repo, me, other, sp.ID)
 	if _, err := repo.Delete(ctx, other, sp.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("excluir de outra pessoa: %v", err)
 	}
@@ -154,5 +155,29 @@ func TestApplySnapshotDB(t *testing.T) {
 	}
 	if _, _, err := users.ApplySnapshot(ctx, uuid.NewString(), user.ProfileSnapshot{}); err == nil {
 		t.Fatal("conta que não existe deveria falhar")
+	}
+}
+
+// Sobrescrever troca o snapshot, mantém nome e posição e devolve o anterior.
+func checkOverwriteDB(t *testing.T, repo *Repository, me, other, id string) {
+	t.Helper()
+	ctx := context.Background()
+	b := avatarB
+	snap := user.ProfileSnapshot{Fields: user.ProfileInput{DisplayName: "Novo", Links: []user.ProfileLink{}}, AvatarURL: &b}
+	got, old, err := repo.Overwrite(ctx, me, id, snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "Novo" || got.Fields.DisplayName != "Novo" || *got.AvatarURL != avatarB || got.BannerURL != nil {
+		t.Fatalf("novo = %+v", got)
+	}
+	if old.Fields.DisplayName != "Mugis" || *old.AvatarURL != avatarA {
+		t.Fatalf("anterior = %+v", old)
+	}
+	if list, _ := repo.List(ctx, me); list[0].ID != id {
+		t.Fatal("a posição na lista deve ficar")
+	}
+	if _, _, err := repo.Overwrite(ctx, other, id, snap); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("de outra pessoa: %v", err)
 	}
 }

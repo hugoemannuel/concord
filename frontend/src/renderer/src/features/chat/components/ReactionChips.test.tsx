@@ -10,17 +10,21 @@ const reactions = [
   { emoji: '👍', count: 1, user_ids: ['bia'] }
 ]
 
-function render(canReact = true): string {
+function render(canReact = true, pickerAnchor: HTMLElement | null = null): string {
   return renderToStaticMarkup(
     <ReactionChips
       reactions={reactions}
       meId="ana"
       canReact={canReact}
       onReact={() => {}}
+      pickerAnchor={pickerAnchor}
       onOpenPicker={() => {}}
     />
   )
 }
+
+/** O botão "+" (último botão das pílulas). */
+const addButton = (html: string): string => html.split('<button').at(-1) ?? ''
 
 describe('ReactionChips', () => {
   it('sem reações não ocupa espaço', () => {
@@ -29,6 +33,7 @@ describe('ReactionChips', () => {
         reactions={[]}
         meId="ana"
         canReact
+        pickerAnchor={null}
         onReact={() => {}}
         onOpenPicker={() => {}}
       />
@@ -63,5 +68,21 @@ describe('ReactionChips', () => {
     const [mine, other] = render(false).split('<button').slice(1)
     expect(mine).not.toContain('aria-disabled')
     expect(other).toContain('aria-disabled="true"')
+  })
+
+  // Regressão: o "+" só aparecia com o mouse na mensagem; ao levar o mouse para
+  // o seletor de emoji aberto por ele, a mensagem perdia o hover e o "+" sumia.
+  it('"+" fica oculto até o hover da mensagem quando o seletor está fechado', () => {
+    const add = addButton(render())
+    expect(add).toContain('[@media(hover:hover)]:opacity-0')
+    expect(add).toContain('group-hover:opacity-100')
+    expect(add).toContain('aria-expanded="false"')
+  })
+
+  it('"+" continua visível enquanto o seletor aberto por ele está aberto', () => {
+    const add = addButton(render(true, {} as HTMLElement))
+    expect(add).not.toContain('opacity-0')
+    expect(add).toContain('opacity-100')
+    expect(add).toContain('aria-expanded="true"')
   })
 })

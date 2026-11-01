@@ -131,6 +131,7 @@ function CommentRow({
             reactions={comment.reactions}
             meId={meId ?? undefined}
             canReact
+            pickerAnchor={picker.anchor}
             onReact={(emoji) => void react(emoji)}
             onOpenPicker={picker.toggle}
           />

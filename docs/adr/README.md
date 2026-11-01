@@ -80,4 +80,5 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0040. Temas próprios da aparência: paleta gerada no cliente a partir de poucas cores, lista na conta](0040-aparencia-personalizada.md)
 - [0041. Aparência v2: edição ao vivo no app inteiro, degradês, vidro e forma nos temas próprios](0041-aparencia-v2.md)
 - [0042. Servidor próprio guiado por IA: build na própria VPS e app no navegador](0042-servidor-proprio-guiado-por-ia.md)
+- [0044. Janelinha de abertura que atualiza antes de abrir o app desktop](0044-janelinha-de-abertura-que-atualiza.md)
 - [0046. Ticket de uso único e 30 s para abrir o WebSocket, no lugar do token na URL](0046-ticket-do-websocket.md)

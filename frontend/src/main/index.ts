@@ -49,7 +49,7 @@ import { closeActivity, setupActivities } from './activity/activityWindow'
 import { APP_USER_MODEL_ID } from './window/toastPolicy'
 import { setupToasts } from './window/toasts'
 import { TITLE_BAR_COLOR, titleBarOptions } from './window/windowPolicy'
-import { registerThemeHandlers } from './window/windowTheme'
+import { registerThemeHandlers } from './window/titleBarTheme'
 import { isSafeExternalUrl } from '../shared/externalUrl'
 import { fromWindow, parseSourceId } from './window/ipcGuard'
 import { guardNavigation } from './window/navigationGuard'
@@ -62,12 +62,16 @@ import {
   stopWindowAudio
 } from './screen/screenAudio'
 import { setupNativeLive } from './nativeLive/setupNativeLive'
+import { openSplash } from './splash/openSplash'
+import { takeHiddenRelaunch } from './splash/splashMarks'
 
 let mainWindow: BrowserWindow | null = null
 /** Endereço do servidor que respondeu ao abrir (undefined no dev: o do build). */
 let serverUrl: string | undefined
 /** Wayland usa o seletor do sistema; o preload (em sandbox) recebe por argumento. */
 const screenFlow = screenShareFlow(process.platform, process.env)
+/** Aberto pelo login do sistema (ou reaberto pela instalação dele): fica na bandeja. */
+let launchHidden = false
 
 // Picker de tela (Fase 3): o getDisplayMedia do renderer dispara este handler,
 // que pede ao renderer para abrir o modal de seleção e resolve com a fonte
@@ -234,7 +238,7 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     // Aberto pelo "Iniciar com o Windows": fica só na bandeja.
-    if (!startHidden()) mainWindow?.show()
+    if (!launchHidden) mainWindow?.show()
   })
   attachCloseToTray(mainWindow)
   watchWindowActivity(mainWindow, { inCall: isInCall, onCallStateChange })
@@ -319,6 +323,9 @@ if (
 app.whenReady().then(() => {
   // Primeiro de tudo: o tempo de abertura medido começa daqui. Sem --perf-log não faz nada.
   setupPerfLog(() => mainWindow)
+  // A janelinha de abertura aparece já: atualiza (se houver) antes de abrir.
+  launchHidden = startHidden() || takeHiddenRelaunch()
+  const splash = openSplash(launchHidden, icon)
   // Testa os endereços do servidor enquanto o resto inicia.
   const serverChoice = startServerChoice(__CONCORD_SERVER_URLS__)
   registerServerDiagnostics(serverChoice, __CONCORD_SERVER_URLS__)
@@ -357,13 +364,15 @@ app.whenReady().then(() => {
 
   // A janela abre já com o endereço que responde (o principal ou um
   // alternativo, se o principal estiver bloqueado na rede de quem usa).
-  void serverChoice.then((choice) => {
+  void serverChoice.then(async (choice) => {
     serverUrl = choice?.url
-    setupUpdater(() => mainWindow, {
+    const startupUpdate = setupUpdater(() => mainWindow, {
       feedUrl: updateFeedFor(__CONCORD_UPDATE_URL__, serverUrl),
       publicKeyPem: __CONCORD_UPDATE_PUBKEY__
     })
+    await splash.update(startupUpdate)
     createWindow()
+    if (mainWindow) splash.handOff(mainWindow)
   })
 
   app.on('activate', function () {

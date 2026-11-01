@@ -15,6 +15,8 @@ type store interface {
 	Find(ctx context.Context, userID, id string) (*SavedProfile, error)
 	Create(ctx context.Context, userID, name string, snap user.ProfileSnapshot) (*SavedProfile, error)
 	Rename(ctx context.Context, userID, id, name string) (*SavedProfile, error)
+	// Overwrite troca o snapshot e devolve o novo perfil salvo e o anterior.
+	Overwrite(ctx context.Context, userID, id string, snap user.ProfileSnapshot) (*SavedProfile, *SavedProfile, error)
 	Delete(ctx context.Context, userID, id string) (*SavedProfile, error)
 }
 
@@ -76,6 +78,21 @@ func (s *Service) Rename(ctx context.Context, userID, id, rawName string) (*Save
 		return nil, err
 	}
 	return s.store.Rename(ctx, userID, id, name)
+}
+
+// Overwrite sobrescreve o perfil salvo com o perfil atual, mantendo nome e
+// posição. Devolve também o perfil salvo anterior (quem chama solta a mídia
+// que ele usava e agora ninguém mais usa).
+func (s *Service) Overwrite(ctx context.Context, userID, id string) (*SavedProfile, *SavedProfile, error) {
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, nil, userNotFound(err)
+	}
+	snap, err := user.ValidateSnapshot(u.Snapshot())
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.store.Overwrite(ctx, userID, id, snap)
 }
 
 // Delete apaga e devolve o perfil salvo (quem chama solta a mídia dele).

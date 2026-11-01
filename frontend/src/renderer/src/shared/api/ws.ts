@@ -38,6 +38,7 @@ export type WsEventType =
   | 'role:delete'
   | 'role:reorder'
   | 'user:update'
+  | 'saved_profiles:changed'
   | 'friend:request'
   | 'friend:request:accepted'
   | 'friend:request:declined'
