@@ -6,13 +6,15 @@
 # │    do systemd ativo (docs/HOSPEDAGEM.md, "Porta do backend com o          │
 # │    systemd"). As portas são as do /opt/concord/.env: 8090 = PORT do       │
 # │    backend (= ListenStream do concord-server.socket), 7880 = LIVEKIT_PORT.│
-# │ 2. Com ninguém em chamada: todo reload do Caddy 2.6 fecha os WebSockets   │
-# │    (chat reconecta sozinho; quem está em chamada perde a sinalização um   │
-# │    instante e o app reconecta a chamada).                                 │
+# │ 2. Com ninguém em chamada (o script confere): o reload que muda os        │
+# │    reverse_proxy fecha os WebSockets abertos na config antiga se ela não  │
+# │    tinha stream_close_delay (chat reconecta sozinho; quem está em chamada │
+# │    perde a sinalização um instante e o app reconecta a chamada).          │
 # │ 3. Use scripts/apply-caddyfile.sh root@IP deploy/Caddyfile: valida,       │
 # │    confere /healthz e que ninguém está em chamada, guarda backup,         │
 # │    recarrega, testa /rtc, a API e /updates e volta o backup se falhar.    │
-# │ Feito para o Caddy 2.6.2 do Debian (testado com 2.6.2 e 2.10.2).          │
+# │ Feito para o Caddy 2.11 do repositório oficial (stream_close_delay exige  │
+# │ 2.7+; o 2.6.2 do Debian recusa este arquivo).                             │
 # └───────────────────────────────────────────────────────────────────────────┘
 #
 # Por que funciona sem perder requisição no deploy: a porta 8090 é do systemd
@@ -21,9 +23,10 @@
 # O lb_try abaixo só entra se a porta estiver fechada de verdade (backend sem
 # o socket, ou parado), e aí só ajuda requisição sem corpo.
 #
-# Caddy 2.7+ tem stream_close_delay, que faria o reload não fechar os
-# WebSockets; o 2.6 não tem. Ver docs/HOSPEDAGEM.md para atualizar o Caddy e
-# acrescentar `stream_close_delay 12h` aos dois reverse_proxy.
+# stream_close_delay: num reload, os WebSockets abertos (chat e sinalização do
+# LiveKit) continuam na config antiga por até 12 h em vez de cair na hora; o
+# cliente reconecta quando quiser e já cai na config nova. Parar ou reiniciar
+# o Caddy ainda fecha tudo.
 
 # Sinalização do LiveKit (/rtc, /rtc/v1, /rtc/validate…) direto para o
 # LiveKit, sem passar pelo backend: reiniciar o backend não corta a
@@ -32,7 +35,9 @@
 # atualizar o app. Todo bloco que serve o app precisa deste trecho.
 (salinha_rtc) {
 	handle /rtc* {
-		reverse_proxy 127.0.0.1:7880
+		reverse_proxy 127.0.0.1:7880 {
+			stream_close_delay 12h
+		}
 	}
 }
 
@@ -55,6 +60,8 @@
 # Backend (API, WebSocket do chat).
 (salinha_backend) {
 	reverse_proxy 127.0.0.1:8090 {
+		# Reload não derruba o WebSocket do chat (ver o cabeçalho).
+		stream_close_delay 12h
 		# Porta fechada de verdade (backend parado): tenta de novo por até
 		# 15 s em vez de 502. No reinício normal a porta não fecha (socket).
 		lb_try_duration 15s

@@ -22,7 +22,7 @@ services:
   # Rede do host: o LiveKit precisa enxergar as interfaces reais (IP da LAN)
   # e escutar UDP/TCP direto, sem o NAT do Docker no meio.
   livekit:
-    image: livekit/livekit-server:v1.13.10
+    image: livekit/livekit-server:v1.13.11
     container_name: concord-livekit
     restart: unless-stopped
     network_mode: host

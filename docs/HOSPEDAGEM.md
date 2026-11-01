@@ -311,8 +311,10 @@ Numa VPS com IP público não precisa de playit, e dá para ter HTTPS de graça.
    (ex.: `74-0-5-252.sslip.io` aponta para `74.0.5.252`). O `/etc/caddy/Caddyfile`
    é o [`deploy/Caddyfile`](../deploy/Caddyfile) do repositório (veja
    [Caddyfile](#caddyfile-todos-os-endereços-da-vps)). O Caddy tira o
-   certificado sozinho. Serve o Caddy **2.6.2 do `apt` do Debian**. O arquivo
-   precisa ser legível pelo usuário `caddy` (`chmod 644`).
+   certificado sozinho. Use o Caddy **2.7 ou mais novo, do repositório
+   oficial** (veja [Caddy e o reload](#portas-abertas-na-vps)); o 2.6.2 do `apt`
+   do Debian recusa o `stream_close_delay`. O arquivo precisa ser legível pelo
+   usuário `caddy` (`chmod 644`).
 5. **Serviço do backend:** `/etc/systemd/system/concord-server.service`, com
    `WorkingDirectory=/opt/concord`, `ExecStart=/opt/concord/concord-server` e
    `Restart=always`, mais:
@@ -434,29 +436,45 @@ Confira com `ss -tulnp`.
   salinha-fw-rollback.timer` depois de conferir (SSH novo, site, e alguém
   entrando numa call com áudio).
 
-**Caddy 2.6 e o reload.** O `stream_close_delay`, que faria o reload do Caddy
-não fechar os WebSockets, só existe a partir do 2.7. No 2.6.2 **todo
-`systemctl reload caddy` fecha todos os WebSockets**: o chat reconecta sozinho
-em instantes, e quem está em chamada perde a sinalização (a chamada reconecta
-com uma travada de ~1 s). Como o Caddyfile quase nunca muda, ficamos no 2.6.2
-e só recarregamos com ninguém em chamada (o script abaixo confere).
+**Caddy e o reload.** A VPS roda o Caddy do repositório oficial (Cloudsmith),
+**2.11.7 desde 2026-11-01** (antes, o 2.6.2 do Debian). O `deploy/Caddyfile`
+tem `stream_close_delay 12h` nos `reverse_proxy` de `salinha_rtc` e
+`salinha_backend`: num `systemctl reload caddy`, os WebSockets abertos (chat e
+sinalização do LiveKit) continuam na config antiga por até 12 h em vez de cair
+na hora, e quem reconecta já cai na config nova. Sem isso (o 2.6.2 não tem a
+opção), **todo reload fechava todos os WebSockets**: o chat reconectava em
+instantes e quem estava em chamada perdia a sinalização (a chamada reconectava
+com uma travada de ~1 s). Testado no 2.11.7: WebSocket parado por mais de
+1 min não cai (os timeouts de inatividade do 2.11.6 só cortam escrita
+travada), o reload mantém o WebSocket aberto e `stop`/`restart` fecha tudo na
+hora (sem esperar as 12 h; a unidade tem `TimeoutStopSec=5s`). O script abaixo
+continua conferindo que ninguém está em chamada, por garantia.
 
-Para não depender disso, atualize para o Caddy do repositório oficial
-(Cloudsmith) num passo à parte, com ninguém em chamada:
+Parar ou reiniciar o Caddy (inclusive a atualização do pacote) ainda fecha
+todos os WebSockets: faça com ninguém em chamada. O pacote do Cloudsmith não
+entra no `unattended-upgrades` (que só pega o Debian), então atualizar é
+manual. Para instalar numa VPS nova ou atualizar:
 
 ```bash
 apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
-apt update && apt install -y caddy        # reinicia o Caddy: os WebSockets caem uma vez
-caddy version                             # v2.7 ou mais novo
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+apt update
+# Antes de trocar: valide o Caddyfile com o binário novo, sem instalar.
+cd "$(mktemp -d)" && apt-get download caddy && dpkg-deb -x caddy_*.deb x &&
+  x/usr/bin/caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+# Guarde o pacote atual (volta: dpkg -i ou apt install --allow-downgrades caddy=<versão>).
+cp /var/cache/apt/archives/caddy_*.deb /root/ 2>/dev/null; cp -p /usr/bin/caddy /root/caddy-$(caddy version | cut -d' ' -f1).bin
+# confold: mantém o /etc/caddy/Caddyfile da VPS (o pacote traz um de exemplo).
+apt-get install -y -o Dpkg::Options::=--force-confold caddy   # reinicia: os WebSockets caem uma vez
+caddy version
 curl -s -o /dev/null -w '%{http_code}\n' https://74-0-5-252.sslip.io/rtc/validate   # 401
 ```
 
-Depois acrescente `stream_close_delay 12h` aos `reverse_proxy` de
-`salinha_rtc` e `salinha_backend` e aplique com o script: o primeiro reload
-ainda fecha os WebSockets; os seguintes, não.
+Mudanças do 2.6 para o 2.11 que importam aqui (o `caddy adapt` do nosso
+Caddyfile gera o mesmo JSON nas duas versões): cabeçalhos da requisição
+limitados a 16 KiB (`431` acima disso; os tokens vão na URL, bem menores) e
+cabeçalhos com `_` ou `.` no nome descartados (o app não usa nenhum).
 
 **Aplicar o Caddyfile:** use o script, que roda na VPS, nesta ordem: valida o
 arquivo; confere que o backend responde `/healthz`; confere no banco que
@@ -689,8 +707,8 @@ feito.
    backend espera o banco). Antes: `docker exec concord-postgres postgres
    --version` (de qual versão sai), as notas das versões puladas (procure
    "REINDEX") e um `pg_dump` na hora.
-6. **Opcional:** Caddy ≥ 2.7 pelo repositório oficial e `stream_close_delay`
-   (seção do Caddyfile acima).
+6. **Caddy ≥ 2.7** pelo repositório oficial (feito em 2026-11-01: 2.11.7) e
+   depois o Caddyfile com `stream_close_delay` (seção do Caddyfile acima).
 
 **Voltar atrás um deploy** (o deploy já faz isso sozinho quando o novo não
 sobe). Com o socket ativo, só volte para um binário que sabe usá-lo:
@@ -813,7 +831,25 @@ Postgres derruba o backend por alguns segundos. Por isso o deploy:
   scripts/deploy-vps.sh --infra root@IP
   ```
 
-As imagens têm versão fixa (`postgres:17.11`, `livekit/livekit-server:v1.13.10`).
+O `--infra` recria **todo** serviço cuja configuração mudou. Na VPS o Postgres
+ainda roda `postgres:17` (o `postgres:17.11` do compose não foi aplicado), então
+um `--infra` recria o Postgres junto. Para trocar só o LiveKit (foi assim a
+1.13.10 → 1.13.11, em 2026-11-01), com ninguém em chamada, mande o compose novo e
+recrie só ele:
+
+```bash
+rsync -az backend/docker-compose.yml root@IP:/opt/concord/docker-compose.yml.new
+ssh root@IP 'cd /opt/concord && cp -p docker-compose.yml docker-compose.yml.bak-$(date +%Y%m%d-%H%M%S) &&
+  mv docker-compose.yml.new docker-compose.yml && docker compose pull livekit &&
+  docker compose up -d --no-deps livekit'
+```
+
+Volta: o `docker-compose.yml.bak-*` no lugar e o mesmo `up -d --no-deps livekit`.
+Confira depois `/rtc/validate` = 401, `curl -s 127.0.0.1:6789/metrics | grep -c
+^livekit_` > 0 e, nos logs (`docker logs concord-livekit`), o `nodeIP` igual ao
+IP público e uma entrada com `mediaTrack published`.
+
+As imagens têm versão fixa (`postgres:17.11`, `livekit/livekit-server:v1.13.11`).
 Trocar a versão é uma mudança de infraestrutura como qualquer outra: entra no
 próximo `--infra`. Comentários YAML no compose não contam, mas o texto dentro
 do `LIVEKIT_CONFIG` (comentários inclusive) vira variável do container e conta.
