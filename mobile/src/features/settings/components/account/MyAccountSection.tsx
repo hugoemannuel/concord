@@ -17,6 +17,7 @@ import { AccountRow, MaskedEmail } from './AccountRow'
 import { BirthdayEditModal } from './BirthdayEditModal'
 import { CredentialModal } from './CredentialModal'
 import { LegalFooter } from '../../../legal/components/LegalLinks'
+import { AccountSessionActions } from './AccountSessionActions'
 
 type AccountModal = 'name' | 'username' | 'email' | 'birthday'
 
@@ -82,6 +83,7 @@ export function MyAccountSection() {
         <AccountRow label="Aniversário" value={birthday.birthday ? formatBirthday(birthday.birthday) : 'Carregando…'} onEdit={birthday.birthday ? edit('birthday') : undefined} />
         {since ? <AccountRow label="Membro desde" value={since} /> : null}
       </View>
+      <AccountSessionActions />
       <LegalFooter />
       {modal === 'name' ? <NameModal user={user} onClose={close} onSaved={setSaved} /> : null}
       {modal === 'username' || modal === 'email' ? (

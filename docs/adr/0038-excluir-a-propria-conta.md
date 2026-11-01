@@ -67,7 +67,8 @@ backups (14 dias), logs (rotação) e issues públicas de propostas no GitHub.
   transação; para o tamanho atual da base é aceitável.
 - Quem estava em call ao excluir sai pela queda do WS (a regra de
   desconexão da call).
-- O app Android ainda não tem a tela (só o desktop e a web): pendência.
+- O app Android tem a mesma tela em Minha conta (exigência da Play Store), mas
+  sem a transferência de posse (o 409 manda fazer pelo desktop ou pela web).
 
 ## Fontes
 - Discord, perguntas sobre exclusão de conta (as mensagens ficam como
