@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"gin-quickstart/backend/internal/auth"
 	"gin-quickstart/backend/internal/conversation"
 	"gin-quickstart/backend/internal/permission"
 
@@ -36,10 +35,10 @@ type Handler struct {
 	mobile *MobileApps
 }
 
-func WsHandler(hub *Hub, authService *auth.Service, perms ChannelPermissions, members ServerMembers, conversationService *conversation.Service, callRouter CallRouter, typing TypingRouter) *Handler {
+func WsHandler(hub *Hub, connAuth *ConnectAuth, perms ChannelPermissions, members ServerMembers, conversationService *conversation.Service, callRouter CallRouter, typing TypingRouter) *Handler {
 	return &Handler{
 		hub:                 hub,
-		connAuth:            NewConnectAuth(authService),
+		connAuth:            connAuth,
 		perms:               perms,
 		members:             members,
 		conversationService: conversationService,
@@ -82,7 +81,7 @@ func (h *Handler) canJoinConversation(ctx context.Context, conversationID, userI
 }
 
 func (h *Handler) ServeWS(c *gin.Context) {
-	userID, ok := h.connAuth.tokenUser(c.Request.Context(), c.Query("token"))
+	userID, ok := h.connAuth.connectUser(c.Request.Context(), c.Request)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 		return
@@ -90,7 +89,8 @@ func (h *Handler) ServeWS(c *gin.Context) {
 
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
 		// O app empacotado conecta a partir de file:// (sem host de origem) e a
-		// autenticação já é feita pelo ?token=, então a origem não é checada.
+		// autenticação já é feita pelo ?ticket= (ou ?token= legado), sem cookie:
+		// a origem não é checada.
 		InsecureSkipVerify: true,
 	})
 	if err != nil {
