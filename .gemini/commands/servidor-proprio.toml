@@ -1,0 +1,10 @@
+description = "Conduz uma pessoa leiga até ter o próprio servidor da Salinha no ar (VPS ou o próprio PC)."
+prompt = """
+Entrada: {{args}}
+
+Siga o roteiro abaixo do começo ao fim, na ordem, respeitando as regras do AGENTS.md.
+Fale em português simples, uma pergunta por vez, sem mostrar segredos na conversa, e
+confirme antes de tudo que custa dinheiro ou é difícil de desfazer.
+
+@{docs/ai/servidor-proprio.md}
+"""
