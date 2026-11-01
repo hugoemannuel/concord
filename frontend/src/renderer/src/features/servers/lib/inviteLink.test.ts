@@ -16,6 +16,10 @@ describe('inviteLink', () => {
     expect(inviteLink('K7P2QX9M')).toBe('https://app-salinha.bhrx.com.br/convite/K7P2QX9M')
     expect(inviteDeepLink('K7P2QX9M')).toBe('salinha://convite/K7P2QX9M')
   })
+
+  it('no app web de outro servidor, usa o endereço dele (servidor próprio)', () => {
+    expect(inviteLink('K7P2QX9M', 'https://1-2-3-4.sslip.io')).toBe('https://1-2-3-4.sslip.io/convite/K7P2QX9M')
+  })
 })
 
 describe('normalizeInviteCode', () => {
