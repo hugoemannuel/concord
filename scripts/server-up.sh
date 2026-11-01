@@ -20,6 +20,17 @@ set -a
 source .env
 set +a
 
+# O backend não sobe sem um JWT_SECRET forte (32+ caracteres, diferente do
+# .env.example). Neste PC, gera um e grava no backend/.env (sem mostrar).
+JWT_SECRET="${JWT_SECRET:-}"
+if [[ ${#JWT_SECRET} -lt 32 || "$JWT_SECRET" == "troque-por-um-segredo-forte-aqui" ]]; then
+  JWT_SECRET="$(openssl rand -hex 32)"
+  sed -i.bak '/^JWT_SECRET=/d' .env && rm -f .env.bak
+  printf 'JWT_SECRET=%s\n' "$JWT_SECRET" >> .env
+  export JWT_SECRET
+  echo "aviso: JWT_SECRET ausente ou fraco — gerei um novo em backend/.env (as sessões antigas deste PC caem)." >&2
+fi
+
 if [[ -z "${LIVEKIT_NODE_IP:-}" ]]; then
   echo "aviso: LIVEKIT_NODE_IP vazio — num PC de casa, chamadas só funcionam na rede local." >&2
   echo "       Para amigos de fora (playit): scripts/playit-ip.sh <endereço-do-túnel-udp>." >&2

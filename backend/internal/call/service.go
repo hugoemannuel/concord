@@ -104,15 +104,15 @@ type Service struct {
 	offlineRinger func(userID string) bool
 	ringTimeout   time.Duration
 	onDMInvite    []func(DMInvite)
-	perms               PermissionSource
-	invite              inviteDeps
+	perms         PermissionSource
+	invite        inviteDeps
 	// Visitantes (convite de visitante, ver guest.go).
 	guests GuestAccess
 	// Canal pelo id (trocável nos testes, que não têm banco).
 	findChannel func(ctx context.Context, id string) (*channel.Channel, error)
 	// Conversa pelo id (trocável nos testes, que não têm banco).
 	findConversation func(ctx context.Context, id string) (*conversation.Conversation, error)
-	media       MediaAdmin
+	media            MediaAdmin
 
 	mu    sync.RWMutex
 	calls map[string]*activeCall
@@ -665,42 +665,6 @@ func (s *Service) GetState(ctx context.Context, callID string) (*StateResponse, 
 		ScreenSharing:  screenSharing,
 		ScreenWatchers: screenWatchers,
 	}, nil
-}
-
-// HandleDisconnect é chamado quando a última conexão WS do usuário fecha.
-// Espera disconnectGrace e só então tira o usuário das chamadas, se ele não
-// tiver reconectado nesse meio-tempo.
-func (s *Service) HandleDisconnect(userID string) {
-	time.AfterFunc(s.disconnectGrace, func() {
-		if s.isOnline != nil && s.isOnline(userID) {
-			return
-		}
-		s.cancelKnocksBy(userID)
-		s.leaveAllCalls(userID)
-	})
-}
-
-func (s *Service) leaveAllCalls(userID string) {
-	ctx := context.Background()
-
-	s.mu.Lock()
-	callIDs := make([]string, 0)
-	rejoinUntil := time.Now().Add(rejoinTTL)
-	for id, ac := range s.calls {
-		if _, ok := ac.participants[userID]; ok {
-			callIDs = append(callIDs, id)
-			// Caiu sem querer (rede, atualização do app): volta sem bater na
-			// porta se a sala estiver trancada.
-			admitLocked(ac, userID, rejoinUntil)
-		}
-	}
-	s.mu.Unlock()
-
-	for _, callID := range callIDs {
-		if err := s.leaveAfterDisconnect(ctx, callID, userID); err != nil {
-			log.Printf("[call] disconnect leave %s failed: %v", userID, err)
-		}
-	}
 }
 
 func (s *Service) HandleCallMessage(userID string, evType string, payload json.RawMessage) {

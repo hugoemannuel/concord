@@ -95,6 +95,18 @@ describe('preferência salva', () => {
     expect(parseThemePreference('__proto__')).toBe(DEFAULT_THEME)
   })
 
+  it('aceita tema próprio ("custom-<id>")', () => {
+    expect(parseThemePreference('custom-abc123')).toBe('custom-abc123')
+    expect(parseThemePreference('custom-')).toBe(DEFAULT_THEME)
+    expect(parseThemePreference('custom-ABC')).toBe(DEFAULT_THEME)
+  })
+
+  it('tema próprio que não existe (apagado, ainda não carregou) vira o padrão', () => {
+    expect(resolveTheme('custom-abc', true, () => true)).toBe('custom-abc')
+    expect(resolveTheme('custom-abc', true, () => false)).toBe(DEFAULT_THEME)
+    expect(resolveTheme('custom-abc', true)).toBe(DEFAULT_THEME)
+  })
+
   it('seguir o sistema escolhe o Discord claro ou escuro', () => {
     expect(resolveTheme('system', true)).toBe('discord-dark')
     expect(resolveTheme('system', false)).toBe('discord-light')

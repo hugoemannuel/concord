@@ -52,6 +52,8 @@ import {
   titleBarOptions
 } from './window/windowPolicy'
 import { isSafeExternalUrl } from '../shared/externalUrl'
+import { fromWindow, parseSourceId } from './window/ipcGuard'
+import { guardNavigation } from './window/navigationGuard'
 import { contextMenuItems } from './window/contextMenu'
 import {
   audioLogPath,
@@ -169,7 +171,13 @@ function registerScreenShareHandlers(): void {
     callback({ video: source })
   }
 
-  ipcMain.handle('screen-picker:sources', async () => {
+  // Só lista e escolhe com um getDisplayMedia pendente e pela janela principal:
+  // sem isso, um XSS tiraria miniaturas da área de trabalho a qualquer hora.
+  const pickerAllowed = (event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent): boolean =>
+    pendingDisplay.pending() && fromWindow(event, () => mainWindow)
+
+  ipcMain.handle('screen-picker:sources', async (event) => {
+    if (!pickerAllowed(event)) return []
     const sources = await desktopCapturer.getSources({
       types: ['screen', 'window'],
       thumbnailSize: { width: 480, height: 270 },
@@ -205,9 +213,13 @@ function registerScreenShareHandlers(): void {
     platform: process.platform
   })
 
-  ipcMain.on('screen-picker:select', (_event, sourceId: string) => void shareSource(sourceId))
+  ipcMain.on('screen-picker:select', (event, raw: unknown) => {
+    const sourceId = parseSourceId(raw)
+    if (sourceId && pickerAllowed(event)) void shareSource(sourceId)
+  })
 
-  ipcMain.on('screen-picker:cancel', () => {
+  ipcMain.on('screen-picker:cancel', (event) => {
+    if (!fromWindow(event, () => mainWindow)) return
     stopWindowAudio()
     pendingDisplay.deny()
   })
@@ -256,6 +268,11 @@ function createWindow(): void {
     if (handleInviteUrl(details.url, () => mainWindow)) return { action: 'deny' }
     if (isSafeExternalUrl(details.url)) void shell.openExternal(details.url)
     return { action: 'deny' }
+  })
+
+  guardNavigation(mainWindow.webContents, (url) => {
+    if (handleInviteUrl(url, () => mainWindow)) return
+    if (isSafeExternalUrl(url)) void shell.openExternal(url)
   })
 
   // Botão direito: copiar seleção, copiar/abrir link e editar campos de texto

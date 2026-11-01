@@ -1,4 +1,4 @@
-import { logout } from '../../auth/api/auth'
+import { logout, logoutAll } from '../../auth/api/auth'
 import { clearSession } from '../../../shared/api/client'
 import { setStatus } from '../api/users'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
@@ -22,23 +22,44 @@ import { showToast } from '../../../shared/store/toastStore'
 export async function logoutAndReset(): Promise<void> {
   // Antes de fechar o WebSocket: o aviso de saída da chamada vai por ele, e a
   // chamada (microfone, LiveKit) não pode passar para a próxima conta.
+  const refreshToken = useAuthStore.getState().refreshToken
   endSessionState()
   try {
-    await logout()
+    await logout(refreshToken)
   } catch {
     // Limpa a sessão local mesmo assim.
   } finally {
-    useFriendStore.getState().reset()
-    useServerStore.getState().reset()
-    useInviteStore.getState().reset()
-    useProfileStore.getState().reset()
-    useChannelNameStore.getState().reset()
-    useChatStore.getState().disconnect()
-    useProfileCardStore.getState().close()
-    useSettingsStore.getState().forceClose()
-    await clearSession()
-    void router.navigate('/login')
+    await resetLocalSession()
   }
+}
+
+/** Limpa tudo o que é da conta neste app e volta para o login. */
+async function resetLocalSession(): Promise<void> {
+  useFriendStore.getState().reset()
+  useServerStore.getState().reset()
+  useInviteStore.getState().reset()
+  useProfileStore.getState().reset()
+  useChannelNameStore.getState().reset()
+  useChatStore.getState().disconnect()
+  useProfileCardStore.getState().close()
+  useSettingsStore.getState().forceClose()
+  await clearSession()
+  void router.navigate('/login')
+}
+
+/** Sai de todos os dispositivos; erro do servidor sobe para quem chamou. */
+export async function logoutEverywhere(): Promise<void> {
+  await logoutAll()
+  await endLocalSession()
+}
+
+/**
+ * A conta foi excluída (ou todas as sessões encerradas): o servidor já não
+ * aceita os tokens, então só limpa o local, sem chamar o /auth/logout.
+ */
+export async function endLocalSession(): Promise<void> {
+  endSessionState()
+  await resetLocalSession()
 }
 
 /** Troca o status na hora e desfaz se o servidor recusar. */

@@ -1,11 +1,11 @@
 import workletUrl from './screenAudioWorklet.ts?worker&url'
 import { PortSlot } from '../../../shared/lib/portSlot'
+import { portWaitMs } from './windowAudioPolicy'
 
 // Som só da janela compartilhada (Windows): o processo main entrega um
 // MessagePort com PCM do helper nativo (perto de quando o getDisplayMedia
 // resolve — a ordem entre os dois não é garantida).
 
-const PORT_WAIT_MS = 1000
 const slot = new PortSlot()
 let pickedWindow = false
 
@@ -41,9 +41,7 @@ export interface WindowAudio {
 
 /** Track com o som da janela, se o main começou a capturar; senão null. */
 export async function takeWindowAudio(): Promise<WindowAudio | null> {
-  // Só o Windows tem o helper; só vale esperar se a fonte foi uma janela.
-  const expectPort = pickedWindow && window.electron?.process?.platform === 'win32'
-  const port = await slot.take(expectPort ? PORT_WAIT_MS : 0)
+  const port = await slot.take(portWaitMs(pickedWindow, () => window.api?.platform))
   if (!port) return null
 
   const ctx = new AudioContext({ sampleRate: 48_000 })

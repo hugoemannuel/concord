@@ -82,10 +82,8 @@
 	import salinha_app
 }
 
-# Repasse antigo (apps que ainda falam com o endereço do playit).
-:8080 {
-	import salinha_app
-}
+# O bloco `:8080` (HTTP puro, repasse do playit) saiu em 2026-10-31: sem uso
+# (docs/HOSPEDAGEM.md, "Portas abertas na VPS"). Tudo passa por HTTPS.
 
 # Página de download (atrás do proxy do Cloudflare).
 salinha.bhrx.com.br {

@@ -1,6 +1,7 @@
 import { useServerStore } from '../../servers/store/serverStore'
 import { useCallStore } from '../../call/store/callStore'
 import { playSound } from '../../call/lib/sounds'
+import { canReplay } from '../../levels/lib/levelAttention'
 import { useServerLevelStore } from '../store/serverLevelStore'
 import { useServerLevelUpStore } from '../store/serverLevelUpStore'
 import { decideServerCelebration, readCelebrated, writeCelebrated } from './serverLevelCelebration'
@@ -22,6 +23,26 @@ const currentServerId = (): string | null => useServerStore.getState().currentSe
 /** Você está neste servidor, com a janela à vista. */
 export function isViewingServer(serverId: string): boolean {
   return currentServerId() === serverId && windowVisible()
+}
+
+let lastReplayAt: number | null = null
+
+/**
+ * Clique no selo de nível do servidor: toca de novo a animação do nível
+ * atual, a qualquer momento (como o selo do perfil faz com o nível da
+ * pessoa). Não mexe no "já visto" da subida de verdade e tem o mesmo
+ * intervalo mínimo entre cliques. Devolve se tocou.
+ */
+export function replayServerLevelUp(serverId: string): boolean {
+  const progress = useServerLevelStore.getState().byServer[serverId]
+  if (!progress || !Number.isFinite(progress.level)) return false
+  const now = Date.now()
+  if (!canReplay(lastReplayAt, now)) return false
+  lastReplayAt = now
+  const { level } = progress
+  useServerLevelUpStore.getState().show({ serverId, level, previous: Math.max(1, level - 1) })
+  if (!useCallStore.getState().deafened) playSound(serverLevelScene(level).sound)
+  return true
 }
 
 /**

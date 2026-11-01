@@ -9,6 +9,7 @@ import { useCallStore } from './features/call/store/callStore'
 import { AppErrorBoundary } from './shared/ui/AppErrorScreen'
 import { useLevelStore } from './features/levels/store/levelStore'
 import { startThemeSync } from './features/settings/store/themeStore'
+import { startCustomThemes } from './features/appearance/lib/customThemesStart'
 import { startEntranceSounds } from './features/call/lib/entranceSoundStart'
 import { startScreenSounds } from './features/call/lib/screenSoundsStart'
 import { startAppSounds } from './features/appsounds/lib/appSoundsStart'
@@ -17,9 +18,12 @@ import { startCallInvites } from './features/call/lib/callInviteStart'
 import { startSpeechReport } from './features/call/lib/speechReportStart'
 import { startPresenceActivity } from './features/activity/lib/presenceActivityStart'
 import { startTTS } from './features/tts/lib/ttsStart'
+import { startSessionRevoked } from './features/auth/lib/sessionRevokedStart'
 import { startServerLevels } from './features/serverlevel/lib/serverLevelStart'
 
-// Tema salvo antes do primeiro render: o app já abre com as cores certas.
+// Tema salvo antes do primeiro render: o app já abre com as cores certas (os
+// temas próprios primeiro, para o CSS deles existir quando o tema for aplicado).
+startCustomThemes()
 startThemeSync()
 
 // Sons escolhidos em Configurações → Notificações (trocam os do playSound).
@@ -48,6 +52,9 @@ startServerLevels()
 
 // Mensagens /tts lidas em voz para quem está em call.
 startTTS()
+
+// Sessão encerrada pelo servidor (WS 4001): volta ao login.
+startSessionRevoked()
 
 // Soltar um arquivo fora do chat não pode fazer o Electron abrir o arquivo no
 // lugar do app (o chat trata o próprio drop).

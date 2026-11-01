@@ -11,6 +11,8 @@ import { useAuthStore } from '../../auth/store/authStore'
 import type { ServerMember } from '../api/servers'
 import Input from '../../../shared/ui/Input'
 import MemberSettingsRow from './MemberSettingsRow'
+import TransferOwnershipModal from './TransferOwnershipModal'
+import { canTransferTo } from '../lib/ownershipTransfer'
 
 // Nome no servidor (apelido, senão o de exibição); a busca acha pelos três.
 const nameOf = (m: ServerMember): string => serverDisplayName(m, m)
@@ -28,6 +30,7 @@ function MembersSection(): React.JSX.Element {
   const meId = useAuthStore((s) => s.user?.id)
   const access = useServerAccess()
   const [query, setQuery] = useState('')
+  const [transferTo, setTransferTo] = useState<ServerMember | null>(null)
 
   if (!server) return <p className="text-ds-sm text-muted">Abra um servidor primeiro.</p>
 
@@ -71,12 +74,26 @@ function MembersSection(): React.JSX.Element {
             own={rolesOfMember(roles, m.role_ids)}
             assignable={assignable}
             onToggleRole={(roleId, has) => void toggleRole(m.user_id, roleId, has)}
+            onTransfer={
+              canTransferTo({ viewerIsOwner: server.owner_id === meId, meId, member: m })
+                ? () => setTransferTo(m)
+                : undefined
+            }
           />
         ))}
         {shown.length === 0 && (
           <li className="px-4 py-6 text-center text-ds-sm text-faint">Ninguém encontrado.</li>
         )}
       </ul>
+      {transferTo && (
+        <TransferOwnershipModal
+          serverId={server.id}
+          serverName={server.name}
+          memberId={transferTo.user_id}
+          memberName={nameOf(transferTo)}
+          onClose={() => setTransferTo(null)}
+        />
+      )}
     </div>
   )
 }

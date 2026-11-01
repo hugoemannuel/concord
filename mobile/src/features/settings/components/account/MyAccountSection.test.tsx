@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { ApiError } from '../../../../shared/api/client'
-import { changeEmail, changeUsername } from '../../../auth/api/account'
+import { changeEmail, changeUsername, deleteAccount, logoutAll } from '../../../auth/api/account'
+import { leaveDevice } from '../../lib/leaveDevice'
 import { useAuthStore } from '../../../auth/store/authStore'
 import { getBirthday, setBirthday } from '../../../profile/api/birthdays'
 import { updateProfile } from '../../../profile/api/users'
@@ -8,7 +9,8 @@ import { MyAccountSection } from './MyAccountSection'
 import { SettingsSectionScreen } from '../SettingsSectionScreen'
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }))
-jest.mock('../../../auth/api/account', () => ({ changeUsername: jest.fn(), changeEmail: jest.fn() }))
+jest.mock('../../../auth/api/account', () => ({ changeUsername: jest.fn(), changeEmail: jest.fn(), deleteAccount: jest.fn(), logoutAll: jest.fn() }))
+jest.mock('../../lib/leaveDevice', () => ({ leaveDevice: jest.fn() }))
 jest.mock('../../../profile/api/birthdays', () => ({ getBirthday: jest.fn(), setBirthday: jest.fn() }))
 jest.mock('../../../profile/api/users', () => ({ updateProfile: jest.fn(), getProfile: jest.fn() }))
 jest.mock('../../../levels/api/levels', () => ({ fetchLevels: jest.fn().mockResolvedValue({}), fetchMyLevel: jest.fn() }))
@@ -133,5 +135,35 @@ describe('SettingsSectionScreen', () => {
     expect(screen.getByText('Minha conta')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }))
     expect(onBack).toHaveBeenCalled()
+  })
+
+  it('excluir conta: pede senha e confirmação, lista os servidores que impedem e sai quando dá certo', async () => {
+    jest.mocked(deleteAccount).mockRejectedValueOnce(
+      new ApiError(409, 'x', 'owns_servers', { servers: [{ id: 's1', name: 'Amigos' }] })
+    )
+    await render(<MyAccountSection />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Excluir conta' }))
+    await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'segredo')
+    const submit = (): Promise<void> => fireEvent.press(screen.getAllByRole('button', { name: 'Excluir conta' }).at(-1)!)
+    await submit()
+    expect(await screen.findByText('Marque que você entende que não dá para desfazer.')).toBeOnTheScreen()
+    await fireEvent(screen.getByLabelText('Entendo que a exclusão é definitiva.'), 'valueChange', true)
+    await submit()
+    expect(await screen.findByText(/Amigos/)).toBeOnTheScreen()
+    expect(leaveDevice).not.toHaveBeenCalled()
+
+    jest.mocked(deleteAccount).mockResolvedValueOnce(undefined)
+    await submit()
+    await waitFor(() => expect(leaveDevice).toHaveBeenCalled())
+    expect(deleteAccount).toHaveBeenLastCalledWith('segredo')
+  })
+
+  it('sair de todos os dispositivos: confirma, avisa o servidor e sai deste aparelho', async () => {
+    jest.mocked(logoutAll).mockResolvedValue(undefined)
+    await render(<MyAccountSection />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair de todos os dispositivos' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair de todos' }))
+    await waitFor(() => expect(leaveDevice).toHaveBeenCalled())
+    expect(logoutAll).toHaveBeenCalled()
   })
 })

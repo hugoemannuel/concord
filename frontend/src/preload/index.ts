@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 import type { CallResume, PendingCallResume } from '../shared/callResume'
 import type { AppMetrics } from '../shared/appMetrics'
 import type { PerfEvent } from '../shared/perfLog'
@@ -17,8 +16,12 @@ interface ScreenSourceInfo {
   displayId: string
 }
 
-// Custom APIs for renderer
+// Ponte para o renderer: só funções específicas, cada uma num canal fixo e com o
+// argumento conferido no main. Nada de ipcRenderer cru nem process.env (o
+// @electron-toolkit/preload expunha os dois em window.electron e saiu).
 const api = {
+  /** Sistema operacional (win32, linux, darwin). */
+  platform: process.platform,
   server: {
     /** Endereço escolhido pelo main ao abrir (ver main/server); null = o do build. */
     url: serverFromArgv(process.argv),
@@ -327,19 +330,10 @@ ipcRenderer.on('screen-audio:port', (event) => {
   window.postMessage('concord:screen-audio-port', '*', event.ports)
 })
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
-    console.error(error)
-  }
-} else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
-  // @ts-ignore (define in dts)
-  window.api = api
+// contextIsolation fica sempre ligado (padrão do Electron): a página só vê o
+// que passa pelo contextBridge.
+try {
+  contextBridge.exposeInMainWorld('api', api)
+} catch (error) {
+  console.error(error)
 }

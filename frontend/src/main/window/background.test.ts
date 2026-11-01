@@ -60,12 +60,18 @@ vi.mock('fs', () => ({
 
 const realPlatform = process.platform
 
+const mainContents = {}
+const mainWindow = { webContents: mainContents } as unknown as import('electron').BrowserWindow
+
 async function setup(): Promise<void> {
   const { setupBackground } = await import('./background')
-  setupBackground(() => null, 'icone.png')
+  setupBackground(() => mainWindow, 'icone.png')
 }
 
-const invoke = (ch: string, ...args: unknown[]): unknown => h.state.handlers[ch]({}, ...args)
+const invoke = (ch: string, ...args: unknown[]): unknown =>
+  h.state.handlers[ch]({ sender: mainContents }, ...args)
+const invokeFrom = (sender: unknown, ch: string, ...args: unknown[]): unknown =>
+  h.state.handlers[ch]({ sender }, ...args)
 
 beforeEach(() => {
   vi.resetModules()
@@ -86,6 +92,13 @@ describe('Iniciar com o Windows', () => {
     await invoke('settings:set-autostart', false)
     expect(await invoke('settings:autostart')).toBe(false)
     await invoke('settings:set-autostart', true)
+    expect(await invoke('settings:autostart')).toBe(true)
+  })
+
+  it('outra página (não a janela principal) ou valor que não é booleano não mexe no autostart', async () => {
+    await setup()
+    expect(await invokeFrom({}, 'settings:set-autostart', false)).toBeNull()
+    expect(await invoke('settings:set-autostart', 'false')).toBeNull()
     expect(await invoke('settings:autostart')).toBe(true)
   })
 

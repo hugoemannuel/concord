@@ -3,6 +3,9 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 vi.mock('../api/serverLevel', () => ({ fetchServerLevel: () => new Promise(() => {}) }))
+// O selo de nível do servidor toca som ao clicar; o callStore e o áudio não entram no SSR.
+vi.mock('../../call/store/callStore', () => ({ useCallStore: { getState: () => ({}) } }))
+vi.mock('../../call/lib/sounds', () => ({ playSound: vi.fn() }))
 vi.mock('../../../shared/ui/Modal', () => ({
   default: ({
     open,
@@ -42,6 +45,20 @@ describe('nível do servidor na tela', () => {
   it('chip do cabeçalho mostra o nível', () => {
     useServerLevelStore.getState().apply(progress)
     expect(renderToStaticMarkup(<ServerLevelChip serverId="s1" />)).toContain('Nv. 3')
+  })
+
+  it('chip é um botão com rótulo para rever a animação do nível', () => {
+    useServerLevelStore.getState().apply(progress)
+    const html = renderToStaticMarkup(<ServerLevelChip serverId="s1" />)
+    expect(html).toMatch(/^<button type="button"/)
+    expect(html).toContain('aria-label="Ver animação do nível do servidor"')
+    expect(html).toContain('clique para ver a animação')
+  })
+
+  it('detalhamento também traz o selo clicável do nível', () => {
+    useServerLevelStore.setState({ byServer: { s1: progress }, week: { s1: [] } })
+    const html = renderToStaticMarkup(<ServerLevelDetails serverId="s1" />)
+    expect(html).toContain('aria-label="Ver animação do nível do servidor"')
   })
 
   it('chip muda de material por faixa de nível', () => {

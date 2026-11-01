@@ -15,6 +15,7 @@ import { showToast } from '../../../../shared/store/toastStore'
 import router from '../../../../app/router'
 import { SettingsSectionsSkeleton } from '../../../../shared/ui/skeleton/layouts'
 import SectionHeader from '../../../../shared/ui/SectionHeader'
+import { PrivacyPolicyNote } from '../../../legal/components/LegalLinks'
 
 const POLICIES: { id: FriendRequestPolicy; title: string; description: string }[] = [
   { id: 'everyone', title: 'Todos', description: 'Qualquer pessoa com seu nome de usuário.' },
@@ -135,6 +136,8 @@ export function PrivacySection(): React.JSX.Element {
       <ActivityPrivacy />
 
       <TelemetryPrivacyNote />
+
+      <PrivacyPolicyNote />
 
       <section>
         <SectionTitle>Usuários bloqueados</SectionTitle>

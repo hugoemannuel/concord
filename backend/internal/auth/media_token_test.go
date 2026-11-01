@@ -1,13 +1,13 @@
 package auth
 
 import (
+	"context"
 	"testing"
 	"time"
 )
 
 func TestMediaTokenRoundTrip(t *testing.T) {
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
-	s := AuthService(nil)
+	s := NewService(nil, []byte("segredo-de-teste"))
 	now := time.Now()
 	token, expiresAt, err := s.GenerateMediaToken("u1")
 	if err != nil {
@@ -23,9 +23,8 @@ func TestMediaTokenRoundTrip(t *testing.T) {
 }
 
 func TestMediaTokenRejectsAccessToken(t *testing.T) {
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
-	s := AuthService(nil)
-	access, err := s.GenerateAccessToken("u1")
+	s := NewService(nil, []byte("segredo-de-teste"))
+	access, err := s.GenerateAccessToken(context.Background(), "u1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,8 +34,7 @@ func TestMediaTokenRejectsAccessToken(t *testing.T) {
 }
 
 func TestAccessTokenCheckRejectsMediaToken(t *testing.T) {
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
-	s := AuthService(nil)
+	s := NewService(nil, []byte("segredo-de-teste"))
 	token, _, err := s.GenerateMediaToken("u1")
 	if err != nil {
 		t.Fatal(err)

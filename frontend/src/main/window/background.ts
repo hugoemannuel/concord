@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { probeTrayHost } from './trayHost'
 import { badgeBitmap, badgeDescription, badgeLabel } from './taskbarBadge'
-import { handleNotify, type NotifyPayload } from './nativeNotify'
+import { handleNotify } from './nativeNotify'
+import { fromWindow, parseBoolean, parseCallState, parseNotifyPayload } from './ipcGuard'
 import { logNotification } from './toasts'
 import {
   closeToTrayEnabled,
@@ -239,13 +240,16 @@ export function setupBackground(
     createTray(linuxTrayImage(linuxIcons) ?? nativeImage.createFromPath(icon), getWindow)
   }
 
-  ipcMain.on('call:state', (_e, state: CallState) => {
+  ipcMain.on('call:state', (event, raw: unknown) => {
+    const state = parseCallState(raw)
+    if (!fromWindow(event, getWindow) || !state) return
     callState = state
     rebuildTrayMenu(getWindow)
     callStateListeners.forEach((listener) => listener(state))
   })
 
-  ipcMain.on('app:quit', () => {
+  ipcMain.on('app:quit', (event) => {
+    if (!fromWindow(event, getWindow)) return
     quitting = true
     app.quit()
   })
@@ -253,8 +257,9 @@ export function setupBackground(
   ipcMain.handle('settings:autostart', () =>
     autostartSupported() ? loginItemSettings().openAtLogin : null
   )
-  ipcMain.handle('settings:set-autostart', (_e, enabled: boolean) => {
-    if (!autostartSupported()) return null
+  ipcMain.handle('settings:set-autostart', (event, raw: unknown) => {
+    const enabled = parseBoolean(raw)
+    if (!fromWindow(event, getWindow) || enabled === null || !autostartSupported()) return null
     setAutostart(enabled)
     return enabled
   })
@@ -265,14 +270,17 @@ export function setupBackground(
     if (!linuxTrayCreated()) return null
     return { enabled: closeToTray, available: await probeTrayHost() }
   })
-  ipcMain.handle('settings:set-close-to-tray', (_e, enabled: boolean) => {
-    if (!linuxTrayCreated()) return null
-    closeToTray = enabled === true
+  ipcMain.handle('settings:set-close-to-tray', (event, raw: unknown) => {
+    const enabled = parseBoolean(raw)
+    if (!fromWindow(event, getWindow) || enabled === null || !linuxTrayCreated()) return null
+    closeToTray = enabled
     writePrefs({ ...readPrefs(), closeToTray })
     return closeToTray
   })
 
-  ipcMain.on('notify', (_e, payload: NotifyPayload) =>
+  ipcMain.on('notify', (event, raw: unknown) => {
+    const payload = parseNotifyPayload(raw)
+    if (!fromWindow(event, getWindow) || !payload) return
     handleNotify(payload, {
       window: getWindow,
       icon,
@@ -288,7 +296,7 @@ export function setupBackground(
       },
       log: logNotification
     })
-  )
+  })
 }
 
 const linuxTrayCreated = (): boolean =>

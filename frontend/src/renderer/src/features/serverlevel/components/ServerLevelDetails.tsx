@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useServerLevelStore } from '../store/serverLevelStore'
 import { formatXP, weekBreakdown } from '../lib/serverLevel'
 import ServerLevelBar from './ServerLevelBar'
+import ServerLevelChip from './ServerLevelChip'
 
 /** Nível, barra e de onde veio o XP nos últimos 7 dias, por fonte. */
 function ServerLevelDetails({ serverId }: { serverId: string }): React.JSX.Element {
@@ -20,7 +21,10 @@ function ServerLevelDetails({ serverId }: { serverId: string }): React.JSX.Eleme
     <div className="flex min-w-0 flex-col gap-4">
       <div className="rounded-xl border border-subtle bg-fg/5 p-3">
         <ServerLevelBar progress={progress} />
-        <p className="mt-2 text-ds-xs text-muted">{formatXP(progress.xp)} XP no total</p>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <p className="min-w-0 text-ds-xs text-muted">{formatXP(progress.xp)} XP no total</p>
+          <ServerLevelChip serverId={serverId} />
+        </div>
       </div>
 
       <section aria-labelledby="server-level-week">

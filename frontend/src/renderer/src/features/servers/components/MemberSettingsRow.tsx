@@ -18,6 +18,8 @@ interface Props {
   own: Role[]
   assignable: Role[]
   onToggleRole: (roleId: string, has: boolean) => void
+  /** O dono vê "Transferir posse" nos outros membros. */
+  onTransfer?: () => void
 }
 
 /** Avatar, nome (com a coroa do dono) e o @. */
@@ -50,14 +52,20 @@ function MemberModeration({
   member,
   name,
   isMe,
-  access
-}: Pick<Props, 'serverId' | 'member' | 'name' | 'isMe' | 'access'>): React.JSX.Element {
+  access,
+  onTransfer
+}: Pick<Props, 'serverId' | 'member' | 'name' | 'isMe' | 'access' | 'onTransfer'>): React.JSX.Element {
   const askKick = useModerationStore((s) => s.askKick)
   const askBan = useModerationStore((s) => s.askBan)
   const askNickname = useModerationStore((s) => s.askNickname)
   const target = { serverId, userId: member.user_id, name }
   return (
-    <span className="flex shrink-0 gap-2">
+    <span className="flex shrink-0 flex-wrap gap-2">
+      {onTransfer && (
+        <Button variant="ghost" size="sm" onClick={onTransfer}>
+          Transferir posse
+        </Button>
+      )}
       {access.nickname && (
         <Button
           variant="ghost"
@@ -94,6 +102,7 @@ function MemberSettingsRow(props: Props): React.JSX.Element {
           name={name}
           isMe={props.isMe}
           access={access}
+          onTransfer={props.onTransfer}
         />
       </div>
       <MemberRolesEditor

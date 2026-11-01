@@ -85,16 +85,20 @@ func (h *Handler) canJoinConversation(ctx context.Context, conversationID, userI
 // visitante sem conta (token de visitante, docs/adr/0017-visitante-na-call.md).
 // O visitante não é membro de nada: o validador das salas só o deixa entrar na
 // sala do próprio usuário e na da call em que está.
-func (h *Handler) wsUser(token string) (string, bool) {
+// O token de acesso também precisa ser da versão atual da sessão (ADR 0039).
+func (h *Handler) wsUser(ctx context.Context, token string) (string, bool) {
 	claims, err := h.authService.ValidateToken(token)
 	if err != nil || (claims.Type != "access" && claims.Type != auth.TokenGuest) {
+		return "", false
+	}
+	if h.authService.CheckSession(ctx, claims) != nil {
 		return "", false
 	}
 	return claims.UserID, true
 }
 
 func (h *Handler) ServeWS(c *gin.Context) {
-	userID, ok := h.wsUser(c.Query("token"))
+	userID, ok := h.wsUser(c.Request.Context(), c.Query("token"))
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 		return

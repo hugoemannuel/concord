@@ -12,8 +12,14 @@ export type ThemeId =
   | 'neon'
   | 'high-contrast'
 
+/** Tema próprio da pessoa (features/appearance): data-theme="custom-<id>". */
+export type CustomThemeKey = `custom-${string}`
+
+/** O tema que vai no data-theme: um pronto ou um próprio. */
+export type AppliedTheme = ThemeId | CustomThemeKey
+
 /** O que o usuário escolhe: um tema ou seguir o claro/escuro do sistema. */
-export type ThemePreference = ThemeId | 'system'
+export type ThemePreference = AppliedTheme | 'system'
 
 export interface ThemeInfo {
   id: ThemeId
@@ -62,16 +68,30 @@ export function isThemeId(value: unknown): value is ThemeId {
   return typeof value === 'string' && THEME_IDS.has(value)
 }
 
+const CUSTOM_KEY = /^custom-[a-z0-9]{1,24}$/
+
+export function isCustomThemeKey(value: unknown): value is CustomThemeKey {
+  return typeof value === 'string' && CUSTOM_KEY.test(value)
+}
+
 /** Valor salvo no localStorage → preferência válida (lixo ou nada = padrão). */
 export function parseThemePreference(raw: string | null | undefined): ThemePreference {
-  if (raw === 'system' || isThemeId(raw)) return raw
+  if (raw === 'system' || isThemeId(raw) || isCustomThemeKey(raw)) return raw
   return DEFAULT_THEME
 }
 
-/** "Seguir o sistema" vira Discord Claro ou Escuro; o resto é o próprio tema. */
-export function resolveTheme(pref: ThemePreference, systemPrefersDark: boolean): ThemeId {
-  if (pref !== 'system') return pref
-  return systemPrefersDark ? 'discord-dark' : 'discord-light'
+/**
+ * "Seguir o sistema" vira Discord Claro ou Escuro; tema próprio que não existe
+ * aqui (apagado ou ainda não carregado) vira o padrão; o resto é o próprio tema.
+ */
+export function resolveTheme(
+  pref: ThemePreference,
+  systemPrefersDark: boolean,
+  hasCustom: (key: CustomThemeKey) => boolean = () => false
+): AppliedTheme {
+  if (pref === 'system') return systemPrefersDark ? 'discord-dark' : 'discord-light'
+  if (isCustomThemeKey(pref)) return hasCustom(pref) ? pref : DEFAULT_THEME
+  return pref
 }
 
 /** Tokens que todo tema precisa definir (ver o cabeçalho de assets/theme.css). */

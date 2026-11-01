@@ -18,7 +18,8 @@ func AuthRoutes(router *gin.RouterGroup, handler *Handler, authMiddleware gin.Ha
 	authProtected := router.Group("/auth")
 	authProtected.Use(authMiddleware)
 	{
-		authProtected.POST("/logout", handler.Logout)
+		authProtected.POST("/logout", limitBody(maxLoginBodyBytes), handler.Logout)
+		authProtected.POST("/logout-all", handler.LogoutAll)
 		if handler.emails != nil {
 			authProtected.POST("/resend-verification", handler.ResendVerification)
 		}
