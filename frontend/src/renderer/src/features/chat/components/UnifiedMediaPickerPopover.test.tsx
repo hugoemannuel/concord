@@ -87,6 +87,7 @@ describe('UnifiedMediaPickerPopover & Media Components', () => {
         ]}
         meId="u1"
         canReact={true}
+        pickerAnchor={null}
         onReact={() => {}}
         onOpenPicker={() => {}}
       />
@@ -106,6 +107,7 @@ describe('UnifiedMediaPickerPopover & Media Components', () => {
         ]}
         meId="u1"
         canReact={false}
+        pickerAnchor={null}
         onReact={() => {}}
         onOpenPicker={() => {}}
       />

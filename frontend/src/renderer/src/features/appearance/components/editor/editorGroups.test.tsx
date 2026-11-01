@@ -6,6 +6,8 @@ import type { Draft } from '../../store/themeEditorStore'
 import { ColorsGroup } from './ColorsGroup'
 import { EffectsGroup } from './EffectsGroup'
 import { FillField } from './FillField'
+import { BackdropGroup } from './BackdropGroup'
+import { ImageGroup } from './ImageGroup'
 import { ShapeGroup } from './ShapeGroup'
 import { StartGroup } from './StartGroup'
 
@@ -47,7 +49,7 @@ describe('grupos do editor de tema', () => {
 
   it('começar: ideias prontas (vermelho e branco), temas do app e gerar a partir de uma cor', () => {
     const html = renderToStaticMarkup(<StartGroup draft={DRAFT} update={update} />)
-    expect(html).toContain('Vermelho e branco')
+    expect(html).toContain('Branco e vermelho')
     expect(html).toContain('Ou de um tema do app…')
     expect(html).toContain('Gerar escuro')
   })
@@ -59,11 +61,60 @@ describe('grupos do editor de tema', () => {
     expect(html.match(/Automático/g)?.length).toBe(3)
   })
 
-  it('vidro desligado e brilho só no escuro', () => {
-    expect(renderToStaticMarkup(<EffectsGroup draft={DRAFT} update={update} scheme="dark" />)).toContain('Desligado')
+  it('todas as seções abrem recolhidas, até num tema novo', () => {
+    const groups = [
+      <StartGroup key="s" draft={DRAFT} update={update} />,
+      <ColorsGroup key="c" draft={DRAFT} update={update} palette={buildPalette(DRAFT)} />,
+      <EffectsGroup key="e" draft={DRAFT} update={update} scheme="dark" />,
+      <BackdropGroup key="b" draft={DRAFT} update={update} />,
+      <ImageGroup key="i" draft={DRAFT} update={update} scheme="dark" />,
+      <ShapeGroup key="f" draft={DRAFT} update={update} />
+    ]
+    for (const group of groups) {
+      const html = renderToStaticMarkup(group)
+      expect(html).toContain('aria-expanded="false"')
+      expect(html).toMatch(/<div id="[^"]+" hidden=""/)
+    }
+  })
+
+  it('vidro desligado; o brilho explica o que faz e que só funciona no escuro', () => {
+    const dark = renderToStaticMarkup(<EffectsGroup draft={DRAFT} update={update} scheme="dark" />)
+    expect(dark).toContain('Desligado')
+    expect(dark).toContain('Manchas de luz coloridas')
     expect(renderToStaticMarkup(<EffectsGroup draft={DRAFT} update={update} scheme="light" />)).toContain(
-      'O brilho só aparece nos temas escuros.'
+      'Só funciona com fundo escuro'
     )
+    const withFx = renderToStaticMarkup(<EffectsGroup draft={{ ...DRAFT, effect: 'snow' }} update={update} scheme="dark" />)
+    expect(withFx).toContain('o embaçado fica desligado')
+  })
+
+  it('efeitos: os mesmos do cartão de perfil; com efeito, quantidade, velocidade e cor', () => {
+    const none = renderToStaticMarkup(<BackdropGroup draft={DRAFT} update={update} />)
+    for (const label of ['Nenhum', 'Partículas', 'Neve', 'Fogo', 'Matrix', 'Synthwave', 'Chuva']) expect(none).toContain(label)
+    expect(none).not.toContain('Quantidade')
+    const snow = renderToStaticMarkup(<BackdropGroup draft={{ ...DRAFT, effect: 'snow' }} update={update} />)
+    expect(snow).toContain('Quantidade')
+    expect(snow).toContain('Cor do efeito')
+  })
+
+  it('imagem de fundo: escolher; com imagem, prévia, véu (nunca abaixo do mínimo) e desfoque', () => {
+    expect(renderToStaticMarkup(<ImageGroup draft={DRAFT} update={update} scheme="dark" />)).toContain('Escolher imagem')
+    const image = '/api/app-theme-images/0f8fad5b-d9cb-469f-a165-70867728950e'
+    const html = renderToStaticMarkup(
+      <ImageGroup draft={{ ...DRAFT, image, imageDim: 0 }} update={update} scheme="light" />
+    )
+    expect(html).toContain('Trocar imagem')
+    expect(html).toMatch(new RegExp(`src="[^"]*${image}"`))
+    expect(html).toContain('Clarear')
+    expect(html).toContain('35%')
+    expect(html).toContain('Desfocar')
+  })
+
+  it('fontes: mais de dez, cada uma escrita nela mesma', () => {
+    const html = renderToStaticMarkup(<ShapeGroup draft={DRAFT} update={update} />)
+    expect(html.match(/aria-pressed=/g)?.length).toBeGreaterThanOrEqual(3 + 10)
+    expect(html).toContain('font-family:&#x27;Montserrat&#x27;')
+    expect(html).toContain('>Zilla Slab<')
   })
 
   it('forma: cantos padrão e retos', () => {

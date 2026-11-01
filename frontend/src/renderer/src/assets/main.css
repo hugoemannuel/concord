@@ -5,6 +5,8 @@
 @import './theme.css';
 /* Camadas decorativas dos temas: bolhas do fundo animado. */
 @import './themeDecor.css';
+/* Fontes que um tema próprio pode escolher (só baixa a que estiver em uso). */
+@import './themeFonts.css';
 /* Celular: altura visível, safe areas e animações de gaveta. */
 @import './mobile.css';
 /* Foco por teclado: utilitários focus-ring e o anel padrão dos interativos. */

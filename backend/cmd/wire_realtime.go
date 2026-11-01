@@ -17,7 +17,8 @@ import (
 func (a *app) wireRealtime() {
 	// "Fulano está digitando…": mesma regra de escrita das mensagens.
 	typing := websocket.NewTyping(a.hub, a.roomAccess, a.userService.FindByID)
-	wsHandler := websocket.WsHandler(a.hub, a.authService, a.permissionService, a.permissionService, a.conversationService, a.callPresence.Router(a.callAFK.Router(a.callService)), typing).WithMobileApps(a.mobileApps)
+	connAuth := websocket.NewConnectAuth(a.authService)
+	wsHandler := websocket.WsHandler(a.hub, connAuth, a.permissionService, a.permissionService, a.conversationService, a.callPresence.Router(a.callAFK.Router(a.callService)), typing).WithMobileApps(a.mobileApps)
 	a.hub.SetDisconnectHandler(a.callService.HandleDisconnect)
 
 	a.route(func(router *gin.Engine, api *gin.RouterGroup) {
@@ -28,7 +29,10 @@ func (a *app) wireRealtime() {
 			presence.GET("/", wsHandler.Presence)
 			presence.GET("/activities", wsHandler.Activities)
 		}
-		// WebSocket endpoint (public, auth via ?token=)
+		// Ticket de uso único para abrir o WebSocket (docs/adr/0046): o Bearer
+		// (conta ou visitante) é conferido no próprio handler.
+		api.POST("/ws/ticket", connAuth.IssueTicket)
+		// WebSocket: ?ticket= (ou ?token= dos apps antigos).
 		router.GET("/ws", wsHandler.ServeWS)
 	})
 }

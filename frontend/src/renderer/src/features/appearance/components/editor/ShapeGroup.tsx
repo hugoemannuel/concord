@@ -1,4 +1,5 @@
 import { ChipGroup, RangeField, SubLabel } from '../../../settings/components/profile/controls'
+import { FONT_OPTIONS, fontPreviewFamily } from '../../lib/themeFonts'
 import { RADIUS_MAX, type Density, type FontId } from '../../lib/themeInput'
 import { EditorGroup } from './EditorGroup'
 import type { GroupProps } from './types'
@@ -9,12 +10,13 @@ const DENSITY_CHIPS: Array<{ id: Density; label: string }> = [
   { id: 'comfortable', label: 'Confortável' }
 ]
 
-const FONT_CHIPS: Array<{ id: FontId; label: string }> = [
-  { id: 'outfit', label: 'Padrão' },
-  { id: 'system', label: 'Do sistema' },
-  { id: 'serif', label: 'Serifada' },
-  { id: 'mono', label: 'Monoespaçada' }
-]
+// Cada opção escrita na própria fonte (o navegador só baixa as fontes quando a
+// seção abre: o conteúdo recolhido fica com display: none).
+const FONT_CHIPS = FONT_OPTIONS.map((f) => ({
+  id: f.id,
+  label: f.label,
+  labelStyle: { fontFamily: fontPreviewFamily(f.id), letterSpacing: 'normal' }
+}))
 
 function radiusLabel(radius: number): string {
   if (radius === 0) return 'Retos'
@@ -52,7 +54,7 @@ export function ShapeGroup({ draft, update }: GroupProps): React.JSX.Element {
           options={FONT_CHIPS}
           value={draft.font}
           onPick={(font) => update({ font: font as FontId }, 'font')}
-          className="grid-cols-2"
+          className="grid-cols-2 min-[400px]:grid-cols-3 md:grid-cols-2"
         />
       </div>
     </EditorGroup>

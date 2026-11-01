@@ -1,27 +1,7 @@
 // Quando baixar/instalar atualizações. Puro para poder testar.
 
-/** Atualização já baixada aparece em poucos segundos após abrir o app. */
+/** Logo ao abrir o app, o download não espera o sorteio. */
 const STARTUP_WINDOW_MS = 30_000
-
-/**
- * O download é sempre em segundo plano, assim que a versão aparece (também em
- * chamada): o clique em Atualizar só instala. Instala sozinho só logo ao abrir e só se essa versão já tinha sido baixada e
- * verificada numa sessão anterior. Download que acabou agora — mesmo que
- * rápido — só gera o aviso "Nova atualização disponível".
- */
-export function installOnStartup(state: {
-  version: string
-  /** versão verificada guardada da sessão anterior (userData) */
-  verifiedBefore: string | null
-  msSinceStart: number
-  inCall: boolean
-}): boolean {
-  return (
-    !state.inCall &&
-    state.verifiedBefore === state.version &&
-    state.msSinceStart <= STARTUP_WINDOW_MS
-  )
-}
 
 /** Espalha os downloads em segundo plano por até 2 min (ver backgroundDownloadDelayMs). */
 export const DOWNLOAD_JITTER_MAX_MS = 120_000

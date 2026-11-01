@@ -1,5 +1,5 @@
 // Package httplog é o log de pedidos do gin sem segredos na URL: o token de
-// mídia (?token= em /api/media), o do WebSocket (?token=) e o do LiveKit
+// mídia (?token= em /api/media), o do WebSocket (?ticket= e o ?token= legado) e o do LiveKit
 // (?access_token= em /rtc) viram REDACTED.
 package httplog
 
@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var secretParams = []string{"token", "access_token"}
+var secretParams = []string{"token", "ticket", "access_token"}
 
 // RedactQuery troca o valor dos parâmetros secretos; query ilegível é
 // descartada inteira.

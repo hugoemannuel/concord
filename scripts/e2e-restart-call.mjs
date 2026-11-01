@@ -28,12 +28,12 @@
 //        docker run -d --name e2e-lk --network host \
 //          -e LIVEKIT_KEYS="devkey: devsecret-devsecret-devsecret-devsecret" \
 //          -e LIVEKIT_CONFIG="$(printf 'port: 17880\nbind_addresses: ["127.0.0.1"]\nrtc:\n  tcp_port: 17881\n  udp_port: 17882\n  use_external_ip: false\n  node_ip: "127.0.0.1"\n  enable_loopback_candidate: true\n')" \
-//          livekit/livekit-server:v1.13.10
+//          livekit/livekit-server:v1.13.11
 //   2. Caddy com os trechos do deploy/Caddyfile (endereço e portas do teste), na
 //      mesma versão da VPS:
 //        node scripts/e2e-restart-call.mjs --caddyfile > /tmp/Caddyfile.e2e
 //        docker run -d --name e2e-caddy --network host \
-//          -v /tmp/Caddyfile.e2e:/etc/caddy/Caddyfile:ro caddy:2.6.2
+//          -v /tmp/Caddyfile.e2e:/etc/caddy/Caddyfile:ro caddy:2.11.7
 //   3. Backend numa pasta com .env (DATABASE_URL do passo 1, LIVEKIT_PORT=17880,
 //      as chaves acima, PORT=18090, HOST=127.0.0.1), migrations/ e o binário
 //      (cd backend && go build -o <pasta>/concord-server ./cmd). O script segura

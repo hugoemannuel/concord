@@ -1,8 +1,9 @@
 // Forma de um tema próprio → variáveis CSS: cantos (escala do raio do Tailwind),
-// densidade (--spacing) e fonte da interface (--font-sans). Só fontes que já
-// vêm no app ou no sistema: nada para baixar. Puro.
+// densidade (--spacing) e fonte da interface (--font-sans, lib/themeFonts.ts).
+// Puro.
 
-import type { Density, FontId, ThemeShape } from './themeInput'
+import { fontStack } from './themeFonts'
+import type { Density, ThemeShape } from './themeInput'
 
 /** Raios do Tailwind usados no app (rem), na escala padrão. */
 const RADII: Record<string, number> = {
@@ -22,15 +23,6 @@ export const SPACING: Record<Density, string | null> = {
   comfortable: '0.275rem'
 }
 
-const EMOJI = "'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'"
-
-export const FONT_STACKS: Record<FontId, string | null> = {
-  outfit: null,
-  system: `system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, Cantarell, sans-serif, ${EMOJI}`,
-  serif: `Georgia, Cambria, 'Noto Serif', 'Times New Roman', serif, ${EMOJI}`,
-  mono: 'var(--font-mono)'
-}
-
 const rem = (n: number): string => `${Math.round(n * 1000) / 1000}rem`
 
 export interface ShapeCss {
@@ -47,7 +39,7 @@ export function shapeCss({ radius, density, font }: ThemeShape): ShapeCss {
   }
   const spacing = SPACING[density]
   if (spacing && density === 'comfortable') always.push(`--spacing: ${spacing};`)
-  const stack = FONT_STACKS[font]
+  const stack = fontStack(font)
   if (stack) always.push(`--font-sans: ${stack};`)
   return { always, finePointer: spacing && density === 'compact' ? [`--spacing: ${spacing};`] : [] }
 }

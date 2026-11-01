@@ -40,3 +40,18 @@ func (r *Repository) SaveThemes(ctx context.Context, userID string, themes []The
 	}
 	return nil
 }
+
+// ThemesWithImages devolve, de todas as pessoas, os temas que têm imagem de
+// fundo (para a faxina das imagens não apagar as que estão em uso).
+func (r *Repository) ThemesWithImages(ctx context.Context) ([]Theme, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT t FROM user_app_themes u, jsonb_array_elements(u.themes) t WHERE COALESCE(t->>'image', '') <> ''`)
+	if err != nil {
+		return nil, fmt.Errorf("listar imagens dos temas: %w", err)
+	}
+	themes, err := pgx.CollectRows(rows, pgx.RowTo[Theme])
+	if err != nil {
+		return nil, fmt.Errorf("listar imagens dos temas: %w", err)
+	}
+	return themes, nil
+}

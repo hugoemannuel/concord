@@ -7,7 +7,8 @@ import {
   createSavedProfile,
   deleteSavedProfile,
   listSavedProfiles,
-  renameSavedProfile
+  renameSavedProfile,
+  updateSavedProfile
 } from '../api/savedProfiles'
 import {
   SAVING_NEW,
@@ -25,10 +26,14 @@ interface SavedProfilesState {
   /** SAVING_NEW ou o id do perfil salvo em andamento; null = livre. */
   busy: string | null
   load: () => Promise<void>
+  /** Aviso de outro aparelho: recarrega a lista já aberta, sem toast. */
+  sync: () => Promise<void>
   /** As ações devolvem true se deu certo (o modal fecha); erro vira toast. */
   save: (name: string) => Promise<boolean>
   rename: (id: string, name: string) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
+  /** Sobrescreve o perfil salvo com o perfil atual (nome e posição ficam). */
+  update: (id: string) => Promise<boolean>
   apply: (id: string) => Promise<boolean>
 }
 
@@ -76,6 +81,17 @@ export const useSavedProfilesStore = create<SavedProfilesState>()((set, get) => 
       }
     },
 
+    sync: async () => {
+      const { ownerId, loaded } = get()
+      if (!loaded || ownerId !== (useAuthStore.getState().user?.id ?? null)) return
+      try {
+        const items = await listSavedProfiles()
+        if (useAuthStore.getState().user?.id === ownerId) set({ items })
+      } catch {
+        // Sem rede agora: a lista continua como está e o próximo aviso tenta de novo.
+      }
+    },
+
     save: (name) =>
       run(SAVING_NEW, 'Não deu para salvar o perfil.', async () => {
         const saved = await createSavedProfile(name.trim())
@@ -92,6 +108,13 @@ export const useSavedProfilesStore = create<SavedProfilesState>()((set, get) => 
       run(id, 'Não deu para excluir o perfil.', async () => {
         await deleteSavedProfile(id)
         set({ items: removeSaved(get().items, id) })
+      }),
+
+    update: (id) =>
+      run(id, 'Não deu para atualizar o perfil.', async () => {
+        const saved = await updateSavedProfile(id)
+        set({ items: replaceSaved(get().items, saved) })
+        showToast.success(`Perfil "${saved.name}" atualizado.`)
       }),
 
     apply: (id) =>

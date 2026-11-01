@@ -1,0 +1,18 @@
+import { rename, stat } from 'fs/promises'
+import { appendLog, logPath } from '../app/appLog'
+
+const LOG_MAX_BYTES = 512 * 1024
+
+/**
+ * Console e logs/update.log na pasta do app (~/.config/Concord no Linux,
+ * %APPDATA%\\Concord no Windows): o app abre sem terminal.
+ */
+export function logUpdate(message: string, error: unknown): void {
+  console.error(`[update] ${message}:`, error)
+  appendLog('update.log', `${message}: ${String(error)}`)
+  // Um arquivo antigo só (update.log.1): não cresce para sempre.
+  const path = logPath('update.log')
+  void stat(path)
+    .then((info) => (info.size > LOG_MAX_BYTES ? rename(path, `${path}.1`) : undefined))
+    .catch(() => {})
+}

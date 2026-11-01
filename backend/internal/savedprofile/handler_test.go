@@ -20,24 +20,40 @@ func (m *fakeMedia) RemoveMediaURL(url *string) {
 	}
 }
 
+// fakeNotifier guarda os avisos "sua lista de perfis salvos mudou".
+type fakeNotifier struct {
+	users  []string
+	events []string
+}
+
+func (n *fakeNotifier) SendToUser(userID string, event []byte) {
+	n.users = append(n.users, userID)
+	var ev struct {
+		Type string `json:"type"`
+	}
+	json.Unmarshal(event, &ev)
+	n.events = append(n.events, ev.Type)
+}
+
 type handlerEnv struct {
 	router   *gin.Engine
 	store    *fakeStore
 	profiles *fakeProfiles
 	media    *fakeMedia
+	notify   *fakeNotifier
 }
 
 func newHandlerEnv() *handlerEnv {
 	gin.SetMode(gin.TestMode)
 	service, store, profiles := newTestService()
-	media := &fakeMedia{}
+	media, notify := &fakeMedia{}, &fakeNotifier{}
 	router := gin.New()
 	fakeAuth := func(c *gin.Context) {
 		c.Set("userID", meID)
 		c.Next()
 	}
-	Routes(router.Group("/api"), NewHandler(service, media), fakeAuth)
-	return &handlerEnv{router: router, store: store, profiles: profiles, media: media}
+	Routes(router.Group("/api"), NewHandler(service, media, notify), fakeAuth)
+	return &handlerEnv{router: router, store: store, profiles: profiles, media: media, notify: notify}
 }
 
 func (e *handlerEnv) do(method, path, body string) *httptest.ResponseRecorder {
@@ -156,10 +172,72 @@ func TestHandlerUnexpectedError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	profiles := newFakeProfiles()
 	router := gin.New()
-	Routes(router.Group("/api"), NewHandler(NewService(failingStore{newFakeStore()}, profiles, profiles), &fakeMedia{}), func(c *gin.Context) { c.Set("userID", meID) })
+	Routes(router.Group("/api"), NewHandler(NewService(failingStore{newFakeStore()}, profiles, profiles), &fakeMedia{}, &fakeNotifier{}), func(c *gin.Context) { c.Set("userID", meID) })
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/users/me/saved-profiles", nil))
 	if rec.Code != http.StatusInternalServerError || bytes.Contains(rec.Body.Bytes(), []byte("banco")) {
 		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerOverwriteKeepsNameAndReleasesOldMedia(t *testing.T) {
+	e := newHandlerEnv()
+	sp := e.create(t, "Gamer")
+	b := avatarB
+	e.profiles.me.AvatarURL = &b
+	e.profiles.me.DisplayName = "Outro"
+
+	rec := e.do(http.MethodPut, "/"+sp.ID, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var got SavedProfile
+	json.Unmarshal(rec.Body.Bytes(), &got)
+	if got.ID != sp.ID || got.Name != "Gamer" || got.Fields.DisplayName != "Outro" || got.AvatarURL == nil || *got.AvatarURL != avatarB {
+		t.Fatalf("atualizado = %+v", got)
+	}
+	// O avatar antigo (só do perfil salvo) é solto; o novo continua por referência.
+	if len(e.media.removed) != 1 || e.media.removed[0] != avatarA {
+		t.Fatalf("removidas = %v", e.media.removed)
+	}
+}
+
+func TestHandlerOverwriteErrors(t *testing.T) {
+	e := newHandlerEnv()
+	for _, id := range []string{"/x", "/99999999-9999-4999-8999-999999999999"} {
+		if rec := e.do(http.MethodPut, id, ""); rec.Code != http.StatusNotFound {
+			t.Fatalf("PUT %s: status = %d", id, rec.Code)
+		}
+	}
+	if len(e.notify.events) != 0 {
+		t.Fatalf("erro não avisa os aparelhos: %v", e.notify.events)
+	}
+}
+
+func TestHandlerNotifiesUserDevicesOnEveryChange(t *testing.T) {
+	e := newHandlerEnv()
+	sp := e.create(t, "A")
+	e.do(http.MethodPatch, "/"+sp.ID, `{"name":"B"}`)
+	e.do(http.MethodPut, "/"+sp.ID, "")
+	e.do(http.MethodPost, "/"+sp.ID+"/apply", "")
+	e.do(http.MethodDelete, "/"+sp.ID, "")
+	if len(e.notify.events) != 5 {
+		t.Fatalf("avisos = %v", e.notify.events)
+	}
+	for i, typ := range e.notify.events {
+		if typ != "saved_profiles:changed" || e.notify.users[i] != meID {
+			t.Fatalf("aviso %d = %s para %s", i, typ, e.notify.users[i])
+		}
+	}
+}
+
+func TestHandlerDoesNotNotifyOnFailure(t *testing.T) {
+	e := newHandlerEnv()
+	e.create(t, "A")
+	before := len(e.notify.events)
+	e.do(http.MethodPost, "", `{"name":"a"}`) // nome repetido
+	e.do(http.MethodPatch, "/99999999-9999-4999-8999-999999999999", `{"name":"b"}`)
+	if len(e.notify.events) != before {
+		t.Fatalf("avisos = %v", e.notify.events)
 	}
 }

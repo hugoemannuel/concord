@@ -8,6 +8,7 @@ func Routes(router *gin.RouterGroup, handler *Handler, authMiddleware gin.Handle
 	{
 		saved.GET("", handler.List)
 		saved.POST("", handler.Create)
+		saved.PUT("/:id", handler.Overwrite)
 		saved.PATCH("/:id", handler.Rename)
 		saved.DELETE("/:id", handler.Delete)
 		saved.POST("/:id/apply", handler.Apply)

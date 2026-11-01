@@ -23,4 +23,11 @@ describe('ChipGroup', () => {
   it('sem ícone: só o rótulo', () => {
     expect(render([{ id: 'a', label: 'Nenhuma' }])).not.toContain('<svg')
   })
+
+  it('rótulo longo quebra linha em vez de cortar, e pode vir com estilo próprio', () => {
+    const html = render([{ id: 'a', label: 'Branco e vermelho', labelStyle: { fontFamily: "'Bitter', serif" } }])
+    expect(html).not.toContain('truncate')
+    expect(html).toContain('break-words')
+    expect(html).toContain('font-family:&#x27;Bitter&#x27;, serif')
+  })
 })

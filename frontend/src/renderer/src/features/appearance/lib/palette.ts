@@ -6,9 +6,17 @@
 // Puro, sem DOM. Ver docs/adr/0040-aparencia-personalizada.md e 0041.
 
 import type { ThemeToken } from '../../settings/lib/themes'
-import { ensureContrast, flatten, luminance, mix, withAlpha } from './colorMath'
+import { clampLuminance, ensureContrast, flatten, luminance, mix, withAlpha } from './colorMath'
 import type { FillSpec } from './gradient'
-import { fillSpec, planSurfaces, RULES, type Scheme, type SchemeRules, type SurfacePlan } from './paletteSurfaces'
+import {
+  fillSpec,
+  imageVeil,
+  planSurfaces,
+  RULES,
+  type Scheme,
+  type SchemeRules,
+  type SurfacePlan
+} from './paletteSurfaces'
 import { fillStops, type Gradient, type PaletteInput } from './themeInput'
 
 export type { Scheme } from './paletteSurfaces'
@@ -37,6 +45,8 @@ export interface Palette {
   blur: number
   /** Cores das bolhas do fundo animado (só com brilho). */
   hero: [string, string, string, string] | null
+  /** Véu por cima da imagem de fundo (null = sem imagem). */
+  imageVeil: { color: string; alpha: number } | null
   /** Escolhas que precisaram mudar para o texto ficar legível. */
   adjusted: PaletteField[]
 }
@@ -169,7 +179,10 @@ function lower(raw: PaletteInput): PaletteInput {
     textMuted: low(raw.textMuted ?? ''),
     border: low(raw.border ?? ''),
     glowStrength: raw.glowStrength ?? 100,
-    glass: raw.glass ?? 0
+    glass: raw.glass ?? 0,
+    effect: raw.effect ?? 'none',
+    image: raw.image ?? '',
+    imageDim: raw.imageDim ?? 0
   }
 }
 
@@ -191,9 +204,13 @@ function borderTokens(input: PaletteInput, neutral: string, rules: SchemeRules):
   }
 }
 
+/** Bolha mais clara que isso (branco, amarelo, verde-limão) escurece: o texto por cima continua AA. */
+const HERO_MAX_LUMINANCE = 0.4
+
 function heroOf(input: PaletteInput, glow: string): Palette['hero'] {
   if (!glow) return null
-  return [glow, input.accent, input.highlight || glow, mix(glow, input.accent, 0.5)]
+  const colors = [glow, input.accent, input.highlight || glow, mix(glow, input.accent, 0.5)]
+  return colors.map((c) => clampLuminance(c, { max: HERO_MAX_LUMINANCE })) as NonNullable<Palette['hero']>
 }
 
 function opaqueOf(input: PaletteInput, plan: SurfacePlan): NonNullable<Palette['opaque']> {
@@ -204,13 +221,20 @@ function opaqueOf(input: PaletteInput, plan: SurfacePlan): NonNullable<Palette['
   }
 }
 
+/** Desfoque do vidro; com efeito animado atrás, nenhum (redesfocar a cada quadro pesa). */
+function blurOf(input: PaletteInput): number {
+  if (input.glass <= 0 || input.effect !== 'none') return 0
+  return Math.round((MAX_BLUR * input.glass) / 100)
+}
+
 export function buildPalette(raw: PaletteInput): Palette {
   const input = lower(raw)
   const scheme = schemeOf(input.background)
   const rules = RULES[scheme]
   // Brilho só no escuro: a vinheta do fundo animado é preta.
   const glow = scheme === 'dark' ? input.glow : ''
-  const plan = planSurfaces(input, rules, scheme, glow)
+  const hero = heroOf(input, glow)
+  const plan = planSurfaces(input, rules, scheme, hero)
   const background = plan.base['bg-primary']
   // Os véus de hover/selecionado saem do texto; o texto precisa passar por cima deles.
   const firstPass = ensureContrast(input.text, plan.effective, TEXT_TARGET, rules.extreme)
@@ -236,9 +260,10 @@ export function buildPalette(raw: PaletteInput): Palette {
     scheme,
     tokens,
     fills: { ...plan.fills, ...brandFills(input, brand) },
-    opaque: input.glass > 0 ? opaqueOf(input, plan) : null,
-    blur: input.glass > 0 ? Math.round((MAX_BLUR * input.glass) / 100) : 0,
-    hero: heroOf(input, glow),
+    opaque: plan.fills.window ? opaqueOf(input, plan) : null,
+    blur: blurOf(input),
+    hero,
+    imageVeil: imageVeil(input, scheme),
     adjusted: adjustedFields(input, plan, brand, tokens)
   }
 }
