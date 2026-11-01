@@ -4,7 +4,8 @@
   --viz-1: #3987e5;
   --viz-2: #d95926;
 }
-[data-theme='discord-light'] .live-chart {
+[data-theme='discord-light'] .live-chart,
+[data-scheme='light'] .live-chart {
   --viz-1: #2a78d6;
   --viz-2: #eb6834;
 }

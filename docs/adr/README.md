@@ -77,3 +77,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0037. Batimento (ping/pong) no WebSocket e queda do WS não tira da call quem está na mídia](0037-batimento-do-websocket.md)
 - [0038. Excluir a própria conta apagando a linha do usuário e passando as mensagens que ficam para "Usuário removido"](0038-excluir-a-propria-conta.md)
 - [0039. Revogar sessões com uma versão no token de acesso e refresh token guardado como hash](0039-revogacao-de-sessao.md)
+- [0040. Temas próprios da aparência: paleta gerada no cliente a partir de poucas cores, lista na conta](0040-aparencia-personalizada.md)

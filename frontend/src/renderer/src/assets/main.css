@@ -173,7 +173,8 @@
   }
 
   /* A seta é um SVG em data URI (não lê var()): no tema claro, uma mais escura. */
-  [data-theme='discord-light'] select.glass-input {
+  [data-theme='discord-light'] select.glass-input,
+  [data-scheme='light'] select.glass-input {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236c6d76' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 

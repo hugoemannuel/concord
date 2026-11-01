@@ -38,21 +38,21 @@ export function ThemeCard({
           <ThemePreview themeKey={themeKey} scheme={scheme} />
         </div>
         <span
-          className={`mt-1.5 flex items-center gap-1.5 text-ds-sm font-medium text-strong ${action ? 'pr-9' : ''}`}
+          className={`mt-1.5 flex items-center gap-1.5 text-ds-sm font-medium text-strong ${action ? 'pr-11 sm:pr-9' : ''}`}
         >
           <span
             aria-hidden="true"
             className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
-              selected ? 'border-brand bg-brand' : 'border-gray-500'
+              selected ? 'border-brand bg-brand' : 'border-strong'
             }`}
           >
             {selected && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
           </span>
           <span className="min-w-0 truncate">{label}</span>
         </span>
-        {description && <span className="mt-0.5 block text-ds-xs text-gray-400">{description}</span>}
+        {description && <span className="mt-0.5 block text-ds-xs text-muted">{description}</span>}
       </label>
-      {action && <div className="absolute right-0 top-[6.5rem]">{action}</div>}
+      {action && <div className="absolute top-24 right-0 mt-0.5">{action}</div>}
     </div>
   )
 }
