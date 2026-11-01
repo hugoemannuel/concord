@@ -22,6 +22,7 @@ import { PreferredSource, findGameWindow, listProcessWindows } from './screen/ga
 import { checkScreenCastPortal } from './screen/screenPortal'
 import { portalMissingMessage, screenFlowArgs, screenShareFlow } from '../shared/screenShareFlow'
 import { enforceSandbox, SANDBOXED_PREFERENCES } from './security/sandbox'
+import { appOrigins, setupSessionPermissions } from './security/sessionPermissions'
 import {
   attachCloseToTray,
   ensureSingleInstance,
@@ -326,6 +327,10 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId(APP_USER_MODEL_ID)
   // Antes de qualquer notificação: CLSID fixo e atalho do Menu Iniciar.
   setupToasts()
+  // Câmera, microfone, notificação...: só o próprio app e só o que ele usa.
+  const devUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined
+  const origins = appOrigins(join(__dirname, '../renderer'), devUrl, __CONCORD_SERVER_URLS__)
+  setupSessionPermissions(app, session.defaultSession, origins)
   // Sem a barra "File Edit View Window" padrão do Electron (aparecia no Alt).
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
 
