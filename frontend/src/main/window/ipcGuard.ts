@@ -32,6 +32,18 @@ export function parseCallState(raw: unknown): { inCall: boolean; muted: boolean 
   return inCall === null || muted === null ? null : { inCall, muted }
 }
 
+/**
+ * Posição do arraste manual da janela (ver windowDrag.ts): x/y sem limites, de
+ * propósito — o ponto pode cair em qualquer monitor, não só no principal.
+ */
+export function parsePoint(raw: unknown): { x: number; y: number } | null {
+  if (!isRecord(raw)) return null
+  const { x, y } = raw
+  if (typeof x !== 'number' || typeof y !== 'number') return null
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+  return { x, y }
+}
+
 const SOURCE_ID = /^(screen|window):[\w.-]+(:[\w.-]+)*$/
 
 /** Id de fonte do desktopCapturer ("screen:0:0", "window:123:0"). */

@@ -4,6 +4,7 @@ import {
   parseBoolean,
   parseCallState,
   parseNotifyPayload,
+  parsePoint,
   parseSourceId
 } from './ipcGuard'
 
@@ -35,6 +36,15 @@ describe('ipcGuard', () => {
     expect(parseSourceId('window:12345:1')).toBe('window:12345:1')
     expect(parseSourceId('file:///etc/passwd')).toBeNull()
     expect(parseSourceId(42)).toBeNull()
+  })
+
+  it('ponto do arraste da janela só com x e y numéricos', () => {
+    expect(parsePoint({ x: 2300, y: 100 })).toEqual({ x: 2300, y: 100 })
+    // Além da largura do monitor principal (ex.: 1920): não limita, é o ponto todo.
+    expect(parsePoint({ x: -4000, y: 0 })).toEqual({ x: -4000, y: 0 })
+    expect(parsePoint({ x: '2300', y: 100 })).toBeNull()
+    expect(parsePoint({ x: NaN, y: 100 })).toBeNull()
+    expect(parsePoint(null)).toBeNull()
   })
 
   describe('parseNotifyPayload', () => {

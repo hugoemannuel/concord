@@ -152,6 +152,16 @@ export interface WindowThemeApi {
   setTitleBarColors(colors: { color: string; symbolColor: string }): void
 }
 
+export interface WindowDragApi {
+  /** Início do arraste manual da barra de título: posição e se está maximizada. */
+  start(): Promise<{ x: number; y: number; maximized: boolean } | null>
+  /** Só depois que o gesto passa do limiar de arraste: restaura e devolve a posição nova. */
+  restoreForDrag(): Promise<{ x: number; y: number } | null>
+  /** Próxima posição da janela, já calculada pelo renderer (ver shared/lib/windowDrag). */
+  move(x: number, y: number): void
+  toggleMaximize(): void
+}
+
 export interface OverlayApi {
   /** Overlay de jogo existe nesta plataforma (só Windows). */
   supported: boolean
@@ -215,6 +225,7 @@ declare global {
       music?: MusicApi
       keybinds?: KeybindsApi
       windowTheme?: WindowThemeApi
+      windowDrag?: WindowDragApi
       server?: ServerApi
       /** Só no app desktop do Linux (docs/adr/0014-voz-piper-no-linux.md). */
       tts?: TTSApi
