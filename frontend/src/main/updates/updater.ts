@@ -1,9 +1,9 @@
 import { app, BrowserWindow, ipcMain, net } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { homedir } from 'os'
-import { readFile, rename, rm, stat, writeFile } from 'fs/promises'
-import { readFileSync, realpathSync } from 'fs'
-import { basename, join } from 'path'
+import { readFile, rm } from 'fs/promises'
+import { realpathSync } from 'fs'
+import { basename } from 'path'
 import { isInCall, markQuitting } from '../window/background'
 import {
   autoUpdateUnavailable,
@@ -16,12 +16,14 @@ import { createUpdateCheckGate } from './updateCheck'
 import { verifyInstaller } from './updateSignature'
 import { clearCallResume, saveCallResume, takeCallResume } from './callResume'
 import { validCallResume, type CallResume } from '../../shared/callResume'
-import { appendLog, logPath } from '../app/appLog'
+import { logUpdate } from './updateLog'
 import { sandboxNoticeReason, updateBackendKind } from './linuxInstall'
 import { LinuxUpdater } from './linuxUpdater'
 import {
+  readRefused,
   readSandboxNoticeShown,
   readVerifiedVersion,
+  saveRefused as writeRefused,
   saveSandboxNoticeShown,
   saveVerifiedVersion
 } from './updateMarks'
@@ -83,43 +85,6 @@ interface UpdaterConfig {
 
 const startedAt = Date.now()
 
-const LOG_MAX_BYTES = 512 * 1024
-
-/** Console e, no Linux, ~/.config/Concord/logs/update.log (o app abre sem terminal). */
-function logUpdate(message: string, error: unknown): void {
-  console.error(`[update] ${message}:`, error)
-  if (process.platform !== 'linux') return
-  appendLog('update.log', `${message}: ${String(error)}`)
-  // Um arquivo antigo só (update.log.1): não cresce para sempre.
-  const path = logPath('update.log')
-  void stat(path)
-    .then((info) => (info.size > LOG_MAX_BYTES ? rename(path, `${path}.1`) : undefined))
-    .catch(() => {})
-}
-
-// Atualização recusada (assinatura ou pacote inválido): o mesmo par versão +
-// sha512 nunca é baixado de novo, nem depois de reiniciar.
-const refusedPath = (): string => join(app.getPath('userData'), 'update-refused.json')
-
-function readRefused(): ReleaseId | null {
-  try {
-    const value = JSON.parse(readFileSync(refusedPath(), 'utf8')) as Partial<ReleaseId>
-    return typeof value.version === 'string'
-      ? { version: value.version, sha512: typeof value.sha512 === 'string' ? value.sha512 : '' }
-      : null
-  } catch {
-    return null
-  }
-}
-
-function saveRefused(release: ReleaseId | null): void {
-  refused = release
-  const write = release
-    ? writeFile(refusedPath(), JSON.stringify(release))
-    : rm(refusedPath(), { force: true })
-  void write.catch(() => {})
-}
-
 function releaseId(info: AvailableUpdate): ReleaseId {
   return { version: info.version, sha512: info.sha512 ?? info.files?.[0]?.sha512 ?? '' }
 }
@@ -131,6 +96,11 @@ function releaseFile(info: AvailableUpdate): string | null {
 /** Versão nova encontrada (ainda baixando ou já pronta). */
 let availableVersion: string | null = null
 let refused: ReleaseId | null = null
+
+function saveRefused(release: ReleaseId | null): void {
+  refused = release
+  writeRefused(release)
+}
 let feedUrl = ''
 /** Linux fora do AppImage montado: o updater próprio está ativo. */
 let linuxSelfUpdating = false
