@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseThemeCss, THEME_TOKENS } from '../../settings/lib/themes'
-import { PRESET_SEEDS } from './customThemes'
+import { PRESET_SEEDS } from './presetSeeds'
 import { customThemesCss } from './themeCss'
 
 describe('customThemesCss', () => {

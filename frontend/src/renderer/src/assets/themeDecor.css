@@ -1,0 +1,39 @@
+/* Camadas decorativas dos temas (importado pelo main.css depois do theme.css).
+   Bolhas de luz do fundo animado (shared/ui/Background.tsx). */
+
+/* Bolhas de luz do fundo (components/Background.tsx): só nos temas com
+   --decor-opacity > 0. Fora deles, display: none para não animar blur à toa. */
+.app-decor {
+  display: none;
+  opacity: var(--decor-opacity);
+}
+
+[data-theme='amoled'] .app-decor,
+[data-theme='neon'] .app-decor {
+  display: block;
+}
+
+@keyframes blob-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(45px, -60px) scale(1.12);
+  }
+  66% {
+    transform: translate(-35px, 35px) scale(0.92);
+  }
+}
+
+.animate-blob {
+  animation: blob-float 22s ease-in-out infinite;
+}
+
+.animate-blob-slow {
+  animation: blob-float 32s ease-in-out infinite reverse;
+}
+
+.animate-blob-fast {
+  animation: blob-float 16s ease-in-out infinite;
+}
