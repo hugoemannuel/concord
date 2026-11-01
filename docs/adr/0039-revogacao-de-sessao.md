@@ -38,7 +38,9 @@ Opção 3, mais o refresh token com hash:
   mídia (1 h, só para anexos) e o de visitante não têm versão.
 - Incrementam a versão: `POST /auth/logout-all` ("Sair de todos os
   dispositivos"), redefinir a senha e excluir a conta (ADR 0038, a linha some).
-  Depois, as conexões WS da conta fecham com 4001 e o app volta ao login.
+  Na mesma transação saem os refresh tokens e os tokens de push (aparelho
+  deslogado não recebe mais notificação da conta). Depois, as conexões WS da
+  conta fecham com 4001 e o app volta ao login.
 - `refresh_tokens.token_hash` = sha256 hex; a migration 000185 converte os
   existentes em SQL com o mesmo cálculo (teste `TestDBHashDoRefreshIgualAoDaMigration`)
   e apaga os vencidos. Renovar consome com `DELETE … RETURNING` (uso único,

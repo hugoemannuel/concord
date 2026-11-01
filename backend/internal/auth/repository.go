@@ -68,7 +68,8 @@ func (r *Repository) TokenVersion(ctx context.Context, userID string) (int, erro
 	return version, err
 }
 
-// RevokeAll incrementa a versão e apaga os refresh tokens, numa transação.
+// RevokeAll incrementa a versão e apaga os refresh tokens e os tokens de push
+// (aparelho deslogado não recebe mais notificação da conta), numa transação.
 func (r *Repository) RevokeAll(ctx context.Context, userID string) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -78,8 +79,13 @@ func (r *Repository) RevokeAll(ctx context.Context, userID string) error {
 	if _, err := tx.Exec(ctx, `UPDATE users SET token_version = token_version + 1 WHERE id = $1`, userID); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM refresh_tokens WHERE user_id = $1`, userID); err != nil {
-		return err
+	for _, sql := range []string{
+		`DELETE FROM refresh_tokens WHERE user_id = $1`,
+		`DELETE FROM push_tokens WHERE user_id = $1`,
+	} {
+		if _, err := tx.Exec(ctx, sql, userID); err != nil {
+			return err
+		}
 	}
 	return tx.Commit(ctx)
 }

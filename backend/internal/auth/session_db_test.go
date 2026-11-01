@@ -71,6 +71,9 @@ func TestDBRevokeAllDerrubaTokensEMudaAVersao(t *testing.T) {
 	access, _ := s.GenerateAccessToken(ctx, userID)
 	refresh, _ := s.GenerateRefreshToken(ctx, userID)
 	claims, _ := s.ValidateToken(access)
+	if _, err := db.Exec(ctx, `INSERT INTO push_tokens (user_id, token, platform) VALUES ($1, $2, 'android')`, userID, "fcm-"+userID); err != nil {
+		t.Fatal(err)
+	}
 	var revoked []string
 	s.OnSessionsRevoked(func(id string) { revoked = append(revoked, id) })
 
@@ -83,6 +86,11 @@ func TestDBRevokeAllDerrubaTokensEMudaAVersao(t *testing.T) {
 	}
 	if _, _, err := s.RefreshTokens(ctx, refresh); !errors.Is(err, ErrInvalidRefresh) {
 		t.Errorf("refresh de antes: %v, quer ErrInvalidRefresh", err)
+	}
+	var pushes int
+	db.QueryRow(ctx, `SELECT count(*) FROM push_tokens WHERE user_id = $1`, userID).Scan(&pushes)
+	if pushes != 0 {
+		t.Errorf("o aparelho deslogado continuaria recebendo push (%d token)", pushes)
 	}
 	if len(revoked) != 1 || revoked[0] != userID {
 		t.Errorf("ganchos: %v", revoked)
