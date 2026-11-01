@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { CallResume, PendingCallResume } from '../shared/callResume'
 import type { AppMetrics } from '../shared/appMetrics'
 import type { PerfEvent } from '../shared/perfLog'
-import { screenShareFlow, type PortalStatus } from '../shared/screenShareFlow'
+import { screenFlowFromArgv, type PortalStatus } from '../shared/screenShareFlow'
 import { serverFromArgv, type ServerDiagnostics } from '../shared/serverConnection'
 import { overlayApi } from './overlayApi'
 import { ttsApi } from './ttsApi'
@@ -19,6 +19,8 @@ interface ScreenSourceInfo {
 // Ponte para o renderer: só funções específicas, cada uma num canal fixo e com o
 // argumento conferido no main. Nada de ipcRenderer cru nem process.env (o
 // @electron-toolkit/preload expunha os dois em window.electron e saiu).
+// Roda com sandbox: true: só o require('electron'); o resto vem do main por
+// argumento (additionalArguments) ou IPC (ver sandboxedPreload.test.ts).
 const api = {
   /** Sistema operacional (win32, linux, darwin). */
   platform: process.platform,
@@ -92,7 +94,7 @@ const api = {
   },
   screenShare: {
     /** 'portal' = Linux/Wayland: o seletor é o do sistema, não o modal do app. */
-    flow: screenShareFlow(process.platform, process.env),
+    flow: screenFlowFromArgv(process.argv),
     /** O portal de captura (xdg-desktop-portal ScreenCast) está instalado? */
     portalStatus(): Promise<{ status: PortalStatus; message: string }> {
       return ipcRenderer.invoke('screen-share:portal-status')

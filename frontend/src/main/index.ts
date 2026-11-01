@@ -20,7 +20,9 @@ import { shareStreams, type ShareDeps } from './screen/shareSource'
 import { WindowWatch } from './screen/windowWatch'
 import { PreferredSource, findGameWindow, listProcessWindows } from './screen/gameWindow'
 import { checkScreenCastPortal } from './screen/screenPortal'
-import { portalMissingMessage, screenShareFlow } from '../shared/screenShareFlow'
+import { portalMissingMessage, screenFlowArgs, screenShareFlow } from '../shared/screenShareFlow'
+import { enforceSandbox, SANDBOXED_PREFERENCES } from './security/sandbox'
+import { appOrigins, setupSessionPermissions } from './security/sessionPermissions'
 import {
   attachCloseToTray,
   ensureSingleInstance,
@@ -66,8 +68,12 @@ import { takeHiddenRelaunch } from './splash/splashMarks'
 let mainWindow: BrowserWindow | null = null
 /** Endereço do servidor que respondeu ao abrir (undefined no dev: o do build). */
 let serverUrl: string | undefined
+/** Wayland usa o seletor do sistema; o preload (em sandbox) recebe por argumento. */
+const screenFlow = screenShareFlow(process.platform, process.env)
 /** Aberto pelo login do sistema (ou reaberto pela instalação dele): fica na bandeja. */
 let launchHidden = false
+/** Servidor do Vite no dev (só lá): a única origem http liberada além dos servidores do build. */
+const devRendererUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined
 
 // Picker de tela (Fase 3): o getDisplayMedia do renderer dispara este handler,
 // que pede ao renderer para abrir o modal de seleção e resolve com a fonte
@@ -95,7 +101,7 @@ function registerScreenShareHandlers(): void {
   // Wayland: o seletor é o do sistema (xdg-desktop-portal). Cada getSources
   // abre o seletor e devolve só a fonte escolhida, com id novo a cada vez —
   // por isso não dá para listar no modal do app e depois procurar pelo id.
-  const flow = screenShareFlow(process.platform, process.env)
+  const flow = screenFlow
 
   // O renderer pergunta antes de abrir o seletor: sem o portal, o getSources
   // falha igual a um "Cancelar" e ninguém saberia o motivo.
@@ -223,12 +229,12 @@ function createWindow(): void {
     ...titleBarOptions(process.platform),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
+      ...SANDBOXED_PREFERENCES,
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
       // Em chamada o throttling de segundo plano fica desligado (a live travaria
       // para quem assiste); fora dela, ligado. Quem decide é o watchWindowActivity.
       backgroundThrottling: false,
-      additionalArguments: serverArgs(serverUrl)
+      additionalArguments: [...serverArgs(serverUrl), ...screenFlowArgs(screenFlow)]
     }
   })
 
@@ -302,6 +308,7 @@ function loadRenderer(win: BrowserWindow): void {
 // O app se chamava Concord: a pasta de dados continua a mesma para ninguém
 // perder o login nem as configurações (antes do lock, que mora nela).
 app.setPath('userData', join(app.getPath('appData'), 'Concord'))
+enforceSandbox(app)
 if (
   !ensureSingleInstance(
     () => mainWindow,
@@ -329,6 +336,9 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId(APP_USER_MODEL_ID)
   // Antes de qualquer notificação: CLSID fixo e atalho do Menu Iniciar.
   setupToasts()
+  // Câmera, microfone, notificação...: só o próprio app e só o que ele usa.
+  const origins = appOrigins(join(__dirname, '../renderer'), devRendererUrl, __CONCORD_SERVER_URLS__)
+  setupSessionPermissions(app, session.defaultSession, origins)
   // Sem a barra "File Edit View Window" padrão do Electron (aparecia no Alt).
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
 

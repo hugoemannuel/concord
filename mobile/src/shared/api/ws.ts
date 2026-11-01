@@ -1,4 +1,4 @@
-import { WS_URL } from '../lib/config'
+import { wsConnectUrl } from './wsTicket'
 import { isPlannedRestart, reconnectDelay } from '../lib/wsReconnect'
 
 export interface WsEvent<T = unknown> {
@@ -8,6 +8,12 @@ export interface WsEvent<T = unknown> {
 
 interface WsClientConfig {
   getToken: () => string | null
+  /**
+   * Endereço da conexão, com a credencial (?ticket=, docs/adr/0046). null =
+   * sem sessão; rejeição = falha temporária (queda, tenta de novo). Padrão:
+   * pede o ticket ao servidor (wsTicket).
+   */
+  getConnectUrl?: () => Promise<string | null>
   getUserId: () => string | null
   onEvent: (event: WsEvent) => void
   /**
@@ -55,6 +61,8 @@ export class WsClient {
   /** Já abriu alguma vez desde o connect(). */
   private everOpened = false
   private retryTimer: ReturnType<typeof setTimeout> | null = null
+  /** Pedindo o endereço (ticket): ninguém abre outra tentativa em paralelo. */
+  private opening = false
 
   constructor(config: WsClientConfig) {
     this.config = config
@@ -122,12 +130,30 @@ export class WsClient {
     return state === WebSocket.OPEN || state === WebSocket.CONNECTING
   }
 
-  private open(): void {
-    const token = this.config.getToken()
-    if (!token || this.closedByUser || this.suspended || this.isActive()) return
+  /** Fechado de propósito (disconnect ou suspend): não abre. */
+  private held(): boolean {
+    return this.closedByUser || this.suspended
+  }
 
-    // client=mobile: o servidor só manda push quando o app do celular não está aberto (o desktop não conta).
-    const ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}&client=mobile`)
+  private open(): void {
+    if (this.held() || this.opening || this.isActive()) return
+    this.opening = true
+    const getUrl = this.config.getConnectUrl ?? (() => wsConnectUrl(this.config.getToken))
+    getUrl().then(
+      (url) => {
+        this.opening = false
+        if (url) this.openSocket(url)
+      },
+      () => {
+        this.opening = false
+        if (!this.held()) this.lost()
+      }
+    )
+  }
+
+  private openSocket(url: string): void {
+    if (this.held() || this.isActive()) return
+    const ws = new WebSocket(url)
     ws.onopen = () => this.handleOpen()
     ws.onmessage = (event: MessageEvent) => this.handleMessage(event)
     ws.onclose = (event: CloseEvent) => this.handleClose(ws, event.code)
@@ -163,6 +189,11 @@ export class WsClient {
     this.ws = null
     if (this.closedByUser) return
     if (isPlannedRestart(code)) this.serverRestarting = true
+    this.lost()
+  }
+
+  /** Caiu (ou não deu para pedir o ticket): agenda a volta e avisa. */
+  private lost(): void {
     this.scheduleReconnect()
     this.config.onLost?.({ attempt: this.attempt, planned: this.serverRestarting })
   }

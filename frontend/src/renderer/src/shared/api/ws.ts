@@ -1,4 +1,4 @@
-import { WS_URL } from '../lib/config'
+import { wsConnectUrl } from './wsTicket'
 import { isPlannedRestart, isSessionRevoked, reconnectDelay } from '../lib/wsReconnect'
 import { HEARTBEAT_EVERY_MS, heartbeatStep, type HeartbeatState } from '../lib/wsHeartbeat'
 
@@ -55,6 +55,12 @@ export interface WsEvent<T = unknown> {
 
 interface WsClientConfig {
   getToken: () => string | null
+  /**
+   * Endereço da conexão, com a credencial (?ticket=, docs/adr/0046). null =
+   * sem sessão; rejeição = falha temporária (queda, tenta de novo). Padrão:
+   * pede o ticket ao servidor (wsTicket).
+   */
+  getConnectUrl?: () => Promise<string | null>
   getUserId: () => string | null
   onEvent: (event: WsEvent) => void
   /**
@@ -99,6 +105,8 @@ export class WsClient {
   private serverRestarting = false
   /** Já abriu alguma vez desde o connect(). */
   private everOpened = false
+  /** Pedindo o endereço (ticket): ninguém abre outra tentativa em paralelo. */
+  private opening = false
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   /** Batimento da conexão aberta (ver lib/wsHeartbeat). */
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
@@ -127,13 +135,7 @@ export class WsClient {
 
   /** "Tentar agora": pula a espera do backoff (sem efeito se já conectado ou conectando). */
   retryNow(): void {
-    if (this.closedByUser) return
-    if (
-      this.ws &&
-      (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
-    ) {
-      return
-    }
+    if (this.closedByUser || this.busy()) return
     this.clearRetry()
     this.open()
   }
@@ -157,16 +159,30 @@ export class WsClient {
   }
 
   private open(): void {
-    const token = this.config.getToken()
-    if (!token || this.closedByUser) return
-    if (
-      this.ws &&
-      (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
-    ) {
-      return
-    }
+    if (this.closedByUser || this.opening || this.busy()) return
+    this.opening = true
+    const getUrl = this.config.getConnectUrl ?? (() => wsConnectUrl(this.config.getToken))
+    getUrl().then(
+      (url) => {
+        this.opening = false
+        if (url) this.openSocket(url)
+      },
+      () => {
+        this.opening = false
+        if (!this.closedByUser) this.lost(false)
+      }
+    )
+  }
 
-    const ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`)
+  /** Conectado ou conectando. */
+  private busy(): boolean {
+    const state = this.ws?.readyState
+    return state === WebSocket.OPEN || state === WebSocket.CONNECTING
+  }
+
+  private openSocket(url: string): void {
+    if (this.closedByUser || this.busy()) return
+    const ws = new WebSocket(url)
 
     ws.onopen = () => {
       this.attempt = 0

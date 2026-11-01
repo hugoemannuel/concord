@@ -1,5 +1,5 @@
 // Como o compartilhamento de tela escolhe a fonte em cada plataforma. Puro
-// para poder testar (main e preload usam).
+// para poder testar (o main decide; o preload só lê o argumento).
 //
 // Wayland não deixa um app listar telas/janelas: o Chromium pede ao
 // xdg-desktop-portal (interface ScreenCast), que abre o seletor do sistema e
@@ -21,6 +21,18 @@ export function screenShareFlow(platform: string, env: Env): ScreenShareFlow {
   if (platform !== 'linux') return 'app'
   const wayland = (env.XDG_SESSION_TYPE ?? '').startsWith('wayland') && !!env.WAYLAND_DISPLAY
   return wayland ? 'portal' : 'app'
+}
+
+const FLOW_ARG = '--salinha-screen-flow='
+
+/** Argumento da janela principal com o fluxo decidido no main (additionalArguments). */
+export function screenFlowArgs(flow: ScreenShareFlow): string[] {
+  return [`${FLOW_ARG}${flow}`]
+}
+
+/** Lido no preload (em sandbox, sem process.env): sem o argumento, o modal do app. */
+export function screenFlowFromArgv(argv: readonly string[]): ScreenShareFlow {
+  return argv.includes(`${FLOW_ARG}portal`) ? 'portal' : 'app'
 }
 
 const PORTAL_DEST = 'org.freedesktop.portal.Desktop'
