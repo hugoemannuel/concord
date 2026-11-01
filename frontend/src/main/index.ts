@@ -46,12 +46,8 @@ import { handleInviteArgs, handleInviteUrl, setupInviteProtocol } from './app/in
 import { closeActivity, setupActivities } from './activity/activityWindow'
 import { APP_USER_MODEL_ID } from './window/toastPolicy'
 import { setupToasts } from './window/toasts'
-import {
-  parseTitleBarColors,
-  TITLE_BAR_COLOR,
-  TITLE_BAR_HEIGHT,
-  titleBarOptions
-} from './window/windowPolicy'
+import { TITLE_BAR_COLOR, titleBarOptions } from './window/windowPolicy'
+import { registerThemeHandlers } from './window/titleBarTheme'
 import { isSafeExternalUrl } from '../shared/externalUrl'
 import { fromWindow, parseSourceId } from './window/ipcGuard'
 import { guardNavigation } from './window/navigationGuard'
@@ -64,10 +60,14 @@ import {
   stopWindowAudio
 } from './screen/screenAudio'
 import { setupNativeLive } from './nativeLive/setupNativeLive'
+import { openSplash } from './splash/openSplash'
+import { takeHiddenRelaunch } from './splash/splashMarks'
 
 let mainWindow: BrowserWindow | null = null
 /** Endereço do servidor que respondeu ao abrir (undefined no dev: o do build). */
 let serverUrl: string | undefined
+/** Aberto pelo login do sistema (ou reaberto pela instalação dele): fica na bandeja. */
+let launchHidden = false
 
 // Picker de tela (Fase 3): o getDisplayMedia do renderer dispara este handler,
 // que pede ao renderer para abrir o modal de seleção e resolve com a fonte
@@ -88,23 +88,6 @@ const windowWatch = new WindowWatch(
   async () => (await captureDeps.windows()).map((s) => s.id),
   () => mainWindow?.webContents.send('screen-share:window-hidden')
 )
-
-/** Tema trocou no renderer: a barra de título nativa acompanha (Windows/Linux). */
-function registerThemeHandlers(): void {
-  ipcMain.on('window:title-bar-colors', (event, raw: unknown) => {
-    const win = mainWindow
-    if (!win || event.sender !== win.webContents) return
-    const colors = parseTitleBarColors(raw)
-    if (!colors) return
-    win.setBackgroundColor(colors.color)
-    if (process.platform === 'darwin') return
-    try {
-      win.setTitleBarOverlay({ ...colors, height: TITLE_BAR_HEIGHT })
-    } catch {
-      // Sem overlay nativo nesta plataforma/versão: só a faixa do renderer muda.
-    }
-  })
-}
 
 function registerScreenShareHandlers(): void {
   ipcMain.on('screen-share:ended', () => windowWatch.stop())
@@ -251,7 +234,7 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     // Aberto pelo "Iniciar com o Windows": fica só na bandeja.
-    if (!startHidden()) mainWindow?.show()
+    if (!launchHidden) mainWindow?.show()
   })
   attachCloseToTray(mainWindow)
   watchWindowActivity(mainWindow, { inCall: isInCall, onCallStateChange })
@@ -335,6 +318,9 @@ if (
 app.whenReady().then(() => {
   // Primeiro de tudo: o tempo de abertura medido começa daqui. Sem --perf-log não faz nada.
   setupPerfLog(() => mainWindow)
+  // A janelinha de abertura aparece já: atualiza (se houver) antes de abrir.
+  launchHidden = startHidden() || takeHiddenRelaunch()
+  const splash = openSplash(launchHidden, icon)
   // Testa os endereços do servidor enquanto o resto inicia.
   const serverChoice = startServerChoice(__CONCORD_SERVER_URLS__)
   registerServerDiagnostics(serverChoice, __CONCORD_SERVER_URLS__)
@@ -347,7 +333,7 @@ app.whenReady().then(() => {
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
 
   registerScreenShareHandlers()
-  registerThemeHandlers()
+  registerThemeHandlers(() => mainWindow)
   registerScreenAudio()
   setupNativeLive()
   setupBackground(() => mainWindow, icon, { small: trayIcon, large: trayIcon2x })
@@ -369,13 +355,15 @@ app.whenReady().then(() => {
 
   // A janela abre já com o endereço que responde (o principal ou um
   // alternativo, se o principal estiver bloqueado na rede de quem usa).
-  void serverChoice.then((choice) => {
+  void serverChoice.then(async (choice) => {
     serverUrl = choice?.url
-    setupUpdater(() => mainWindow, {
+    const startupUpdate = setupUpdater(() => mainWindow, {
       feedUrl: updateFeedFor(__CONCORD_UPDATE_URL__, serverUrl),
       publicKeyPem: __CONCORD_UPDATE_PUBKEY__
     })
+    await splash.update(startupUpdate)
     createWindow()
+    if (mainWindow) splash.handOff(mainWindow)
   })
 
   app.on('activate', function () {
