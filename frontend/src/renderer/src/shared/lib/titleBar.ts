@@ -8,5 +8,5 @@ export function hasCustomTitleBar(platform: string | undefined): boolean {
 }
 
 export function currentPlatform(): string | undefined {
-  return (window as { electron?: { process?: { platform?: string } } }).electron?.process?.platform
+  return typeof window === 'undefined' ? undefined : window.api?.platform
 }
