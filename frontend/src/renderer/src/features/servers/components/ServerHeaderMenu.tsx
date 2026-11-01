@@ -142,27 +142,38 @@ function ServerHeaderMenu({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const name = server?.name ?? 'Servidor'
+  const toggle = (): void => setOpen((d) => !d)
   return (
-    <div className="relative flex h-14 shrink-0 items-center justify-between px-4 border-b border-subtle shadow-xs">
+    <div className="relative flex h-14 shrink-0 items-center gap-1.5 px-4 border-b border-subtle shadow-xs">
+      {/* O selo de nível é um botão próprio: não pode ficar dentro do botão do menu. */}
       <button
-        onClick={() => setOpen((d) => !d)}
+        onClick={toggle}
         title={name}
         aria-expanded={open}
-        className="flex w-full min-w-0 items-center justify-between gap-1 text-left text-ds-md font-semibold text-strong hover:text-normal cursor-pointer"
+        className={`min-w-0 text-left text-ds-md font-semibold text-strong hover:text-normal cursor-pointer ${
+          server ? '' : 'flex-1'
+        }`}
       >
         {/* Até duas linhas (o cabeçalho tem altura fixa); o resto no title. */}
         {server ? (
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className={`line-clamp-2 min-w-0 leading-5 ${WRAP_NAME}`}>{name}</span>
-            <ServerLevelChip serverId={server.id} />
-          </span>
+          <span className={`line-clamp-2 min-w-0 leading-5 ${WRAP_NAME}`}>{name}</span>
         ) : (
           // Sem servidor ainda (abrindo): o nome real entra no lugar da barra.
-          <span className="flex h-5 min-w-0 flex-1 items-center">
+          <span className="flex h-5 min-w-0 items-center">
             <Skeleton className="h-3.5 w-3/5" />
             <span className="sr-only">Carregando servidor…</span>
           </span>
         )}
+      </button>
+      {server && <ServerLevelChip serverId={server.id} />}
+      {/* Sobra da linha + seta: só estende a área de clique do botão do nome. */}
+      <button
+        type="button"
+        onClick={toggle}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="flex h-full min-w-0 flex-1 cursor-pointer items-center justify-end"
+      >
         <MenuToggleIcon open={open} />
       </button>
       {open && <ServerMenuItems server={server} access={access} onPicked={() => setOpen(false)} />}

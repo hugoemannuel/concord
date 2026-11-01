@@ -15,6 +15,9 @@ vi.mock('../../activity/store/presenceActivityStore', () => ({
 vi.mock('../../call/store/moderationStore', () => ({
   useModerationStore: Object.assign(() => null, { getState: () => ({ askNickname: vi.fn() }) })
 }))
+// O selo de nível do servidor toca som ao clicar; o callStore e o áudio não entram no SSR.
+vi.mock('../../call/store/callStore', () => ({ useCallStore: { getState: () => ({}) } }))
+vi.mock('../../call/lib/sounds', () => ({ playSound: vi.fn() }))
 // Sem portal no SSR: o modal aberto vira um bloco com o título.
 vi.mock('../../../shared/ui/Modal', () => ({
   default: ({
