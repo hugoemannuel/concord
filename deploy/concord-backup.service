@@ -1,0 +1,13 @@
+# /etc/systemd/system/concord-backup.service — cópia do banco (pg_dump) em
+# /opt/concord/backups, guardando 14 dias. Roda todo dia pelo
+# concord-backup.timer. Só o banco: a mídia do chat (/opt/concord/uploads) não
+# entra. Restaurar: docs/HOSPEDAGEM.md, "Restaurar o banco de um backup".
+[Unit]
+Description=Backup diário do banco da Salinha
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/bin/bash -euo pipefail -c 'mkdir -p /opt/concord/backups; f=/opt/concord/backups/concord-$$(date +%%F).sql.gz; docker exec concord-postgres pg_dump -U concord-user concord | gzip > "$$f.tmp"; mv "$$f.tmp" "$$f"; find /opt/concord/backups -name "concord-*.sql.gz" -mtime +14 -delete'

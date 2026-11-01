@@ -21,8 +21,9 @@ const CODE = /^[A-Z0-9]{4,16}$/
 const DEEP_LINK = /^salinha:\/\/convite\/([A-Za-z0-9]{4,16})\/?$/i
 const WEB_PATH = /^\/convite\/([A-Za-z0-9]{4,16})\/?$/
 
-export function inviteLink(code: string): string {
-  return `${INVITE_WEB_ORIGIN}/convite/${code}`
+/** origin: o app web de outro servidor (servidor próprio) passa o endereço dele. */
+export function inviteLink(code: string, origin: string = INVITE_WEB_ORIGIN): string {
+  return `${origin}/convite/${code}`
 }
 
 export function inviteDeepLink(code: string): string {

@@ -1,0 +1,15 @@
+# /etc/systemd/system/concord-server.service — o backend da Salinha na VPS.
+# Vai junto com o complemento concord-server.service.d/zero-downtime.conf e o
+# concord-server.socket (a porta 127.0.0.1:8090 fica com o systemd). O binário
+# e o .env ficam em /opt/concord; quem coloca o binário é o
+# scripts/deploy-vps.sh. Veja docs/HOSPEDAGEM.md, seção 7.
+[Unit]
+Description=Backend da Salinha
+
+[Service]
+WorkingDirectory=/opt/concord
+ExecStart=/opt/concord/concord-server
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

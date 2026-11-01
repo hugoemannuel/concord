@@ -11,8 +11,9 @@ outros agentes podem ler o `SKILL.md` como documentação.
 | `/ideia <texto>` | ideia vaga → spec aprovada | [pipeline-ideia.md](pipeline-ideia.md) |
 | `/feature <spec ou descrição>` | spec → PR | [pipeline-feature.md](pipeline-feature.md) |
 | `/bugfix <sintoma>` | bug → PR com teste de regressão | [pipeline-bugfix.md](pipeline-bugfix.md) |
+| `/servidor-proprio` | montar o servidor próprio de alguém (leigo), do zero | [servidor-proprio.md](servidor-proprio.md) |
 
-Claude: `.claude/skills/{ideia,feature,bugfix}/`. Gemini CLI: `.gemini/commands/*.toml`.
+Claude: `.claude/skills/{ideia,feature,bugfix,servidor-proprio}/`. Gemini CLI: `.gemini/commands/*.toml`.
 
 ## Superpowers (plugin vinculado ao projeto)
 

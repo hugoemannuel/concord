@@ -1,0 +1,27 @@
+#!/usr/sbin/nft -f
+# /etc/salinha-firewall.nft — firewall da VPS (docs/HOSPEDAGEM.md, "Portas
+# abertas na VPS"). Tabela própria: NÃO mexe nas regras do Docker. Nunca use
+# um /etc/nftables.conf com "flush ruleset" (derruba a rede dos containers).
+# Carregado no boot pelo salinha-firewall.service. Para abrir uma porta:
+# edite, confira com `nft -c -f /etc/salinha-firewall.nft` e
+# `systemctl restart salinha-firewall`.
+table inet salinha_fw
+delete table inet salinha_fw
+
+table inet salinha_fw {
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		ct state established,related accept
+		ct state invalid drop
+		iif "lo" accept
+		# Pontes do Docker (containers falando com a própria VPS).
+		iifname { "docker0", "br-*" } accept
+		meta l4proto { icmp, ipv6-icmp } accept
+
+		# 22 SSH; 80/443 Caddy (HTTPS, HTTP/3 e o certificado); 7881/tcp e
+		# 7882/udp mídia do LiveKit (voz, vídeo e tela).
+		tcp dport { 22, 80, 443, 7881 } accept
+		udp dport { 443, 7882 } accept
+	}
+}
