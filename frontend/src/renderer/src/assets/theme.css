@@ -7,6 +7,9 @@
    lib/themes.ts e store/themeStore.ts); sem atributo vale o Discord Escuro.
    data-theme também funciona num elemento qualquer: as prévias do seletor
    (Configurações → Aparência) usam isso para pintar cada cartão com o tema dele.
+   Os temas próprios (features/appearance, ADR 0040) geram estes mesmos tokens num
+   <style> com [data-theme='custom-<id>']: token novo aqui precisa entrar em
+   features/appearance/lib/palette.ts (o teste dela confere).
 
    Use sempre os tokens, nunca hex solto. Em CSS: var(--bg-primary). Em
    Tailwind: as classes da coluna da direita (aceitam /opacidade: bg-brand/20).
@@ -179,8 +182,10 @@
 
 /* LEGADO (lote 7): sai quando os últimos arquivos com cor crua migrarem (a catraca
    de design lista quais são). Os tons claros do Tailwind (text-amber-300, text-violet-400…) foram pensados
-   para fundo escuro: no tema claro viram os tons 700/800 do mesmo matiz. */
-[data-theme='discord-light'] {
+   para fundo escuro: no tema claro viram os tons 700/800 do mesmo matiz. data-scheme='light' cobre
+   os temas próprios claros (features/appearance). */
+[data-theme='discord-light'],
+[data-scheme='light'] {
   --color-red-50: oklch(44.4% 0.177 26.899); /* red-800 */
   --color-red-100: oklch(44.4% 0.177 26.899); /* red-800 */
   --color-red-200: oklch(44.4% 0.177 26.899); /* red-800 */
@@ -586,13 +591,14 @@
   --color-fg: var(--fg);
 
   /* Degradês e cores decorativas (fundo animado, capa de convite). O degradê
-     da marca parte do --brand do tema; o hero é fixo (arte, não tema). */
+     da marca parte do --brand do tema; o hero é fixo (arte, não tema), menos
+     nos temas próprios com brilho, que trocam as bolhas (--hero-1..4). */
   --background-image-gradient-brand: linear-gradient(to bottom right, var(--brand), #8b5cf6);
   --background-image-gradient-hero: linear-gradient(to bottom right, #4c1d95, #312e81, #0e7490);
-  --color-hero-1: #5b21b6;
-  --color-hero-2: #4338ca;
-  --color-hero-3: #0e7490;
-  --color-hero-4: #9d174d;
+  --color-hero-1: var(--hero-1, #5b21b6);
+  --color-hero-2: var(--hero-2, #4338ca);
+  --color-hero-3: var(--hero-3, #0e7490);
+  --color-hero-4: var(--hero-4, #9d174d);
 
   /* LEGADO: nomes antigos e cinzas, só para os arquivos que ainda não migraram
      (ver a catraca). Código novo usa os tokens. */

@@ -27,8 +27,21 @@ const root = { dataset: {} as Record<string, string> }
 const COLORS: Record<string, Record<string, string>> = {
   'discord-dark': { '--bg-app': '#121214', '--interactive-normal': '#96979e' },
   'discord-light': { '--bg-app': '#f3f3f4', '--interactive-normal': '#595a63' },
-  midnight: { '--bg-app': '#0b1220', '--interactive-normal': '#b6c2d3' }
+  midnight: { '--bg-app': '#0b1220', '--interactive-normal': '#b6c2d3' },
+  'custom-red1': { '--bg-app': '#190606', '--interactive-normal': '#d9bcbc' }
 }
+
+const RED = {
+  id: 'red1',
+  name: 'Vermelho',
+  accent: '#e11d48',
+  background: '#2a0a0a',
+  sidebar: '#1f0707',
+  card: '#3b0d0d',
+  text: '#ffffff',
+  glow: ''
+}
+const LIGHT = { ...RED, id: 'luz1', background: '#ffffff', sidebar: '#fff1f2', card: '#ffffff', text: '#1f1f1f' }
 
 beforeEach(() => {
   vi.resetModules()
@@ -123,5 +136,37 @@ describe('themeStore', () => {
     expect(titleBar).not.toHaveBeenCalled()
     storageListener?.({ key: 'outra-coisa', newValue: 'forest' })
     expect(root.dataset.theme).toBe('midnight')
+  })
+
+  it('tema próprio salvo vale no início e marca claro/escuro (data-scheme)', async () => {
+    localStorage.setItem('concord:custom-themes', JSON.stringify([RED, LIGHT]))
+    localStorage.setItem('concord:theme', 'custom-red1')
+    const { startThemeSync, useThemeStore } = await load()
+    startThemeSync()
+    expect(root.dataset.theme).toBe('custom-red1')
+    expect(root.dataset.scheme).toBe('dark')
+    expect(titleBar).toHaveBeenCalledWith({ color: '#190606', symbolColor: '#d9bcbc' })
+    useThemeStore.getState().setPreference('custom-luz1')
+    expect(root.dataset.scheme).toBe('light')
+    useThemeStore.getState().setPreference('discord-light')
+    expect(root.dataset.scheme).toBe('light')
+  })
+
+  it('tema próprio que não existe aqui cai no padrão, mas a escolha fica', async () => {
+    localStorage.setItem('concord:theme', 'custom-sumiu')
+    const { startThemeSync, useThemeStore } = await load()
+    startThemeSync()
+    expect(useThemeStore.getState()).toMatchObject({ preference: 'custom-sumiu', theme: 'discord-dark' })
+    expect(root.dataset.theme).toBe('discord-dark')
+  })
+
+  it('refreshTheme repinta a barra mesmo sem trocar de tema (tema próprio editado)', async () => {
+    localStorage.setItem('concord:custom-themes', JSON.stringify([RED]))
+    localStorage.setItem('concord:theme', 'custom-red1')
+    const { startThemeSync, refreshTheme } = await load()
+    startThemeSync()
+    titleBar.mockClear()
+    refreshTheme()
+    expect(titleBar).toHaveBeenCalledTimes(1)
   })
 })

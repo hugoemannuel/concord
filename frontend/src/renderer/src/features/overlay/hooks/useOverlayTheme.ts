@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useCustomThemesStore } from '../../appearance/store/customThemesStore'
 import { useThemeStore } from '../../settings/store/themeStore'
 import { readOverlayTheme, rgbToHex, type OverlayTheme } from '../lib/overlayTheme'
 
@@ -21,12 +22,17 @@ function cssColorToHex(cssColor: string): string | null {
   return rgbToHex(r, g, b)
 }
 
-/** Cores do tema em vigor para o overlay nativo; recalcula só ao trocar de tema. */
+/**
+ * Cores do tema em vigor para o overlay nativo; recalcula ao trocar de tema ou
+ * quando a lista de temas próprios muda (o tema em uso pode ter sido editado).
+ */
 export function useOverlayTheme(): Partial<OverlayTheme> | null {
   const theme = useThemeStore((s) => s.theme)
+  // Só como gatilho do useMemo: as cores vêm do CSS, que já foi reescrito.
+  const customThemes = useCustomThemesStore((s) => s.themes)
   return useMemo(() => {
     if (typeof document === 'undefined' || !theme) return null
     const style = getComputedStyle(document.documentElement)
     return readOverlayTheme((name) => style.getPropertyValue(name), cssColorToHex)
-  }, [theme])
+  }, [theme, customThemes])
 }
