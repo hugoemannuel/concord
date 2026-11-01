@@ -185,9 +185,17 @@ describe('updater', () => {
     })
     await h.autoUpdater.emit('update-available', { version: '0.6.1' })
     await h.autoUpdater.emit('update-downloaded', { version: '0.6.1', downloadedFile: 'setup.exe' })
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
     expect(h.state.sent.some(([channel]) => channel === 'update:error')).toBe(true)
+  })
+
+  it('instalar pedido por outra página (não a janela principal) é ignorado', async () => {
+    await startUpdater()
+    await h.autoUpdater.emit('update-available', { version: '0.6.1' })
+    await h.autoUpdater.emit('update-downloaded', { version: '0.6.1', downloadedFile: 'setup.exe' })
+    h.state.handlers['update:install']({ sender: {} })
+    expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
   })
 
   it('verifica a assinatura do AppImage pelo nome no cache antes de instalar', async () => {
@@ -199,7 +207,7 @@ describe('updater', () => {
     })
     expect(h.fetch).toHaveBeenCalledWith('http://srv/updates/Salinha-0.7.0-x64.AppImage.sig')
     expect(h.state.sent).toContainEqual(['update:ready', '0.7.0'])
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     expect(h.autoUpdater.quitAndInstall).toHaveBeenCalledWith(true, true)
   })
 
@@ -207,7 +215,7 @@ describe('updater', () => {
     h.state.validSignature = false
     await startUpdater()
     await h.autoUpdater.emit('update-available', { version: '0.7.0' })
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     await h.autoUpdater.emit('update-downloaded', {
       version: '0.7.0',
       downloadedFile: '/cache/Salinha-0.7.0-x64.AppImage'
@@ -221,7 +229,7 @@ describe('updater', () => {
     const { clearCallResume } = await import('./callResume')
     await h.autoUpdater.emit('update-available', { version: '0.6.1' })
     await h.autoUpdater.emit('update-downloaded', { version: '0.6.1', downloadedFile: 'setup.exe' })
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     await h.autoUpdater.emit('error', new Error('installer failed'))
     expect(clearCallResume).toHaveBeenCalled()
   })
@@ -246,7 +254,7 @@ describe('updater', () => {
     expect(saveCallResume).not.toHaveBeenCalled()
     h.state.handlers['update:call-snapshot']({ sender: win.webContents }, snapshot)
     h.state.handlers['update:call-snapshot']({ sender: {} }, null)
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     expect(saveCallResume).toHaveBeenCalledWith(snapshot)
     expect(vi.mocked(saveCallResume).mock.invocationCallOrder[0]).toBeLessThan(
       h.autoUpdater.quitAndInstall.mock.invocationCallOrder[0]
@@ -281,7 +289,7 @@ describe('updater', () => {
     await startUpdater()
     await h.autoUpdater.emit('update-available', { version: '0.6.0' })
 
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     expect(h.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
     expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
 
@@ -306,7 +314,7 @@ describe('updater', () => {
     expect(h.state.sent).toContainEqual(['update:ready', '0.6.0'])
     expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
 
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     expect(h.autoUpdater.quitAndInstall).toHaveBeenCalledWith(true, true)
     expect(h.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
   })
@@ -361,7 +369,7 @@ describe('updater', () => {
     expect(h.state.sent).toContainEqual(['update:ready', '0.6.0'])
     expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
 
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
     expect(h.autoUpdater.quitAndInstall).toHaveBeenCalled()
   })
 
@@ -386,7 +394,7 @@ describe('updater', () => {
     h.state.validSignature = false
     await startUpdater()
     await h.autoUpdater.emit('update-available', { version: '0.6.0' })
-    h.state.handlers['update:install']()
+    h.state.handlers['update:install']({ sender: win.webContents })
 
     await h.autoUpdater.emit('update-downloaded', {
       version: '0.6.0',
@@ -486,7 +494,7 @@ describe('updater', () => {
       await startAndWait()
       await h.autoUpdater.emit('update-available', { version: '0.7.0' })
 
-      h.state.handlers['update:install']()
+      h.state.handlers['update:install']({ sender: win.webContents })
       expect(h.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
       vi.advanceTimersByTime(120_000)
       expect(h.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
@@ -537,7 +545,7 @@ describe('updater', () => {
       expect(h.fetch).toHaveBeenCalledWith('http://srv/updates/Salinha-0.7.0-x64.tar.gz.sig')
       expect(h.linux.stage).toHaveBeenCalledWith(event, Buffer.from('instalador'))
       expect(h.state.sent).toContainEqual(['update:ready', '0.7.0'])
-      h.state.handlers['update:install']()
+      h.state.handlers['update:install']({ sender: win.webContents })
       expect(h.linux.quitAndInstall).toHaveBeenCalledWith(true, true)
       expect(h.autoUpdater.quitAndInstall).not.toHaveBeenCalled()
     })
@@ -552,7 +560,7 @@ describe('updater', () => {
       expect(h.state.sent).toContainEqual(['update:ready', '0.7.0'])
       expect(h.linux.quitAndInstall).not.toHaveBeenCalled()
 
-      h.state.handlers['update:install']()
+      h.state.handlers['update:install']({ sender: win.webContents })
       expect(h.linux.quitAndInstall).toHaveBeenCalledWith(true, true)
       expect(h.linux.downloadUpdate).toHaveBeenCalledTimes(1)
     })
@@ -561,7 +569,7 @@ describe('updater', () => {
       h.state.inCall = true
       await startUpdater()
       await h.linux.emit('update-available', { version: '0.7.0' })
-      h.state.handlers['update:install']()
+      h.state.handlers['update:install']({ sender: win.webContents })
       expect(h.linux.downloadUpdate).toHaveBeenCalledTimes(1)
       expect(h.linux.quitAndInstall).not.toHaveBeenCalled()
 
@@ -599,7 +607,7 @@ describe('updater', () => {
       h.linux.stage.mockRejectedValueOnce(new Error('pacote não é a versão 0.7.0'))
       await startUpdater()
       await h.linux.emit('update-available', { version: '0.7.0' })
-      h.state.handlers['update:install']()
+      h.state.handlers['update:install']({ sender: win.webContents })
       await h.linux.emit('update-downloaded', { version: '0.7.0', downloadedFile: '/d/x.tar.gz' })
       expect(h.linux.quitAndInstall).not.toHaveBeenCalled()
       expect(h.state.sent.some(([channel]) => channel === 'update:error')).toBe(true)
@@ -693,7 +701,7 @@ describe('updater', () => {
       await settle()
       expect(h.linux.downloadUpdate).toHaveBeenCalledTimes(1)
       // Clicar Atualizar também não baixa o mesmo par.
-      h.state.handlers['update:install']()
+      h.state.handlers['update:install']({ sender: win.webContents })
       await settle()
       expect(h.linux.downloadUpdate).toHaveBeenCalledTimes(1)
 

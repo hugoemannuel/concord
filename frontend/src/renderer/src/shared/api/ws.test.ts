@@ -62,6 +62,22 @@ describe('WsClient — reconexão', () => {
     return { ws, onOpen, onLost }
   }
 
+  it('sessão encerrada (4001): não reconecta, não avisa queda e avisa os ouvintes', () => {
+    const { ws, onLost } = client()
+    const seen: string[] = []
+    const off = onWsEvent((e) => seen.push(e.type))
+    ws.connect()
+    latest().open()
+
+    latest().drop(4001)
+    vi.advanceTimersByTime(60_000)
+    off()
+
+    expect(FakeSocket.instances).toHaveLength(1)
+    expect(onLost).not.toHaveBeenCalled()
+    expect(seen).toEqual(['session:revoked'])
+  })
+
   it('servidor reiniciando (1012): reconecta em até 300 ms', () => {
     const { ws, onLost } = client()
     ws.connect()

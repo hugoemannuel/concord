@@ -12,6 +12,7 @@ import {
 import { appendLog } from '../app/appLog'
 import { overlayFrame, overlayWindowRect, type OverlayFrame, type Rect } from './overlayPolicy'
 import type { OverlayHost, OverlaySurface } from './overlaySurface'
+import { guardNavigation } from '../window/navigationGuard'
 
 // Overlay desenhado por uma janela do Electron: transparente, click-through e
 // sem foco por cima do jogo em tela cheia em janela (nada é injetado no jogo).
@@ -75,6 +76,8 @@ function createOverlayWindow(): BrowserWindow {
   overlay.on('closed', () => {
     if (win === overlay) win = null
   })
+  // O overlay não tem links: nenhuma navegação para fora (levaria o preload junto).
+  guardNavigation(overlay.webContents, () => {})
   // Recarregou (ou navegou): a página nova não sabe da edição. Sai dela e volta o
   // click-through até a página avisar que está pronta.
   overlay.webContents.on('did-start-loading', () => {

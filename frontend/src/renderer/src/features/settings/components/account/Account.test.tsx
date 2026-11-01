@@ -14,6 +14,7 @@ vi.mock('../../../profile/components/StyledName', () => ({
 vi.mock('../../../profile/components/ProfileCardBody', () => ({ default: () => <div data-card /> }))
 vi.mock('../../../auth/store/accountActions', () => ({ changeMyEmail: vi.fn(), changeMyUsername: vi.fn() }))
 vi.mock('../../../profile/store/myProfileActions', () => ({ saveMyProfileFields: vi.fn() }))
+vi.mock('../../../profile/store/meActions', () => ({ endLocalSession: vi.fn(), logoutEverywhere: vi.fn() }))
 
 // Minha conta lê a sessão e o aniversário: aqui ficam fixos.
 const state = vi.hoisted(() => ({
@@ -37,6 +38,8 @@ import AccountModals from './AccountModals'
 import { AccountRow } from './AccountRow'
 import BirthdayEditModal from './BirthdayEditModal'
 import CredentialModal from './CredentialModal'
+import DeleteAccountModal from './DeleteAccountModal'
+import LogoutAllModal from './LogoutAllModal'
 
 const user = {
   id: 'u1',
@@ -69,6 +72,13 @@ describe('MyAccountSection', () => {
     expect(html).toContain('***@gmail.com')
     expect(html).toContain('7 de março de 1998')
     expect(html).not.toContain('role="dialog"')
+  })
+  it('no fim, sair de todos os dispositivos e excluir a conta (os modais só abrem no clique)', () => {
+    const html = renderToStaticMarkup(<MyAccountSection />)
+    expect(html).toContain('Sair de todos os dispositivos')
+    expect(html).toContain('Excluir conta')
+    expect(html).not.toContain('role="dialog"')
+    expect(html).not.toContain('Entendo que a exclusão é definitiva')
   })
   it('aniversário carregando: sem Editar ainda', () => {
     state.birthday = null
@@ -189,5 +199,25 @@ describe('BirthdayEditModal', () => {
     )
     expect(html).toContain('deixe tudo em branco')
     expect(html).toMatch(/type="submit" disabled=""/)
+  })
+})
+
+describe('DeleteAccountModal', () => {
+  it('explica o que fica, pede a senha e a marcação de definitiva', () => {
+    const html = renderToStaticMarkup(<DeleteAccountModal onClose={() => {}} />)
+    expect(html).toContain('data-title="Excluir conta"')
+    expect(html).toContain('Usuário removido')
+    expect(html).toContain('aria-label="Senha atual"')
+    expect(html).toContain('type="checkbox"')
+    expect(html).toContain('privacidade.html#excluir')
+  })
+})
+
+describe('LogoutAllModal', () => {
+  it('avisa que este aparelho também sai', () => {
+    const html = renderToStaticMarkup(<LogoutAllModal onClose={() => {}} />)
+    expect(html).toContain('data-title="Sair de todos os dispositivos"')
+    expect(html).toContain('inclusive')
+    expect(html).toContain('Sair de todos')
   })
 })

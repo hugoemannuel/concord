@@ -13,6 +13,16 @@ const RESTART_FIRST_JITTER_MS = 200
 /** Se o servidor ainda não voltou (sem Caddy segurando): 250 ms, 500 ms, 1 s… */
 const RESTART_BACKOFF_BASE_MS = 250
 
+/**
+ * Sessão encerrada (saiu de todos os dispositivos, redefiniu a senha ou
+ * excluiu a conta): o token não vale mais, então não adianta reconectar.
+ */
+export const SESSION_REVOKED_CLOSE_CODE = 4001
+
+export function isSessionRevoked(closeCode: number): boolean {
+  return closeCode === SESSION_REVOKED_CLOSE_CODE
+}
+
 export function isPlannedRestart(closeCode: number): boolean {
   return closeCode === SERVICE_RESTART_CLOSE_CODE
 }

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de privacidade — Salinha</title>
+  <meta name="description" content="Quais dados a Salinha guarda, para quê, por quanto tempo, com quem compartilha e como apagar a sua conta.">
+  <meta name="theme-color" content="#050508">
+  <link rel="icon" href="favicon.svg?v=3" type="image/svg+xml">
+  <link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<main>
+  <header class="top">
+    <a class="brand" href="./"><img src="favicon.svg?v=3" alt="">Salinha</a>
+    <nav class="legal" aria-label="Documentos">
+      <a href="privacidade.html" aria-current="page">Privacidade</a>
+      <a href="termos.html">Termos de uso</a>
+    </nav>
+  </header>
+
+  <h1>Política de privacidade</h1>
+  <p class="muted">Última atualização: 31 de outubro de 2026.</p>
+
+  <p>Esta política explica, em linguagem direta, quais dados pessoais a Salinha (app desktop,
+  app web e app Android) guarda, para quê, por quanto tempo, com quem eles são compartilhados e
+  como você exerce os seus direitos pela Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).
+  Ela descreve o que o sistema faz hoje; quando isso mudar, esta página muda junto.</p>
+
+  <div class="box">
+    <strong>Resumo:</strong>
+    <ul>
+      <li>Guardamos o que é preciso para o chat funcionar: conta, perfil, mensagens, arquivos que você envia e dados técnicos.</li>
+      <li>Não vendemos dados, não mostramos anúncios e o app não tem rastreadores de terceiros.</li>
+      <li>As conexões são criptografadas no trajeto (HTTPS/TLS e, nas chamadas, DTLS-SRTP), mas <strong>não há criptografia de ponta a ponta</strong>: o nosso servidor consegue, tecnicamente, acessar mensagens e a mídia das chamadas que passam por ele. Chamadas não são gravadas.</li>
+      <li>Você pode apagar a sua conta a qualquer momento em <strong>Configurações → Minha conta → Excluir conta</strong>.</li>
+    </ul>
+  </div>
+
+  <h2 id="controlador">1. Quem cuida dos seus dados</h2>
+  <p>Controlador: <span class="placeholder">[NOME DO CONTROLADOR]</span>.<br>
+  Contato para qualquer assunto de privacidade e dados pessoais (canal do encarregado):
+  <span class="placeholder">[E-MAIL DE CONTATO]</span>.</p>
+  <p>A Salinha é um projeto pequeno, feito entre amigos, com o
+  <a href="https://github.com/hugoemannuel/concord">código-fonte aberto no GitHub</a>: dá para
+  conferir no código o que está escrito aqui.</p>
+
+  <h2 id="dados">2. Quais dados guardamos e para quê</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Dado</th><th>Para quê</th><th>Base legal (LGPD)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Conta:</strong> e-mail, nome de usuário, nome de exibição, senha (guardada só como hash bcrypt, nunca em texto), data de criação e se o e-mail foi confirmado.</td>
+        <td>Criar a conta, entrar, confirmar o e-mail e recuperar a senha.</td><td>Execução do contrato (art. 7º, V).</td></tr>
+      <tr><td><strong>Perfil (opcional):</strong> foto, banner, bio, pronomes, links, aniversário, status, estilo do nome, som de entrada na call e sons personalizados do app.</td>
+        <td>Mostrar o seu perfil para as outras pessoas, conforme as suas opções de privacidade.</td><td>Execução do contrato.</td></tr>
+      <tr><td><strong>O que você envia:</strong> mensagens, anexos (imagens, vídeos, áudios e arquivos), reações, enquetes e votos, figurinhas, emojis e sons enviados a servidores, propostas e comentários, GIFs favoritos.</td>
+        <td>Entregar e guardar o conteúdo nas conversas e servidores em que você está.</td><td>Execução do contrato.</td></tr>
+      <tr><td><strong>Relações:</strong> amizades e pedidos, bloqueios, servidores, cargos, convites e eventos.</td>
+        <td>Fazer amizades, servidores e permissões funcionarem.</td><td>Execução do contrato.</td></tr>
+      <tr><td><strong>Chamadas:</strong> quem entrou e saiu de cada chamada, e quando.</td>
+        <td>Mostrar quem está na call e o histórico de chamadas.</td><td>Execução do contrato.</td></tr>
+      <tr><td><strong>Estatísticas técnicas das calls e lives:</strong> sistema operacional, placa de vídeo, núcleos do processador, tipo de rede, codec, qualidade, perda de pacotes.</td>
+        <td>Descobrir onde as transmissões travam e corrigir. Só a equipe que desenvolve vê.</td><td>Legítimo interesse (art. 7º, IX).</td></tr>
+      <tr><td><strong>Registros de acesso (logs):</strong> endereço IP, data e hora, método e caminho de cada requisição ao servidor. Senhas e tokens não entram (são trocados por "REDACTED").</td>
+        <td>Segurança, limite de tentativas de login e investigação de falhas.</td><td>Legítimo interesse e obrigação legal (Marco Civil da Internet, art. 15).</td></tr>
+      <tr><td><strong>Registro de auditoria dos servidores:</strong> ações de administração e moderação (quem fez, em quem, o nome no momento e o que mudou).</td>
+        <td>Dar transparência à moderação para quem administra o servidor.</td><td>Legítimo interesse.</td></tr>
+      <tr><td><strong>Notificações no Android:</strong> o identificador do aparelho para notificações (token do Firebase Cloud Messaging).</td>
+        <td>Avisar de mensagens, menções, chamadas e pedidos de amizade.</td><td>Execução do contrato.</td></tr>
+      <tr><td><strong>Sessões:</strong> tokens de acesso (valem 24 horas) e de renovação (valem 30 dias, guardados como hash).</td>
+        <td>Manter você conectado e permitir sair de todos os dispositivos.</td><td>Execução do contrato.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>O que não guardamos</h3>
+  <ul>
+    <li><strong>Áudio, vídeo e tela das chamadas não são gravados.</strong> Eles passam em tempo real pelo nosso servidor de mídia (LiveKit, no mesmo servidor da Salinha) e não ficam salvos.</li>
+    <li><strong>Atividade</strong> ("Jogando…" e "Ouvindo…"): se você ligar, o app desktop detecta no seu computador o jogo aberto e a música tocando e mostra para as outras pessoas. Isso passa pelo servidor só para ser repassado e não é gravado no banco. Dá para desligar em Configurações → Privacidade e segurança.</li>
+    <li>Não lemos a área de transferência, não controlamos o seu computador e não coletamos a lista de programas instalados.</li>
+  </ul>
+
+  <h3>No seu aparelho</h3>
+  <p>O app desktop e o app web guardam os dados de login e as suas preferências no armazenamento
+  local do app (não usamos cookies de rastreamento). O app Android guarda os tokens no
+  armazenamento seguro do sistema.</p>
+
+  <h2 id="seguranca">3. Segurança e criptografia</h2>
+  <ul>
+    <li>Tudo entre o app e o servidor vai por HTTPS/WSS (TLS).</li>
+    <li>A mídia das chamadas vai criptografada (DTLS-SRTP, o padrão do WebRTC) entre o seu app e o servidor de mídia. O servidor de mídia descriptografa para repassar aos outros participantes: <strong>não é criptografia de ponta a ponta</strong>.</li>
+    <li>Mensagens, inclusive as privadas, ficam guardadas no nosso banco de dados sem criptografia de ponta a ponta. O acesso ao servidor é restrito à equipe que o administra.</li>
+    <li>Senhas são guardadas com bcrypt. As atualizações do app desktop são assinadas e o app confere a assinatura antes de instalar.</li>
+    <li>Nenhum sistema é 100% seguro. Se houver um incidente que possa causar risco ou dano relevante, avisaremos as pessoas afetadas e a ANPD, como manda a LGPD (art. 48).</li>
+  </ul>
+
+  <h2 id="compartilhamento">4. Com quem os dados são compartilhados</h2>
+  <p>Não vendemos nem alugamos dados. Alguns serviços de terceiros participam do funcionamento:</p>
+  <ul>
+    <li><strong>Provedor do servidor:</strong> <span class="placeholder">[PROVEDOR E PAÍS DO SERVIDOR]</span>, onde ficam o banco de dados, os arquivos, os backups e o servidor de mídia.</li>
+    <li><strong>Google Firebase Cloud Messaging</strong> (só no app Android): recebe o token do aparelho e o conteúdo da notificação (o nome de quem mandou e uma prévia da mensagem) para entregar o aviso.</li>
+    <li><strong>Provedor de e-mail</strong> <span class="placeholder">[PROVEDOR DE E-MAIL]</span>: recebe o seu e-mail e o texto das mensagens de confirmação e de recuperação de senha.</li>
+    <li><strong>GIPHY:</strong> a busca de GIFs passa pelo nosso servidor, então a GIPHY recebe o termo buscado, mas não o seu IP. As imagens dos GIFs são carregadas direto dos servidores da GIPHY, que veem o seu IP nesse momento.</li>
+    <li><strong>YouTube</strong> (bot de música): as buscas e os links que você pede ao bot são resolvidos pelo nosso servidor; o YouTube vê o pedido e o IP do servidor, não o seu.</li>
+    <li><strong>GitHub:</strong> os instaladores e as atualizações do app são baixados da GitHub Releases (o GitHub vê o seu IP). As <strong>propostas</strong> enviadas pelo app viram issues <strong>públicas</strong> no repositório do projeto, com título, descrição, imagens e o nome de exibição de quem propôs.</li>
+    <li><strong>Cloudflare:</strong> fica na frente desta página de download (vê o IP de quem visita). A página também carrega fontes do Google Fonts, que vê o seu IP.</li>
+    <li><strong>Autoridades:</strong> quando houver ordem judicial ou obrigação legal.</li>
+  </ul>
+  <p>Vários desses serviços (Google, GitHub, Cloudflare e GIPHY) ficam fora do Brasil,
+  principalmente nos Estados Unidos. A transferência internacional acontece para executar o
+  serviço que você pediu (LGPD, art. 33).</p>
+
+  <h2 id="retencao">5. Por quanto tempo</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Dado</th><th>Quanto tempo</th></tr></thead>
+    <tbody>
+      <tr><td>Conta, perfil e conteúdo</td><td>Enquanto a conta existir ou até você apagar.</td></tr>
+      <tr><td>Mensagem que você apaga</td><td>Sai do banco na hora; continua nos backups por até 14 dias.</td></tr>
+      <tr><td>Backups do banco</td><td>Diários, guardados por 14 dias.</td></tr>
+      <tr><td>Estatísticas técnicas das calls e lives</td><td>14 dias.</td></tr>
+      <tr><td>Registro de auditoria dos servidores</td><td>90 dias.</td></tr>
+      <tr><td>Registros de acesso (logs)</td><td>Apagados automaticamente por rotação, quando o arquivo de log enche. Hoje isso dá poucos dias; não há um prazo fixo garantido.</td></tr>
+      <tr><td>Arquivos enviados e nunca usados numa mensagem</td><td>24 horas.</td></tr>
+      <tr><td>Arquivos que perderam a mensagem (canal, servidor ou conversa apagados)</td><td>Vão para uma lixeira interna e são apagados em até 8 dias.</td></tr>
+      <tr><td>Sessões</td><td>O token de renovação vale 30 dias; os vencidos são apagados.</td></tr>
+      <tr><td>Foto e banner antigos</td><td>O arquivo sai do servidor quando você troca ou apaga, mas o endereço antigo pode continuar no cache do navegador de quem já viu por até 1 ano.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="excluir">6. Excluir a sua conta</h2>
+  <p>Em <strong>Configurações → Minha conta → Excluir conta</strong>, com a sua senha. A exclusão
+  é imediata e não dá para desfazer.</p>
+  <p>Antes, se você é dono de algum servidor que tem outros membros, precisa transferir a posse
+  ou apagar o servidor. Servidores em que você é o único membro são apagados junto.</p>
+  <h3>O que é apagado</h3>
+  <ul>
+    <li>A conta, o e-mail, a senha e todo o perfil, com os arquivos de foto, banner, som de entrada e sons do app.</li>
+    <li>Amizades, pedidos, bloqueios, convites, cargos e participação nos servidores.</li>
+    <li>Conversas privadas a dois (somem para as duas pessoas, com os anexos).</li>
+    <li>Figurinhas, emojis e sons que você enviou para servidores; propostas e comentários; reações, votos, níveis, insígnias e favoritos.</li>
+    <li>Estatísticas técnicas, tokens de notificação e todas as sessões (todos os dispositivos saem na hora).</li>
+  </ul>
+  <h3>O que fica</h3>
+  <ul>
+    <li>As mensagens que você mandou em servidores e em grupos continuam lá, com os anexos delas, mas aparecem como de <strong>"Usuário removido"</strong>, sem nome, foto nem ligação com você. Se quiser que elas sumam, apague-as antes de excluir a conta.</li>
+    <li>O registro de auditoria dos servidores por até 90 dias, os backups por até 14 dias e os logs até a rotação.</li>
+    <li>Issues públicas no GitHub de propostas já publicadas: peça a remoção pelo contato acima.</li>
+  </ul>
+
+  <h2 id="direitos">7. Seus direitos</h2>
+  <p>Pela LGPD (art. 18) você pode pedir: confirmação de que tratamos os seus dados; acesso a
+  eles; correção; anonimização, bloqueio ou eliminação do que for desnecessário; portabilidade;
+  informação sobre com quem compartilhamos; e revisão de decisões automatizadas (não fazemos
+  nenhuma). Boa parte dá para fazer no próprio app (editar perfil, apagar mensagens, excluir a
+  conta). Para o resto, escreva para <span class="placeholder">[E-MAIL DE CONTATO]</span>:
+  respondemos em até 15 dias. Você também pode reclamar à Autoridade Nacional de Proteção de
+  Dados (<a href="https://www.gov.br/anpd">ANPD</a>).</p>
+
+  <h2 id="idade">8. Idade mínima</h2>
+  <p>A Salinha não é para menores de 13 anos. Entre 13 e 18 anos, use com o conhecimento e a
+  autorização do seu responsável.</p>
+
+  <h2 id="mudancas">9. Mudanças nesta política</h2>
+  <p>Quando esta política mudar, a data no topo muda junto. Se a mudança for importante,
+  avisaremos no app antes de ela valer.</p>
+
+  <footer>
+    <p><a href="termos.html">Termos de uso</a> · <a href="./">Página inicial</a></p>
+  </footer>
+</main>
+</body>
+</html>

@@ -17,3 +17,11 @@ export function changeEmail(email: string, password: string): Promise<User> {
     body: JSON.stringify({ email, password })
   })
 }
+
+/** Exclui a conta de vez (docs/adr/0038): 409 owns_servers lista os servidores com membros. */
+export function deleteAccount(password: string): Promise<void> {
+  return request<void>('/users/me/delete', {
+    method: 'POST',
+    body: JSON.stringify({ password, confirm: true })
+  })
+}

@@ -94,7 +94,7 @@ func (f *fakeEmailUsers) SetPassword(_ context.Context, _, hash string) error {
 
 type fakeSessions struct{ revoked []string }
 
-func (f *fakeSessions) Logout(_ context.Context, id string) error {
+func (f *fakeSessions) RevokeAllSessions(_ context.Context, id string) error {
 	f.revoked = append(f.revoked, id)
 	return nil
 }

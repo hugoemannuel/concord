@@ -44,6 +44,7 @@ func (a *app) wireAccount() {
 		auth.AuthRoutes(api, authHandler, a.authMiddleware)
 		auth.AccountRoutes(api, accountHandler, a.authMiddleware)
 	})
+	a.wireAccountDeletion(accountHandler)
 }
 
 // wireUpdates: atualizações do app (scripts/release-win.sh publica em UPDATES_DIR).

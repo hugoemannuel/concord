@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -46,10 +47,28 @@ func AuthMiddleware(service *Service) gin.HandlerFunc {
 		case claims.Type != "access":
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token is not an access token"})
 			return
+		case !sessionValid(c, service, claims):
+			return
 		}
 		c.Set("userID", claims.UserID)
 		c.Next()
 	}
+}
+
+// sessionValid confere a versão da sessão (docs/adr/0039). Revogada: 401 (o
+// app tenta renovar e, sem refresh token, volta ao login). Banco fora: 503,
+// para ninguém ser deslogado por uma falha nossa. false = já respondeu.
+func sessionValid(c *gin.Context, service *Service, claims *Claims) bool {
+	err := service.CheckSession(c.Request.Context(), claims)
+	switch {
+	case err == nil:
+		return true
+	case errors.Is(err, ErrSessionRevoked):
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "sessão encerrada", "code": "session_revoked"})
+	default:
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "tente de novo"})
+	}
+	return false
 }
 
 // MemberOrGuestMiddleware: rotas da call, que valem para quem tem conta e para
@@ -65,6 +84,9 @@ func MemberOrGuestMiddleware(service *Service) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token is not an access token"})
 			return
 		}
+		if !sessionValid(c, service, claims) {
+			return
+		}
 		c.Set("userID", claims.UserID)
 		c.Set("guest", claims.Type == TokenGuest)
 		c.Next()
@@ -78,7 +100,8 @@ func OptionalAuthMiddleware(service *Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		parts := strings.SplitN(c.GetHeader("Authorization"), " ", 2)
 		if len(parts) == 2 && parts[0] == "Bearer" {
-			if claims, err := service.ValidateToken(parts[1]); err == nil && claims.Type == "access" {
+			if claims, err := service.ValidateToken(parts[1]); err == nil && claims.Type == "access" &&
+				service.CheckSession(c.Request.Context(), claims) == nil {
 				c.Set("userID", claims.UserID)
 			}
 		}

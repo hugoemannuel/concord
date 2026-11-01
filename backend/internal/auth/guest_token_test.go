@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,9 +13,8 @@ import (
 
 func guestRouter(t *testing.T, mw func(*Service) gin.HandlerFunc) (*Service, *gin.Engine) {
 	t.Helper()
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
 	gin.SetMode(gin.TestMode)
-	s := AuthService(nil)
+	s := NewService(nil, []byte("segredo-de-teste"))
 	router := gin.New()
 	router.GET("/x", mw(s), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"user": c.GetString("userID"), "guest": c.GetBool("guest")})
@@ -33,8 +33,7 @@ func get(router *gin.Engine, token string) *httptest.ResponseRecorder {
 }
 
 func TestGuestTokenExpiresWithTheAccess(t *testing.T) {
-	t.Setenv("JWT_SECRET", "segredo-de-teste")
-	s := AuthService(nil)
+	s := NewService(nil, []byte("segredo-de-teste"))
 	until := time.Now().Add(2 * time.Hour).Truncate(time.Second)
 	token, err := s.GenerateGuestToken("g1", until)
 	if err != nil {
@@ -73,7 +72,7 @@ func TestAuthMiddlewareRefusesGuestToken(t *testing.T) {
 
 func TestMemberOrGuestMiddleware(t *testing.T) {
 	s, router := guestRouter(t, MemberOrGuestMiddleware)
-	access, _ := s.GenerateAccessToken("u1")
+	access, _ := s.GenerateAccessToken(context.Background(), "u1")
 	guest, _ := s.GenerateGuestToken("g1", time.Now().Add(time.Hour))
 	media, _, _ := s.GenerateMediaToken("u1")
 

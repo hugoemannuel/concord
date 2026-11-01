@@ -1,4 +1,3 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
 import type { OverlaySnapshot } from '../renderer/src/features/overlay/lib/overlayState'
 import type { OverlayFrame, OverlayLayout } from '../renderer/src/features/overlay/lib/overlayLayout'
 import type { CallResume, PendingCallResume } from '../shared/callResume'
@@ -197,8 +196,9 @@ export interface TTSApi {
 
 declare global {
   interface Window {
-    electron: ElectronAPI
     api?: {
+      /** Sistema operacional do app desktop (process.platform). */
+      platform?: string
       appMetrics?: { sample(reset?: boolean): Promise<AppMetrics | null> }
       perf?: { enabled(): Promise<boolean>; report(event: PerfEvent): void }
       /** Foco/visibilidade da janela; o renderer valida com parseWindowActivity. */

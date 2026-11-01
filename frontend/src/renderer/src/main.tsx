@@ -17,6 +17,7 @@ import { startCallInvites } from './features/call/lib/callInviteStart'
 import { startSpeechReport } from './features/call/lib/speechReportStart'
 import { startPresenceActivity } from './features/activity/lib/presenceActivityStart'
 import { startTTS } from './features/tts/lib/ttsStart'
+import { startSessionRevoked } from './features/auth/lib/sessionRevokedStart'
 import { startServerLevels } from './features/serverlevel/lib/serverLevelStart'
 
 // Tema salvo antes do primeiro render: o app já abre com as cores certas.
@@ -48,6 +49,9 @@ startServerLevels()
 
 // Mensagens /tts lidas em voz para quem está em call.
 startTTS()
+
+// Sessão encerrada pelo servidor (WS 4001): volta ao login.
+startSessionRevoked()
 
 // Soltar um arquivo fora do chat não pode fazer o Electron abrir o arquivo no
 // lugar do app (o chat trata o próprio drop).

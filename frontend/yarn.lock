@@ -250,11 +250,6 @@
     globals "^16.0.0"
     typescript-eslint "^8.29.1"
 
-"@electron-toolkit/preload@^3.0.2":
-  version "3.0.2"
-  resolved "https://registry.yarnpkg.com/@electron-toolkit/preload/-/preload-3.0.2.tgz#ee5bb33aba48741c5bc539a9a6faad0be455465e"
-  integrity sha512-TWWPToXd8qPRfSXwzf5KVhpXMfONaUuRAZJHsKthKgZR/+LqX1dZVSSClQ8OTAEduvLGdecljCsoT2jSshfoUg==
-
 "@electron-toolkit/tsconfig@^2.0.0":
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/@electron-toolkit/tsconfig/-/tsconfig-2.0.0.tgz#fdf9424ebd3a2bee35f83d230ab819d5dd06bece"

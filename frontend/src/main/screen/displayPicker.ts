@@ -20,6 +20,11 @@ export class PendingDisplayRequest {
     this.callback = callback
   }
 
+  /** Há um getDisplayMedia esperando resposta? Sem pedido, o modal não lista nem escolhe nada. */
+  pending(): boolean {
+    return this.callback !== null
+  }
+
   /** O callback pendente, uma única vez. */
   take(): DisplayCallback | null {
     const callback = this.callback

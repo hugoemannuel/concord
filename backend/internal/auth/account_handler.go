@@ -89,7 +89,7 @@ func (h *AccountHandler) ChangeUsername(c *gin.Context) {
 	if !bindJSON(c, &in) {
 		return
 	}
-	userID, ok := h.confirmPassword(c, in.Password)
+	userID, ok := h.ConfirmPassword(c, in.Password)
 	if !ok {
 		return
 	}
@@ -108,7 +108,7 @@ func (h *AccountHandler) ChangeEmail(c *gin.Context) {
 	if !bindJSON(c, &in) {
 		return
 	}
-	userID, ok := h.confirmPassword(c, in.Password)
+	userID, ok := h.ConfirmPassword(c, in.Password)
 	if !ok {
 		return
 	}
@@ -155,10 +155,10 @@ func wrongPassword(c *gin.Context) {
 	c.JSON(http.StatusForbidden, gin.H{"error": "Senha incorreta.", "code": CodeWrongPassword})
 }
 
-// confirmPassword confere a senha atual de quem está logado. A tentativa é
+// ConfirmPassword confere a senha atual de quem está logado. A tentativa é
 // reservada antes do bcrypt (rajadas não passam inteiras); acertar zera e
 // falha nossa (banco, sem vaga) devolve. false = já respondeu.
-func (h *AccountHandler) confirmPassword(c *gin.Context, password string) (string, bool) {
+func (h *AccountHandler) ConfirmPassword(c *gin.Context, password string) (string, bool) {
 	id, _ := c.Get("userID")
 	userID, _ := id.(string)
 	if userID == "" {

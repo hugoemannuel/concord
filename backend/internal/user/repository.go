@@ -214,7 +214,7 @@ func (r *Repository) FindByUsername(ctx context.Context, username string) (*User
 // (pedido de amizade digitado à mão). Se houver "Hugo" e "hugo", prefere a
 // caixa exata.
 func (r *Repository) FindByUsernameFold(ctx context.Context, username string) (*User, error) {
-	return scanUser(r.db.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE lower(username) = lower($1) AND NOT is_guest ORDER BY (username = $1) DESC LIMIT 1`, username))
+	return scanUser(r.db.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE lower(username) = lower($1) AND NOT is_guest AND active ORDER BY (username = $1) DESC LIMIT 1`, username))
 }
 
 // UpdatePrivacy grava as opções de privacidade.
@@ -237,7 +237,8 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 // SearchByUsername busca por trecho do username. Não traz o e-mail: o
 // resultado é de outras pessoas. Visitantes de call (usuários efêmeros, ver
-// docs/adr/0017-visitante-na-call.md) não aparecem.
+// docs/adr/0017-visitante-na-call.md) e o "Usuário removido" (active = false,
+// ADR 0038) não aparecem.
 func (r *Repository) SearchByUsername(ctx context.Context, query string, excludeUserID string) ([]User, error) {
 	rows, err := r.db.Query(
 		ctx,
@@ -256,6 +257,7 @@ func (r *Repository) SearchByUsername(ctx context.Context, query string, exclude
 		WHERE username ILIKE '%' || $1 || '%' ESCAPE '\'
 		AND id <> $2
 		AND NOT is_guest
+		AND active
 		AND NOT EXISTS (
 			SELECT 1 FROM user_blocks b
 			WHERE (b.blocker_id = $2 AND b.blocked_id = users.id)

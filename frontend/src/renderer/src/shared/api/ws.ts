@@ -1,5 +1,5 @@
 import { WS_URL } from '../lib/config'
-import { isPlannedRestart, reconnectDelay } from '../lib/wsReconnect'
+import { isPlannedRestart, isSessionRevoked, reconnectDelay } from '../lib/wsReconnect'
 import { HEARTBEAT_EVERY_MS, heartbeatStep, type HeartbeatState } from '../lib/wsHeartbeat'
 
 export type WsEventType =
@@ -196,7 +196,8 @@ export class WsClient {
       // Conexão antiga (disconnect() e connect() logo em seguida): a nova já
       // está no lugar; o fechamento atrasado desta não é queda.
       if (this.ws !== ws) return
-      this.lost(isPlannedRestart(event.code))
+      if (isSessionRevoked(event.code)) this.revoked()
+      else this.lost(isPlannedRestart(event.code))
     }
 
     ws.onerror = () => {
@@ -204,6 +205,15 @@ export class WsClient {
     }
 
     this.ws = ws
+  }
+
+  /** A sessão foi encerrada no servidor: não reconecta; quem cuida é o ouvinte de session:revoked (features/auth). */
+  private revoked(): void {
+    this.ws = null
+    this.stopHeartbeat()
+    if (this.closedByUser) return
+    this.closedByUser = true
+    emitWsEvent({ type: 'session:revoked', payload: null })
   }
 
   /** A conexão atual caiu (fechou ou parou de responder): agenda a volta e avisa. */

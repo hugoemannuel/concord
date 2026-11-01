@@ -8,6 +8,7 @@ import { colors, fontSize, spacing } from '../../../shared/theme/tokens'
 import { authDeps } from '../lib/authDeps'
 import { runRegister, type AuthDeps } from '../lib/authFlow'
 import { validateRegister, type FieldErrors, type RegisterField } from '../lib/authForms'
+import { SignupConsent } from '../../legal/components/LegalLinks'
 
 interface RegisterFormProps {
   deps?: AuthDeps
@@ -80,6 +81,7 @@ export function RegisterForm({ deps = authDeps, onLogin }: RegisterFormProps) {
         autoComplete="new-password"
       />
       {failure ? <Banner message={failure} /> : null}
+      <SignupConsent />
       <Button title="Continuar" onPress={submit} loading={loading} />
       <TextLink title="Já tem uma conta?" onPress={onLogin} />
     </View>

@@ -54,9 +54,9 @@ type emailUsers interface {
 	SetPassword(ctx context.Context, id, hash string) error
 }
 
-// sessionRevoker derruba as sessões (refresh tokens) de uma conta.
+// sessionRevoker derruba todas as sessões de uma conta (versão e refresh tokens).
 type sessionRevoker interface {
-	Logout(ctx context.Context, userID string) error
+	RevokeAllSessions(ctx context.Context, userID string) error
 }
 
 // EmailService cuida da confirmação de e-mail e da recuperação de senha.
@@ -218,7 +218,7 @@ func (s *EmailService) ResetPassword(ctx context.Context, token, passwordHash st
 	if err := s.users.SetPassword(ctx, userID, passwordHash); err != nil {
 		return err
 	}
-	if err := s.sessions.Logout(ctx, userID); err != nil {
+	if err := s.sessions.RevokeAllSessions(ctx, userID); err != nil {
 		return err
 	}
 	return s.users.MarkEmailVerified(ctx, userID)
