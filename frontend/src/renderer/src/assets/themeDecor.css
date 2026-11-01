@@ -1,0 +1,110 @@
+/* Camadas decorativas dos temas (importado pelo main.css depois do theme.css):
+   bolhas de luz do fundo animado (shared/ui/Background.tsx) e, nos temas
+   próprios (features/appearance, ADR 0041), os degradês, o vidro e a janela
+   atrás dele. Os temas próprios definem as variáveis --fill-*, --app-image e
+   --panel-backdrop (lib/themeCss.ts); os prontos ficam com o padrão abaixo. */
+
+/* Padrão de todo tema (especificidade zero: o bloco do tema próprio ganha).
+   Zera o que um tema próprio no <html> deixaria vazar para as prévias dos
+   prontos (Configurações → Aparência). */
+:where([data-theme]) {
+  --fill-primary: none;
+  --fill-secondary: none;
+  --fill-surface: none;
+  --fill-brand: none;
+  --fill-brand-hover: none;
+  --app-image: none;
+  --panel-backdrop: none;
+}
+
+/* Degradês: por cima da cor do token (que fica como base e reserva). Na camada
+   components: uma classe de imagem explícita (hover:bg-gradient-brand) ganha. */
+@layer components {
+  .bg-primary {
+    background-image: var(--fill-primary, none);
+  }
+
+  .bg-secondary {
+    background-image: var(--fill-secondary, none);
+  }
+
+  .bg-surface,
+  .bg-floating,
+  .bg-modal {
+    background-image: var(--fill-surface, none);
+  }
+
+  .bg-brand {
+    background-image: var(--fill-brand, none);
+  }
+
+  .hover\:bg-brand-hover:hover {
+    background-image: var(--fill-brand-hover, none);
+  }
+
+  /* Janela atrás dos painéis de vidro: o fundo principal do tema próprio. */
+  .app-window-fill {
+    background-image: var(--app-image, none);
+  }
+}
+
+/* Vidro dos temas próprios: o desfoque dos painéis segue o tema (sem vidro,
+   nenhum: não custa GPU). Os prontos ficam com o backdrop-blur-2xl de sempre. */
+[data-theme^='custom-'] .backdrop-blur-2xl {
+  -webkit-backdrop-filter: var(--panel-backdrop);
+  backdrop-filter: var(--panel-backdrop);
+}
+
+/* Editando o tema (lib/livePreview.ts): as cores mudam a cada quadro; sem
+   transição, o app não anima centenas de elementos atrás do seletor. */
+:root[data-theme-live] *,
+:root[data-theme-live] *::before,
+:root[data-theme-live] *::after {
+  transition: none !important;
+}
+
+/* Bolhas de luz do fundo (components/Background.tsx): só nos temas com
+   --decor-opacity > 0. Fora deles, display: none para não animar blur à toa. */
+.app-decor {
+  display: none;
+  opacity: var(--decor-opacity);
+}
+
+[data-theme='amoled'] .app-decor,
+[data-theme='neon'] .app-decor {
+  display: block;
+}
+
+@keyframes blob-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(45px, -60px) scale(1.12);
+  }
+  66% {
+    transform: translate(-35px, 35px) scale(0.92);
+  }
+}
+
+.animate-blob {
+  animation: blob-float 22s ease-in-out infinite;
+}
+
+.animate-blob-slow {
+  animation: blob-float 32s ease-in-out infinite reverse;
+}
+
+.animate-blob-fast {
+  animation: blob-float 16s ease-in-out infinite;
+}
+
+/* Sem movimento: as bolhas ficam paradas (e a GPU descansa). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-blob-slow,
+  .animate-blob-fast {
+    animation: none;
+  }
+}

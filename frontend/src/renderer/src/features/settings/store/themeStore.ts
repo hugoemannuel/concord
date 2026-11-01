@@ -60,16 +60,26 @@ function schemeFor(theme: AppliedTheme): 'dark' | 'light' {
   return THEMES.find((t) => t.id === theme)?.scheme ?? 'dark'
 }
 
+/** O que o editor de tema mostra no lugar do tema escolhido (ver setThemePreview). */
+export interface ThemePreview {
+  key: string
+  scheme: 'dark' | 'light'
+}
+
+let preview: ThemePreview | null = null
+
 /**
  * Liga o tema no documento: atributos, cor da aba (web) e barra nativa
- * (desktop). `force` repinta mesmo sem trocar (tema próprio editado).
+ * (desktop). Com a prévia do editor ligada, o documento mostra o rascunho.
+ * `force` repinta mesmo sem trocar (tema próprio editado).
  */
 function applyTheme(theme: AppliedTheme, paintTitleBar: boolean, force = false): void {
   if (typeof document === 'undefined') return
   const root = document.documentElement
-  if (root.dataset.theme === theme && !force) return
-  root.dataset.theme = theme
-  root.dataset.scheme = schemeFor(theme)
+  const key = preview?.key ?? theme
+  if (root.dataset.theme === key && !force) return
+  root.dataset.theme = key
+  root.dataset.scheme = preview?.scheme ?? schemeFor(theme)
   const style = getComputedStyle(root)
   const bg = style.getPropertyValue('--bg-app').trim()
   const symbols = style.getPropertyValue('--interactive-normal').trim()
@@ -113,6 +123,16 @@ function refresh(pref: ThemePreference, force = false): void {
  */
 export function refreshTheme(): void {
   refresh(useThemeStore.getState().preference, true)
+}
+
+/**
+ * Prévia ao vivo do editor de tema: o app inteiro passa a mostrar `next` (o
+ * rascunho) sem mexer na escolha salva; null volta ao tema escolhido. Chamar de
+ * novo com a mesma chave repinta a barra (as cores do rascunho mudaram).
+ */
+export function setThemePreview(next: ThemePreview | null): void {
+  preview = next
+  applyTheme(useThemeStore.getState().theme, paintTitleBar, true)
 }
 
 let started = false

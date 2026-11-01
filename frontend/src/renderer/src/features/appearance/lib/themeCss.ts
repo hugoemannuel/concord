@@ -1,22 +1,62 @@
 // Temas próprios → CSS. Cada tema vira um bloco [data-theme='custom-<id>'] com
-// todos os tokens, igual aos prontos do assets/theme.css; o app injeta isso num
-// <style> (ver lib/themeStyleSheet.ts). Os valores saem do gerador (hex e rgba
-// que ele mesmo monta), nunca do texto da pessoa. Puro.
+// todos os tokens, igual aos prontos do assets/theme.css, mais os preenchimentos
+// (degradês), o vidro e a forma; o app injeta isso num <style> (ver
+// lib/themeStyleSheet.ts). As regras que usam essas variáveis ficam em
+// assets/themeDecor.css. Os valores saem do gerador (hex e rgba que ele mesmo
+// monta), nunca do texto da pessoa. Puro.
 
-import { buildPalette, type PaletteInput } from './palette'
+import { gradientCss, type FillSpec } from './gradient'
+import { buildPalette, type Palette } from './palette'
+import { shapeCss } from './shapeCss'
+import type { ThemeInput } from './themeInput'
 
 export interface ThemeStyleEntry {
   /** data-theme do tema: "custom-<id>" (ou "custom-draft" na prévia do editor). */
   key: string
-  input: PaletteInput
+  input: ThemeInput
+}
+
+const image = (fill: FillSpec): string => gradientCss(fill) ?? 'none'
+
+/** A janela atrás do vidro: o fundo principal (sólido vira um "degradê" de uma cor). */
+function windowImage(fill: FillSpec | null): string {
+  if (!fill) return 'none'
+  return gradientCss(fill) ?? `linear-gradient(${fill.stops[0]}, ${fill.stops[0]})`
+}
+
+function fillDecls({ fills, blur }: Palette): string[] {
+  return [
+    `--fill-primary: ${image(fills.primary)};`,
+    `--fill-secondary: ${image(fills.secondary)};`,
+    `--fill-surface: ${image(fills.surface)};`,
+    `--fill-brand: ${image(fills.brand)};`,
+    `--fill-brand-hover: ${image(fills.brandHover)};`,
+    `--app-image: ${windowImage(fills.window)};`,
+    `--panel-backdrop: ${blur > 0 ? `blur(${blur}px)` : 'none'};`
+  ]
+}
+
+/** Quem pede menos transparência no sistema: painéis opacos, sem desfoque. */
+function opaqueRule(sel: string, opaque: Palette['opaque']): string[] {
+  if (!opaque) return []
+  const decls = Object.entries(opaque.tokens).map(([token, value]) => `--${token}: ${value};`)
+  decls.push(`--fill-primary: ${image(opaque.primary)};`, `--fill-secondary: ${image(opaque.secondary)};`)
+  decls.push('--app-image: none;', '--panel-backdrop: none;')
+  return [`@media (prefers-reduced-transparency: reduce) { ${sel} { ${decls.join(' ')} } }`]
 }
 
 function block({ key, input }: ThemeStyleEntry): string {
-  const { scheme, tokens, hero } = buildPalette(input)
+  const palette = buildPalette(input)
+  const { scheme, tokens, hero } = palette
+  const sel = `[data-theme='${key}']`
+  const shape = shapeCss(input)
   const decls = Object.entries(tokens).map(([token, value]) => `--${token}: ${value};`)
   if (hero) hero.forEach((color, i) => decls.push(`--hero-${i + 1}: ${color};`))
-  const rules = [`[data-theme='${key}'] { color-scheme: ${scheme}; ${decls.join(' ')} }`]
-  if (hero) rules.push(`[data-theme='${key}'] .app-decor { display: block; }`)
+  decls.push(...fillDecls(palette), ...shape.always)
+  const rules = [`${sel} { color-scheme: ${scheme}; ${decls.join(' ')} }`]
+  if (hero) rules.push(`${sel} .app-decor { display: block; }`)
+  if (shape.finePointer.length) rules.push(`@media (pointer: fine) { ${sel} { ${shape.finePointer.join(' ')} } }`)
+  rules.push(...opaqueRule(sel, palette.opaque))
   return rules.join('\n')
 }
 

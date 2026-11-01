@@ -116,6 +116,16 @@ export function UndoIcon(props: IconProps): React.JSX.Element {
   )
 }
 
+/** Seta curva para a direita: refazer (o desfazer espelhado). */
+export function RedoIcon(props: IconProps): React.JSX.Element {
+  return (
+    <LineIcon {...props}>
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
+    </LineIcon>
+  )
+}
+
 /** Seta curva para a esquerda: responder. */
 export function ReplyIcon(props: IconProps): React.JSX.Element {
   return (

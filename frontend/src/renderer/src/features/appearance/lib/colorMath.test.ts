@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { contrastRatio } from '../../../shared/lib/contrast'
-import { clampLuminance, ensureContrast, isHexColor, luminance, mix, withAlpha } from './colorMath'
+import { clampLuminance, ensureContrast, isHexColor, luminance, luminanceExtremes, mix, rotateHue, withAlpha } from './colorMath'
 
 describe('isHexColor', () => {
   it('aceita só #rrggbb', () => {
@@ -58,5 +58,20 @@ describe('clampLuminance', () => {
 
   it('dentro da faixa, igual', () => {
     expect(clampLuminance('#101010', { max: 0.12 })).toBe('#101010')
+  })
+})
+
+describe('luminanceExtremes', () => {
+  it('fica com o mais escuro e o mais claro', () => {
+    expect(luminanceExtremes(['#333333', '#000000', '#ffffff', '#777777'])).toEqual(['#000000', '#ffffff'])
+    expect(luminanceExtremes(['#123456'])).toEqual(['#123456'])
+  })
+})
+
+describe('rotateHue', () => {
+  it('gira o matiz e mantém cinzas', () => {
+    expect(rotateHue('#ff0000', 120)).toBe('#00ff00')
+    expect(rotateHue('#ff0000', -120)).toBe('#0000ff')
+    expect(rotateHue('#808080', 90)).toBe('#808080')
   })
 })

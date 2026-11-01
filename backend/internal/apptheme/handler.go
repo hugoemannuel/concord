@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MaxBodyBytes: 10 temas cabem em ~3 KB; o resto é lixo.
+// MaxBodyBytes: 10 temas v2 cabem em ~8 KB; o resto é lixo.
 const MaxBodyBytes = 32 << 10
 
 type Handler struct {

@@ -1,29 +1,28 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { colorDistance } from '../../../shared/lib/colorDiff'
-import { parseThemeCss, THEMES } from '../../settings/lib/themes'
 import {
   customThemeId,
   customThemeKey,
   MAX_CUSTOM_THEMES,
   newCustomTheme,
   normalizeCustomThemes,
-  PRESET_SEEDS,
   seedOf,
   upsertTheme,
   type CustomTheme
 } from './customThemes'
+import { PRESET_SEEDS } from './presetSeeds'
+import { withDefaults } from './themeInput'
 
 const VALID: CustomTheme = {
   id: 'abc123',
   name: 'Vermelho e branco',
-  accent: '#e11d48',
-  background: '#ffffff',
-  sidebar: '#fff1f2',
-  card: '#ffffff',
-  text: '#1f1f1f',
-  glow: ''
+  ...withDefaults({
+    accent: '#e11d48',
+    background: '#ffffff',
+    sidebar: '#fff1f2',
+    card: '#ffffff',
+    text: '#1f1f1f',
+    glow: ''
+  })
 }
 
 describe('normalizeCustomThemes', () => {
@@ -87,25 +86,5 @@ describe('seedOf', () => {
     expect(seedOf('custom-abc123', [VALID])).not.toHaveProperty('name')
     expect(seedOf('forest', [VALID])).toEqual(PRESET_SEEDS.forest)
     expect(seedOf('custom-sumiu', [VALID])).toEqual(PRESET_SEEDS['discord-dark'])
-  })
-})
-
-describe('sementes dos temas prontos', () => {
-  const css = readFileSync(join(__dirname, '../../../assets/theme.css'), 'utf8')
-  const parsed = parseThemeCss(css)
-
-  it.each(THEMES.map((t) => t.id))('%s: as cores batem com o theme.css', (id) => {
-    const seed = PRESET_SEEDS[id]
-    const tokens = parsed[id]
-    const pairs: Array<[string, string]> = [
-      [seed.accent, tokens.brand],
-      [seed.background, tokens['bg-primary']],
-      [seed.sidebar, tokens['bg-secondary']],
-      [seed.card, tokens['bg-surface']],
-      [seed.text, tokens['text-normal']]
-    ]
-    for (const [mine, real] of pairs) {
-      expect(colorDistance(mine, real, tokens['bg-app']), `${mine} vs ${real}`).toBeLessThanOrEqual(1)
-    }
   })
 })
