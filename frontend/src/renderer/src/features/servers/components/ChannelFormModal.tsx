@@ -10,6 +10,7 @@ import Modal from '../../../shared/ui/Modal'
 import Button from '../../../shared/ui/Button'
 import Input from '../../../shared/ui/Input'
 import Switch from '../../../shared/ui/Switch'
+import ChannelCategoryPicker from './ChannelCategoryPicker'
 import { VolumeIcon } from '../../../shared/ui/icons'
 import { actionErrorMessage } from '../lib/permissionErrors'
 import { channelSlug } from '../lib/channelSidebar'
@@ -151,6 +152,7 @@ function ChannelFormDialog({
   const [type, setType] = useState<ChannelType>(form.type)
   const [isPrivate, setPrivate] = useState(false)
   const [roleIds, setRoleIds] = useState<string[]>([])
+  const [categoryId, setCategoryId] = useState(form.categoryId ?? '')
   const [saving, setSaving] = useState(false)
   const editing = form.editing
 
@@ -160,7 +162,7 @@ function ChannelFormDialog({
     if (!canSubmitChannel(slug, saving, server.id)) return
     setSaving(true)
     try {
-      const input = { serverId: server.id, name: slug, editing, type, private: isPrivate, roleIds }
+      const input = { serverId: server.id, name: slug, editing, type, private: isPrivate, roleIds, categoryId }
       const done = await saveChannel(input, formApi)
       closeForm()
       showToast.success(done)
@@ -192,6 +194,7 @@ function ChannelFormDialog({
           />
         </div>
         {!editing && <ChannelTypePicker type={type} onChange={setType} />}
+        {!editing && <ChannelCategoryPicker serverId={server.id} value={categoryId} onChange={setCategoryId} />}
         {!editing && (
           <PrivateChannelFields
             type={type}

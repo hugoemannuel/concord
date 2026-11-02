@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const request = vi.hoisted(() => vi.fn())
 vi.mock('../../../shared/api/client', () => ({ request }))
 
-import { listChannels } from './channels'
+import { createChannel, listChannels } from './channels'
 
 describe('listChannels', () => {
   beforeEach(() => request.mockReset())
@@ -38,5 +38,16 @@ describe('listChannels', () => {
     resolveOld([{ id: 'velho' }])
     expect(await fresh).toEqual([{ id: 'novo' }])
     expect(await old).toEqual([{ id: 'velho' }])
+  })
+})
+
+describe('criar canal com categoria', () => {
+  it('envia a categoria junto com o canal privado', async () => {
+    request.mockReset()
+    request.mockResolvedValue({ id: 'c' })
+    await createChannel('s', 'geral', 'text', { private: true, roleIds: ['r'], categoryId: 'cat' })
+    expect(request).toHaveBeenCalledWith('/servers/s/channels', {
+      method: 'POST', body: JSON.stringify({ name: 'geral', type: 'text', category_id: 'cat', private: true, role_ids: ['r'] })
+    })
   })
 })

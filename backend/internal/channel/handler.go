@@ -39,10 +39,11 @@ func (h *Handler) Create(c *gin.Context) {
 	serverID := c.Param("id")
 
 	var input struct {
-		Name    string   `json:"name"`
-		Type    string   `json:"type"`
-		Private bool     `json:"private"`
-		RoleIDs []string `json:"role_ids"`
+		Name       string   `json:"name"`
+		Type       string   `json:"type"`
+		Private    bool     `json:"private"`
+		RoleIDs    []string `json:"role_ids"`
+		CategoryID *string  `json:"category_id"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -81,10 +82,11 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	ch := &Channel{
-		ServerID:  serverID,
-		Name:      input.Name,
-		Type:      input.Type,
-		CreatedBy: userID.(string),
+		ServerID:   serverID,
+		Name:       input.Name,
+		Type:       input.Type,
+		CreatedBy:  userID.(string),
+		CategoryID: input.CategoryID,
 	}
 
 	if err := h.service.Create(c.Request.Context(), ch, overwrites...); err != nil {

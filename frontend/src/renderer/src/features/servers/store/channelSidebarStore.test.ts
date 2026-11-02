@@ -60,6 +60,15 @@ describe('channelSidebarStore', () => {
     })
   })
 
+  it('abre a criação na categoria escolhida sem reutilizar a seleção no próximo formulário', () => {
+    const s = useChannelSidebarStore.getState()
+    s.openCreate('text', 'jogos')
+    expect(useChannelSidebarStore.getState().form).toMatchObject({ editing: null, type: 'text', categoryId: 'jogos' })
+    s.closeForm()
+    s.openCreate('voice')
+    expect(useChannelSidebarStore.getState().form?.categoryId).toBeUndefined()
+  })
+
   it('confirmações de sair e apagar o servidor', () => {
     const s = useChannelSidebarStore.getState()
     s.openConfirm('leave')

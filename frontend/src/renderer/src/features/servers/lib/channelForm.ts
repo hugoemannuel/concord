@@ -10,6 +10,7 @@ export interface ChannelFormInput {
   type: ChannelType
   private: boolean
   roleIds: string[]
+  categoryId?: string
 }
 
 export interface ChannelFormApi {
@@ -17,7 +18,7 @@ export interface ChannelFormApi {
     serverId: string,
     name: string,
     type: ChannelType,
-    opts: { private: boolean; roleIds: string[] }
+    opts: { private: boolean; roleIds: string[]; categoryId?: string }
   ) => Promise<unknown>
   update: (serverId: string, channelId: string, name: string) => Promise<unknown>
   /** Recarrega os canais do servidor para as não lidas (chatStore). */
@@ -38,7 +39,8 @@ export async function saveChannel(input: ChannelFormInput, api: ChannelFormApi):
   }
   await api.create(input.serverId, input.name, input.type, {
     private: input.private,
-    roleIds: input.roleIds
+    roleIds: input.roleIds,
+    ...(input.categoryId ? { categoryId: input.categoryId } : {})
   })
   api.refresh(input.serverId)
   return input.type === 'voice'

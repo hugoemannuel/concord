@@ -1,6 +1,8 @@
 import { useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import { useAuthStore } from '../../auth/store/authStore'
 import type { Channel, ChannelType } from '../api/channels'
+import { moveCategoryChannel } from '../api/categories'
 import type { Server } from '../api/servers'
 import { useServerStore } from '../store/serverStore'
 import { useChannelSidebarStore } from '../store/channelSidebarStore'
@@ -9,9 +11,11 @@ import { useChannelReorder, type ChannelReorder } from '../hooks/useChannelReord
 import { useChannelMenuDismiss } from '../hooks/useChannelMenuDismiss'
 import { useServerCallsSync } from '../hooks/useServerCallsSync'
 import { useJoinVoiceChannel } from '../hooks/useJoinVoiceChannel'
+import { useCategories } from '../hooks/useCategories'
 import { Perm } from '../lib/permissions'
 import type { ServerAccess } from '../lib/serverAccess'
 import { canOpenChannelMenu, sidebarSections, type SidebarSections } from '../lib/channelSidebar'
+import { categoryMenuMove } from '../lib/categoryLayout'
 import SidebarFooter from '../../../app/SidebarFooter'
 import ResizeHandle from '../../../shared/ui/ResizeHandle'
 import { useResizableWidth } from '../../../shared/hooks/useResizableWidth'
@@ -21,6 +25,7 @@ import { ChannelMenuButton, ChannelMenuHost } from './ChannelMenu'
 import TextChannelRow from './TextChannelRow'
 import VoiceChannelRow from './VoiceChannelRow'
 import SidebarDialogs from './SidebarDialogs'
+import { CategoryPanel } from './CategoryPanel'
 
 /** O que as linhas de canal das duas seções compartilham. */
 interface ChannelListProps {
@@ -29,11 +34,12 @@ interface ChannelListProps {
   access: ServerAccess
   reorder: ChannelReorder
   menuRef: React.Ref<HTMLDivElement>
+  categoryControls?: React.ReactNode
 }
 
 /** Menu do canal: "•••", botão direito e o próprio menu (cada item se esconde sem permissão). */
 function useChannelMenuProps(
-  { serverId, sections, access, reorder, menuRef }: ChannelListProps,
+  { serverId, sections, access, reorder, menuRef, categoryControls }: ChannelListProps,
   ch: Channel,
   type: ChannelType
 ): {
@@ -65,6 +71,7 @@ function useChannelMenuProps(
         access={access}
         move={reorder.move}
         menuRef={menuRef}
+        categoryControls={categoryControls}
       />
     )
   }
@@ -146,27 +153,45 @@ function ChannelLists({
   const serverId = server?.id ?? ''
   const channels = useServerStore((s) => s.channels)
   const loadedFor = useServerStore((s) => s.channelsLoadedFor)
+  const userId = useAuthStore((s) => s.user?.id ?? '')
   const openCreate = useChannelSidebarStore((s) => s.openCreate)
   const menuRef = useRef<HTMLDivElement>(null)
   useChannelMenuDismiss(menuRef)
   const sections = sidebarSections(server, channels, loadedFor)
   const canManage = access.can(Perm.MANAGE_CHANNELS)
-  const reorder = useChannelReorder(serverId, sections, canManage)
+  const categories = useCategories(serverId, channels.map((channel) => channel.id).join(','))
+  const categorized = (categories.layout?.categories.length ?? 0) > 0
+  const reorder = useChannelReorder(serverId, sections, canManage && !categorized)
   const onJoin = useJoinVoiceChannel(access, server?.id)
   const list: ChannelListProps = { serverId, sections, access, reorder, menuRef }
   return (
     <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      <CategoryPanel serverId={serverId} userId={userId} layout={categories.layout} channels={sections.ready ? channels : []} canManage={canManage && Boolean(serverId)} run={categories.run}
+        onCreateChannel={openCreate}
+        renderChannel={(ch, group, _index, categoryControls) => {
+          const groupedSections = { ...sections, text: group.filter((item) => item.type === 'text'), voice: group.filter((item) => item.type === 'voice') }
+          const groupedList: ChannelListProps = { ...list, categoryControls, sections: groupedSections, reorder: { ...reorder, move: (type, from, to) => {
+            const move = categoryMenuMove(group, groupedSections[type], from, to)
+            if (move) void categories.run(() => moveCategoryChannel(serverId, move.channel, move.category, move.before))
+          } } }
+          const index = groupedSections[ch.type].findIndex((item) => item.id === ch.id)
+          return ch.type === 'voice' ? <VoiceChannelItem list={groupedList} ch={ch} index={index} onJoin={onJoin} /> : <TextChannelItem list={groupedList} ch={ch} index={index} />
+        }} fallback={(onCreateCategory, ungrouped, renderRows) => {
+          const text = ungrouped.filter((channel) => (channel.type ?? 'text') === 'text')
+          const voice = ungrouped.filter((channel) => channel.type === 'voice')
+          return <>
       <ChannelSection
         title="Canais de texto"
         addLabel="Criar canal de texto"
         onAdd={canManage ? () => openCreate('text') : undefined}
+        onAddCategory={onCreateCategory}
         ready={sections.ready}
-        count={sections.text.length}
+        count={text.length}
         emptyText="Nenhum canal ainda."
         skeleton={{ count: 6 }}
         onDragLeave={reorder.clearOnLeave}
       >
-        {sections.text.map((ch, index) => (
+        {categorized ? renderRows(text) : text.map((ch, index) => (
           <TextChannelItem key={ch.id} list={list} ch={ch} index={index} />
         ))}
       </ChannelSection>
@@ -174,16 +199,19 @@ function ChannelLists({
         title="Canais de voz"
         addLabel="Criar canal de voz"
         onAdd={canManage ? () => openCreate('voice') : undefined}
+        onAddCategory={onCreateCategory}
         ready={sections.ready}
-        count={sections.voice.length}
+        count={voice.length}
         emptyText="Nenhum canal de voz ainda."
         skeleton={{ count: 3, offset: 4 }}
         onDragLeave={reorder.clearOnLeave}
       >
-        {sections.voice.map((ch, index) => (
+        {categorized ? renderRows(voice) : voice.map((ch, index) => (
           <VoiceChannelItem key={ch.id} list={list} ch={ch} index={index} onJoin={onJoin} />
         ))}
       </ChannelSection>
+      </>
+        }} />
     </div>
   )
 }
