@@ -17,9 +17,11 @@ type fakeStore struct {
 	calls      int
 	includeAll bool
 	created    bool
+	draft      Draft
 }
 
-func (f *fakeStore) Create(_ context.Context, _ string, _ Draft) (Plugin, error) {
+func (f *fakeStore) Create(_ context.Context, _ string, d Draft) (Plugin, error) {
+	f.draft = d
 	f.calls++
 	f.created = true
 	return f.plugin, nil
@@ -93,7 +95,7 @@ func newSvc(st *fakeStore, perr error) (*Service, *fakePub) {
 func TestReviewOnlyTech(t *testing.T) {
 	st := &fakeStore{}
 	svc, _ := newSvc(st, nil)
-	if _, err := svc.Review(context.Background(), "u1", "p1", StatusApproved, nil); !errors.Is(err, ErrForbidden) {
+	if _, err := svc.Review(context.Background(), "u1", "22222222-2222-4222-8222-222222222222", StatusApproved, nil); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("esperava ErrForbidden, veio %v", err)
 	}
 	if st.calls != 0 {
@@ -104,30 +106,30 @@ func TestReviewOnlyTech(t *testing.T) {
 func TestReviewInvalidTransition(t *testing.T) {
 	st := &fakeStore{plugin: Plugin{Status: StatusApproved}}
 	svc, _ := newSvc(st, nil)
-	if _, err := svc.Review(context.Background(), "tech", "p1", StatusApproved, nil); !errors.Is(err, ErrInvalidTransition) {
+	if _, err := svc.Review(context.Background(), "tech", "22222222-2222-4222-8222-222222222222", StatusApproved, nil); !errors.Is(err, ErrInvalidTransition) {
 		t.Fatalf("esperava ErrInvalidTransition, veio %v", err)
 	}
 }
 
 func TestReviewBroadcastsToInstalledServers(t *testing.T) {
-	st := &fakeStore{plugin: Plugin{Status: StatusPending}, servers: []string{"s1", "s2"}}
+	st := &fakeStore{plugin: Plugin{Status: StatusPending}, servers: []string{"11111111-1111-4111-8111-111111111111", "s2"}}
 	svc, pub := newSvc(st, nil)
-	if _, err := svc.Review(context.Background(), "tech", "p1", StatusApproved, nil); err != nil {
+	if _, err := svc.Review(context.Background(), "tech", "22222222-2222-4222-8222-222222222222", StatusApproved, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := pub.names(); !reflect.DeepEqual(got, []string{"server:s1", "server:s2"}) {
+	if got := pub.names(); !reflect.DeepEqual(got, []string{"server:11111111-1111-4111-8111-111111111111", "server:s2"}) {
 		t.Fatalf("salas: %v", got)
 	}
-	want := `{"payload":{"server_id":"s1"},"type":"plugins:changed"}`
-	if string(pub.rooms["server:s1"]) != want {
-		t.Fatalf("evento: %s", pub.rooms["server:s1"])
+	want := `{"payload":{"server_id":"11111111-1111-4111-8111-111111111111"},"type":"plugins:changed"}`
+	if string(pub.rooms["server:11111111-1111-4111-8111-111111111111"]) != want {
+		t.Fatalf("evento: %s", pub.rooms["server:11111111-1111-4111-8111-111111111111"])
 	}
 }
 
 func TestInstallRequiresManageServer(t *testing.T) {
 	st := &fakeStore{plugin: Plugin{Status: StatusApproved}}
 	svc, _ := newSvc(st, permission.ErrMissingPermission)
-	if err := svc.Install(context.Background(), "s1", "u1", "p1"); !errors.Is(err, permission.ErrMissingPermission) {
+	if err := svc.Install(context.Background(), "11111111-1111-4111-8111-111111111111", "u1", "22222222-2222-4222-8222-222222222222"); !errors.Is(err, permission.ErrMissingPermission) {
 		t.Fatalf("veio %v", err)
 	}
 }
@@ -135,7 +137,7 @@ func TestInstallRequiresManageServer(t *testing.T) {
 func TestInstallRejectsNotApproved(t *testing.T) {
 	st := &fakeStore{plugin: Plugin{Status: StatusPending}}
 	svc, _ := newSvc(st, nil)
-	if err := svc.Install(context.Background(), "s1", "u1", "p1"); !errors.Is(err, ErrNotApproved) {
+	if err := svc.Install(context.Background(), "11111111-1111-4111-8111-111111111111", "u1", "22222222-2222-4222-8222-222222222222"); !errors.Is(err, ErrNotApproved) {
 		t.Fatalf("veio %v", err)
 	}
 }
@@ -143,7 +145,7 @@ func TestInstallRejectsNotApproved(t *testing.T) {
 func TestReviewSavedWhenListingServersFails(t *testing.T) {
 	st := &fakeStore{plugin: Plugin{Status: StatusPending}, serversErr: errors.New("db fora")}
 	svc, pub := newSvc(st, nil)
-	p, err := svc.Review(context.Background(), "tech", "p1", StatusApproved, nil)
+	p, err := svc.Review(context.Background(), "tech", "22222222-2222-4222-8222-222222222222", StatusApproved, nil)
 	if err != nil || p.Status != StatusApproved {
 		t.Fatalf("p=%v err=%v", p, err)
 	}
@@ -157,38 +159,64 @@ func TestInstallAndUninstallBroadcast(t *testing.T) {
 	st := &fakeStore{plugin: Plugin{Status: StatusApproved}}
 	pub := &fakePub{}
 	svc := NewService(st, fakePerms{want: &want}, pub, nil)
-	if err := svc.Install(context.Background(), "s1", "u1", "p1"); err != nil {
+	if err := svc.Install(context.Background(), "11111111-1111-4111-8111-111111111111", "u1", "22222222-2222-4222-8222-222222222222"); err != nil {
 		t.Fatal(err)
 	}
 	if want != permission.ManageServer {
 		t.Fatalf("install exigiu %d", want)
 	}
-	if !reflect.DeepEqual(pub.names(), []string{"server:s1"}) {
+	if !reflect.DeepEqual(pub.names(), []string{"server:11111111-1111-4111-8111-111111111111"}) {
 		t.Fatalf("install: %v", pub.names())
 	}
 	want = 0
 	pub.rooms = nil
-	if err := svc.Uninstall(context.Background(), "s1", "u1", "p1"); err != nil {
+	if err := svc.Uninstall(context.Background(), "11111111-1111-4111-8111-111111111111", "u1", "22222222-2222-4222-8222-222222222222"); err != nil {
 		t.Fatal(err)
 	}
 	if want != permission.ManageServer {
 		t.Fatalf("uninstall exigiu %d", want)
 	}
-	if !reflect.DeepEqual(pub.names(), []string{"server:s1"}) {
+	if !reflect.DeepEqual(pub.names(), []string{"server:11111111-1111-4111-8111-111111111111"}) {
 		t.Fatalf("uninstall: %v", pub.names())
+	}
+}
+
+func TestInvalidIDs(t *testing.T) {
+	svc, _ := newSvc(&fakeStore{}, nil)
+	ctx := context.Background()
+	if err := svc.Install(ctx, "11111111-1111-4111-8111-111111111111", "u1", "nao-e-uuid"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("install plugin: %v", err)
+	}
+	if err := svc.Uninstall(ctx, "11111111-1111-4111-8111-111111111111", "u1", "x"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("uninstall plugin: %v", err)
+	}
+	if err := svc.SetEnabled(ctx, "11111111-1111-4111-8111-111111111111", "u1", "x", true); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("setenabled plugin: %v", err)
+	}
+	if _, err := svc.Review(ctx, "tech", "x", StatusApproved, nil); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("review plugin: %v", err)
+	}
+	if err := svc.Install(ctx, "x", "u1", "22222222-2222-4222-8222-222222222222"); !errors.Is(err, permission.ErrNotMember) {
+		t.Fatalf("install server: %v", err)
+	}
+	if _, err := svc.ServerPlugins(ctx, "x", "u1"); !errors.Is(err, permission.ErrNotMember) {
+		t.Fatalf("list server: %v", err)
+	}
+	if err := svc.SetEnabled(ctx, "x", "u1", "22222222-2222-4222-8222-222222222222", true); !errors.Is(err, permission.ErrNotMember) {
+		t.Fatalf("setenabled server: %v", err)
 	}
 }
 
 func TestServerPluginsNonMember(t *testing.T) {
 	svc, _ := newSvc(&fakeStore{}, permission.ErrNotMember)
-	if _, err := svc.ServerPlugins(context.Background(), "s1", "u1"); !errors.Is(err, permission.ErrNotMember) {
+	if _, err := svc.ServerPlugins(context.Background(), "11111111-1111-4111-8111-111111111111", "u1"); !errors.Is(err, permission.ErrNotMember) {
 		t.Fatalf("veio %v", err)
 	}
 }
 
 func TestServerPluginsNeverNil(t *testing.T) {
 	svc, _ := newSvc(&fakeStore{}, nil)
-	got, err := svc.ServerPlugins(context.Background(), "s1", "u1")
+	got, err := svc.ServerPlugins(context.Background(), "11111111-1111-4111-8111-111111111111", "u1")
 	if err != nil || got == nil {
 		t.Fatalf("got=%v err=%v", got, err)
 	}
@@ -196,7 +224,7 @@ func TestServerPluginsNeverNil(t *testing.T) {
 
 func TestSetEnabledBroadcastsToUserOnly(t *testing.T) {
 	svc, pub := newSvc(&fakeStore{}, nil)
-	if err := svc.SetEnabled(context.Background(), "s1", "u1", "p1", true); err != nil {
+	if err := svc.SetEnabled(context.Background(), "11111111-1111-4111-8111-111111111111", "u1", "22222222-2222-4222-8222-222222222222", true); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(pub.names(), []string{"user:u1"}) {

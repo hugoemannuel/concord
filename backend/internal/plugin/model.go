@@ -60,9 +60,9 @@ type ServerPlugin struct {
 
 // Draft é o que o autor envia ao cadastrar ou editar um plugin.
 type Draft struct {
-	Name        string
-	Description string
-	PanelURL    string
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	PanelURL    string `json:"panel_url"`
 }
 
 var transitions = map[Status][]Status{

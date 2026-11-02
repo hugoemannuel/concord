@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"gin-quickstart/backend/internal/permission"
+
+	"github.com/google/uuid"
 )
 
 // PermissionChecker é o que o service usa do permission.Service.
@@ -65,6 +67,9 @@ func (s *Service) Review(ctx context.Context, userID, pluginID string, to Status
 	if !s.isTech(userID) {
 		return Plugin{}, ErrForbidden
 	}
+	if err := checkPluginID(pluginID); err != nil {
+		return Plugin{}, err
+	}
 	cur, err := s.store.Get(ctx, pluginID)
 	if err != nil {
 		return Plugin{}, err
@@ -102,6 +107,9 @@ func (s *Service) Catalog(ctx context.Context, userID string) ([]Plugin, error) 
 
 // ServerPlugins lista os plugins do servidor para um membro.
 func (s *Service) ServerPlugins(ctx context.Context, serverID, userID string) ([]ServerPlugin, error) {
+	if err := checkServerID(serverID); err != nil {
+		return nil, err
+	}
 	if _, err := s.perms.ServerPerms(ctx, serverID, userID); err != nil {
 		return nil, err
 	}
@@ -117,6 +125,9 @@ func (s *Service) ServerPlugins(ctx context.Context, serverID, userID string) ([
 
 // Install liga um plugin aprovado ao servidor.
 func (s *Service) Install(ctx context.Context, serverID, userID, pluginID string) error {
+	if err := checkIDs(serverID, pluginID); err != nil {
+		return err
+	}
 	if err := s.perms.Require(ctx, serverID, userID, permission.ManageServer); err != nil {
 		return err
 	}
@@ -135,6 +146,9 @@ func (s *Service) Install(ctx context.Context, serverID, userID, pluginID string
 }
 
 func (s *Service) Uninstall(ctx context.Context, serverID, userID, pluginID string) error {
+	if err := checkIDs(serverID, pluginID); err != nil {
+		return err
+	}
 	if err := s.perms.Require(ctx, serverID, userID, permission.ManageServer); err != nil {
 		return err
 	}
@@ -147,6 +161,9 @@ func (s *Service) Uninstall(ctx context.Context, serverID, userID, pluginID stri
 
 // SetEnabled grava a escolha do membro e avisa só os apps dele.
 func (s *Service) SetEnabled(ctx context.Context, serverID, userID, pluginID string, on bool) error {
+	if err := checkIDs(serverID, pluginID); err != nil {
+		return err
+	}
 	if _, err := s.perms.ServerPerms(ctx, serverID, userID); err != nil {
 		return err
 	}
@@ -159,4 +176,26 @@ func (s *Service) SetEnabled(ctx context.Context, serverID, userID, pluginID str
 
 func (s *Service) emit(room, serverID string) {
 	s.pub.BroadcastToRoom(room, marshalEvent(EventChanged, map[string]string{"server_id": serverID}))
+}
+
+// checkServerID trata id que não é UUID como servidor onde o usuário não está.
+func checkServerID(id string) error {
+	if uuid.Validate(id) != nil {
+		return permission.ErrNotMember
+	}
+	return nil
+}
+
+func checkPluginID(id string) error {
+	if uuid.Validate(id) != nil {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func checkIDs(serverID, pluginID string) error {
+	if err := checkServerID(serverID); err != nil {
+		return err
+	}
+	return checkPluginID(pluginID)
 }
