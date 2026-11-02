@@ -31,6 +31,21 @@ describe('describeCodecChoice', () => {
   })
 })
 
+describe('describeCodecChoice com o som da tela', () => {
+  it('anota de onde veio o som da live', () => {
+    expect(
+      describeCodecChoice({
+        preference: 'auto',
+        support: { av1: null, h265: 'hardware', h264: 'software', vp8: 'software' },
+        simulcast: false,
+        codec: { videoCodec: 'h265', backupCodec: false },
+        marked: [],
+        sound: 'sistema'
+      })
+    ).toBe('auto: h265 | av1 —, h265 placa, h264 proc. | som: sistema')
+  })
+})
+
 describe('noteScreenCodecChoice', () => {
   it('a telemetria leva a última escolha uma vez', () => {
     noteScreenCodecChoice('a')

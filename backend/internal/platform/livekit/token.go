@@ -42,6 +42,26 @@ func (g Grant) Permission() *lk.ParticipantPermission {
 	}
 }
 
+// roomConfig vai em todo token: quem entra primeiro cria a sala (ou a atualiza)
+// com ela. SyncStreams põe o vídeo e o som da tela no mesmo MediaStream
+// (`PA|screen`) e o navegador sincroniza os dois; sem ele cada faixa vem
+// sozinha e a imagem da live fica atrás do som. O microfone vai num stream
+// próprio no app (micPublisher.ts): a voz nunca espera pelo vídeo da câmera.
+func roomConfig() *lk.RoomConfiguration {
+	return &lk.RoomConfiguration{SyncStreams: true}
+}
+
+// roomToken é o token de entrada numa sala, com a configuração dela.
+func (t *TokenIssuer) roomToken(identity, name string, grant *auth.VideoGrant) (string, error) {
+	return auth.NewAccessToken(t.apiKey, t.apiSecret).
+		SetIdentity(identity).
+		SetName(name).
+		SetValidFor(tokenTTL).
+		SetVideoGrant(grant).
+		SetRoomConfig(roomConfig()).
+		ToJWT()
+}
+
 // TokenIssuer emite os JWTs que o cliente apresenta ao LiveKit para entrar
 // na sala de uma chamada. A sala do LiveKit tem o mesmo ID da chamada.
 type TokenIssuer struct {
@@ -69,31 +89,20 @@ func (t *TokenIssuer) Issue(room, identity, name string, g Grant) (string, error
 		CanPublishData: &canPublishData,
 	}
 	grant.SetCanPublishSources(sources)
-
-	token := auth.NewAccessToken(t.apiKey, t.apiSecret).
-		SetIdentity(identity).
-		SetName(name).
-		SetValidFor(tokenTTL).
-		SetVideoGrant(grant)
-	return token.ToJWT()
+	return t.roomToken(identity, name, grant)
 }
 
 // IssueBot é o token do bot de música: entra na sala e só publica áudio
 // (não assina ninguém — não escuta a call).
 func (t *TokenIssuer) IssueBot(room, identity, name string) (string, error) {
 	canPublish, canSubscribe := true, false
-	token := auth.NewAccessToken(t.apiKey, t.apiSecret).
-		SetIdentity(identity).
-		SetName(name).
-		SetValidFor(tokenTTL).
-		SetVideoGrant(&auth.VideoGrant{
-			RoomJoin:          true,
-			Room:              room,
-			CanPublish:        &canPublish,
-			CanSubscribe:      &canSubscribe,
-			CanPublishSources: []string{"microphone"},
-		})
-	return token.ToJWT()
+	return t.roomToken(identity, name, &auth.VideoGrant{
+		RoomJoin:          true,
+		Room:              room,
+		CanPublish:        &canPublish,
+		CanSubscribe:      &canSubscribe,
+		CanPublishSources: []string{"microphone"},
+	})
 }
 
 // IssueScreen é o token do participante "tela" (live pelo helper nativo,
@@ -109,10 +118,5 @@ func (t *TokenIssuer) IssueScreen(room, identity, name string) (string, error) {
 		CanPublishData: &canPublishData,
 	}
 	grant.SetCanPublishSources([]lk.TrackSource{lk.TrackSource_SCREEN_SHARE, lk.TrackSource_SCREEN_SHARE_AUDIO})
-	token := auth.NewAccessToken(t.apiKey, t.apiSecret).
-		SetIdentity(identity).
-		SetName(name).
-		SetValidFor(tokenTTL).
-		SetVideoGrant(grant)
-	return token.ToJWT()
+	return t.roomToken(identity, name, grant)
 }
