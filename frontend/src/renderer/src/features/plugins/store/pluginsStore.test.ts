@@ -57,17 +57,27 @@ describe('pluginsStore', () => {
     expect(usePluginsStore.getState().byServer['s1'][0].enabled).toBe(false)
   })
 
-  it('dois toggles, o primeiro falha: o estado final é o do servidor', async () => {
+  it('dois toggles, o primeiro falha: o estado final é o do servidor, não o capturado', async () => {
     usePluginsStore.setState({ byServer: { s1: [plugin('a', false), plugin('b', false)] } })
     api.setPluginEnabled.mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce(undefined)
-    api.fetchServerPlugins.mockResolvedValue([plugin('a', false), plugin('b', true)])
+    // O servidor difere do valor que o código antigo restauraria (a=false).
+    api.fetchServerPlugins.mockResolvedValueOnce([plugin('a', true), plugin('b', true)])
     const r = await Promise.allSettled([
       usePluginsStore.getState().toggle('s1', 'a', true),
       usePluginsStore.getState().toggle('s1', 'b', true)
     ])
     expect(r[0].status).toBe('rejected')
     expect(r[1].status).toBe('fulfilled')
-    expect(usePluginsStore.getState().byServer['s1']).toEqual([plugin('a', false), plugin('b', true)])
+    expect(api.fetchServerPlugins).toHaveBeenCalledWith('s1')
+    expect(usePluginsStore.getState().byServer['s1']).toEqual([plugin('a', true), plugin('b', true)])
+  })
+
+  it('relido também falhando: rejeita com o erro original', async () => {
+    usePluginsStore.setState({ byServer: { s1: [plugin('a', false)] } })
+    const err = new Error('original')
+    api.setPluginEnabled.mockRejectedValueOnce(err)
+    api.fetchServerPlugins.mockRejectedValueOnce(new Error('reload'))
+    await expect(usePluginsStore.getState().toggle('s1', 'a', true)).rejects.toBe(err)
   })
 
   it('install e uninstall recarregam o servidor', async () => {
