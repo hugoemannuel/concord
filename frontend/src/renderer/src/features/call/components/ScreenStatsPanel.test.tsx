@@ -61,6 +61,19 @@ describe('ScreenStatsCard', () => {
     expect(html).not.toMatch(/truncate[^>]*>Instale/)
   })
 
+  it('regressão: nome do codificador inteiro, quebrando linha (o print cortava em "Simulca…")', () => {
+    const encoder = 'Hardware · MediaFoundationVideoEncodeAccelerator (NVIDIA GeForce RTX 3070)'
+    const html = renderToStaticMarkup(
+      <ScreenStatsCard
+        local
+        onClose={() => {}}
+        view={{ rows: [{ label: 'Codificador', value: encoder }], status: null }}
+      />
+    )
+    expect(html).toMatch(new RegExp(`<dd class="[^"]*wrap-anywhere[^"]*"[^>]*>${encoder.replace(/[()]/g, '\\$&')}</dd>`))
+    expect(html).not.toMatch(/<dd class="[^"]*truncate/)
+  })
+
   it('minha transmissão', () => {
     const html = renderToStaticMarkup(
       <ScreenStatsCard local onClose={() => {}} view={{ rows: [], status: null }} />

@@ -27,6 +27,11 @@ function backupTrack(settings: MediaTrackSettings) {
 }
 
 describe('backupEncoding', () => {
+  it('regressão: reserva H.264 de janela 2560×1438 sai com lados pares (ímpar = processador)', () => {
+    const scale = backupEncoding({ width: 2560, height: 1438 }).scaleResolutionDownBy ?? 1
+    expect([Math.trunc(2560 / scale) % 2, Math.trunc(1438 / scale) % 2]).toEqual([0, 0])
+  })
+
   it('captura 1080p: reserva em 720p30 a 2,5 Mbps, com prioridade baixa na banda', () => {
     expect(backupEncoding({ width: 1920, height: 1080 })).toEqual({
       maxBitrate: 2_500_000,

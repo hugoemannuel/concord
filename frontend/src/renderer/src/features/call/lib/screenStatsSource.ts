@@ -2,6 +2,7 @@ import { Track } from 'livekit-client'
 import type { ScreenStatsInput } from './screenStats'
 import { loadVideoDriverHint } from './videoDriverHint'
 import { screenHelperIdentity } from './screenIdentity'
+import { useScreenCodecFallbackStore } from '../store/screenCodecFallbackStore'
 
 // Lê, sob demanda, o getStats() do vídeo da live (o meu envio ou a recepção da
 // de outra pessoa) e o estado da publicação. Só roda com o painel aberto.
@@ -60,7 +61,8 @@ async function readLocal(room: StatsRoomLike): Promise<ScreenStatsInput | null> 
     report: await senderReports(track),
     enabled: true,
     streamState: 'active',
-    requestedFps: track.publishOptions?.screenShareEncoding?.maxFramerate ?? null
+    requestedFps: track.publishOptions?.screenShareEncoding?.maxFramerate ?? null,
+    codecFallback: useScreenCodecFallbackStore.getState().fallback
   }
 }
 

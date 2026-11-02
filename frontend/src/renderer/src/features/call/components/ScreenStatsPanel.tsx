@@ -56,7 +56,7 @@ export function ScreenStatsCard({
           {view.rows.map((row) => (
             <div key={row.label} className="contents">
               <dt className="text-muted">{row.label}</dt>
-              <dd className="truncate text-right font-medium tabular-nums" title={row.value}>
+              <dd className="wrap-anywhere text-right font-medium tabular-nums">
                 {row.value}
               </dd>
             </div>

@@ -20,16 +20,33 @@ interface EncodingInfoApi {
   encodingInfo(config: unknown): Promise<{ supported: boolean; powerEfficient: boolean }>
 }
 
+/**
+ * H.264 como o WebRTC publica (Constrained Baseline, packetization-mode=1).
+ * Sem os parâmetros o Chromium compara com packetization-mode=0, que só o
+ * OpenH264 (processador) anuncia: a placa nunca era encontrada (ADR 0048).
+ */
+export const H264_CONTENT_TYPE = 'video/H264;profile-level-id=42e01f;packetization-mode=1'
+
 /** Codecs que dependem da placa de vídeo e como o Chromium os chama. */
-const QUERIED: { codec: Exclude<ScreenVideoCodec, 'vp8'>; mime: string; mode?: string }[] = [
+const QUERIED: {
+  codec: Exclude<ScreenVideoCodec, 'vp8'>
+  mime: string
+  contentType: string
+  mode?: string
+}[] = [
   // O LiveKit publica tela em AV1 com L1T3: a pergunta inclui o modo.
-  { codec: 'av1', mime: 'video/AV1', mode: 'L1T3' },
-  { codec: 'h265', mime: 'video/H265' },
-  { codec: 'h264', mime: 'video/H264' }
+  { codec: 'av1', mime: 'video/AV1', contentType: 'video/AV1', mode: 'L1T3' },
+  { codec: 'h265', mime: 'video/H265', contentType: 'video/H265' },
+  { codec: 'h264', mime: 'video/H264', contentType: H264_CONTENT_TYPE }
 ]
 
-/** Uma live nesse codec caiu no processador: as próximas o tratam como software. */
+/**
+ * Uma live nesse codec caiu no processador (ou trocou sozinha de codec): as
+ * próximas o tratam como software por 7 dias. Valor = quando (ms); o "1" das
+ * versões antigas, que valia para sempre, não conta mais.
+ */
 const softwareKey = (codec: ScreenVideoCodec): string => `salinha:screen-${codec}-software`
+export const MARK_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 const senderCapabilities = (): SenderCapabilities =>
   globalThis.RTCRtpSender?.getCapabilities?.('video') ?? null
@@ -39,7 +56,9 @@ const hasCodec = (capabilities: SenderCapabilities, mime: string): boolean =>
 
 function markedSoftware(codec: ScreenVideoCodec): boolean {
   try {
-    return localStorage.getItem(softwareKey(codec)) === '1'
+    const at = Number(localStorage.getItem(softwareKey(codec)))
+    // "1" (versões antigas) e lixo ficam abaixo de qualquer data recente.
+    return Date.now() - at < MARK_TTL_MS
   } catch {
     return false
   }
@@ -61,7 +80,7 @@ async function encoderOf(
     const mode = query.mode ? { scalabilityMode: query.mode } : {}
     const info = await api.encodingInfo({
       type: 'webrtc',
-      video: { contentType: query.mime, ...mode, ...video }
+      video: { contentType: query.contentType, ...mode, ...video }
     })
     if (!info.supported) return null
     return info.powerEfficient ? 'hardware' : 'software'
@@ -101,10 +120,10 @@ export function clearScreenCodecCache(): void {
   cache.clear()
 }
 
-/** Uma live em AV1/H.265 saiu pelo processador: não usar esse codec de novo neste aparelho. */
+/** Uma live nesse codec saiu pelo processador ou trocou sozinha: evitar por MARK_TTL_MS. */
 export function markSoftwareCodec(codec: ScreenVideoCodec): void {
   try {
-    localStorage.setItem(softwareKey(codec), '1')
+    localStorage.setItem(softwareKey(codec), String(Date.now()))
   } catch {
     /* Compartilhar continua funcionando sem armazenamento local. */
   }

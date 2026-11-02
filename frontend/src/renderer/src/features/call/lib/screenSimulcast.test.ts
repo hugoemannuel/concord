@@ -5,8 +5,10 @@ import {
   saveScreenSimulcast,
   chooseScreenSimulcast,
   screenSenderEncodings,
+  simulcastLayers,
   usesSimulcast
 } from './screenSimulcast'
+import { H265_LAYER_KEY } from './screenCodec'
 import type { ScreenCodecSupport } from './screenCodecSupport'
 import type { ScreenShareQuality } from './screenShareQuality'
 
@@ -35,6 +37,34 @@ describe('screenSenderEncodings', () => {
       { maxBitrate: 3_000_000, maxFramerate: 30, scaleResolutionDownBy: 1.5 },
       { maxBitrate: 7_000_000, maxFramerate: 60 }
     ])
+  })
+})
+
+describe('lados pares na camada de 720p (o codificador da placa no Windows recusa ímpar)', () => {
+  const truncated = (width: number, height: number, scale: number): number[] => [
+    Math.trunc(width / scale) % 2,
+    Math.trunc(height / scale) % 2
+  ]
+
+  it('regressão: janela de 2560×1438 publica a camada com lados pares (antes 1281×720)', () => {
+    const [preset] = simulcastLayers({ width: 2560, height: 1438 })
+    // O LiveKit faz escala = lado menor / lado menor do preset.
+    const scale = 1438 / Math.min(preset.width, preset.height)
+    expect(truncated(2560, 1438, scale)).toEqual([0, 0])
+  })
+
+  it('16:9 e sem tamanho: o 1280×720 de sempre', () => {
+    expect(simulcastLayers(fullHd)[0]).toMatchObject({ width: 1280, height: 720 })
+    expect(simulcastLayers({})[0]).toMatchObject({ width: 1280, height: 720 })
+  })
+
+  it('troca de degrau ao vivo também mantém os lados pares', () => {
+    const [low] = screenSenderEncodings(
+      { resolution: 'source', frameRate: 60 },
+      { width: 2560, height: 1438 },
+      2
+    )
+    expect(truncated(2560, 1438, low.scaleResolutionDownBy ?? 1)).toEqual([0, 0])
   })
 })
 
@@ -85,7 +115,6 @@ describe('chooseScreenSimulcast', () => {
 
   it('Automático: codec na placa de vídeo e live em 1080p → liga', () => {
     expect(choose('auto', card())).toBe(true)
-    expect(choose('auto', card({ h265: 'hardware' }))).toBe(true)
     expect(choose('auto', card(), { resolution: 'source', frameRate: 30 })).toBe(true)
   })
 
@@ -102,6 +131,15 @@ describe('chooseScreenSimulcast', () => {
     expect(choose('auto', card({ av1: 'hardware' }))).toBe(false)
   })
 
+  it('regressão: H.265 na placa fica numa camada só (com a de 720p caía para VP8 = tela preta)', () => {
+    expect(choose('auto', card({ h265: 'hardware' }))).toBe(false)
+  })
+
+  it('flag de teste: H.265 com a camada extra volta a ligar', () => {
+    vi.stubGlobal('localStorage', { getItem: (k: string) => (k === H265_LAYER_KEY ? '1' : null) })
+    expect(choose('auto', card({ h265: 'hardware' }))).toBe(true)
+  })
+
   it('Automático: marca de software (a live caiu no processador) desliga na próxima', () => {
     expect(choose('auto', card({ h265: 'software', h264: 'software' }))).toBe(false)
   })
@@ -116,6 +154,8 @@ describe('chooseScreenSimulcast', () => {
   it('o codec escolhido em Avançado é o que conta no Automático', () => {
     const support = card({ h265: 'hardware', h264: 'software' })
     expect(chooseScreenSimulcast('auto', full, fullHd, support, 'h264')).toBe(false)
-    expect(chooseScreenSimulcast('auto', full, fullHd, support, 'h265')).toBe(true)
+    expect(chooseScreenSimulcast('auto', full, fullHd, card({ h265: 'hardware' }), 'h264')).toBe(
+      true
+    )
   })
 })
