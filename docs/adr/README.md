@@ -83,3 +83,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0043. Aparência v3: brilho visível, efeitos animados e imagem no fundo do app, mais fontes](0043-aparencia-v3.md)
 - [0044. Janelinha de abertura que atualiza antes de abrir o app desktop](0044-janelinha-de-abertura-que-atualiza.md)
 - [0046. Ticket de uso único e 30 s para abrir o WebSocket, no lugar do token na URL](0046-ticket-do-websocket.md)
+- [0047. Som e imagem da live sincronizados (SyncStreams por sala)](0047-som-e-imagem-da-live-sincronizados.md)
