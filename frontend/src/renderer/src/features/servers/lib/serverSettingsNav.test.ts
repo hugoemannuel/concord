@@ -11,32 +11,38 @@ const ids = (perms: number): string[] => visibleServerSections(perms).map((s) =>
 const ownerIds = (perms: number): string[] => visibleServerSections(perms, true).map((s) => s.id)
 
 describe('seções das configurações do servidor', () => {
-  it('membro comum não vê nenhuma', () => {
-    expect(ids(DEFAULT_EVERYONE)).toEqual([])
-    expect(canOpenServerSettings(DEFAULT_EVERYONE)).toBe(false)
+  it('membro comum vê só a aba Plugins (é de todos)', () => {
+    expect(ids(DEFAULT_EVERYONE)).toEqual(['plugins'])
+    expect(canOpenServerSettings(DEFAULT_EVERYONE)).toBe(true)
+    expect(ids(0)).toContain('plugins')
+    expect(canOpenServerSettings(0)).toBe(true)
+  })
+
+  it('com Gerenciar servidor, Plugins vem antes de Nível', () => {
+    expect(ids(Perm.MANAGE_SERVER).slice(-2)).toEqual(['plugins', 'level'])
   })
 
   it('o dono e o administrador veem todas', () => {
-    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'level'])
+    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'plugins', 'level'])
   })
 
   it('cada permissão abre só o que usa', () => {
-    expect(ids(Perm.MANAGE_SERVER)).toEqual(['overview', 'level'])
-    expect(ids(Perm.MANAGE_ROLES)).toEqual(['roles', 'members', 'level'])
-    expect(ids(Perm.KICK_MEMBERS)).toEqual(['members', 'level'])
-    expect(ids(Perm.BAN_MEMBERS)).toEqual(['members', 'bans', 'level'])
-    expect(ids(Perm.MANAGE_NICKNAMES)).toEqual(['members', 'level'])
+    expect(ids(Perm.MANAGE_SERVER)).toEqual(['overview', 'plugins', 'level'])
+    expect(ids(Perm.MANAGE_ROLES)).toEqual(['roles', 'members', 'plugins', 'level'])
+    expect(ids(Perm.KICK_MEMBERS)).toEqual(['members', 'plugins', 'level'])
+    expect(ids(Perm.BAN_MEMBERS)).toEqual(['members', 'bans', 'plugins', 'level'])
+    expect(ids(Perm.MANAGE_NICKNAMES)).toEqual(['members', 'plugins', 'level'])
     // O registro de auditoria só para quem tem a permissão (ou o dono/administrador).
-    expect(ids(Perm.VIEW_AUDIT_LOG)).toEqual(['audit'])
+    expect(ids(Perm.VIEW_AUDIT_LOG)).toEqual(['audit', 'plugins'])
   })
 
   it('"Alterar apelido" (o próprio) não abre as configurações', () => {
-    expect(ids(Perm.CHANGE_NICKNAME)).toEqual([])
+    expect(ids(Perm.CHANGE_NICKNAME)).toEqual(['plugins'])
   })
 
   it('o moderador padrão (editar servidor + expulsar) vê visão geral e membros', () => {
     const mod = DEFAULT_EVERYONE | Perm.MANAGE_SERVER | Perm.MANAGE_CHANNELS | Perm.KICK_MEMBERS
-    expect(ids(mod)).toEqual(['overview', 'members', 'level'])
+    expect(ids(mod)).toEqual(['overview', 'members', 'plugins', 'level'])
     expect(canOpenServerSettings(mod)).toBe(true)
   })
 
@@ -44,7 +50,7 @@ describe('seções das configurações do servidor', () => {
     expect(resolveServerSection(Perm.KICK_MEMBERS, 'bans')).toBe('members')
     expect(resolveServerSection(Perm.BAN_MEMBERS, 'bans')).toBe('bans')
     expect(resolveServerSection(ALL_PERMISSIONS, 'roles')).toBe('roles')
-    expect(resolveServerSection(0, 'overview')).toBeNull()
+    expect(resolveServerSection(0, 'overview')).toBe('plugins')
   })
 })
 
@@ -57,15 +63,15 @@ describe('serverSectionLabel', () => {
   })
 
   it('Eventos aparece para quem recebeu a configuração dos eventos, mesmo sem nenhuma permissão', () => {
-    expect(visibleServerSections(0, false, true).map((s) => s.id)).toEqual(['events'])
+    expect(visibleServerSections(0, false, true).map((s) => s.id)).toEqual(['events', 'plugins'])
     expect(canOpenServerSettings(0, false, true)).toBe(true)
-    expect(canOpenServerSettings(0, false, false)).toBe(false)
+    expect(canOpenServerSettings(0, false, false)).toBe(true)
     expect(resolveServerSection(0, 'overview', false, true)).toBe('events')
   })
 
   it('Eventos é do dono e de quem recebeu a configuração: o administrador não vê, e entra antes de Nível', () => {
     expect(ids(ALL_PERMISSIONS)).not.toContain('events')
-    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'events', 'level'])
+    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'events', 'plugins', 'level'])
   })
 
   it('pedir Eventos sem ser o dono cai na primeira seção visível', () => {
