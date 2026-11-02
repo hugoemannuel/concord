@@ -28,7 +28,9 @@ export function CategoryPanel({ serverId, userId, layout, channels, canManage, r
   const [dialog, setDialog] = useState<CategoryDialog | null>(null)
   const [collapsed, setCollapsed] = useCollapsedCategories(userId, serverId)
   const categories = layout?.categories ?? []
-  const grouped = groupChannelsByCategory(categories, channelsWithPlacement(channels, layout?.channels ?? []))
+  // Sem categorias, a API antiga volta a ordenar os canais: ignore posições residuais.
+  const placements = categories.length > 0 ? layout?.channels ?? [] : []
+  const grouped = groupChannelsByCategory(categories, channelsWithPlacement(channels, placements))
   const move = (channel: string, category: string | null, before: string | null = null): void => {
     void run(() => moveCategoryChannel(serverId, channel, category, before))
   }

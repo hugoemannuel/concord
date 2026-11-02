@@ -46,4 +46,13 @@ describe('CategoryPanel', () => {
     expect(html).not.toContain('movido indevidamente')
     expect(html).not.toContain('Sem categoria')
   })
+  it('sem categorias respeita a ordem dos canais, mesmo com posições antigas no layout', () => {
+    const reordered = [channels[1], channels[0], channels[2]]
+    const previousSections = vi.fn(() => <div />)
+    renderToStaticMarkup(<CategoryPanel serverId="s" userId="u" layout={{ categories: [], channels: layout.channels }} channels={reordered} canManage
+      run={async () => true} onCreateChannel={vi.fn()} fallback={previousSections} renderChannel={() => null} />)
+    expect(previousSections).toHaveBeenCalledWith(expect.any(Function), [
+      { ...channels[1], category_id: null }, { ...channels[0], category_id: null }, { ...channels[2], category_id: null }
+    ], expect.any(Function))
+  })
 })
