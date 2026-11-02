@@ -54,7 +54,8 @@ describe('readScreenStatsInput', () => {
       report,
       enabled: true,
       streamState: 'active',
-      requestedFps: 60
+      requestedFps: 60,
+      codecFallback: null
     })
   })
 

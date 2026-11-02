@@ -6,6 +6,8 @@
 // principal. O codificador (placa ou processador) é o que o Chromium escolhe
 // para o codec. Ver docs/adr/0020.
 
+import { evenScale } from './screenScale'
+
 /** Teto da reserva: o piso da live (720p30), um pouco abaixo dos 3 Mbps da Twitch. */
 export const BACKUP_ENCODING = { maxBitrate: 2_500_000, maxFramerate: 30 } as const
 const BACKUP_HEIGHT = 720
@@ -22,13 +24,13 @@ export interface BackupTrack {
   setSimulcastTrackSender(codec: string, sender: RTCRtpSender): Promise<void>
 }
 
-/** 720p30 pelo lado menor da captura (nunca amplia), prioridade baixa. */
+/** 720p30 pelo lado menor da captura (nunca amplia, lados pares), prioridade baixa. */
 export function backupEncoding(settings: MediaTrackSettings): RTCRtpEncodingParameters {
-  const { width, height } = settings
-  const short = width && height ? Math.min(width, height) : BACKUP_HEIGHT
+  const { width = 0, height = 0 } = settings
   return {
     ...BACKUP_ENCODING,
-    scaleResolutionDownBy: Math.max(1, short / BACKUP_HEIGHT),
+    // Lado ímpar faz o H.264 da placa cair no processador (ver screenScale).
+    scaleResolutionDownBy: evenScale(width, height, BACKUP_HEIGHT),
     priority: 'low',
     networkPriority: 'low'
   }

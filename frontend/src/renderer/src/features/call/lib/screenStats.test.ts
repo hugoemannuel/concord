@@ -209,6 +209,20 @@ describe('screenStatsView — quem transmite', () => {
     expect(value(view, 'Codec')).toBe('H.265 · placa de vídeo')
   })
 
+  it('regressão: a live trocou de codec porque o publicado falhou → aviso no topo', () => {
+    const vp8: Stat = { id: 'c4', type: 'codec', mimeType: 'video/H264' }
+    const { view } = screenStatsView(
+      { ...sender([vp8, outbound({ codecId: 'c4' })]), codecFallback: { from: 'h265', to: 'h264' } },
+      null
+    )
+    expect(view.status).toBe('H.265 falhou, usando H.264')
+    const vp8Only = screenStatsView(
+      { ...sender([vp8, outbound({ codecId: 'c4' })]), codecFallback: { from: 'h264', to: 'vp8' } },
+      null
+    )
+    expect(vp8Only.view.status).toBe('H.264 falhou, usando VP8')
+  })
+
   it('codec de reserva publicando: lê o envio que está ativo', () => {
     const { view } = screenStatsView(
       sender([

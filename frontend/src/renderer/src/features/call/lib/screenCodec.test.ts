@@ -4,7 +4,8 @@ import {
   loadScreenCodec,
   saveScreenCodec,
   screenCodecOptions,
-  SCREEN_CODEC_KEY
+  SCREEN_CODEC_KEY,
+  H265_LAYER_KEY
 } from './screenCodec'
 import type { ScreenCodecSupport } from './screenCodecSupport'
 
@@ -66,11 +67,30 @@ describe('screenCodecOptions: automático = melhor da placa de vídeo', () => {
     })
   })
 
-  it('com a camada extra de 720p pula o AV1 (sai numa camada só) e fica no H.265', () => {
-    expect(screenCodecOptions('auto', all, true).videoCodec).toBe('h265')
+  it('regressão: com a camada extra de 720p pula AV1 e H.265 (no H.265 caía para VP8)', () => {
+    expect(screenCodecOptions('auto', all, true).videoCodec).toBe('h264')
+    expect(screenCodecOptions('h265', h265Card, true).videoCodec).toBe('h264')
     expect(
       screenCodecOptions('auto', support({ av1: 'hardware', h264: 'hardware' }), true).videoCodec
     ).toBe('h264')
+  })
+})
+
+describe('screenCodecOptions: codecs que falharam nesta live', () => {
+  it('H.265 trocou sozinho: republica em H.264; H.264 falhou: VP8', () => {
+    expect(screenCodecOptions('auto', h265Card, false, ['h265'])).toEqual({
+      videoCodec: 'h264',
+      backupCodec: { codec: 'vp8' }
+    })
+    expect(screenCodecOptions('h264', h264Card, false, ['h264'])).toEqual({
+      videoCodec: 'vp8',
+      backupCodec: false
+    })
+  })
+
+  it('flag de teste: H.265 com a camada extra', () => {
+    vi.stubGlobal('localStorage', { getItem: (k: string) => (k === H265_LAYER_KEY ? '1' : null) })
+    expect(screenCodecOptions('auto', h265Card, true).videoCodec).toBe('h265')
   })
 })
 
