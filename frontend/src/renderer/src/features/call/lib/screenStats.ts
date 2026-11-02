@@ -1,4 +1,5 @@
 import type { ScreenAdaptView } from '../store/screenAdaptStore'
+import type { CodecFallback } from '../store/screenCodecFallbackStore'
 import {
   bitrate,
   codecImplementation,
@@ -39,6 +40,8 @@ export interface ScreenStatsInput {
   encoder?: ScreenEncoderInfo | null
   /** Recepção: o que falta para a placa de vídeo decodificar (Linux/NVIDIA sem driver). */
   driverHint?: string | null
+  /** Envio: a live trocou de codec porque o publicado falhou (ver screenCodecGuard). */
+  codecFallback?: CodecFallback | null
 }
 
 export interface ScreenStatsView {
@@ -56,6 +59,19 @@ const IDLE_TEXT = 'Envio pausado: ninguém está vendo a live agora'
 const PAUSE_TEXT: Record<LivePauseReason, string> = {
   offscreen: 'Vídeo pausado (fora de vista)',
   connection: 'Pausada pela sua conexão'
+}
+
+const CODEC_LABEL: Record<CodecFallback['from'], string> = {
+  av1: 'AV1',
+  h265: 'H.265',
+  h264: 'H.264',
+  vp8: 'VP8'
+}
+
+/** "H.265 falhou, usando H.264" (null = não trocou). */
+function fallbackText(fallback: CodecFallback | null | undefined): string | null {
+  if (!fallback) return null
+  return `${CODEC_LABEL[fallback.from]} falhou, usando ${CODEC_LABEL[fallback.to]}`
 }
 
 const LIMITATION: Record<string, string> = {
@@ -163,7 +179,8 @@ export function screenStatsView(
   if (!stat) return { view: { rows: [], status: pauseText ?? 'Ainda sem dados' }, sample: null }
   const now = sampleOf(stat, bytesKey, framesKey)
   if (input.local) {
-    return { view: { rows: senderRows(input, stat, now, prev), status: pauseText }, sample: now }
+    const status = pauseText ?? fallbackText(input.codecFallback)
+    return { view: { rows: senderRows(input, stat, now, prev), status }, sample: now }
   }
   const rows = receiverRows(input.report, input.encoder ?? null, stat, now, prev)
   const note = receiverNote(stat, input.driverHint ?? null)

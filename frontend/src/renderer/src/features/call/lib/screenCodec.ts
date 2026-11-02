@@ -2,13 +2,32 @@
 // melhor para o pior — AV1 → H.265 → H.264 —, depois H.264 pelo processador e,
 // por último, VP8. AV1 e H.265 por software nunca (pesados demais). AV1/H.265
 // levam H.264 de reserva (todo mundo decodifica); H.264 leva VP8. Escolher um
-// codec em Avançado começa a ordem por ele. Ver docs/adr/0015 e 0019.
+// codec em Avançado começa a ordem por ele. AV1 e H.265 saem numa camada só:
+// a de 720p de quem tem internet fraca é a reserva H.264. Ver docs/adr/0015,
+// 0019 e 0048.
 
 import type { ScreenCodecSupport, ScreenVideoCodec } from './screenCodecSupport'
 
 export type ScreenCodecPreference = 'auto' | ScreenVideoCodec
 
 export const SCREEN_CODEC_KEY = 'salinha:screen-share-codec'
+
+/**
+ * Flag de teste (ADR 0048): '1' deixa o H.265 sair com a camada extra de 720p.
+ * Sem ela, com a camada extra o H.265 é pulado como o AV1 (as duas camadas no
+ * codificador da placa caíam sozinhas para VP8: tela preta para quem assiste).
+ */
+export const H265_LAYER_KEY = 'salinha:screen-h265-720p-extra'
+
+/** Codecs que não saem com a camada extra de 720p. */
+export function singleLayerCodecs(): ScreenVideoCodec[] {
+  try {
+    if (localStorage.getItem(H265_LAYER_KEY) === '1') return ['av1']
+  } catch {
+    /* Sem armazenamento local: o padrão. */
+  }
+  return ['av1', 'h265']
+}
 
 export interface ScreenCodecOptions {
   videoCodec: ScreenVideoCodec
@@ -37,14 +56,19 @@ function backupFor(
   return { codec: 'h264' }
 }
 
-/** `simulcast`: com a camada extra de 720p pula o AV1 (o SDK publica AV1 de tela numa camada só). */
+/**
+ * `simulcast`: com a camada extra de 720p pula AV1 e H.265 (singleLayerCodecs).
+ * `failed`: codecs que já trocaram sozinhos nesta live (ver screenCodecGuard).
+ */
 export function screenCodecOptions(
   preference: ScreenCodecPreference,
   support: ScreenCodecSupport,
-  simulcast = false
+  simulcast = false,
+  failed: readonly ScreenVideoCodec[] = []
 ): ScreenCodecOptions {
   const usable = codecChoices(support)
-  if (simulcast) usable.av1 = false
+  const skipped = [...failed, ...(simulcast ? singleLayerCodecs() : [])]
+  skipped.forEach((codec) => (usable[codec] = codec === 'vp8'))
   const start = preference === 'auto' ? 0 : CODEC_ORDER.indexOf(preference)
   const videoCodec = CODEC_ORDER.slice(start).find((codec) => usable[codec]) ?? 'vp8'
   return { videoCodec, backupCodec: backupFor(videoCodec, support) }

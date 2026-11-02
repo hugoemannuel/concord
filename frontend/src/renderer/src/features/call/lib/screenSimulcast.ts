@@ -1,12 +1,15 @@
 import { VideoPreset } from 'livekit-client'
 import { captureSize, screenEncoding, type ScreenShareQuality } from './screenShareQuality'
-import { screenCodecOptions, type ScreenCodecPreference } from './screenCodec'
+import { screenCodecOptions, singleLayerCodecs, type ScreenCodecPreference } from './screenCodec'
 import type { ScreenCodecSupport } from './screenCodecSupport'
+import { evenScale, evenSide } from './screenScale'
 
 // Camada extra de 720p, como as "renditions" da Twitch: quem tem internet fraca
 // (ou vê a live pequena) recebe 720p em vez de congelar. Custa um segundo encode
 // no PC de quem transmite, então no Automático (padrão) só liga quando o codec
-// da live é codificado pela placa de vídeo. Ligada/Desligada forçam. Ver docs/adr/0020.
+// da live é codificado pela placa de vídeo e não é AV1/H.265 (esses saem numa
+// camada só). Ligada/Desligada forçam. Lados sempre pares (screenScale). Ver
+// docs/adr/0020 e 0048.
 
 export const SIMULCAST_KEY = 'salinha:screen-share-720p-extra'
 
@@ -46,8 +49,8 @@ export function usesSimulcast(
 /**
  * Publica a camada extra? Ligada/Desligada valem sempre (a de 720p só com
  * captura acima de 720p). Automático: só se o codec que a live vai usar sai
- * pela placa de vídeo. Com AV1 não liga (o SDK publica AV1 de tela numa camada
- * só): fica o AV1, que já é o melhor codec da placa.
+ * pela placa de vídeo. Com AV1 (o SDK publica AV1 de tela numa camada só) e
+ * H.265 (duas camadas na placa caíam para VP8) não liga: fica o codec melhor.
  */
 export function chooseScreenSimulcast(
   mode: SimulcastMode,
@@ -59,12 +62,20 @@ export function chooseScreenSimulcast(
   if (mode === 'off' || !usesSimulcast(true, quality, source)) return false
   if (mode === 'on') return true
   const { videoCodec } = screenCodecOptions(preference, support)
-  return videoCodec !== 'av1' && support[videoCodec] === 'hardware'
+  return !singleLayerCodecs().includes(videoCodec) && support[videoCodec] === 'hardware'
 }
 
-/** Camadas para o publishTrack do LiveKit (ele monta a de cima com o screenShareEncoding). */
-export function simulcastLayers(): VideoPreset[] {
-  return [new VideoPreset(1280, 720, LOW.maxBitrate, LOW.maxFramerate)]
+/**
+ * Camadas para o publishTrack do LiveKit (ele monta a de cima com o
+ * screenShareEncoding). Ele faz escala = lado menor da captura / lado menor do
+ * preset: o preset leva o lado par de evenSide.
+ */
+export function simulcastLayers(source: MediaTrackSettings): VideoPreset[] {
+  const { width = 0, height = 0 } = source
+  const side = evenSide(width, height, LOW.height)
+  const long = side ? Math.round((Math.max(width, height) * side) / Math.min(width, height)) : 0
+  const [presetWidth, presetHeight] = side ? [long, side] : [1280, LOW.height]
+  return [new VideoPreset(presetWidth, presetHeight, LOW.maxBitrate, LOW.maxFramerate)]
 }
 
 /**
@@ -79,6 +90,6 @@ export function screenSenderEncodings(
   const top = screenEncoding(quality, source)
   if (count < 2) return [top]
   const size = captureSize(quality.resolution, source)
-  const scaleResolutionDownBy = Math.max(1, Math.min(size.width, size.height) / LOW.height)
+  const scaleResolutionDownBy = evenScale(size.width, size.height, LOW.height)
   return [{ maxBitrate: LOW.maxBitrate, maxFramerate: LOW.maxFramerate, scaleResolutionDownBy }, top]
 }

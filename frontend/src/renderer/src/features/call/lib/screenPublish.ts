@@ -32,22 +32,7 @@ export async function publishScreenTracks(
   plan: ScreenPublishPlan
 ): Promise<void> {
   const [video] = stream.getVideoTracks()
-  if (video) {
-    const quality = streamQuality(stream)
-    const publication = await participant.publishTrack(video, {
-      source: Track.Source.ScreenShare,
-      name: 'screen',
-      simulcast: plan.simulcast,
-      ...(plan.simulcast ? { screenShareSimulcastLayers: simulcastLayers() } : {}),
-      screenShareEncoding: screenEncoding(quality, video.getSettings()),
-      // Codec por publicação: só a tela; a câmera segue o padrão da sala (VP8).
-      ...plan.codec,
-      // Quem decodifica o principal continua nele; só quem não decodifica recebe a reserva.
-      ...(plan.codec.backupCodec ? { backupCodecPolicy: BackupCodecPolicy.SIMULCAST } : {}),
-      degradationPreference: screenMotion(quality.frameRate).degradationPreference
-    })
-    if (plan.codec.backupCodec && publication.videoTrack) tuneScreenBackup(publication.videoTrack)
-  }
+  if (video) await publishScreenVideo(participant, stream, plan)
   const [audio] = stream.getAudioTracks()
   if (audio) {
     await participant.publishTrack(audio, {
@@ -59,6 +44,47 @@ export async function publishScreenTracks(
       red: false
     })
   }
+}
+
+/** Só o vídeo da tela (o som segue publicado numa republicação). */
+export async function publishScreenVideo(
+  participant: LocalParticipant,
+  stream: MediaStream,
+  plan: ScreenPublishPlan
+): Promise<void> {
+  const [video] = stream.getVideoTracks()
+  const quality = streamQuality(stream)
+  const settings = video.getSettings()
+  const publication = await participant.publishTrack(video, {
+    source: Track.Source.ScreenShare,
+    name: 'screen',
+    simulcast: plan.simulcast,
+    ...(plan.simulcast ? { screenShareSimulcastLayers: simulcastLayers(settings) } : {}),
+    screenShareEncoding: screenEncoding(quality, settings),
+    // Codec por publicação: só a tela; a câmera segue o padrão da sala (VP8).
+    ...plan.codec,
+    // Quem decodifica o principal continua nele; só quem não decodifica recebe a reserva.
+    ...(plan.codec.backupCodec ? { backupCodecPolicy: BackupCodecPolicy.SIMULCAST } : {}),
+    degradationPreference: screenMotion(quality.frameRate).degradationPreference
+  })
+  if (plan.codec.backupCodec && publication.videoTrack) tuneScreenBackup(publication.videoTrack)
+}
+
+/**
+ * Troca o codec da tela publicada (o anterior trocou sozinho no navegador):
+ * despublica só o vídeo, sem parar a captura, e publica de novo. Quem assiste
+ * assina a nova publicação sozinho (TrackPublished).
+ */
+export async function republishScreenVideo(
+  participant: LocalParticipant,
+  stream: MediaStream,
+  plan: ScreenPublishPlan
+): Promise<void> {
+  const [video] = stream.getVideoTracks()
+  if (!video || video.readyState !== 'live') return
+  const current = participant.getTrackPublication(Track.Source.ScreenShare)?.videoTrack
+  if (current) await participant.unpublishTrack(current, false)
+  await publishScreenVideo(participant, stream, plan)
 }
 
 /** A tela publicada e o que a troca de qualidade precisa dela. */

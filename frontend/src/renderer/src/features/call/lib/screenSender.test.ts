@@ -20,8 +20,16 @@ import { takeScreenCodecChoice } from './screenCodecChoice'
 import { ADAPT } from './screenAdaptController'
 import { rememberScreenSource, rememberStreamQuality } from './screenShareQuality'
 import { SIMULCAST_KEY } from './screenSimulcast'
-import { clearScreenCodecCache } from './screenCodecSupport'
+import { clearScreenCodecCache, H264_CONTENT_TYPE } from './screenCodecSupport'
 import type { ScreenAdaptView } from '../store/screenAdaptStore'
+import type { CodecFallback } from '../store/screenCodecFallbackStore'
+
+/** getStats() do envio principal saindo nesse codec. */
+const sendingCodec = (mimeType: string) =>
+  new Map<string, Record<string, unknown>>([
+    ['c1', { id: 'c1', type: 'codec', mimeType }],
+    ['o1', { id: 'o1', type: 'outbound-rtp', kind: 'video', codecId: 'c1', bytesSent: 10 }]
+  ]) as never
 
 const limited = new Map([
   [
@@ -53,7 +61,7 @@ function setup(options: Card & { storage?: Record<string, string> } = {}) {
     })
   })
   const hardware: Record<string, boolean> = {
-    'video/H264': !!options.h264,
+    [H264_CONTENT_TYPE]: !!options.h264,
     'video/AV1': !!options.av1,
     'video/H265': !!options.h265
   }
@@ -92,6 +100,7 @@ function setup(options: Card & { storage?: Record<string, string> } = {}) {
   const publication = { videoTrack: track, options: {} }
   const participant = {
     publishTrack: vi.fn(async () => publication),
+    unpublishTrack: vi.fn(async () => publication),
     getTrackPublication: vi.fn(() => publication)
   }
   const stream = {
@@ -100,12 +109,14 @@ function setup(options: Card & { storage?: Record<string, string> } = {}) {
   } as unknown as MediaStream
   rememberStreamQuality(stream, { resolution: '1080p', frameRate: 60 })
   const views: (ScreenAdaptView | null)[] = []
+  const fallbacks: (CodecFallback | null)[] = []
   const screen = new ScreenSender(
     participant as unknown as LocalParticipant,
     () => true,
-    (view) => views.push(view)
+    (view) => views.push(view),
+    (fallback) => fallbacks.push(fallback)
   )
-  return { screen, participant, stream, sender, views, video, track }
+  return { screen, participant, stream, sender, views, video, track, data, fallbacks }
 }
 
 beforeEach(() => {
@@ -144,12 +155,12 @@ describe('ScreenSender', () => {
     screen.stop()
   })
 
-  it('anota por que saiu nesse codec (telemetria)', async () => {
+  it('anota por que saiu nesse codec (telemetria); H.265 sai sem a camada extra', async () => {
     const { screen, stream } = setup({ h265: true })
     takeScreenCodecChoice()
     await screen.publish(stream)
     expect(takeScreenCodecChoice()).toBe(
-      'auto: h265 + h264 | av1 proc., h265 placa, h264 proc. | 720p extra | som: nenhum'
+      'auto: h265 + h264 | av1 proc., h265 placa, h264 proc. | som: nenhum'
     )
     screen.stop()
   })
@@ -325,5 +336,42 @@ describe('ScreenSender', () => {
     const reads = participant.getTrackPublication.mock.calls.length
     await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 3)
     expect(participant.getTrackPublication.mock.calls.length).toBe(reads)
+  })
+
+  it('regressão: H.265 trocou sozinho para VP8 → republica em H.264, marca o H.265 e avisa', async () => {
+    const { screen, participant, stream, track, data, fallbacks } = setup({ h265: true, h264: true })
+    await screen.publish(stream)
+    track.getRTCStatsReport.mockResolvedValue(sendingCodec('video/VP8'))
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 2)
+    expect(participant.unpublishTrack).toHaveBeenCalledWith(track, false)
+    expect(participant.publishTrack).toHaveBeenCalledTimes(2)
+    expect(participant.publishTrack).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ videoCodec: 'h264', backupCodec: { codec: 'vp8' } })
+    )
+    expect(Number(data.get('salinha:screen-h265-software'))).toBeGreaterThan(0)
+    expect(fallbacks.at(-1)).toEqual({ from: 'h265', to: 'h264' })
+    // Republicada em H.264 e saindo nele: não republica de novo.
+    track.getRTCStatsReport.mockResolvedValue(sendingCodec('video/H264'))
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 3)
+    expect(participant.publishTrack).toHaveBeenCalledTimes(2)
+    screen.stop()
+    expect(fallbacks.at(-1)).toBeNull()
+  })
+
+  it('H.264 também troca sozinho: última parada é o VP8, que não troca mais', async () => {
+    const { screen, participant, stream, track, fallbacks } = setup({ h265: true, h264: true })
+    await screen.publish(stream)
+    track.getRTCStatsReport.mockResolvedValue(sendingCodec('video/VP8'))
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 2)
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 2)
+    expect(participant.publishTrack).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ videoCodec: 'vp8', backupCodec: false })
+    )
+    expect(fallbacks.at(-1)).toEqual({ from: 'h265', to: 'vp8' })
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 4)
+    expect(participant.publishTrack).toHaveBeenCalledTimes(3)
+    screen.stop()
   })
 })
