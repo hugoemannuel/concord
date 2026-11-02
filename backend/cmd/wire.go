@@ -126,6 +126,7 @@ func wire(ctx context.Context, db *pgxpool.Pool) *app {
 	a.audit = audit.NewRecorder(a.auditRepository)
 	a.wireCore()
 	a.wireAudit()
+	a.wirePlugins()
 	a.wireChat()
 	a.wirePush()
 	a.wireCalls()
