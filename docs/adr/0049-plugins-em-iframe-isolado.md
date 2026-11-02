@@ -54,6 +54,10 @@ painel; trocar para a opção 3 no futuro muda quem serve a URL, não a ficha.
   os popups dele caem no `setWindowOpenHandler` atual (http/https no navegador de
   fora; link de convite só abre a confirmação). A navegação dentro do iframe não é presa à origem: exigiria IPC novo e quebraria
   redirecionamentos, sem ganho real (o autor já controla o conteúdo da URL).
+- No desktop, um plugin aprovado pode abrir abas do navegador em sequência com
+  `window.open` (o Electron não bloqueia popups). Aceito nesta versão: a retirada
+  pelo time é o freio, e um limite como o `gate` da janela das Atividades
+  (`main/activity/activityWindow.ts`) fica para depois.
 - O ícone do plugin não é carregado do servidor do autor (vazaria o IP de quem vê
   a barra): nesta versão é genérico, e na loja vira upload servido pela Salinha.
 - O painel não recebe nada da Salinha nesta versão (nem quem vê, nem o canal).
