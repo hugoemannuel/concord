@@ -68,7 +68,7 @@ export function swallowNextClick(target: EventTarget, ms = 600): void {
   const timer = setTimeout(() => done(), ms)
   function done(): void {
     clearTimeout(timer)
-    target.removeEventListener('click', stop, true)
+    target.removeEventListener('click', stop, { capture: true })
   }
-  target.addEventListener('click', stop, true)
+  target.addEventListener('click', stop, { capture: true })
 }
