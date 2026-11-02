@@ -28,7 +28,7 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	var d Draft
 	if err := c.ShouldBindJSON(&d); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "corpo da requisição inválido", "code": "invalid_body"})
 		return
 	}
 	p, err := h.service.Create(c.Request.Context(), c.GetString("userID"), d)
@@ -42,7 +42,7 @@ func (h *Handler) Review(c *gin.Context) {
 		Note   *string `json:"note"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "corpo da requisição inválido", "code": "invalid_body"})
 		return
 	}
 	p, err := h.service.Review(c.Request.Context(), c.GetString("userID"), c.Param("pluginId"), body.Status, body.Note)
@@ -73,7 +73,7 @@ func (h *Handler) SetEnabled(c *gin.Context) {
 		Enabled bool `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "corpo da requisição inválido", "code": "invalid_body"})
 		return
 	}
 	err := h.service.SetEnabled(c.Request.Context(), c.Param("id"), c.GetString("userID"), c.Param("pluginId"), body.Enabled)
@@ -108,19 +108,22 @@ var errCodes = []struct {
 	{ErrInvalidTransition, http.StatusBadRequest, "invalid_transition"},
 	{ErrNotApproved, http.StatusBadRequest, "not_approved"},
 	{ErrNotFound, http.StatusNotFound, "not_found"},
+	{ErrNoteRequired, http.StatusBadRequest, "note_required"},
+	{ErrInvalidNote, http.StatusBadRequest, "invalid_note"},
 }
 
+// respondError segue o formato do repo: {"error": mensagem, "code": código}; no 500, sem detalhe.
 func respondError(c *gin.Context, err error) {
 	if status, code, ok := permission.HTTPError(err); ok {
-		c.JSON(status, gin.H{"error": code})
+		c.JSON(status, gin.H{"error": err.Error(), "code": code})
 		return
 	}
 	for _, e := range errCodes {
 		if errors.Is(err, e.err) {
-			c.JSON(e.status, gin.H{"error": e.code})
+			c.JSON(e.status, gin.H{"error": err.Error(), "code": e.code})
 			return
 		}
 	}
 	log.Printf("plugin: %v", err)
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error", "code": "internal"})
 }

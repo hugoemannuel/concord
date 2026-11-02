@@ -77,6 +77,9 @@ func (s *Service) Review(ctx context.Context, userID, pluginID string, to Status
 	if !CanTransition(cur.Status, to) {
 		return Plugin{}, ErrInvalidTransition
 	}
+	if err := ValidateNote(cur.Status, to, note); err != nil {
+		return Plugin{}, err
+	}
 	p, err := s.store.SetReview(ctx, pluginID, to, note, userID)
 	if err != nil {
 		return Plugin{}, err
@@ -145,11 +148,15 @@ func (s *Service) Install(ctx context.Context, serverID, userID, pluginID string
 	return nil
 }
 
+// Uninstall tira o plugin do servidor (e as escolhas dos membros); ficha inexistente dá ErrNotFound.
 func (s *Service) Uninstall(ctx context.Context, serverID, userID, pluginID string) error {
 	if err := checkIDs(serverID, pluginID); err != nil {
 		return err
 	}
 	if err := s.perms.Require(ctx, serverID, userID, permission.ManageServer); err != nil {
+		return err
+	}
+	if _, err := s.store.Get(ctx, pluginID); err != nil {
 		return err
 	}
 	if err := s.store.Uninstall(ctx, serverID, pluginID); err != nil {

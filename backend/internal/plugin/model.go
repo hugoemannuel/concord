@@ -18,6 +18,7 @@ const (
 	maxNameRunes = 40
 	maxDescRunes = 120
 	maxURLLen    = 2048
+	maxNoteRunes = 500
 )
 
 var (
@@ -28,6 +29,8 @@ var (
 	ErrNotFound           = errors.New("plugin não encontrado")
 	ErrNotApproved        = errors.New("plugin não aprovado")
 	ErrForbidden          = errors.New("sem permissão para esta ação com o plugin")
+	ErrNoteRequired       = errors.New("retirar um plugin aprovado exige um motivo")
+	ErrInvalidNote        = errors.New("o motivo deve ter até 500 caracteres")
 )
 
 type Status string
@@ -79,6 +82,18 @@ func CanTransition(from, to Status) bool {
 		}
 	}
 	return false
+}
+
+// ValidateNote: o motivo tem até 500 caracteres e é obrigatório ao retirar (approved → rejected).
+func ValidateNote(from, to Status, note *string) error {
+	if note != nil && utf8.RuneCountInString(*note) > maxNoteRunes {
+		return ErrInvalidNote
+	}
+	withdraw := from == StatusApproved && to == StatusRejected
+	if withdraw && (note == nil || strings.TrimSpace(*note) == "") {
+		return ErrNoteRequired
+	}
+	return nil
 }
 
 // ValidateDraft aparia os campos, valida limites e normaliza a URL.

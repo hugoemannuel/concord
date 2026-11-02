@@ -5,19 +5,22 @@ import (
 	"errors"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"gin-quickstart/backend/internal/permission"
 )
 
 type fakeStore struct {
-	plugin     Plugin
-	servers    []string
-	serversErr error
-	calls      int
-	includeAll bool
-	created    bool
-	draft      Draft
+	plugin      Plugin
+	servers     []string
+	serversErr  error
+	calls       int
+	includeAll  bool
+	created     bool
+	draft       Draft
+	getErr      error
+	uninstalled bool
 }
 
 func (f *fakeStore) Create(_ context.Context, _ string, d Draft) (Plugin, error) {
@@ -28,7 +31,7 @@ func (f *fakeStore) Create(_ context.Context, _ string, d Draft) (Plugin, error)
 }
 func (f *fakeStore) Get(_ context.Context, _ string) (Plugin, error) {
 	f.calls++
-	return f.plugin, nil
+	return f.plugin, f.getErr
 }
 func (f *fakeStore) List(_ context.Context, includeAll bool) ([]Plugin, error) {
 	f.calls++
@@ -41,7 +44,11 @@ func (f *fakeStore) SetReview(_ context.Context, _ string, st Status, _ *string,
 	return f.plugin, nil
 }
 func (f *fakeStore) Install(context.Context, string, string, string) error { f.calls++; return nil }
-func (f *fakeStore) Uninstall(context.Context, string, string) error       { f.calls++; return nil }
+func (f *fakeStore) Uninstall(context.Context, string, string) error {
+	f.calls++
+	f.uninstalled = true
+	return nil
+}
 func (f *fakeStore) ListServer(context.Context, string, string) ([]ServerPlugin, error) {
 	f.calls++
 	return nil, nil
@@ -250,5 +257,49 @@ func TestCreateValidates(t *testing.T) {
 	_, err := svc.Create(context.Background(), "u1", Draft{Name: "a", Description: "b", PanelURL: "http://x.com"})
 	if !errors.Is(err, ErrInvalidURL) || st.calls != 0 {
 		t.Fatalf("err=%v calls=%d", err, st.calls)
+	}
+}
+
+func TestUninstallNotFound(t *testing.T) {
+	st := &fakeStore{getErr: ErrNotFound}
+	svc, pub := newSvc(st, nil)
+	err := svc.Uninstall(context.Background(), "11111111-1111-4111-8111-111111111111", "u1", "22222222-2222-4222-8222-222222222222")
+	if !errors.Is(err, ErrNotFound) || st.uninstalled || len(pub.names()) != 0 {
+		t.Fatalf("err=%v uninstalled=%v salas=%v", err, st.uninstalled, pub.names())
+	}
+}
+
+func TestReviewWithdrawRequiresNote(t *testing.T) {
+	branco := "   "
+	motivo := "virou spam"
+	longo := strings.Repeat("é", 501)
+	limite := strings.Repeat("é", 500)
+	casos := []struct {
+		nome string
+		de   Status
+		para Status
+		note *string
+		erro error
+	}{
+		{"retirar sem motivo", StatusApproved, StatusRejected, nil, ErrNoteRequired},
+		{"retirar com motivo em branco", StatusApproved, StatusRejected, &branco, ErrNoteRequired},
+		{"retirar com motivo", StatusApproved, StatusRejected, &motivo, nil},
+		{"recusar pendente sem motivo", StatusPending, StatusRejected, nil, nil},
+		{"motivo longo demais", StatusPending, StatusRejected, &longo, ErrInvalidNote},
+		{"motivo no limite", StatusApproved, StatusRejected, &limite, nil},
+		{"motivo longo ao aprovar", StatusRejected, StatusApproved, &longo, ErrInvalidNote},
+	}
+	for _, c := range casos {
+		t.Run(c.nome, func(t *testing.T) {
+			st := &fakeStore{plugin: Plugin{Status: c.de}}
+			svc, _ := newSvc(st, nil)
+			_, err := svc.Review(context.Background(), "tech", "22222222-2222-4222-8222-222222222222", c.para, c.note)
+			if !errors.Is(err, c.erro) {
+				t.Fatalf("erro = %v, esperado %v", err, c.erro)
+			}
+			if c.erro != nil && st.plugin.Status != c.de {
+				t.Fatal("não deveria gravar a revisão")
+			}
+		})
 	}
 }
