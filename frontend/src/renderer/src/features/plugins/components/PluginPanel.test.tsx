@@ -45,4 +45,9 @@ describe('PluginPanelBody', () => {
     expect(html).toContain('Não deu para abrir este plugin agora.')
     expect(html).toContain('Tentar de novo')
   })
+
+  it('falhou: o aviso é anunciado (role="alert")', () => {
+    expect(body('failed')).toMatch(/role="alert"[^>]*>\s*<p[^>]*>Não deu para abrir este plugin agora\./)
+    expect(body('loading')).not.toContain('role="alert"')
+  })
 })

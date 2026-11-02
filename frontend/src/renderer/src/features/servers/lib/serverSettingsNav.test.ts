@@ -36,7 +36,7 @@ describe('seções das configurações do servidor', () => {
     expect(ids(Perm.VIEW_AUDIT_LOG)).toEqual(['audit', 'plugins'])
   })
 
-  it('"Alterar apelido" (o próprio) não abre as configurações', () => {
+  it('só "Alterar apelido" (o próprio): nenhuma seção de gestão, só a aba Plugins', () => {
     expect(ids(Perm.CHANGE_NICKNAME)).toEqual(['plugins'])
   })
 

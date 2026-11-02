@@ -35,6 +35,19 @@ describe('PluginHeaderButtons', () => {
     expect(setup([])).not.toContain('<button')
   })
 
+  it('1 ligado: um botão com o nome do plugin, sem "Plugins"', () => {
+    const html = setup([p('a'), p('b', false)])
+    expect(html.match(/<button/g)).toHaveLength(1)
+    expect(html).toContain('aria-label="Plugin a"')
+    expect(html).not.toContain('aria-label="Plugins"')
+    expect(html).not.toContain('aria-haspopup')
+  })
+
+  it('alvo de toque de 40 px abaixo de md, nos botões e no "Plugins"', () => {
+    expect(setup([p('a')])).toContain('max-md:size-10')
+    expect(setup([p('a'), p('b'), p('c')])).toContain('max-md:size-10')
+  })
+
   it('2 ligados: um botão por plugin com aria-label do nome', () => {
     const html = setup([p('a'), p('b'), p('c', false)])
     expect(html.match(/<button/g)).toHaveLength(2)

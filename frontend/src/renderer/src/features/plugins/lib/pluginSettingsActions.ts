@@ -1,12 +1,23 @@
 import { showToast } from '../../../shared/store/toastStore'
-import { actionErrorMessage } from '../../servers/lib/permissionErrors'
+import { permissionError } from '../../servers/lib/permissions'
 import type { Plugin, ServerPlugin } from '../api/plugins'
 import { usePluginsStore } from '../store/pluginsStore'
 
-/** O catálogo sem o que já está instalado (catálogo ainda não carregado = nada). */
+/**
+ * As fichas aprovadas que ainda não estão instaladas (catálogo ainda não carregado = nada).
+ * O time recebe também as pendentes e recusadas no catálogo, mas essas não podem ser instaladas.
+ */
 export function availablePlugins(catalog: Plugin[] | null, installed: ServerPlugin[]): Plugin[] {
   const ids = new Set(installed.map((p) => p.id))
-  return (catalog ?? []).filter((p) => !ids.has(p.id))
+  return (catalog ?? []).filter((p) => p.status === 'approved' && !ids.has(p.id))
+}
+
+const FALLBACK = 'Não foi possível concluir a ação.'
+
+/** Só texto do app: a mensagem de permissão do código, ou o genérico; nunca a do backend. */
+function errorText(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code
+  return permissionError(typeof code === 'string' ? code : undefined, FALLBACK)
 }
 
 /** Roda a ação do store; se falhar, mostra o erro em vez de estourar. */
@@ -14,7 +25,7 @@ async function run(action: () => Promise<void>): Promise<void> {
   try {
     await action()
   } catch (err) {
-    showToast.error(actionErrorMessage(err, 'Não foi possível concluir a ação.'))
+    showToast.error(errorText(err))
   }
 }
 

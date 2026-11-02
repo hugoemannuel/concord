@@ -14,17 +14,18 @@ vi.mock('../../../shared/store/toastStore', () => ({ showToast: { error: toast.e
 import { useServerStore } from '../../servers/store/serverStore'
 import { Perm } from '../../servers/lib/permissions'
 import { usePluginsStore } from '../store/pluginsStore'
-import type { Plugin, ServerPlugin } from '../api/plugins'
+import type { Plugin, PluginStatus, ServerPlugin } from '../api/plugins'
+import { ApiError } from '../../../shared/api/client'
 import { availablePlugins, installAction, runExclusive, toggleAction, uninstallAction } from '../lib/pluginSettingsActions'
 import PluginsSettingsSection from './PluginsSettingsSection'
 
-const plugin = (id: string): Plugin => ({
+const plugin = (id: string, status: PluginStatus = 'approved'): Plugin => ({
   id,
   name: `Plugin ${id}`,
   description: `desc ${id}`,
   panel_url: 'https://x.test',
   author_username: 'mugis',
-  status: 'approved'
+  status
 })
 const installed = (id: string, enabled = true): ServerPlugin => ({ ...plugin(id), enabled })
 
@@ -75,6 +76,11 @@ describe('availablePlugins', () => {
     expect(availablePlugins([plugin('a'), plugin('b')], [installed('a')]).map((p) => p.id)).toEqual(['b'])
     expect(availablePlugins(null, [])).toEqual([])
   })
+
+  it('só fichas aprovadas: pendente e recusada/retirada (o time vê no catálogo) ficam de fora', () => {
+    const catalog = [plugin('a'), plugin('p', 'pending'), plugin('r', 'rejected')]
+    expect(availablePlugins(catalog, []).map((p) => p.id)).toEqual(['a'])
+  })
 })
 
 describe('ações', () => {
@@ -96,10 +102,26 @@ describe('ações', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
-  it('falha vira toast de erro, sem estourar', async () => {
+  it('falha vira toast de erro, sem estourar e sem mostrar a mensagem crua', async () => {
     usePluginsStore.setState({ install: vi.fn().mockRejectedValue(new Error('boom')) })
     await expect(installAction('s1', 'a')).resolves.toBeUndefined()
     expect(toast.error).toHaveBeenCalledTimes(1)
+    expect(toast.error).toHaveBeenCalledWith('Não foi possível concluir a ação.')
+  })
+
+  // Contrato com o backend: {"error": mensagem, "code": código} vira ApiError(status, error, code).
+  it('erro de permissão do backend vira a mensagem de permissão do app', async () => {
+    const err = new ApiError(403, 'permissão insuficiente', 'missing_permission')
+    usePluginsStore.setState({ uninstall: vi.fn().mockRejectedValue(err) })
+    await uninstallAction('s1', 'a')
+    expect(toast.error).toHaveBeenCalledWith('Você não tem permissão para isso.')
+  })
+
+  it('código sem texto no app (not_approved) cai no texto genérico, nunca na mensagem do backend', async () => {
+    const err = new ApiError(400, 'plugin não aprovado', 'not_approved')
+    usePluginsStore.setState({ install: vi.fn().mockRejectedValue(err) })
+    await installAction('s1', 'a')
+    expect(toast.error).toHaveBeenCalledWith('Não foi possível concluir a ação.')
   })
 })
 

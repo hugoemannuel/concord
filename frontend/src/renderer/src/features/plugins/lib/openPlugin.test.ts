@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ServerPlugin } from '../api/plugins'
-import { findOpenPlugin } from './openPlugin'
+import { findOpenPlugin, pruneOpen } from './openPlugin'
 
 const p = (id: string, enabled = true): ServerPlugin => ({
   id,
@@ -34,5 +34,23 @@ describe('findOpenPlugin', () => {
   it('o servidor mudou: fecha, mesmo com o mesmo id na lista', () => {
     expect(findOpenPlugin(open, 's2', [p('a')])).toBeUndefined()
     expect(findOpenPlugin(open, undefined, [p('a')])).toBeUndefined()
+  })
+})
+
+describe('pruneOpen', () => {
+  const open = { serverId: 's1', pluginId: 'a' }
+
+  it('plugin ainda aberto: devolve o mesmo objeto (sem novo render)', () => {
+    expect(pruneOpen(open, 's1', [p('a')])).toBe(open)
+  })
+
+  it('desinstalado, desligado ou outro servidor: limpa para não reabrir sozinho', () => {
+    expect(pruneOpen(open, 's1', [p('b')])).toBeNull()
+    expect(pruneOpen(open, 's1', [p('a', false)])).toBeNull()
+    expect(pruneOpen(open, 's2', [p('a')])).toBeNull()
+  })
+
+  it('nada aberto: null', () => {
+    expect(pruneOpen(null, 's1', [p('a')])).toBeNull()
   })
 })

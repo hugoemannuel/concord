@@ -15,3 +15,15 @@ export function findOpenPlugin(
   if (!open || open.serverId !== serverId) return undefined
   return headerPlugins(list).find((p) => p.id === open.pluginId)
 }
+
+/**
+ * O estado `open` limpo quando o painel fechou sozinho (desinstalado, desligado, retirado ou
+ * outro servidor): sem isso o iframe reabriria se o plugin voltasse. Igual = mesmo objeto.
+ */
+export function pruneOpen(
+  open: OpenPlugin | null,
+  serverId: string | undefined,
+  list: ServerPlugin[]
+): OpenPlugin | null {
+  return findOpenPlugin(open, serverId, list) ? open : null
+}

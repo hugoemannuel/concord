@@ -36,7 +36,10 @@ export function PluginPanelBody({ plugin, state, onLoad, onRetry }: BodyProps): 
           className="size-full border-0 bg-white"
         />
         {state.status === 'failed' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-accent p-4 text-center">
+          <div
+            role="alert"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-accent p-4 text-center"
+          >
             <p className="text-ds-sm text-normal">Não deu para abrir este plugin agora.</p>
             <Button variant="secondary" size="sm" onClick={onRetry}>
               Tentar de novo
@@ -59,6 +62,8 @@ export default function PluginPanel({ plugin, onClose, anchorRef }: PanelProps):
   const ref = useRef<HTMLDivElement>(null)
   const [state, dispatch] = useReducer(panelReducer, initialPanelState)
 
+  // Esc não fecha com o foco dentro do iframe: o keydown de um iframe de outra origem não
+  // chega ao `document`. O CloseButton e o clique fora continuam fechando.
   useEffect(
     () =>
       attachDismiss(

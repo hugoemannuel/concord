@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useServerStore } from '../../servers/store/serverStore'
 import { usePluginsStore } from '../store/pluginsStore'
 import { headerPlugins, shouldGroup } from '../lib/headerPlugins'
-import { findOpenPlugin, type OpenPlugin } from '../lib/openPlugin'
-import { attachDismiss } from '../lib/dismiss'
+import { findOpenPlugin, pruneOpen, type OpenPlugin } from '../lib/openPlugin'
+import { attachDismiss, focusOnEscape } from '../lib/dismiss'
 import type { ServerPlugin } from '../api/plugins'
 import IconButton from '../../../shared/ui/IconButton'
 import { PuzzleIcon } from '../../../shared/ui/icons'
@@ -57,12 +57,20 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
     return attachDismiss(
       document,
       (n) => Boolean(wrap.current?.contains(n)),
-      () => setMenuOpen(false)
+      focusOnEscape(
+        () => setMenuOpen(false),
+        () => anchor.current?.focus()
+      )
     )
   }, [menuOpen])
 
   const enabled = headerPlugins(list)
   const current = findOpenPlugin(open, serverId, list)
+  const kept = pruneOpen(open, serverId, list)
+
+  useEffect(() => {
+    if (kept !== open) setOpen(kept)
+  }, [kept, open])
 
   const close = useCallback(() => {
     setOpen(null)
@@ -86,6 +94,7 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
           icon={PuzzleIcon}
           label="Plugins"
           variant="filled"
+          className="max-md:size-10"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={(e) => {
@@ -100,6 +109,7 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
             icon={PuzzleIcon}
             label={p.name}
             variant="filled"
+            className="max-md:size-10"
             aria-expanded={current?.id === p.id}
             onClick={(e) => (current?.id === p.id ? close() : openPlugin(p, e.currentTarget))}
           />
