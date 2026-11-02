@@ -155,6 +155,43 @@ FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u
 WHERE e.type = 'codec_escolhido' ORDER BY e.at DESC LIMIT 30;
 ```
 
+**Congelamentos de quem assiste × captura de quem transmite** (mesmo intervalo de 20 s;
+todos os espectadores congelando juntos com perda 0 e a captura caindo = a origem é
+a captura de quem transmite, não a rede nem o decodificador):
+```sql
+WITH tx AS (SELECT s.id, s.call_id, s.user_id, x.at, x.capture_fps, x.target_fps
+            FROM live_sessions s JOIN live_samples x ON x.session_id = s.id
+            WHERE s.kind = 'transmite' AND x.seconds > 0)
+SELECT u.username AS transmitiu, date_trunc('minute', tx.at) AS minuto,
+       round(avg(tx.capture_fps)::numeric, 1) AS captura, max(tx.target_fps) AS alvo,
+       round(avg(x.freezes)::numeric, 1) AS congelamentos_por_20s,
+       round(avg(x.loss_pct)::numeric, 2) AS perda, count(DISTINCT w.id) AS espectadores
+FROM tx JOIN users u ON u.id = tx.user_id
+JOIN live_sessions w ON w.kind = 'assiste' AND w.streamer_id = tx.user_id AND w.call_id = tx.call_id
+JOIN live_samples x ON x.session_id = w.id AND x.seconds > 0 AND abs(extract(epoch FROM x.at - tx.at)) < 10
+GROUP BY 1, 2 ORDER BY 2 DESC LIMIT 60;
+```
+
+**Captura abaixo do alvo por pessoa** (Windows: o capturador do Chromium baixa o fps
+quando copiar o quadro custa caro; em 02/11/2026 metade das pessoas transmitia
+abaixo de 80% do alvo, com `limitation = none`):
+```sql
+SELECT u.username, s.gpu, x.target_fps AS alvo, count(*) AS amostras,
+       round(avg(x.capture_fps / x.target_fps)::numeric, 2) AS captura_sobre_alvo,
+       round(stddev(x.capture_fps)::numeric, 1) AS oscilacao
+FROM live_sessions s JOIN users u ON u.id = s.user_id JOIN live_samples x ON x.session_id = s.id
+WHERE s.kind = 'transmite' AND x.seconds > 0 AND x.target_fps > 0 AND x.capture_fps > 0
+GROUP BY 1, 2, 3 HAVING count(*) > 5 ORDER BY 5;
+```
+
+**Som da live** (app com a ADR 0047 em diante: `som: janela|sistema|nenhum` no fim
+do `codec_escolhido`; cruzar com quem reclamou de voz duplicada):
+```sql
+SELECT e.at, u.username, substring(e.detail FROM 'som: (\w+)') AS som
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u.id = s.user_id
+WHERE e.type = 'codec_escolhido' AND e.detail LIKE '%som:%' ORDER BY e.at DESC LIMIT 30;
+```
+
 **Voz: quem ouve robotizado e por quê** (síntese com perda = rede; sem perda = PC):
 ```sql
 SELECT u.username, s.os, s.started_at,
@@ -206,6 +243,7 @@ SELECT at, type, detail FROM live_events WHERE session_id = '<id>' ORDER BY at;
 | `codec_ms` (transmite) perto de 1000/alvo | codificador não dá conta | preset menor ou outro codec para aquela placa |
 | quem assiste: `recv_fps` ≫ `fps`, congelamentos | decodificador | tirar o codec da ordem para aquela placa/SO; driver |
 | quem assiste: `recv_fps` baixo com perda 0 | não chega: quem transmite ou SFU | comparar com o `fps`/`capture_fps` de quem transmite e a pausa/camada |
+| todos os espectadores congelam juntos, perda 0, e a `capture_fps` de quem transmite oscila | a captura do Chromium no Windows (cópia do quadro para a CPU + teto de 50% de CPU do capturador) | não é rede nem codec: captura nativa no Windows (marco 2 da ADR 0031) |
 | `codec_escolhido` com "caiu no proc." ou "—" numa placa boa | marca permanente ou o Chromium sem encoder | limpar a marca; Linux/NVIDIA → motor nativo |
 | `concealed_pct` ≥ 3% com `recv_loss_pct` alto | rede de quem ouve | TCP/TURN? (o RED já está ligado) |
 | `concealed_pct` ≥ 3% sem perda | PC de quem ouve (CPU, DSP de áudio) | rever o custo do processamento local (ADR 0005) |

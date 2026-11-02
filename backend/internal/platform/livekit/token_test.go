@@ -159,3 +159,34 @@ func TestIssueScreenOnlyPublishesTheScreen(t *testing.T) {
 		t.Fatalf("fontes = %v", v.CanPublishSources)
 	}
 }
+
+// Sem SyncStreams o LiveKit entrega cada faixa num MediaStream próprio
+// (`PA|TR_…`) e o navegador não sincroniza o vídeo da live com o som dela:
+// a imagem chega atrasada e o som adiantado. Qualquer token pode criar a sala.
+func TestTokensSyncScreenVideoAndAudio(t *testing.T) {
+	issuer := NewTokenIssuer(testKey, testSecret)
+	tokens := map[string]func() (string, error){
+		"pessoa": func() (string, error) { return issuer.Issue("call-1", "user-1", "Fulano", Grant{}) },
+		"bot":    func() (string, error) { return issuer.IssueBot("call-1", "bot", "Maestro") },
+		"tela":   func() (string, error) { return issuer.IssueScreen("call-1", "user-1:screen", "Fulano") },
+	}
+	for name, issue := range tokens {
+		t.Run(name, func(t *testing.T) {
+			raw, err := issue()
+			if err != nil {
+				t.Fatalf("emitir: %v", err)
+			}
+			verifier, err := auth.ParseAPIToken(raw)
+			if err != nil {
+				t.Fatalf("ParseAPIToken: %v", err)
+			}
+			_, grants, err := verifier.Verify(testSecret)
+			if err != nil {
+				t.Fatalf("Verify: %v", err)
+			}
+			if config := grants.GetRoomConfiguration(); config == nil || !config.SyncStreams {
+				t.Errorf("roomConfig = %+v, quer SyncStreams", config)
+			}
+		})
+	}
+}

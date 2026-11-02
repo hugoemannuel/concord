@@ -9,6 +9,14 @@ import { Track, type LocalParticipant } from 'livekit-client'
 /** Voz a 64 kbps mono, como o Discord (o padrão do SDK é ~32 kbps). DTX e RED vêm da sala. */
 export const MIC_AUDIO_PRESET = { maxBitrate: 64_000 }
 
+/**
+ * Stream só da voz. A sala sincroniza faixas do mesmo stream (SyncStreams, no
+ * token do backend) para o vídeo da live andar junto com o som dela; o padrão
+ * do LiveKit junta microfone e câmera em "camera", e a voz passaria a esperar
+ * pelo vídeo da câmera (mais atraso na conversa).
+ */
+export const MIC_STREAM = 'voz'
+
 export class MicPublisher {
   /** Microfone da chamada, guardado para publicar quando a permissão de falar chegar. */
   private track: MediaStreamTrack | null = null
@@ -25,6 +33,7 @@ export class MicPublisher {
     const publication = await this.participant().publishTrack(this.track.clone(), {
       source: Track.Source.Microphone,
       name: 'microphone',
+      stream: MIC_STREAM,
       audioPreset: MIC_AUDIO_PRESET
     })
     if (muted) await publication.mute()

@@ -1,5 +1,6 @@
 import type { ScreenCodecOptions, ScreenCodecPreference } from './screenCodec'
 import type { CodecEncoder, ScreenCodecSupport, ScreenVideoCodec } from './screenCodecSupport'
+import type { ScreenSound } from './screenSound'
 
 // Por que a live saiu nesse codec (docs/adr/0032): a preferência, o que a
 // placa/navegador codifica no tamanho da live, a camada extra e os codecs
@@ -13,13 +14,15 @@ export interface CodecChoice {
   simulcast: boolean
   codec: ScreenCodecOptions
   marked: ScreenVideoCodec[]
+  /** De onde veio o som da live (a live nativa não informa). */
+  sound?: ScreenSound
 }
 
 const WHERE: Record<string, string> = { hardware: 'placa', software: 'proc.' }
 
 const where = (encoder: CodecEncoder): string => (encoder ? WHERE[encoder] : '—')
 
-/** "auto: h264 + vp8 | av1 —, h265 proc., h264 placa | 720p extra | caiu no proc.: h265" */
+/** "auto: h264 + vp8 | av1 —, h265 proc., h264 placa | 720p extra | caiu no proc.: h265 | som: janela" */
 export function describeCodecChoice(choice: CodecChoice): string {
   const { support, codec } = choice
   const backup = codec.backupCodec ? ` + ${codec.backupCodec.codec}` : ''
@@ -29,6 +32,7 @@ export function describeCodecChoice(choice: CodecChoice): string {
   ]
   if (choice.simulcast) parts.push('720p extra')
   if (choice.marked.length > 0) parts.push(`caiu no proc.: ${choice.marked.join(', ')}`)
+  if (choice.sound) parts.push(`som: ${choice.sound}`)
   return parts.join(' | ')
 }
 

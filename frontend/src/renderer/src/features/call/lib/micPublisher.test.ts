@@ -94,6 +94,17 @@ describe('MicPublisher', () => {
     }
   })
 
+  it('publica a voz num stream só dela: com a sincronia da sala a voz não espera o vídeo da câmera', async () => {
+    const lk = fakeParticipant()
+    const publisher = new MicPublisher(() => lk.participant)
+    publisher.setTrack(asTrack(new FakeTrack()))
+    await publisher.publish(false)
+
+    const [, options] = vi.mocked(lk.participant.publishTrack).mock.calls[0]
+    // O padrão do LiveKit junta microfone e câmera no stream "camera".
+    expect(options).toMatchObject({ stream: 'voz' })
+  })
+
   it('não publica duas vezes', async () => {
     const lk = fakeParticipant()
     const publisher = new MicPublisher(() => lk.participant)

@@ -1,6 +1,7 @@
 import workletUrl from './screenAudioWorklet.ts?worker&url'
 import { PortSlot } from '../../../shared/lib/portSlot'
 import { portWaitMs } from './windowAudioPolicy'
+import { markWindowAudioTrack } from './screenSound'
 
 // Som só da janela compartilhada (Windows): o processo main entrega um
 // MessagePort com PCM do helper nativo (perto de quando o getDisplayMedia
@@ -63,6 +64,7 @@ export async function takeWindowAudio(): Promise<WindowAudio | null> {
 
   const [track] = destination.stream.getAudioTracks()
   track.contentHint = 'music'
+  markWindowAudioTrack(track)
   return {
     track,
     stop: () => {
