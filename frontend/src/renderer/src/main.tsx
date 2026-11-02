@@ -20,6 +20,7 @@ import { startSpeechReport } from './features/call/lib/speechReportStart'
 import { startPresenceActivity } from './features/activity/lib/presenceActivityStart'
 import { startTTS } from './features/tts/lib/ttsStart'
 import { startSessionRevoked } from './features/auth/lib/sessionRevokedStart'
+import { startPluginsEvents } from './features/plugins/lib/pluginsEventsStart'
 import { startServerLevels } from './features/serverlevel/lib/serverLevelStart'
 
 // Tema salvo antes do primeiro render: o app já abre com as cores certas (os
@@ -59,6 +60,9 @@ startTTS()
 
 // Sessão encerrada pelo servidor (WS 4001): volta ao login.
 startSessionRevoked()
+
+// Plugins instalados/ligados mudaram (plugins:changed).
+startPluginsEvents()
 
 // Soltar um arquivo fora do chat não pode fazer o Electron abrir o arquivo no
 // lugar do app (o chat trata o próprio drop).
