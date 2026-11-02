@@ -1,6 +1,6 @@
 # 0049. Mostrar os plugins da comunidade como página do autor num iframe isolado
 
-- Status: proposto
+- Status: aceito
 - Data: 2026-11-02
 
 ## Contexto
