@@ -1,0 +1,170 @@
+{
+  "leagues": [
+    {
+      "id": "8306",
+      "name": "Copa do Brasil",
+      "slug": "bra.copa_do_brazil"
+    }
+  ],
+  "events": [
+    {
+      "id": "401909112",
+      "date": "2026-09-02T00:00Z",
+      "name": "Cruzeiro at Atlético-MG",
+      "shortName": "CRU @ CAM",
+      "season": {
+        "year": 2026,
+        "type": 14059,
+        "slug": "quarterfinals"
+      },
+      "competitions": [
+        {
+          "id": "401909112",
+          "date": "2026-09-02T00:00Z",
+          "startDate": "2026-09-02T00:00Z",
+          "timeValid": true,
+          "recent": false,
+          "status": {
+            "clock": 2700,
+            "displayClock": "45'",
+            "period": 1,
+            "type": {
+              "id": "2",
+              "name": "STATUS_HALFTIME",
+              "state": "in",
+              "completed": false,
+              "description": "STATUS_HALFTIME",
+              "detail": "45'",
+              "shortDetail": "45'"
+            }
+          },
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "series": {
+            "competitors": [
+              {
+                "id": "7632",
+                "winner": false,
+                "aggregateScore": 1
+              },
+              {
+                "id": "2022",
+                "winner": false,
+                "aggregateScore": 2
+              }
+            ],
+            "completed": false,
+            "title": "Quarterfinals",
+            "totalCompetitions": 2
+          },
+          "altGameNote": "Copa Do Brazil, Quarterfinals",
+          "notes": [
+            {
+              "text": "2nd Leg",
+              "headline": "2nd Leg",
+              "type": "event"
+            }
+          ],
+          "broadcast": "",
+          "competitors": [
+            {
+              "id": "7632",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": false,
+              "score": "0",
+              "aggregateScore": 1,
+              "team": {
+                "id": "7632",
+                "abbreviation": "CAM",
+                "displayName": "Atlético-MG",
+                "shortDisplayName": "Atlético-MG",
+                "name": "Atlético-MG",
+                "location": "Atlético-MG",
+                "color": "000000",
+                "alternateColor": "fafafc",
+                "isActive": true,
+                "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/7632.png"
+              }
+            },
+            {
+              "id": "2022",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "score": "1",
+              "aggregateScore": 2,
+              "team": {
+                "id": "2022",
+                "abbreviation": "CRU",
+                "displayName": "Cruzeiro",
+                "shortDisplayName": "Cruzeiro",
+                "name": "Cruzeiro",
+                "location": "Cruzeiro",
+                "color": "0093EC",
+                "alternateColor": "fafafc",
+                "isActive": true,
+                "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2022.png"
+              }
+            }
+          ],
+          "details": [
+            {
+              "type": {
+                "id": "98",
+                "text": "Penalty - Scored"
+              },
+              "clock": {
+                "value": 1800,
+                "displayValue": "30'"
+              },
+              "team": {
+                "id": "2022"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": true,
+              "ownGoal": false,
+              "shootout": false,
+              "athletesInvolved": [
+                {
+                  "id": "280978",
+                  "displayName": "Kaio Jorge",
+                  "shortName": "Kaio Jorge",
+                  "fullName": "Kaio Jorge",
+                  "jersey": "19",
+                  "team": {
+                    "id": "2022"
+                  },
+                  "position": "F"
+                }
+              ]
+            }
+          ],
+          "wasSuspended": false,
+          "playByPlayAvailable": true
+        }
+      ],
+      "status": {
+        "clock": 5400,
+        "displayClock": "90'+9'",
+        "period": 2,
+        "type": {
+          "id": "28",
+          "name": "STATUS_FULL_TIME",
+          "state": "post",
+          "completed": true,
+          "description": "Full Time",
+          "detail": "FT",
+          "shortDetail": "FT"
+        }
+      }
+    }
+  ]
+}
