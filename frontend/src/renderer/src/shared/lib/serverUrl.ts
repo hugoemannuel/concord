@@ -1,4 +1,3 @@
-import { ACTIVITIES } from '../../../../shared/activities'
 // Funções puras sobre o endereço do servidor. Usadas pelo renderer (config.ts)
 // e pelo build (electron.vite.config.ts, para gerar a CSP) — sem import.meta.
 
@@ -111,10 +110,9 @@ export function buildWebMediaSrc(): string {
 
 /**
  * Diretivas que só o build web acrescenta à CSP (o desktop fica como está).
- * frame-src: só o iframe das atividades (os jogos do catálogo); o desktop abre o jogo
- * numa janela própria.
+ * O frame-src (plugins e atividades, sempre https) já vem no index.html, nos dois apps.
  */
-export const WEB_EXTRA_CSP = `base-uri 'self'; frame-src ${ACTIVITIES.flatMap((a) => a.origins).join(' ')}`
+export const WEB_EXTRA_CSP = "base-uri 'self'"
 
 /** Preenche os marcadores da CSP do index.html; `extra` vem depois do connect-src. */
 export function fillCsp(
