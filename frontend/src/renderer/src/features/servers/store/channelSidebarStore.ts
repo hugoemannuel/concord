@@ -5,6 +5,7 @@ import type { Channel, ChannelType } from '../api/channels'
 export interface ChannelForm {
   editing: Channel | null
   type: ChannelType
+  categoryId?: string
   /** Muda a cada abertura: o formulário nasce limpo (ou com o nome do canal editado). */
   session: number
 }
@@ -23,7 +24,7 @@ interface ChannelSidebarState {
   toggleMenu: (channelId: string) => void
   openMenu: (channelId: string) => void
   closeMenu: () => void
-  openCreate: (type: ChannelType) => void
+  openCreate: (type: ChannelType, categoryId?: string) => void
   openEdit: (channel: Channel) => void
   closeForm: () => void
   askDelete: (channel: Channel) => void
@@ -45,7 +46,7 @@ export const useChannelSidebarStore = create<ChannelSidebarState>((set, get) => 
   toggleMenu: (channelId) => set({ menuFor: get().menuFor === channelId ? null : channelId }),
   openMenu: (channelId) => set({ menuFor: channelId }),
   closeMenu: () => set({ menuFor: null }),
-  openCreate: (type) => set({ form: { editing: null, type, session: ++session } }),
+  openCreate: (type, categoryId) => set({ form: { editing: null, type, categoryId, session: ++session } }),
   openEdit: (channel) =>
     set({ menuFor: null, form: { editing: channel, type: channel.type, session: ++session } }),
   closeForm: () => set({ form: null }),

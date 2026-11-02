@@ -25,6 +25,8 @@ type Channel struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Position int    `json:"position"`
+	// CategoryID: destino opcional da criação; a organização é lida na API de categorias.
+	CategoryID *string `json:"category_id,omitempty"`
 	// IsSystem: canal fixo do servidor ("musica" e "avisos"); não pode ser editado nem removido, só movido.
 	IsSystem bool `json:"is_system"`
 	// Managed: canal de uma sala de evento. Só o evento o cria e o apaga; o app não o edita.

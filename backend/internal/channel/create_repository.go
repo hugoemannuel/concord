@@ -11,6 +11,9 @@ func insertChannel(ctx context.Context, tx pgx.Tx, ch *Channel, overwrites []per
 	if err := insertChannelRow(ctx, tx, ch); err != nil {
 		return err
 	}
+	if err := insertChannelCategory(ctx, tx, ch); err != nil {
+		return err
+	}
 	return insertChannelOverwrites(ctx, tx, ch.ID, overwrites)
 }
 
