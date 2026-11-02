@@ -84,3 +84,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0044. Janelinha de abertura que atualiza antes de abrir o app desktop](0044-janelinha-de-abertura-que-atualiza.md)
 - [0046. Ticket de uso único e 30 s para abrir o WebSocket, no lugar do token na URL](0046-ticket-do-websocket.md)
 - [0047. Som e imagem da live sincronizados (SyncStreams por sala)](0047-som-e-imagem-da-live-sincronizados.md)
+- [0048. Live sem lado ímpar e republicação quando o codec falha](0048-live-sem-lado-impar-e-codec-que-falha.md)
