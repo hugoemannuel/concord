@@ -48,11 +48,26 @@ describe('pluginsStore', () => {
     expect(api.setPluginEnabled).toHaveBeenCalledWith('s1', 'a', true)
   })
 
-  it('toggle falhando volta ao valor anterior', async () => {
+  it('toggle falhando relê do servidor e rejeita', async () => {
     usePluginsStore.setState({ byServer: { s1: [plugin('a', false)] } })
-    api.setPluginEnabled.mockRejectedValueOnce(new Error('x'))
-    await usePluginsStore.getState().toggle('s1', 'a', true)
+    const err = new Error('x')
+    api.setPluginEnabled.mockRejectedValueOnce(err)
+    api.fetchServerPlugins.mockResolvedValueOnce([plugin('a', false)])
+    await expect(usePluginsStore.getState().toggle('s1', 'a', true)).rejects.toBe(err)
     expect(usePluginsStore.getState().byServer['s1'][0].enabled).toBe(false)
+  })
+
+  it('dois toggles, o primeiro falha: o estado final é o do servidor', async () => {
+    usePluginsStore.setState({ byServer: { s1: [plugin('a', false), plugin('b', false)] } })
+    api.setPluginEnabled.mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce(undefined)
+    api.fetchServerPlugins.mockResolvedValue([plugin('a', false), plugin('b', true)])
+    const r = await Promise.allSettled([
+      usePluginsStore.getState().toggle('s1', 'a', true),
+      usePluginsStore.getState().toggle('s1', 'b', true)
+    ])
+    expect(r[0].status).toBe('rejected')
+    expect(r[1].status).toBe('fulfilled')
+    expect(usePluginsStore.getState().byServer['s1']).toEqual([plugin('a', false), plugin('b', true)])
   })
 
   it('install e uninstall recarregam o servidor', async () => {

@@ -39,12 +39,13 @@ export const usePluginsStore = create<PluginsState>((set, get) => {
       set({ catalog: await fetchCatalog() })
     },
     async toggle(serverId, pluginId, enabled) {
-      const before = get().byServer[serverId]?.find((p) => p.id === pluginId)?.enabled ?? !enabled
       setEnabled(serverId, pluginId, enabled)
       try {
         await setPluginEnabled(serverId, pluginId, enabled)
-      } catch {
-        setEnabled(serverId, pluginId, before)
+      } catch (err) {
+        // Não restaura um valor capturado (dois toggles seguidos se atropelariam): relê do servidor.
+        await get().load(serverId).catch(() => undefined)
+        throw err
       }
     },
     async install(serverId, pluginId) {
