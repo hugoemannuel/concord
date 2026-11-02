@@ -13,6 +13,7 @@ import (
 type fakeStore struct {
 	plugin     Plugin
 	servers    []string
+	serversErr error
 	calls      int
 	includeAll bool
 	created    bool
@@ -48,12 +49,20 @@ func (f *fakeStore) SetEnabled(context.Context, string, string, string, bool) er
 	return nil
 }
 func (f *fakeStore) ServersWith(context.Context, string) ([]string, error) {
-	return f.servers, nil
+	return f.servers, f.serversErr
 }
 
-type fakePerms struct{ err error }
+type fakePerms struct {
+	err  error
+	want *int64
+}
 
-func (f fakePerms) Require(context.Context, string, string, int64) error { return f.err }
+func (f fakePerms) Require(_ context.Context, _, _ string, want int64) error {
+	if f.want != nil {
+		*f.want = want
+	}
+	return f.err
+}
 func (f fakePerms) ServerPerms(context.Context, string, string) (int64, error) {
 	return 0, f.err
 }
@@ -131,18 +140,39 @@ func TestInstallRejectsNotApproved(t *testing.T) {
 	}
 }
 
-func TestInstallAndUninstallBroadcast(t *testing.T) {
-	st := &fakeStore{plugin: Plugin{Status: StatusApproved}}
+func TestReviewSavedWhenListingServersFails(t *testing.T) {
+	st := &fakeStore{plugin: Plugin{Status: StatusPending}, serversErr: errors.New("db fora")}
 	svc, pub := newSvc(st, nil)
+	p, err := svc.Review(context.Background(), "tech", "p1", StatusApproved, nil)
+	if err != nil || p.Status != StatusApproved {
+		t.Fatalf("p=%v err=%v", p, err)
+	}
+	if len(pub.names()) != 0 {
+		t.Fatalf("não deveria transmitir: %v", pub.names())
+	}
+}
+
+func TestInstallAndUninstallBroadcast(t *testing.T) {
+	var want int64
+	st := &fakeStore{plugin: Plugin{Status: StatusApproved}}
+	pub := &fakePub{}
+	svc := NewService(st, fakePerms{want: &want}, pub, nil)
 	if err := svc.Install(context.Background(), "s1", "u1", "p1"); err != nil {
 		t.Fatal(err)
+	}
+	if want != permission.ManageServer {
+		t.Fatalf("install exigiu %d", want)
 	}
 	if !reflect.DeepEqual(pub.names(), []string{"server:s1"}) {
 		t.Fatalf("install: %v", pub.names())
 	}
+	want = 0
 	pub.rooms = nil
 	if err := svc.Uninstall(context.Background(), "s1", "u1", "p1"); err != nil {
 		t.Fatal(err)
+	}
+	if want != permission.ManageServer {
+		t.Fatalf("uninstall exigiu %d", want)
 	}
 	if !reflect.DeepEqual(pub.names(), []string{"server:s1"}) {
 		t.Fatalf("uninstall: %v", pub.names())

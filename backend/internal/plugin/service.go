@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"log"
 
 	"gin-quickstart/backend/internal/permission"
 )
@@ -77,7 +78,9 @@ func (s *Service) Review(ctx context.Context, userID, pluginID string, to Status
 	}
 	servers, err := s.store.ServersWith(ctx, pluginID)
 	if err != nil {
-		return Plugin{}, err
+		// A decisão já foi salva: refazer cairia em ErrInvalidTransition.
+		log.Printf("plugin: revisão de %s salva, mas listar servidores falhou: %v", pluginID, err)
+		return p, nil
 	}
 	for _, id := range servers {
 		s.emit("server:"+id, id)
