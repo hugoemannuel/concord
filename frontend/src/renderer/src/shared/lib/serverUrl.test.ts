@@ -166,19 +166,19 @@ describe('fillCsp', () => {
     )
   })
 
-  it('web: acrescenta base-uri e não duplica o frame-src do index', () => {
-    const withFrame = html.replace('connect-src', 'frame-src https:; connect-src')
-    const out = fillCsp(withFrame, {
-      connectSrc: "'self'",
+  it('web: no index real, acrescenta base-uri e fica com um Ãºnico frame-src', () => {
+    const index = readFileSync(resolve(__dirname, '../../../index.html'), 'utf8')
+    const out = fillCsp(index, {
+      connectSrc: "'self' wss://salinha.example",
       mediaSrc: "'self' blob:",
       extra: WEB_EXTRA_CSP
     })
-    expect(out).toContain("connect-src 'self'; base-uri 'self'")
     expect(out.match(/frame-src/g)?.length).toBe(1)
+    expect(out).toContain("base-uri 'self'")
   })
 
   it('a CSP do index aceita frame https (plugins e atividades)', () => {
     const index = readFileSync(resolve(__dirname, '../../../index.html'), 'utf8')
-    expect(index).toMatch(/frame-src https:/)
+    expect(index).toMatch(/frame-src https:[;"]/)
   })
 })
