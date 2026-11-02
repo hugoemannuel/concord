@@ -59,3 +59,12 @@ export function ImageAddIcon(props: IconProps): React.JSX.Element {
     </Icon>
   )
 }
+
+/** Peça de quebra-cabeça: plugins. */
+export function PuzzleIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M10 2.5A2.5 2.5 0 0 1 12.5 5v1H17a2 2 0 0 1 2 2v3.5h-1a2.5 2.5 0 0 0 0 5h1V19a2 2 0 0 1-2 2h-3.5v-1a2.5 2.5 0 0 0-5 0v1H5a2 2 0 0 1-2-2v-4.5h1a2.5 2.5 0 0 0 0-5H3V8a2 2 0 0 1 2-2h3.5V5A2.5 2.5 0 0 1 10 2.5z" />
+    </Icon>
+  )
+}
