@@ -88,7 +88,7 @@ integrate() {
   {
     echo '#!/bin/sh'
     echo '# X-Salinha-Managed: gerado pela Salinha (salinha-launcher --integrate)'
-    echo "exec $(shquote "$launcher") \"\$@\""
+    printf 'exec %s "$@"\n' "$(shquote "$launcher")"
   } >"$tmp" && chmod 755 "$tmp" && mv -f "$tmp" "$bin/salinha" || return 1
 
   backup_foreign "$apps/salinha.desktop" || return 1
@@ -98,8 +98,8 @@ integrate() {
     echo 'Type=Application'
     echo 'Name=Salinha'
     echo 'Comment=Servidores, canais de texto e voz'
-    echo "Exec=$(desktop_quote "$launcher") %U"
-    echo "Icon=$ROOT/icon.png"
+    printf 'Exec=%s %%U\n' "$(desktop_quote "$launcher")"
+    printf 'Icon=%s\n' "$ROOT/icon.png"
     echo 'Terminal=false'
     echo 'StartupWMClass=Salinha'
     echo 'Categories=Network;Chat;'

@@ -11,6 +11,8 @@ vi.mock('../../call/store/callStore', () => ({
   })
 }))
 const chat = vi.hoisted(() => ({ state: {} as Record<string, unknown> }))
+const categoryState = vi.hoisted(() => ({ layout: null as import('../api/categories').CategoryLayout | null }))
+vi.mock('../hooks/useCategories', () => ({ useCategories: () => ({ layout: categoryState.layout, run: vi.fn(), refresh: vi.fn() }) }))
 vi.mock('../../chat/store/chatStore', () => ({
   useChatStore: Object.assign((sel: (s: unknown) => unknown) => sel(chat.state), {
     getState: () => chat.state
@@ -91,6 +93,7 @@ function render(path = '/servers/s1/channels/geral'): string {
 
 describe('ServerSidebar', () => {
   beforeEach(() => {
+    categoryState.layout = null
     call.state = {
       serverCalls: {},
       status: 'idle',
@@ -145,6 +148,28 @@ describe('ServerSidebar', () => {
     expect(html).toContain('aria-label="Criar canal de voz"')
     expect(html).toContain('draggable="true"')
     expect(html).toContain('(canal privado)')
+  })
+
+  it('criar categoria não troca as seções existentes por Sem categoria', () => {
+    setup({ me: 'dono' })
+    categoryState.layout = { categories: [{ id: 'jogos', name: 'Jogos', position: 0 }], channels: [] }
+    const html = render()
+    expect(html).toContain('Canais de texto')
+    expect(html).toContain('Canais de voz')
+    expect(html).toContain('title="geral"')
+    expect(html).toContain('resenha')
+    expect(html).toContain('Jogos')
+    expect(html).not.toContain('>Sem categoria</p>')
+    expect(html.match(/title="geral"/g)).toHaveLength(1)
+  })
+
+  it('apenas os canais vinculados saem das seções anteriores', () => {
+    setup({ me: 'dono' })
+    categoryState.layout = { categories: [{ id: 'jogos', name: 'Jogos', position: 0 }], channels: [{ channel_id: 'geral', category_id: 'jogos', position: 0 }] }
+    const html = render()
+    expect(html.indexOf('title="geral"')).toBeGreaterThan(html.indexOf('Opções da categoria Jogos'))
+    expect(html.indexOf('title="segredo"')).toBeLessThan(html.indexOf('Opções da categoria Jogos'))
+    expect(html.match(/title="geral"/g)).toHaveLength(1)
   })
 
   it('menu do canal aberto: itens de quem gerencia', () => {

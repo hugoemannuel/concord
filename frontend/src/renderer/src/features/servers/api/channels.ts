@@ -39,6 +39,8 @@ export function listChannels(serverId: string): Promise<Channel[]> {
 }
 
 export interface CreateChannelOptions {
+  /** Categoria escolhida no formulário; ausente = sem categoria. */
+  categoryId?: string
   /** Canal privado: só os cargos de roleIds (e quem criou) veem. */
   private?: boolean
   roleIds?: string[]
@@ -55,6 +57,7 @@ export function createChannel(
     body: JSON.stringify({
       name,
       type,
+      ...(options.categoryId ? { category_id: options.categoryId } : {}),
       ...(options.private ? { private: true, role_ids: options.roleIds ?? [] } : {})
     })
   })

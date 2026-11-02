@@ -1,7 +1,6 @@
 import type { DropLineSide } from '../lib/channelDrop'
 import { ChannelListSkeleton } from '../../../shared/ui/skeleton/layouts'
-import { PlusIcon } from '../../../shared/ui/icons'
-import IconButton from '../../../shared/ui/IconButton'
+import ChannelCreateMenu from './ChannelCreateMenu'
 
 /** Linha de soltar (reordenar canais) acima ou abaixo do bloco do canal. */
 export function ChannelDropLine({ side }: { side: DropLineSide }): React.JSX.Element | null {
@@ -21,6 +20,7 @@ interface ChannelSectionProps {
   /** "Criar canal de ..." (só aparece para quem gerencia canais). */
   addLabel: string
   onAdd?: () => void
+  onAddCategory: () => void
   /** A lista já é deste servidor. */
   ready: boolean
   count: number
@@ -35,6 +35,7 @@ function ChannelSection({
   title,
   addLabel,
   onAdd,
+  onAddCategory,
   ready,
   count,
   emptyText,
@@ -47,7 +48,7 @@ function ChannelSection({
       <div className="flex items-center justify-between px-2">
         <p className="text-ds-sm font-medium text-muted">{title}</p>
         {onAdd && (
-          <IconButton icon={PlusIcon} label={addLabel} onClick={onAdd} size="sm" className="[@media(pointer:coarse)]:-my-2 [@media(pointer:coarse)]:p-2.5" />
+          <ChannelCreateMenu channelLabel={addLabel} onChannel={onAdd} onCategory={onAddCategory} />
         )}
       </div>
       <div className="mt-1 flex flex-col gap-0.5" onDragLeave={onDragLeave}>

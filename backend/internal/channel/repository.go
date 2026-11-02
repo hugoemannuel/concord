@@ -30,53 +30,9 @@ func (r *Repository) Create(ctx context.Context, ch *Channel, overwrites []permi
 	}
 	defer tx.Rollback(ctx)
 
-	err = tx.QueryRow(
-		ctx,
-		`
-		INSERT INTO channels (id, server_id, name, type, created_by, is_system, managed, position)
-		VALUES (
-			$1, $2, $3, $4::varchar, $5, $6, $7,
-			-- Canal novo vai para o fim da seção dele.
-			(SELECT COALESCE(MAX(position) + 1, 0) FROM channels WHERE server_id = $2 AND type = $4::varchar)
-		)
-		RETURNING
-			id,
-			server_id,
-			name,
-			type,
-			position,
-			is_system,
-			managed,
-			created_by,
-			created_at,
-			updated_at
-		`,
-		ch.ID,
-		ch.ServerID,
-		ch.Name,
-		ch.Type,
-		ch.CreatedBy,
-		ch.IsSystem,
-		ch.Managed,
-	).Scan(
-		&ch.ID,
-		&ch.ServerID,
-		&ch.Name,
-		&ch.Type,
-		&ch.Position,
-		&ch.IsSystem,
-		&ch.Managed,
-		&ch.CreatedBy,
-		&ch.CreatedAt,
-		&ch.UpdatedAt,
-	)
+	err = insertChannel(ctx, tx, ch, overwrites)
 	if err != nil {
 		return err
-	}
-	for _, o := range overwrites {
-		if err := setOverwrite(ctx, tx, ch.ID, o); err != nil {
-			return err
-		}
 	}
 	return tx.Commit(ctx)
 }
