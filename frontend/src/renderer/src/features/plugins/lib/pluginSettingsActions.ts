@@ -26,3 +26,24 @@ export const uninstallAction = (serverId: string, pluginId: string): Promise<voi
 
 export const toggleAction = (serverId: string, pluginId: string, enabled: boolean): Promise<void> =>
   run(() => usePluginsStore.getState().toggle(serverId, pluginId, enabled))
+
+/**
+ * Roda `fn` só se o plugin não tem pedido em andamento: marca em `held`, avisa quem
+ * desenha (`notify`) e solta no `finally`, com sucesso ou falha. Id ocupado é ignorado.
+ */
+export async function runExclusive(
+  held: Set<string>,
+  id: string,
+  notify: (busy: Set<string>) => void,
+  fn: () => Promise<void>
+): Promise<void> {
+  if (held.has(id)) return
+  held.add(id)
+  notify(new Set(held))
+  try {
+    await fn()
+  } finally {
+    held.delete(id)
+    notify(new Set(held))
+  }
+}

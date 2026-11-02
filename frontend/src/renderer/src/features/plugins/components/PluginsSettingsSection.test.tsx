@@ -15,7 +15,7 @@ import { useServerStore } from '../../servers/store/serverStore'
 import { Perm } from '../../servers/lib/permissions'
 import { usePluginsStore } from '../store/pluginsStore'
 import type { Plugin, ServerPlugin } from '../api/plugins'
-import { availablePlugins, installAction, toggleAction, uninstallAction } from '../lib/pluginSettingsActions'
+import { availablePlugins, installAction, runExclusive, toggleAction, uninstallAction } from '../lib/pluginSettingsActions'
 import PluginsSettingsSection from './PluginsSettingsSection'
 
 const plugin = (id: string): Plugin => ({
@@ -100,5 +100,36 @@ describe('ações', () => {
     usePluginsStore.setState({ install: vi.fn().mockRejectedValue(new Error('boom')) })
     await expect(installAction('s1', 'a')).resolves.toBeUndefined()
     expect(toast.error).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('runExclusive', () => {
+  it('segura o id durante o pedido, ignora repetição e solta ao fim', async () => {
+    const held = new Set<string>()
+    const seen: string[][] = []
+    const notify = (b: Set<string>): void => void seen.push([...b])
+    let finish!: () => void
+    const fn = vi.fn(() => new Promise<void>((res) => (finish = res)))
+    const first = runExclusive(held, 'a', notify, fn)
+    expect(held.has('a')).toBe(true)
+    await runExclusive(held, 'a', notify, fn)
+    expect(fn).toHaveBeenCalledTimes(1)
+    await runExclusive(held, 'b', notify, async () => undefined)
+    finish()
+    await first
+    expect(held.size).toBe(0)
+    expect(seen[0]).toEqual(['a'])
+    expect(seen[seen.length - 1]).toEqual([])
+  })
+
+  it('solta o id também quando o pedido falha', async () => {
+    const held = new Set<string>()
+    await expect(
+      runExclusive(held, 'a', () => undefined, () => Promise.reject(new Error('x')))
+    ).rejects.toThrow('x')
+    expect(held.size).toBe(0)
+    const fn = vi.fn().mockResolvedValue(undefined)
+    await runExclusive(held, 'a', () => undefined, fn)
+    expect(fn).toHaveBeenCalledTimes(1)
   })
 })
