@@ -32,22 +32,7 @@ export async function publishScreenTracks(
   plan: ScreenPublishPlan
 ): Promise<void> {
   const [video] = stream.getVideoTracks()
-  if (video) {
-    const quality = streamQuality(stream)
-    const publication = await participant.publishTrack(video, {
-      source: Track.Source.ScreenShare,
-      name: 'screen',
-      simulcast: plan.simulcast,
-      ...(plan.simulcast ? { screenShareSimulcastLayers: simulcastLayers() } : {}),
-      screenShareEncoding: screenEncoding(quality, video.getSettings()),
-      // Codec por publicação: só a tela; a câmera segue o padrão da sala (VP8).
-      ...plan.codec,
-      // Quem decodifica o principal continua nele; só quem não decodifica recebe a reserva.
-      ...(plan.codec.backupCodec ? { backupCodecPolicy: BackupCodecPolicy.SIMULCAST } : {}),
-      degradationPreference: screenMotion(quality.frameRate).degradationPreference
-    })
-    if (plan.codec.backupCodec && publication.videoTrack) tuneScreenBackup(publication.videoTrack)
-  }
+  if (video) await publishScreenVideo(participant, stream, plan)
   const [audio] = stream.getAudioTracks()
   if (audio) {
     await participant.publishTrack(audio, {
@@ -59,6 +44,29 @@ export async function publishScreenTracks(
       red: false
     })
   }
+}
+
+/** Só o vídeo da tela. */
+export async function publishScreenVideo(
+  participant: LocalParticipant,
+  stream: MediaStream,
+  plan: ScreenPublishPlan
+): Promise<void> {
+  const [video] = stream.getVideoTracks()
+  const quality = streamQuality(stream)
+  const publication = await participant.publishTrack(video, {
+    source: Track.Source.ScreenShare,
+    name: 'screen',
+    simulcast: plan.simulcast,
+    ...(plan.simulcast ? { screenShareSimulcastLayers: simulcastLayers() } : {}),
+    screenShareEncoding: screenEncoding(quality, video.getSettings()),
+    // Codec por publicação: só a tela; a câmera segue o padrão da sala (VP8).
+    ...plan.codec,
+    // Quem decodifica o principal continua nele; só quem não decodifica recebe a reserva.
+    ...(plan.codec.backupCodec ? { backupCodecPolicy: BackupCodecPolicy.SIMULCAST } : {}),
+    degradationPreference: screenMotion(quality.frameRate).degradationPreference
+  })
+  if (plan.codec.backupCodec && publication.videoTrack) tuneScreenBackup(publication.videoTrack)
 }
 
 /** A tela publicada e o que a troca de qualidade precisa dela. */
