@@ -149,7 +149,7 @@ describe('ScreenSender', () => {
     takeScreenCodecChoice()
     await screen.publish(stream)
     expect(takeScreenCodecChoice()).toBe(
-      'auto: h265 + h264 | av1 proc., h265 placa, h264 proc. | 720p extra'
+      'auto: h265 + h264 | av1 proc., h265 placa, h264 proc. | 720p extra | som: nenhum'
     )
     screen.stop()
   })
