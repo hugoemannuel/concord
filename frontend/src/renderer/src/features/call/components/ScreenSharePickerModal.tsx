@@ -3,6 +3,7 @@ import { notePickedSource } from '../lib/windowAudio'
 import type { ScreenSourceInfo } from '../../../../../preload/index.d'
 import Button from '../../../shared/ui/Button'
 import { notePickerCancelled } from '../lib/screenPickerCancel'
+import { pickerChoice } from '../lib/screenPickerChoice'
 import { loadScreenQuality, saveScreenQuality } from '../lib/screenShareQuality'
 import ScreenQualityControls from './ScreenQualityControls'
 import { trapTab } from '../../../shared/lib/focusTrap'
@@ -31,6 +32,8 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
     if (!screenPicker) return
     const off = screenPicker.onShow(() => {
       setSelected(null)
+      // Sem a lista da última vez: clicar nela valeria só até a nova chegar.
+      setSources([])
       setSourcesLoaded(false)
       setQuality(loadScreenQuality())
       setTab('screen')
@@ -48,14 +51,17 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
         if (cancelled) return
         setSources(all)
         setSourcesLoaded(true)
-        const firstScreen = all.find((s) => s.displayId !== '')
-        if (firstScreen) setSelected(firstScreen.id)
       })
       .catch(() => setOpen(false))
     return () => {
       cancelled = true
     }
   }, [open, screenPicker])
+
+  const screens = sources.filter((s) => s.displayId !== '')
+  const windows = sources.filter((s) => s.displayId === '')
+  const visible = tab === 'screen' ? screens : windows
+  const chosen = pickerChoice(visible, selected)
 
   const close = useCallback((): void => {
     setOpen(false)
@@ -68,12 +74,12 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
   }, [screenPicker, close])
 
   const confirm = useCallback((): void => {
-    if (!selected) return
+    if (!chosen) return
     saveScreenQuality(quality)
-    notePickedSource(selected)
-    screenPicker?.select(selected)
+    notePickedSource(chosen)
+    screenPicker?.select(chosen)
     close()
-  }, [screenPicker, selected, close, quality])
+  }, [screenPicker, chosen, close, quality])
 
   useEffect(() => {
     if (!open) return
@@ -92,12 +98,9 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
 
   if (!open) return null
 
-  const screens = sources.filter((s) => s.displayId !== '')
-  const windows = sources.filter((s) => s.displayId === '')
-  const visible = tab === 'screen' ? screens : windows
   const selectTab = (next: ScreenPickerTab): void => {
     setTab(next)
-    setSelected((next === 'screen' ? screens : windows)[0]?.id ?? null)
+    setSelected(null)
   }
 
   return (
@@ -115,7 +118,7 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
         <ScreenSourceGrid
           loaded={sourcesLoaded}
           sources={visible}
-          selected={selected}
+          selected={chosen}
           onSelect={setSelected}
         />
 
@@ -125,7 +128,7 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
           <Button variant="ghost" onClick={cancel}>
             Cancelar
           </Button>
-          <Button variant="primary" disabled={!selected} onClick={confirm}>
+          <Button variant="primary" disabled={!chosen} onClick={confirm}>
             Compartilhar
           </Button>
         </div>

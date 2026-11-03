@@ -5,9 +5,11 @@ import {
   H264_CONTENT_TYPE,
   MARK_TTL_MS,
   markSoftwareCodec,
+  needsHighH264,
   screenCodecSupport,
   softwareMarkedCodecs
 } from './screenCodecSupport'
+import { H264_HIGH_CONTENT_TYPE } from './screenH264Profile'
 
 const H264 = H264_CONTENT_TYPE
 
@@ -65,6 +67,22 @@ describe('screenCodecSupport', () => {
     expect((await screenCodecSupport(video, encoding, allCaps)).h264).toBe('hardware')
   })
 
+  it('regressão: RTX 3070 só codifica H.264 na placa do High para cima (42e01f = OpenH264)', async () => {
+    const encoding = api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: hw })
+    expect((await screenCodecSupport(video, encoding, allCaps)).h264).toBe('hardware')
+  })
+
+  it('nem Baseline nem High na placa: H.264 no processador', async () => {
+    const encoding = api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: sw })
+    expect((await screenCodecSupport(video, encoding, allCaps)).h264).toBe('software')
+  })
+
+  it('o Baseline já vai na placa: nem pergunta o High', async () => {
+    const encoding = api({ [H264]: hw, [H264_HIGH_CONTENT_TYPE]: hw })
+    await screenCodecSupport(video, encoding, { codecs: [{ mimeType: 'video/H264' }] })
+    expect(encoding.encodingInfo).toHaveBeenCalledTimes(1)
+  })
+
   it('powerEfficient falso = processador; não suportado = não codifica', async () => {
     const encoding = api({ 'video/AV1': sw, [H264]: sw })
     expect(await screenCodecSupport(video, encoding, allCaps)).toEqual({
@@ -104,6 +122,29 @@ describe('screenCodecSupport', () => {
       av1: 'hardware',
       h265: 'software'
     })
+  })
+})
+
+describe('needsHighH264', () => {
+  it('só quando a placa codifica o High e não o Baseline', async () => {
+    expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(true)
+    expect(await needsHighH264(video, api({ [H264]: hw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(false)
+    expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: sw }))).toBe(false)
+  })
+
+  it('codec que já caiu no processador neste aparelho: segue o padrão', async () => {
+    markSoftwareCodec('h264')
+    expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(false)
+  })
+
+  it('sem a API ou com erro: segue o padrão', async () => {
+    expect(await needsHighH264(video, undefined)).toBe(false)
+    const broken = {
+      encodingInfo: async () => {
+        throw new Error('x')
+      }
+    }
+    expect(await needsHighH264(video, broken)).toBe(false)
   })
 })
 

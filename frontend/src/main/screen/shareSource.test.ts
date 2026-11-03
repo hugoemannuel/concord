@@ -15,6 +15,8 @@ function deps(over: Partial<ShareDeps> = {}): ShareDeps {
     log: vi.fn(),
     audioRequested: true,
     platform: 'win32',
+    restoreWindow: vi.fn(),
+    sleep: vi.fn().mockResolvedValue(undefined),
     ...over
   }
 }
@@ -45,6 +47,33 @@ describe('shareStreams', () => {
     const d = deps({ audioRequested: false })
     expect(await shareStreams(win.id, d)).toEqual({ video: win })
     expect(d.startWindowAudio).not.toHaveBeenCalled()
+  })
+
+  // Regressão: jogo em tela cheia se minimiza ao abrir o seletor e não dava para escolhê-lo.
+  it('janela minimizada: traz de volta e compartilha quando ela reaparece', async () => {
+    const listSources = vi
+      .fn()
+      .mockResolvedValueOnce([screen])
+      .mockResolvedValueOnce([screen])
+      .mockResolvedValue([win, screen])
+    const d = deps({ listSources })
+    expect(await shareStreams(win.id, d)).toEqual({ video: win })
+    expect(d.restoreWindow).toHaveBeenCalledWith('9')
+    expect(d.startWindowAudio).toHaveBeenCalledWith('9')
+  })
+
+  it('janela minimizada que não volta: desiste e recusa', async () => {
+    const d = deps({ listSources: async () => [screen] })
+    expect(await shareStreams(win.id, d)).toBeNull()
+    expect(d.restoreWindow).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(d.sleep).mock.calls.length).toBeGreaterThan(1)
+    expect(vi.mocked(d.sleep).mock.calls.length).toBeLessThan(100)
+  })
+
+  it('tela que sumiu não tenta restaurar nada', async () => {
+    const d = deps()
+    expect(await shareStreams('screen:9:0', d)).toBeNull()
+    expect(d.restoreWindow).not.toHaveBeenCalled()
   })
 
   it('fonte que sumiu ou erro ao listar: recusa', async () => {
