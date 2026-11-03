@@ -26,7 +26,7 @@ const todos = (e) => [e, ...e.children.flatMap(todos)];
 const textosDe = (root) => todos(root).map((e) => e.textContent).filter(Boolean);
 
 function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => false, hidden = false, porta = null } = {}) {
-  const estado = { quebrarRender: false, renders: 0 };
+  const estado = { quebrarRender: false, renders: 0, lancou: 0, variar: false };
   const relogio = { t: now };
   const chamadas = [];
   const timeouts = [];
@@ -48,7 +48,7 @@ function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => f
       if (i >= 0) ouvintes.splice(i, 1);
     },
     createElement: (tag) => {
-      if (estado.quebrarRender) throw new Error('render quebrou');
+      if (estado.quebrarRender) { estado.lancou++; throw new Error('render quebrou'); }
       return fakeEl(tag);
     },
     createElementNS: (_ns, tag) => fakeEl(tag),
@@ -58,7 +58,11 @@ function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => f
     if (porta) await porta;
     if (falhar(url)) throw new Error('rede');
     const m = url.match(/teams\/(\d+)\/schedule(\?fixture=true)?$/);
-    if (m) return json(`${m[2] ? 'fixture' : 'schedule'}-${m[1]}`);
+    if (m) {
+      const dados = json(`${m[2] ? 'fixture' : 'schedule'}-${m[1]}`);
+      if (estado.variar && !m[2]) dados.events = dados.events.slice(1);
+      return dados;
+    }
     if (url.endsWith('/scoreboard')) {
       const sb = json(scoreboard);
       sb.events[0].id = ID_JOGO;
@@ -212,7 +216,7 @@ test('stop() limpa timers e o ouvinte', async () => {
   assert.equal(s.ouvintes.length, 0);
 });
 
-test('render que lança uma vez: sem rejeição, mantém os cartões, avisa e reagenda', async () => {
+test('render que lança uma vez: mantém os cartões, reagenda e, curado, mostra o aviso', async () => {
   const rejeicoes = [];
   const ouvinte = (e) => rejeicoes.push(e);
   process.on('unhandledRejection', ouvinte);
@@ -220,17 +224,20 @@ test('render que lança uma vez: sem rejeição, mantém os cartões, avisa e re
   await flush();
   const antes = textosDe(s.root).filter((x) => x.includes('Atlético-MG'));
   assert.ok(antes.length > 0);
+  const rendersAntes = s.estado.renders;
+  s.estado.variar = true; // dado novo: a árvore muda e o render roda de verdade
   s.estado.quebrarRender = true;
   s.timeouts[0].fn();
   await flush();
-  s.estado.quebrarRender = false;
+  assert.ok(s.estado.lancou > 0, 'render foi chamado e lançou');
+  assert.equal(s.estado.renders, rendersAntes);
+  assert.deepEqual(textosDe(s.root).filter((x) => x.includes('Atlético-MG')), antes);
   assert.equal(s.timeouts.length, 2);
   assert.equal(s.timeouts[1].ms, 300000);
+  s.estado.quebrarRender = false;
+  s.intervalos[0].fn();
+  assert.ok(textosDe(s.root).includes('Não deu para atualizar o placar agora.'));
   assert.deepEqual(textosDe(s.root).filter((x) => x.includes('Atlético-MG')), antes);
-  s.timeouts[1].fn();
-  await flush();
-  const t = textosDe(s.root);
-  assert.ok(!t.includes('Não deu para atualizar o placar agora.'));
   assert.deepEqual(rejeicoes, []);
   process.off('unhandledRejection', ouvinte);
   s.api.stop();

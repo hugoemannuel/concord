@@ -71,8 +71,8 @@ export function startPlacar({ root, fetchJson, now, setTimeout, clearTimeout, se
   function paint() {
     try {
       draw(screen, updatedAt, failed);
-    } catch {
-      // mantém o que já está na tela
+    } catch (e) {
+      console.error('placar: erro ao desenhar a tela', e);
     }
   }
 
@@ -89,12 +89,12 @@ export function startPlacar({ root, fetchJson, now, setTimeout, clearTimeout, se
     const proximo = nextPoll(data, quando);
     const fala = announce(novaTela);
     draw(novaTela, quando, false);
+    updateAnnouncement(anuncio, fala);
     teamsData = data;
     screen = novaTela;
     updatedAt = quando;
     failed = false;
     delay = proximo;
-    updateAnnouncement(anuncio, fala);
   }
 
   function falhou() {
@@ -108,14 +108,16 @@ export function startPlacar({ root, fetchJson, now, setTimeout, clearTimeout, se
     let resultado = null;
     try {
       resultado = await atualizar();
-    } catch {
+    } catch (e) {
+      console.error('placar: falha ao buscar os dados', e);
       resultado = null;
     }
     if (minha !== geracao || parado) return;
     try {
       if (resultado) aplicar(resultado);
       else falhou();
-    } catch {
+    } catch (e) {
+      console.error('placar: erro ao atualizar a tela', e);
       falhou();
     } finally {
       if (!doc.hidden) timer = setTimeout(cycle, delay);
