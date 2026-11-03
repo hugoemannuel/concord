@@ -1218,6 +1218,7 @@ Jogos do Atlético-MG e do Cruzeiro, ao vivo, numa página estática do `site/`.
 - Depois, alguém de `TECH_TEAM_USER_IDS` aprova: `PATCH /api/plugins/:id/review` com
   `{"status":"approved"}`.
 - Os dados vêm da API pública da ESPN, chamada pelo navegador ([ADR 0050](adr/0050-placar-com-a-api-publica-da-espn.md)).
+- Plugin com `<script type="module">` precisa de `Access-Control-Allow-Origin` nos arquivos: o iframe isolado tem origem opaca. O `deploy/Caddyfile` (e o `.modelo`) já mandam `Access-Control-Allow-Origin *` em `/plugins/*`.
 
 ## Segurança
 

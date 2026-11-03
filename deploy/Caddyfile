@@ -96,6 +96,9 @@
 salinha.bhrx.com.br {
 	encode zstd gzip
 	import salinha_updates
+	# Plugins oficiais (site/plugins/): o iframe isolado tem origem opaca, então
+	# <script type="module"> é carregado em modo CORS. Arquivos estáticos públicos.
+	header /plugins/* Access-Control-Allow-Origin *
 	handle {
 		root * /opt/concord/site
 		file_server
