@@ -1207,6 +1207,18 @@ Se o YouTube marcar o IP do servidor como bot, o yt-dlp precisa de um PO token:
 O teste de ponta a ponta fica em `scripts/e2e-music.mjs` (backend com
 `MUSIC_TEST_SOURCE=1 MUSIC_IDLE_TIMEOUT=5s`).
 
+## Plugin oficial Placar ao vivo
+
+Jogos do Atlético-MG e do Cruzeiro, ao vivo, numa página estática do `site/`. Depende da base de plugins
+(PR #514) e não muda o backend.
+
+- A página sai no deploy do site em `https://<domínio do site>/plugins/placar/`.
+- Para cadastrar, pela API: `POST /api/plugins` com o nome e a descrição dos textos aprovados (`Placar ao
+  vivo` e `Jogos do Atlético-MG e do Cruzeiro, ao vivo`) e `panel_url` apontando para essa página.
+- Depois, alguém de `TECH_TEAM_USER_IDS` aprova: `PATCH /api/plugins/:id/review` com
+  `{"status":"approved"}`.
+- Os dados vêm da API pública da ESPN, chamada pelo navegador ([ADR 0050](adr/0050-placar-com-a-api-publica-da-espn.md)).
+
 ## Segurança
 
 Com o playit, login e mensagens trafegam **sem criptografia** (HTTP). Na VPS

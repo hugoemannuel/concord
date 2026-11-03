@@ -63,6 +63,8 @@ Critérios da #480 que precisam valer:
     `bra.camp.mineiro`.
   - Se o slug do jogo não vier na agenda ou não estiver no mapa, o plugin usa o próprio evento da agenda
     (`state === 'in'`).
+  - **Corte de 6 h:** um jogo `scheduled` que passou mais de 6 h do horário de início deixa de manter o
+    intervalo de 30 s (evita polling eterno com dado ruim); nesse caso a atualização volta a 5 min.
   - Assim são 2 pedidos de agenda por time a cada 5 min, mais 1 scoreboard a cada 30 s só enquanto houver
     jogo.
 - **Fim do jogo (decisão minha):** quando o status vira encerrado, o jogo sai do ao vivo na hora e passa a
@@ -82,7 +84,7 @@ Critérios da #480 que precisam valer:
 ### Regras da tela
 
 - **Ao vivo:** um cartão por jogo em andamento dos dois times, com:
-  - campeonato e fase quando houver, ex. `Copa do Brasil · Semifinal · ida` ou `Brasileirão · 33ª rodada`;
+  - campeonato e fase quando houver, ex. `Copa do Brasil · Semifinal · ida` (a ESPN não traz número de rodada, então o Brasileirão mostra só o campeonato);
   - no jogo de volta, `Agregado 3 × 2` embaixo do placar;
   - o selo `AO VIVO 67'` ou `AO VIVO Intervalo`, com o ponto pulsando de leve (sem animação se
     `prefers-reduced-motion`);
@@ -111,7 +113,7 @@ Critérios da #480 que precisam valer:
 - **Status:** `Encerrado`, `Adiado`, `Cancelado` (os dois últimos aparecem no lugar do placar no
   "próximo").
 - **Acessibilidade:**
-  - o cartão ao vivo tem `aria-live="polite"`, e só o placar e o status são anunciados;
+  - o anúncio para leitor de tela usa o nó estável `#anuncio` (`aria-live="polite"`, fora do `#placar`), atualizado a cada ciclo só com o placar e o status; o cartão em si não é região viva;
   - as logos têm `alt` com o nome do time;
   - o ponto pulsante é decorativo (`aria-hidden`);
   - contraste no padrão da Salinha;
@@ -153,6 +155,7 @@ Critérios da #480 que precisam valer:
 | Campeonatos | Brasileirão · Copa do Brasil · Libertadores · Sul-Americana · Mineiro |
 | Casa/fora | casa · fora |
 | Fase e agregado | Copa do Brasil · Semifinal · ida · volta · Agregado 3 × 2 |
+| Nomes de fase (traduzidos no `espn.js`) (pendente de aprovação) | Final · Semifinal · Quartas de final · Oitavas de final · 16 avos de final · Fase de grupos · Primeira fase · Segunda fase · Terceira fase · Quarta fase · Quinta fase |
 
 Qualquer outro texto visível (incluindo `alt` e `title`) precisa de aprovação antes do commit.
 

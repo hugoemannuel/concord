@@ -120,7 +120,7 @@ Testes com `node --test` e fixtures reais da ESPN. O `affected-tests` passa a ro
   - `export function liveCandidates(teamsData, now) → [{ slug, eventId }]`: os jogos a buscar no scoreboard, pela mesma regra.
   - `export function result(match, teamId) → 'V'|'E'|'D'`. Usa o `shootout` quando o placar empata e há pênaltis.
   - `export function leagueLabel(match) → string`: Brasileirão, Copa do Brasil, Libertadores, Sul-Americana, Mineiro, ou o nome da ESPN.
-  - `export function stageLabel(match) → string | null`. Ex.: `"Semifinal · ida"`, `"33ª rodada"`, ou `null`.
+  - `export function stageLabel(match) → string | null`. Ex.: `"Semifinal · ida"` ou `null`.
   - `export function whenLabel(iso) → string`: `"sáb 18:30"`, dia em 3 letras minúsculas sem ponto, em `America/Sao_Paulo`.
   - `export function agoLabel(updatedAt, now) → string`: `"Atualizado há 20 s"` abaixo de 60 s, `"Atualizado há 3 min"` acima.
   - `export function statusLabel(match) → string`: `"AO VIVO 67'"`, `"AO VIVO Intervalo"`, `"Encerrado"`, `"Adiado"`, `"Cancelado"`.

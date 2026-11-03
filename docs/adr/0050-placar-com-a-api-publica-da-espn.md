@@ -1,6 +1,6 @@
 # 0050. Buscar o placar na API pública da ESPN, direto do navegador do plugin
 
-- Status: proposto
+- Status: aceito
 - Data: 2026-11-02
 
 ## Contexto

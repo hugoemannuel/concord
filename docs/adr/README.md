@@ -92,3 +92,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0054. Mais efeitos e ajustes de efeito sem mexer em cada cena](0054-mais-efeitos-e-ajustes.md)
 - [0051. Guardar o perfil por servidor só com o que foi sobrescrito, com o apelido como nome e o escopo por contexto no app](0051-perfil-por-servidor.md)
 - [0055. Categorias como no Discord: padrões viram categorias reais, canais soltos numa lista só e categoria privada copiada nos canais](0055-categorias-normais-e-privadas.md)
+- [0050. Buscar o placar na API pública da ESPN, direto do navegador do plugin](0050-placar-com-a-api-publica-da-espn.md)
