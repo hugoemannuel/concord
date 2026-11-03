@@ -57,6 +57,7 @@ export default function ProfilePreview({
           name_style: draft.name_style,
           username: user.username,
           avatar_url: avatarUrl,
+          avatar_decoration_url: user.avatar_decoration_url,
           banner_url: bannerUrl,
           banner_color: draft.banner_color,
           pronouns: draft.pronouns.trim(),

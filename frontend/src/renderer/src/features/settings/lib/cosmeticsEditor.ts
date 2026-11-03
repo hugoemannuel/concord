@@ -1,3 +1,5 @@
+import type { User } from '../../auth/store/authStore'
+import type { CosmeticImageKind } from '../../profile/api/users'
 import { resolveNameplateMode, type NameplateMode } from '../../profile/lib/cosmetics'
 import { isAnimatedMedia } from '../../profile/lib/profileMedia'
 
@@ -6,6 +8,12 @@ import { isAnimatedMedia } from '../../profile/lib/profileMedia'
 
 /** O que fazer ao escolher uma opção da faixa: trocar o modo ou abrir o arquivo. */
 export type NameplateAction = { kind: 'mode'; mode: NameplateMode } | { kind: 'pick' }
+
+export interface UploadingCosmetic {
+  kind: CosmeticImageKind
+  previewUrl: string
+  animated: boolean
+}
 
 interface NameplateState {
   nameplate_mode?: NameplateMode
@@ -36,6 +44,20 @@ export function nameplateEffect(
   return action.kind === 'pick' ? 'pick' : action.mode
 }
 
+/** Aplica a prévia local (blob:) enquanto a faixa ou moldura está sendo enviada. */
+export function previewCosmeticsUser(user: User, uploading: UploadingCosmetic | null): User {
+  if (!uploading) return user
+  if (uploading.kind === 'decoration') {
+    return { ...user, avatar_decoration_url: uploading.previewUrl }
+  }
+  return {
+    ...user,
+    nameplate_url: uploading.previewUrl,
+    nameplate_custom_url: uploading.previewUrl,
+    nameplate_mode: 'custom'
+  }
+}
+
 export function hasAnimation(...urls: (string | null | undefined)[]): boolean {
   return urls.some((url) => isAnimatedMedia(url))
 }
@@ -46,13 +68,21 @@ export interface PreviewRow {
 }
 
 /** As linhas da prévia: "Animando" só quando algo ali é GIF. */
-export function previewRows(user: {
-  avatar_url?: string | null
-  nameplate_url?: string | null
-  avatar_decoration_url?: string | null
-}): PreviewRow[] {
+export function previewRows(
+  user: {
+    avatar_url?: string | null
+    nameplate_url?: string | null
+    avatar_decoration_url?: string | null
+  },
+  forceAnimated = false
+): PreviewRow[] {
   const still: PreviewRow = { label: 'Parada', animate: false }
-  if (!hasAnimation(user.avatar_url, user.nameplate_url, user.avatar_decoration_url)) return [still]
+  if (
+    !forceAnimated &&
+    !hasAnimation(user.avatar_url, user.nameplate_url, user.avatar_decoration_url)
+  ) {
+    return [still]
+  }
   return [still, { label: 'Animando', animate: true }]
 }
 

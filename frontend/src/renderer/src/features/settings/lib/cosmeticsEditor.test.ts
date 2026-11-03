@@ -3,10 +3,12 @@ import {
   hasAnimation,
   nameplateChoice,
   nameplateEffect,
+  previewCosmeticsUser,
   previewRows,
   radioKey,
   radioStep
 } from './cosmeticsEditor'
+import type { User } from '../../auth/store/authStore'
 
 const gif = '/api/profile-media/a_x'
 const png = '/api/profile-media/y'
@@ -45,6 +47,30 @@ describe('prévia', () => {
   })
   it('o avatar GIF também conta (anima na prévia)', () => {
     expect(previewRows({ avatar_url: gif })).toHaveLength(2)
+  })
+  it('previewCosmeticsUser aplica a prévia local da moldura ou faixa enquanto envia', () => {
+    const user = { id: 'u1', username: 'ana', display_name: 'Ana', email: 'a@x' } as User
+    expect(previewCosmeticsUser(user, null)).toBe(user)
+
+    const withDec = previewCosmeticsUser(user, {
+      kind: 'decoration',
+      previewUrl: 'blob:dec',
+      animated: true
+    })
+    expect(withDec.avatar_decoration_url).toBe('blob:dec')
+    expect(previewRows(withDec, true)).toEqual([
+      { label: 'Parada', animate: false },
+      { label: 'Animando', animate: true }
+    ])
+
+    const withPlate = previewCosmeticsUser(user, {
+      kind: 'nameplate',
+      previewUrl: 'blob:plate',
+      animated: false
+    })
+    expect(withPlate.nameplate_url).toBe('blob:plate')
+    expect(withPlate.nameplate_custom_url).toBe('blob:plate')
+    expect(withPlate.nameplate_mode).toBe('custom')
   })
 })
 

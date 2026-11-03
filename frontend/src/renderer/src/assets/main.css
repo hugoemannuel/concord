@@ -1387,3 +1387,18 @@
     animation: none;
   }
 }
+
+/*
+ * Moldura do avatar (#482, #517): cantos arredondados (8px–16px) e recorte
+ * circular no centro para ficar somente em volta da área demarcada do avatar.
+ */
+[data-decoration] {
+  object-fit: cover;
+  border-radius: clamp(8px, 18%, 16px);
+  -webkit-mask-image: radial-gradient(
+    circle closest-side,
+    transparent calc(83.33% - 0.5px),
+    #000 83.33%
+  );
+  mask-image: radial-gradient(circle closest-side, transparent calc(83.33% - 0.5px), #000 83.33%);
+}

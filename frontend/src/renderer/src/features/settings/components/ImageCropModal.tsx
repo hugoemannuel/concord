@@ -100,6 +100,7 @@ function ImageCropModal({
         </div>
         <CropViewport
           round={kind === 'avatar'}
+          cutout={kind === 'decoration'}
           frame={frame}
           src={src}
           natural={natural}
