@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { normalizeEvent } from './espn.js';
 import { buildScreen } from './rules.js';
-import { describe, render } from './view.js';
+import { describe, render, announce, updateAnnouncement } from './view.js';
 
 const NOW = Date.parse('2026-11-02T12:00:00Z');
 const ler = (nome) => readFileSync(new URL(`./${nome}`, import.meta.url), 'utf8');
@@ -47,7 +47,7 @@ test('estado A: selo, placar, gol de pênalti e aria-live', () => {
   assert.ok(t.includes("Savarino 40' (contra)"));
   assert.ok(t.includes('Agregado 3 × 2'));
   assert.ok(t.includes('Copa do Brasil · Semifinal · volta'));
-  assert.ok(nos(arvore).some((n) => n.attrs && n.attrs['aria-live'] === 'polite'));
+  assert.ok(!nos(arvore).some((n) => n.attrs && 'aria-live' in n.attrs));
   assert.ok(nos(arvore).some((n) => n.tag === 'svg' && n.attrs['aria-hidden'] === 'true'));
 });
 
@@ -98,7 +98,7 @@ test('estado B: sem jogo, próximo e último', () => {
 test('estado C: clássico tem um único cartão ao vivo', () => {
   const c = match('1', 'halftime', { stage: 'Final', leagueSlug: 'bra.camp.mineiro' });
   const arvore = describe(buildScreen([galo([], [c]), cruz([], [c])], new Map(), NOW), ctx);
-  assert.equal(nos(arvore).filter((n) => n.attrs && n.attrs['aria-live']).length, 1);
+  assert.equal(nos(arvore).filter((n) => n.attrs && n.attrs.class === 'cartao ao-vivo').length, 1);
   assert.ok(textos(arvore).includes('Mineiro · Final'));
   assert.ok(!textos(arvore).includes('Nenhuma partida em andamento.'));
 });
@@ -166,4 +166,32 @@ test('index.html tem a CSP exata e a estrutura', () => {
   assert.ok(html.includes('<link rel="stylesheet" href="placar.css">'));
   assert.ok(html.includes('<script type="module" src="app.js"></script>'));
   assert.ok(html.includes('name="viewport"'));
+});
+
+test('announce: estado A, clássico e vazio', () => {
+  const a = match('1', 'live', { minute: "67'", home: side('7632', 'Atlético-MG', 2), away: side('6086', 'Botafogo', 1) });
+  const b = match('2', 'halftime', { home: side('2022', 'Cruzeiro', 0), away: side('8', 'Vasco', 0) });
+  const dois = buildScreen([galo([], [a]), cruz([], [b])], new Map(), NOW);
+  assert.equal(announce(dois), "Atlético-MG 2 × 1 Botafogo · AO VIVO 67'. Cruzeiro 0 × 0 Vasco · AO VIVO Intervalo");
+  const c = match('3', 'halftime');
+  const classico = buildScreen([galo([], [c]), cruz([], [c])], new Map(), NOW);
+  assert.equal(announce(classico), 'Atlético-MG 0 × 0 Cruzeiro · AO VIVO Intervalo');
+  assert.equal(announce(buildScreen([galo([], [])], new Map(), NOW)), '');
+});
+
+test('updateAnnouncement só escreve quando o texto muda', () => {
+  let escritas = 0;
+  let valor = '';
+  const e = { get textContent() { return valor; }, set textContent(v) { escritas++; valor = v; } };
+  updateAnnouncement(e, 'x');
+  updateAnnouncement(e, 'x');
+  assert.equal(escritas, 1);
+  updateAnnouncement(e, 'y');
+  assert.equal(escritas, 2);
+});
+
+test('index.html tem o nó estável de anúncio fora do #placar', () => {
+  const html = ler('index.html');
+  assert.ok(html.includes('<p id="anuncio" class="sr-only" aria-live="polite"></p>'));
+  assert.ok(html.indexOf('id="anuncio"') > html.indexOf('</main>'));
 });

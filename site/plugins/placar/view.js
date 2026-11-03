@@ -74,7 +74,7 @@ function liveHeader(m) {
 function liveCard(m) {
   const linha = div('confronto', [teamColumn(m.home), scoreBlock(m), teamColumn(m.away)]);
   const goals = m.goals.length ? [goalsLine(m)] : [];
-  return div('cartao ao-vivo', [liveHeader(m), linha, ...goals], { 'aria-live': 'polite' });
+  return div('cartao ao-vivo', [liveHeader(m), linha, ...goals]);
 }
 
 function ownSide(match, teamId) {
@@ -127,6 +127,18 @@ export function describe(screen, ctx) {
     ...screen.teams.map(teamCard),
     ...footer(ctx),
   ];
+}
+
+// Texto para o leitor de tela: uma linha por jogo ao vivo, só placar e situação.
+export function announce(screen) {
+  return screen.live
+    .map((m) => `${m.home.name} ${pair(m.home.score, m.away.score)} ${m.away.name} · ${statusLabel(m)}`)
+    .join('. ');
+}
+
+// A região viva fica num nó estável fora do #placar; só escreve se mudou.
+export function updateAnnouncement(el, text) {
+  if (el.textContent !== text) el.textContent = text;
 }
 
 function build(node, doc, svg) {
