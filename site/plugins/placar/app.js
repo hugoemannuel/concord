@@ -58,12 +58,22 @@ export function startPlacar({ root, fetchJson, now, setTimeout, clearTimeout, se
   let parado = false;
   let assinatura = '';
 
-  function paint() {
-    const nodes = describe(screen || SO_AVISO, { now: now(), updatedAt, failed });
+  // Só guarda a assinatura depois que o render deu certo.
+  function draw(scr, upd, fail) {
+    const nodes = describe(scr || SO_AVISO, { now: now(), updatedAt: upd, failed: fail });
     const sig = JSON.stringify(nodes);
     if (sig === assinatura) return;
-    assinatura = sig;
     render(root, nodes, doc);
+    assinatura = sig;
+  }
+
+  // Erro de tela não pode escapar: o tick e o ciclo seguem vivos.
+  function paint() {
+    try {
+      draw(screen, updatedAt, failed);
+    } catch {
+      // mantém o que já está na tela
+    }
   }
 
   async function atualizar() {
@@ -72,13 +82,25 @@ export function startPlacar({ root, fetchJson, now, setTimeout, clearTimeout, se
     return { data: mergeLive(agenda, vivos), vivos };
   }
 
+  // Calcula e desenha com locais; só confirma o estado se tudo deu certo.
   function aplicar({ data, vivos }) {
+    const novaTela = buildScreen(data, vivos, now());
+    const quando = now();
+    const proximo = nextPoll(data, quando);
+    const fala = announce(novaTela);
+    draw(novaTela, quando, false);
     teamsData = data;
-    screen = buildScreen(data, vivos, now());
-    updatedAt = now();
+    screen = novaTela;
+    updatedAt = quando;
     failed = false;
-    delay = nextPoll(data, now());
-    updateAnnouncement(anuncio, announce(screen));
+    delay = proximo;
+    updateAnnouncement(anuncio, fala);
+  }
+
+  function falhou() {
+    failed = true;
+    if (!teamsData) delay = EMPTY_DELAY;
+    paint();
   }
 
   async function cycle() {
@@ -90,13 +112,14 @@ export function startPlacar({ root, fetchJson, now, setTimeout, clearTimeout, se
       resultado = null;
     }
     if (minha !== geracao || parado) return;
-    if (resultado) aplicar(resultado);
-    else {
-      failed = true;
-      if (!teamsData) delay = EMPTY_DELAY;
+    try {
+      if (resultado) aplicar(resultado);
+      else falhou();
+    } catch {
+      falhou();
+    } finally {
+      if (!doc.hidden) timer = setTimeout(cycle, delay);
     }
-    paint();
-    if (!doc.hidden) timer = setTimeout(cycle, delay);
   }
 
   function startTicker() {
@@ -119,12 +142,12 @@ export function startPlacar({ root, fetchJson, now, setTimeout, clearTimeout, se
       return;
     }
     startTicker();
-    cycle();
+    cycle().catch(() => {});
   }
 
   doc.addEventListener('visibilitychange', onVisibility);
-  startTicker();
-  cycle();
+  if (!doc.hidden) startTicker();
+  cycle().catch(() => {});
 
   return {
     stop() {

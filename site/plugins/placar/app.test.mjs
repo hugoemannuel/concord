@@ -19,13 +19,14 @@ function fakeEl(tag) {
     tag, attrs: {}, children: [], textContent: '',
     setAttribute(k, v) { this.attrs[k] = v; },
     appendChild(f) { this.children.push(f); return f; },
-    replaceChildren(...f) { this.children = f; },
+    replaceChildren(...f) { this.children = f; if (this.contador) this.contador(); },
   };
 }
 const todos = (e) => [e, ...e.children.flatMap(todos)];
 const textosDe = (root) => todos(root).map((e) => e.textContent).filter(Boolean);
 
-function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => false } = {}) {
+function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => false, hidden = false, porta = null } = {}) {
+  const estado = { quebrarRender: false, renders: 0 };
   const relogio = { t: now };
   const chamadas = [];
   const timeouts = [];
@@ -39,18 +40,22 @@ function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => f
     set textContent(v) { escritasAnuncio++; textoAnuncio = v; },
   };
   const doc = {
-    hidden: false,
+    hidden,
     getElementById: (id) => (id === 'anuncio' ? anuncio : null),
     addEventListener: (ev, fn) => ouvintes.push([ev, fn]),
     removeEventListener: (ev, fn) => {
       const i = ouvintes.findIndex(([e, f]) => e === ev && f === fn);
       if (i >= 0) ouvintes.splice(i, 1);
     },
-    createElement: fakeEl,
+    createElement: (tag) => {
+      if (estado.quebrarRender) throw new Error('render quebrou');
+      return fakeEl(tag);
+    },
     createElementNS: (_ns, tag) => fakeEl(tag),
   };
   const fetchJson = async (url) => {
     chamadas.push(url);
+    if (porta) await porta;
     if (falhar(url)) throw new Error('rede');
     const m = url.match(/teams\/(\d+)\/schedule(\?fixture=true)?$/);
     if (m) return json(`${m[2] ? 'fixture' : 'schedule'}-${m[1]}`);
@@ -62,6 +67,7 @@ function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => f
     throw new Error(`url inesperada ${url}`);
   };
   const root = fakeEl('main');
+  root.contador = () => { estado.renders++; };
   const api = startPlacar({
     root, fetchJson, doc, now: () => relogio.t,
     setTimeout: (fn, ms) => { const h = { fn, ms, id: ++seq }; timeouts.push(h); return h; },
@@ -74,7 +80,7 @@ function setup({ now = IDLE, scoreboard = 'scoreboard-ao-vivo', falhar = () => f
     ouvintes.filter(([e]) => e === 'visibilitychange').forEach(([, f]) => f());
   };
   return {
-    api, root, chamadas, timeouts, intervalos, relogio, visibilidade, ouvintes,
+    api, root, estado, chamadas, timeouts, intervalos, relogio, visibilidade, ouvintes,
     anuncio: () => textoAnuncio, escritasAnuncio: () => escritasAnuncio,
   };
 }
@@ -204,4 +210,59 @@ test('stop() limpa timers e o ouvinte', async () => {
   assert.equal(s.timeouts.length, 0);
   assert.equal(s.intervalos.length, 0);
   assert.equal(s.ouvintes.length, 0);
+});
+
+test('render que lança uma vez: sem rejeição, mantém os cartões, avisa e reagenda', async () => {
+  const rejeicoes = [];
+  const ouvinte = (e) => rejeicoes.push(e);
+  process.on('unhandledRejection', ouvinte);
+  const s = setup();
+  await flush();
+  const antes = textosDe(s.root).filter((x) => x.includes('Atlético-MG'));
+  assert.ok(antes.length > 0);
+  s.estado.quebrarRender = true;
+  s.timeouts[0].fn();
+  await flush();
+  s.estado.quebrarRender = false;
+  assert.equal(s.timeouts.length, 2);
+  assert.equal(s.timeouts[1].ms, 300000);
+  assert.deepEqual(textosDe(s.root).filter((x) => x.includes('Atlético-MG')), antes);
+  s.timeouts[1].fn();
+  await flush();
+  const t = textosDe(s.root);
+  assert.ok(!t.includes('Não deu para atualizar o placar agora.'));
+  assert.deepEqual(rejeicoes, []);
+  process.off('unhandledRejection', ouvinte);
+  s.api.stop();
+});
+
+test('paint do tick que lança não escapa', async () => {
+  const s = setup();
+  await flush();
+  s.estado.quebrarRender = true;
+  s.relogio.t += 120000;
+  assert.doesNotThrow(() => s.intervalos[0].fn());
+  s.api.stop();
+});
+
+test('visível durante um ciclo em andamento: um só render, com o dado mais novo', async () => {
+  let abrir;
+  const porta = new Promise((r) => { abrir = r; });
+  const s = setup({ porta });
+  s.visibilidade(true);
+  s.visibilidade(false);
+  abrir();
+  await flush();
+  assert.equal(s.estado.renders, 1);
+  assert.equal(s.timeouts.length, 1);
+  s.api.stop();
+});
+
+test('página que começa escondida não liga o tick até ficar visível', async () => {
+  const s = setup({ hidden: true });
+  await flush();
+  assert.equal(s.intervalos.length, 0);
+  s.visibilidade(false);
+  assert.equal(s.intervalos.length, 1);
+  s.api.stop();
 });
