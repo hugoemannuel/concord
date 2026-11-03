@@ -10,7 +10,7 @@ import { evenScale } from './screenScale'
 
 /** Teto da reserva: o piso da live (720p30), um pouco abaixo dos 3 Mbps da Twitch. */
 export const BACKUP_ENCODING = { maxBitrate: 2_500_000, maxFramerate: 30 } as const
-const BACKUP_HEIGHT = 720
+export const BACKUP_HEIGHT = 720
 
 interface BackupCodecInfo {
   mediaStreamTrack: { contentHint: string; getSettings(): MediaTrackSettings }
