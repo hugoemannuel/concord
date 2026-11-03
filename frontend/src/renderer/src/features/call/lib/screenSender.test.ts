@@ -14,7 +14,13 @@ vi.mock('livekit-client', () => ({
   }
 }))
 
+vi.mock('./screenH264Profile', async (original) => ({
+  ...(await original<typeof import('./screenH264Profile')>()),
+  requireHighH264: vi.fn()
+}))
+
 import type { LocalParticipant } from 'livekit-client'
+import { H264_HIGH_CONTENT_TYPE, requireHighH264 } from './screenH264Profile'
 import { ScreenSender } from './screenSender'
 import { takeScreenCodecChoice } from './screenCodecChoice'
 import { ADAPT } from './screenAdaptController'
@@ -45,7 +51,7 @@ const limited = new Map([
 ])
 
 /** Codecs que a placa de vídeo codifica (o resto, só o processador). */
-type Card = { av1?: boolean; h265?: boolean; h264?: boolean }
+type Card = { av1?: boolean; h265?: boolean; h264?: boolean; h264High?: boolean }
 
 function setup(options: Card & { storage?: Record<string, string> } = {}) {
   const data = new Map(Object.entries(options.storage ?? {}))
@@ -62,6 +68,7 @@ function setup(options: Card & { storage?: Record<string, string> } = {}) {
   })
   const hardware: Record<string, boolean> = {
     [H264_CONTENT_TYPE]: !!options.h264,
+    [H264_HIGH_CONTENT_TYPE]: !!options.h264High,
     'video/AV1': !!options.av1,
     'video/H265': !!options.h265
   }
@@ -86,7 +93,8 @@ function setup(options: Card & { storage?: Record<string, string> } = {}) {
     getParameters: () => structuredClone(parameters),
     setParameters: vi.fn(async (next) => {
       parameters = next
-    })
+    }),
+    getStats: async () => new Map()
   }
   const track = {
     mediaStreamTrack: video,
@@ -129,6 +137,57 @@ afterEach(() => {
 })
 
 describe('ScreenSender', () => {
+  it('regressão: placa que só codifica H.264 no High: a publicação oferece só ele e conta como placa', async () => {
+    const { screen, stream } = setup({ h264High: true })
+    await screen.publish(stream)
+    expect(requireHighH264).toHaveBeenLastCalledWith(true)
+    expect(takeScreenCodecChoice()).toContain('h264 placa')
+    screen.stop()
+  })
+
+  it('regressão: H.265 com reserva H.264: a reserva também nasce no High, na placa', async () => {
+    const { screen, stream, participant } = setup({ h265: true, h264High: true })
+    await screen.publish(stream)
+    expect(participant.publishTrack).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ videoCodec: 'h265', backupCodec: { codec: 'h264' } })
+    )
+    expect(requireHighH264).toHaveBeenLastCalledWith(true)
+    screen.stop()
+  })
+
+  it('placa que já codifica o Baseline, ou sem placa: segue o padrão', async () => {
+    for (const card of [{ h264: true, h264High: true }, {}]) {
+      const { screen, stream } = setup(card)
+      await screen.publish(stream)
+      expect(requireHighH264).toHaveBeenLastCalledWith(false)
+      screen.stop()
+      clearScreenCodecCache()
+    }
+  })
+
+  it('regressão: a captura muda de tamanho (alt-tab): a reserva refaz a escala para o lado par', async () => {
+    const { screen, stream, video, track } = setup({ h265: true })
+    let parameters = {
+      encodings: [{ scaleResolutionDownBy: 2, maxBitrate: 2_500_000, active: true }]
+    }
+    const backup = {
+      getParameters: () => structuredClone(parameters),
+      setParameters: vi.fn(async (next) => {
+        parameters = next
+      }),
+      getStats: async () =>
+        new Map([['s1', { type: 'media-source', kind: 'video', width: 2560, height: 1438 }]])
+    }
+    track.simulcastCodecs.set('h264', { mediaStreamTrack: video, sender: backup })
+    await screen.publish(stream)
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs)
+    const scale = parameters.encodings[0].scaleResolutionDownBy
+    expect(Math.trunc(1438 / scale) % 2).toBe(0)
+    expect(Math.trunc(2560 / scale) % 2).toBe(0)
+    screen.stop()
+  })
+
   it('placa de vídeo com AV1: publica AV1 com H.264 de reserva, mantendo a resolução', async () => {
     const { screen, participant, stream, video } = setup({ av1: true })
     await screen.publish(stream)

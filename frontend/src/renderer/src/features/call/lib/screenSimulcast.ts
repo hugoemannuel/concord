@@ -18,6 +18,8 @@ export type SimulcastMode = 'auto' | 'on' | 'off'
 /** A camada de baixo: 720p30 a 3 Mbps (preset de 720p30 da Twitch). */
 const LOW = { height: 720, maxBitrate: 3_000_000, maxFramerate: 30 }
 
+export const LOW_LAYER_HEIGHT = LOW.height
+
 const STORED: Record<SimulcastMode, string> = { auto: 'auto', on: '1', off: '0' }
 
 export function loadScreenSimulcast(): SimulcastMode {

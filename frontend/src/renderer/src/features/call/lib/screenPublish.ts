@@ -7,6 +7,7 @@ import {
 } from 'livekit-client'
 import { syncBackupHint, tuneScreenBackup } from './screenBackup'
 import type { ScreenCodecOptions } from './screenCodec'
+import { requireHighH264 } from './screenH264Profile'
 import {
   screenEncoding,
   screenMotion,
@@ -24,6 +25,8 @@ import { screenSenderEncodings, simulcastLayers } from './screenSimulcast'
 export interface ScreenPublishPlan {
   codec: ScreenCodecOptions
   simulcast: boolean
+  /** A placa só codifica o H.264 no High (principal ou reserva; ver screenH264Profile). */
+  h264High: boolean
 }
 
 export async function publishScreenTracks(
@@ -55,6 +58,7 @@ export async function publishScreenVideo(
   const [video] = stream.getVideoTracks()
   const quality = streamQuality(stream)
   const settings = video.getSettings()
+  requireHighH264(plan.h264High)
   const publication = await participant.publishTrack(video, {
     source: Track.Source.ScreenShare,
     name: 'screen',

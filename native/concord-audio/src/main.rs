@@ -4,7 +4,8 @@
 //! No modo `foreground`, informa em stdout a janela em tela cheia na frente
 //! (overlay de jogo). No modo `overlay`, desenha o overlay de jogo numa janela
 //! nativa com o estado que chega em stdin. No modo `media-watch`, informa em
-//! stdout as sessões de mídia do Windows (música em atividade).
+//! stdout as sessões de mídia do Windows (música em atividade). No modo
+//! `keep-timer`, mantém o temporizador do Concord com a janela coberta e sai.
 
 mod args;
 // Regra pura (testada no Linux); só o laço do Windows a usa.
@@ -20,6 +21,8 @@ mod media;
 mod capture;
 #[cfg(windows)]
 mod foreground;
+#[cfg(windows)]
+mod keep_timer;
 
 use std::process::ExitCode;
 
@@ -33,7 +36,8 @@ fn main() -> ExitCode {
         }
     };
     // No overlay o stdin é o canal do estado: quem lê (e sai no fim dele) é o próprio modo.
-    if mode != args::Mode::Overlay {
+    // O keep-timer roda sem stdin e sai sozinho.
+    if !matches!(mode, args::Mode::Overlay | args::Mode::KeepTimer(_)) {
         exit_when_parent_goes_away();
     }
     run(&mode)
@@ -61,6 +65,7 @@ fn run(mode: &args::Mode) -> ExitCode {
         args::Mode::Foreground => foreground::run(),
         args::Mode::Overlay => overlay::run(),
         args::Mode::MediaWatch => media::run(),
+        args::Mode::KeepTimer(pid) => keep_timer::run(*pid),
         _ => capture::run(mode),
     };
     match result {

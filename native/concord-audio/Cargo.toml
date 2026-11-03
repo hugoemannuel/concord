@@ -25,6 +25,8 @@ windows = { version = "0.62", features = [
     "Win32_System_Variant",
     "Win32_System_LibraryLoader",
     "Win32_UI_Input_KeyboardAndMouse",
+    # Temporizador com a janela coberta (docs/adr/0050).
+    "Win32_System_Threading",
     # Música em atividade (docs/adr/0006-musica-em-atividade.md): sessões do SMTC.
     "Foundation",
     "Foundation_Collections",
