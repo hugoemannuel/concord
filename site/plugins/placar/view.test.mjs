@@ -150,10 +150,12 @@ test('render monta com createElement/textContent, sem innerHTML', () => {
   assert.ok(all.some((e) => e.tag === 'img' && e.attrs.src === 'https://a.espncdn.com/a.png'));
 });
 
-test('fonte de view.js não usa innerHTML, outerHTML nem insertAdjacentHTML', () => {
-  const src = ler('view.js');
-  for (const proibido of ['innerHTML', 'outerHTML', 'insertAdjacentHTML']) {
-    assert.ok(!src.includes(proibido), proibido);
+test('fontes de view.js e app.js não usam innerHTML, outerHTML nem insertAdjacentHTML', () => {
+  for (const arquivo of ['view.js', 'app.js']) {
+    const src = ler(arquivo);
+    for (const proibido of ['innerHTML', 'outerHTML', 'insertAdjacentHTML']) {
+      assert.ok(!src.includes(proibido), `${arquivo}: ${proibido}`);
+    }
   }
 });
 
