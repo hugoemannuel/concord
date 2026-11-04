@@ -54,12 +54,11 @@ type ProfileEvent struct {
 	Profile  Profile `json:"profile"`
 }
 
-// TagEvent vai para todo mundo (a tag aparece em qualquer lugar). Reset: o nome
-// mudou ou a tag saiu, e ninguém mais está usando; sem Reset, emblema ou cor.
+// TagEvent vai para todo mundo (a tag aparece em qualquer lugar): diz só que a tag
+// do servidor mudou, sem levá-la, porque o servidor pode ser privado. Quem guardou
+// a tag de alguém desse servidor pergunta de novo.
 type TagEvent struct {
 	ServerID string `json:"server_id"`
-	Tag      *Tag   `json:"tag"`
-	Reset    bool   `json:"reset"`
 }
 
 // UserTagEvent: a tag de uma pessoa mudou. LeftServerID: ela saiu desse servidor
@@ -209,7 +208,7 @@ func (s *Service) announce(serverID string, after Profile, change Change) {
 	}
 	s.publisher.PublishServerProfile(ProfileEvent{ServerID: serverID, Profile: after})
 	if change.TagChanged {
-		s.publisher.PublishServerTag(TagEvent{ServerID: serverID, Tag: after.Tag, Reset: change.TagReset})
+		s.publisher.PublishServerTag(TagEvent{ServerID: serverID})
 	}
 }
 

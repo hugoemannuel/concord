@@ -41,6 +41,9 @@ quentes nem conflita com o que os outros PRs fazem nelas.
   quem não é membro nem tem convite (pendente ou o código do link). Servidor que não
   existe responde igual, para não dar para sondar ids. Quem tem o link vê o perfil; a
   contagem de quem está fora fica guardada por 45 s, como na prévia do convite.
+- **Tempo real**: `server:tag` vai para todo mundo e diz só qual servidor mudou, sem a
+  tag (o servidor pode ser privado); quem tem a tag de alguém desse servidor pergunta de
+  novo. `user:server_tag` leva a tag de quem a escolheu usar, que já é pública.
 - **"Seus membros jogam"**: a atividade só existe na memória do hub. Uma amostra a cada
   5 min soma por servidor e por jogo, sem guardar quem jogou, sem invisíveis, e só quem
   tem `MANAGE_SERVER` lê, sem os totais.

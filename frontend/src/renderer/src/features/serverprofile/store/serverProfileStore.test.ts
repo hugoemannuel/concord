@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const getCard = vi.hoisted(() => vi.fn())
 vi.mock('../api/serverProfile', () => ({ getServerCard: getCard }))
 
-import { resetServerProfileRequests, useServerProfileStore } from './serverProfileStore'
+import { PROFILE_REFRESH_MS, resetServerProfileRequests, useServerProfileStore } from './serverProfileStore'
 
 const profile = { description: 'oi' }
 
@@ -21,6 +21,20 @@ describe('serverProfileStore', () => {
     load('s1')
     await vi.waitFor(() => expect(useServerProfileStore.getState().byServer.s1).toBe(profile))
     expect(getCard).toHaveBeenCalledTimes(1)
+  })
+
+  it('volta a buscar depois do prazo (evento perdido numa queda de conexão)', async () => {
+    vi.useFakeTimers()
+    getCard.mockResolvedValue({ locked: false, is_member: true, profile })
+    const { load } = useServerProfileStore.getState()
+    load('s1')
+    await vi.advanceTimersByTimeAsync(PROFILE_REFRESH_MS - 1)
+    load('s1')
+    expect(getCard).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(2)
+    load('s1')
+    expect(getCard).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
   })
 
   it('não guarda o perfil de quem está fora', () => {

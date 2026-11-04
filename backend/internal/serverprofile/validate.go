@@ -72,9 +72,11 @@ func cleanArt(art Art) (Art, error) {
 	return art, nil
 }
 
+// validEmoji: emoji comum (emoji de tecla começa com dígito); letras e o "<" dos
+// emojis do servidor, não.
 func validEmoji(emoji string) bool {
 	return plainText(emoji, MaxTraitEmoji) && !strings.ContainsFunc(emoji, func(r rune) bool {
-		return r < utf8.RuneSelf
+		return r == '<' || unicode.IsLetter(r)
 	})
 }
 

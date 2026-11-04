@@ -63,7 +63,12 @@ function eventActions(v: unknown): string {
   return names.length ? names.join(', ') : 'Nenhuma'
 }
 
-const art = (v: unknown): string => (v ? String(v) : 'padrão')
+/** Fundo do servidor: a imagem (a URL é o que muda de uma para outra) ou o nome do degradê. */
+const art = (v: unknown): string => {
+  const value = String(v ?? '')
+  if (!value) return 'padrão'
+  return value.startsWith('/api/') ? 'imagem' : value
+}
 
 const lookup = (table: Record<string, string>) => (v: unknown) => table[String(v)] ?? text(v)
 
@@ -92,6 +97,8 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   profile_private: { label: 'Perfil privado', format: yesNo },
   strip: { label: 'Faixa', format: art },
   server_theme: { label: 'Tema de fundo', format: art },
+  server_theme_image: { label: 'Imagem de fundo', format: art },
+  server_theme_dim: { label: 'Escurecer a imagem', format: (v) => `${String(v)}%` },
   tag_name: { label: 'Nome da tag', format: text },
   tag_badge: { label: 'Emblema da tag', format: text },
   tag_color: { label: 'Cor da tag', format: text }

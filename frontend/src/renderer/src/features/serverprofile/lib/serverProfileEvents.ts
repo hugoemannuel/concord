@@ -4,7 +4,8 @@ import type { ServerProfile, ServerTag } from '../api/serverProfile'
 /** Para onde vai cada evento (ver serverProfileStart). */
 export interface ServerProfileEventDeps {
   setProfile: (serverId: string, profile: ServerProfile) => void
-  setServerTag: (serverId: string, tag: ServerTag | null, reset: boolean) => void
+  /** A tag do servidor mudou: o evento não a leva (o servidor pode ser privado). */
+  refreshServerTag: (serverId: string) => void
   setUserTag: (userId: string, tag: ServerTag | null, leftServerId?: string) => void
 }
 
@@ -13,7 +14,6 @@ interface EventPayload {
   user_id?: string
   profile?: ServerProfile
   tag?: ServerTag | null
-  reset?: boolean
   left_server_id?: string
 }
 
@@ -24,7 +24,7 @@ const HANDLERS: Record<string, Handler> = {
     if (p.server_id && p.profile) deps.setProfile(p.server_id, p.profile)
   },
   'server:tag': (p, deps) => {
-    if (p.server_id) deps.setServerTag(p.server_id, p.tag ?? null, Boolean(p.reset))
+    if (p.server_id) deps.refreshServerTag(p.server_id)
   },
   'user:server_tag': (p, deps) => {
     if (p.user_id) deps.setUserTag(p.user_id, p.tag ?? null, p.left_server_id)

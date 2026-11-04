@@ -2,6 +2,7 @@ package serverprofile
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"testing"
@@ -292,7 +293,7 @@ func TestUpdateTagAvisaTodoMundo(t *testing.T) {
 	if len(store.resets) != 0 {
 		t.Errorf("trocar o emblema tirou a tag dos membros: %v", store.resets)
 	}
-	if len(pub.tags) != 1 || pub.tags[0].Reset || pub.tags[0].Tag.Badge != "lua" {
+	if len(pub.tags) != 1 || pub.tags[0].ServerID != "s1" {
 		t.Errorf("evento = %+v", pub.tags)
 	}
 
@@ -302,8 +303,46 @@ func TestUpdateTagAvisaTodoMundo(t *testing.T) {
 	if len(store.resets) != 1 {
 		t.Errorf("trocar o nome não tirou a tag dos membros: %v", store.resets)
 	}
-	if len(pub.tags) != 2 || !pub.tags[1].Reset {
+	if len(pub.tags) != 2 {
 		t.Errorf("evento = %+v", pub.tags)
+	}
+}
+
+// O aviso vai para todo mundo: não pode levar a tag de um servidor privado.
+func TestEventoDaTagNaoLevaATag(t *testing.T) {
+	raw, err := json.Marshal(TagEvent{ServerID: "s1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != `{"server_id":"s1"}` {
+		t.Errorf("evento = %s", raw)
+	}
+}
+
+// Trocar uma imagem por outra, ou só o escurecimento, também vai para o registro.
+func TestAuditoriaDasImagens(t *testing.T) {
+	fields := func(before, after Profile) map[string]bool {
+		out := map[string]bool{}
+		for _, c := range profileChanges(before, after) {
+			out[c.Field] = true
+		}
+		return out
+	}
+	a, b := ImagePath+"a", ImagePath+"b"
+	if got := fields(Profile{Banner: Art{Image: a}}, Profile{Banner: Art{Image: b}}); !got["banner"] {
+		t.Errorf("banner: %v", got)
+	}
+	if got := fields(Profile{Strip: Art{Image: a}}, Profile{Strip: Art{Image: b}}); !got["strip"] {
+		t.Errorf("faixa: %v", got)
+	}
+	if got := fields(Profile{Theme: Theme{Image: a}}, Profile{Theme: Theme{Image: b}}); !got["server_theme_image"] {
+		t.Errorf("imagem de fundo: %v", got)
+	}
+	if got := fields(Profile{Theme: Theme{Image: a, Dim: 10}}, Profile{Theme: Theme{Image: a, Dim: 20}}); !got["server_theme_dim"] {
+		t.Errorf("escurecimento: %v", got)
+	}
+	if got := fields(Profile{Theme: Theme{Image: a, Starter: "x"}}, Profile{Theme: Theme{Image: a, Starter: "y"}}); !got["server_theme"] {
+		t.Errorf("ponto de partida: %v", got)
 	}
 }
 

@@ -9,6 +9,7 @@ import { lookupServerTags, type ServerTag } from '../api/serverProfile'
 /** Prazo da cópia local (cobre o que não vem por evento, como servidor apagado). */
 export const TAG_CACHE_MS = 10 * 60 * 1000
 const BATCH_MS = 30
+const REFRESH_SPREAD_MS = 1500
 const MAX_PER_LOOKUP = 200
 
 interface CachedTag {
@@ -21,7 +22,8 @@ interface ServerTagState {
   /** Garante que a tag desse id vai chegar (nada a fazer se já está guardada). */
   request: (userId: string) => void
   setUserTag: (userId: string, tag: ServerTag | null, leftServerId?: string) => void
-  setServerTag: (serverId: string, tag: ServerTag | null, reset: boolean) => void
+  /** A tag do servidor mudou: pergunta de novo por quem a usa. */
+  refreshServer: (serverId: string) => void
 }
 
 const pending = new Set<string>()
@@ -59,13 +61,17 @@ function flush(): void {
   for (const batch of chunks(ids)) void lookup(batch)
 }
 
+function schedule(delay: number): void {
+  timer ??= setTimeout(flush, delay)
+}
+
 export const useServerTagStore = create<ServerTagState>()((set, get) => ({
   byUser: {},
   request: (userId) => {
     const cached = get().byUser[userId]
     if (inFlight.has(userId) || (cached && Date.now() - cached.at < TAG_CACHE_MS)) return
     pending.add(userId)
-    timer ??= setTimeout(flush, BATCH_MS)
+    schedule(BATCH_MS)
   },
   setUserTag: (userId, tag, leftServerId) => {
     set((s) => {
@@ -74,13 +80,13 @@ export const useServerTagStore = create<ServerTagState>()((set, get) => ({
       return { byUser: { ...s.byUser, [userId]: { tag, at: Date.now() } } }
     })
   },
-  setServerTag: (serverId, tag, reset) => {
-    set((s) => {
-      const byUser = { ...s.byUser }
-      for (const [userId, cached] of Object.entries(byUser)) {
-        if (cached.tag?.server_id === serverId) byUser[userId] = { ...cached, tag: reset ? null : tag }
-      }
-      return { byUser }
-    })
+  refreshServer: (serverId) => {
+    const ids = Object.entries(get().byUser)
+      .filter(([, cached]) => cached.tag?.server_id === serverId)
+      .map(([userId]) => userId)
+    if (ids.length === 0) return
+    for (const id of ids) pending.add(id)
+    // Todo mundo ouve o aviso: espalha as perguntas por um instante.
+    schedule(BATCH_MS + Math.random() * REFRESH_SPREAD_MS)
   }
 }))

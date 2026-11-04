@@ -104,20 +104,24 @@ describe('eventos', () => {
     expect(tagOf('ana')).toBeNull()
   })
 
-  it('emblema ou cor mudou: todo mundo daquele servidor atualiza', () => {
+  it('a tag do servidor mudou: pergunta de novo por quem a usava, e só por eles', async () => {
     seed()
     const next = { ...tagA, badge: 'lua' }
-    useServerTagStore.getState().setServerTag('s1', next, false)
+    lookup.mockResolvedValue({ ana: next })
+    useServerTagStore.getState().refreshServer('s1')
+    await vi.runAllTimersAsync()
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect(lookup.mock.calls[0][0].sort()).toEqual(['ana', 'caio'])
     expect(tagOf('ana')).toEqual(next)
-    expect(tagOf('caio')).toEqual(next)
+    // Nome trocado: quem usava fica sem tag até reaplicar.
+    expect(tagOf('caio')).toBeNull()
     expect(tagOf('bia')).toEqual(tagB)
   })
 
-  it('nome mudou: a tag sai de todo mundo daquele servidor', () => {
+  it('servidor que ninguém na tela usa: nem pergunta', async () => {
     seed()
-    useServerTagStore.getState().setServerTag('s1', { ...tagA, name: 'NOVA' }, true)
-    expect(tagOf('ana')).toBeNull()
-    expect(tagOf('caio')).toBeNull()
-    expect(tagOf('bia')).toEqual(tagB)
+    useServerTagStore.getState().refreshServer('outro')
+    await vi.runAllTimersAsync()
+    expect(lookup).not.toHaveBeenCalled()
   })
 })

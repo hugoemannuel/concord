@@ -43,9 +43,9 @@ function TraitChips({ traits }: { traits: ServerTrait[] }): React.JSX.Element | 
   if (traits.length === 0) return null
   return (
     <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Traços do servidor">
-      {traits.map((trait) => (
+      {traits.map((trait, index) => (
         <li
-          key={`${trait.emoji}${trait.text}`}
+          key={index}
           className="flex min-w-0 items-center gap-1 rounded-md bg-fg/10 px-2 py-0.5 text-ds-xs text-normal"
         >
           {trait.emoji && <span aria-hidden="true">{trait.emoji}</span>}

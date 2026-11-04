@@ -5,7 +5,7 @@ import { handleServerProfileEvent, type ServerProfileEventDeps } from './serverP
 
 const liveDeps: ServerProfileEventDeps = {
   setProfile: (serverId, profile) => useServerProfileStore.getState().setProfile(serverId, profile),
-  setServerTag: (serverId, tag, reset) => useServerTagStore.getState().setServerTag(serverId, tag, reset),
+  refreshServerTag: (serverId) => useServerTagStore.getState().refreshServer(serverId),
   setUserTag: (userId, tag, left) => useServerTagStore.getState().setUserTag(userId, tag, left)
 }
 

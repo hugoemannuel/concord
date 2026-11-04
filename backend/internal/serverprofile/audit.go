@@ -7,9 +7,10 @@ import (
 	"gin-quickstart/backend/internal/audit"
 )
 
+// artLabel: a URL da imagem (trocar uma por outra também conta) ou o degradê.
 func artLabel(a Art) string {
 	if a.Image != "" {
-		return "imagem"
+		return a.Image
 	}
 	return a.Preset
 }
@@ -30,13 +31,6 @@ func gamesLabel(games []Game) string {
 	return strings.Join(names, ", ")
 }
 
-func themeLabel(t Theme) string {
-	if t.Image != "" {
-		return "imagem"
-	}
-	return t.Starter
-}
-
 // tagFields: nil vira vazio (sem tag).
 func tagFields(t *Tag) (name, badge, color string) {
 	if t == nil {
@@ -54,7 +48,9 @@ func profileChanges(before, after Profile) []audit.Change {
 	changes = audit.Diff(changes, "games", gamesLabel(before.Games), gamesLabel(after.Games))
 	changes = audit.Diff(changes, "profile_private", before.Private, after.Private)
 	changes = audit.Diff(changes, "strip", artLabel(before.Strip), artLabel(after.Strip))
-	changes = audit.Diff(changes, "server_theme", themeLabel(before.Theme), themeLabel(after.Theme))
+	changes = audit.Diff(changes, "server_theme", before.Theme.Starter, after.Theme.Starter)
+	changes = audit.Diff(changes, "server_theme_image", before.Theme.Image, after.Theme.Image)
+	changes = audit.Diff(changes, "server_theme_dim", before.Theme.Dim, after.Theme.Dim)
 	beforeName, beforeBadge, beforeColor := tagFields(before.Tag)
 	afterName, afterBadge, afterColor := tagFields(after.Tag)
 	changes = audit.Diff(changes, "tag_name", beforeName, afterName)
