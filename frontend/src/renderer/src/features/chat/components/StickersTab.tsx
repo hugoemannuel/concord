@@ -15,7 +15,15 @@ import ExpressionPicker, {
   type PickerRailEntry
 } from '../../emojis/components/ExpressionPicker'
 import ServerBadge from '../../emojis/components/ServerBadge'
-import { EXTERNAL_REASON, frequentItems, serverSections } from '../../emojis/lib/pickerSections'
+import {
+  EXTERNAL_REASON,
+  externalNotice,
+  frequentItems,
+  itemPreview,
+  serverSections,
+  type PickerServer,
+  type ServerSection
+} from '../../emojis/lib/pickerSections'
 import { useExternalAccess, type PickerDestination } from '../../emojis/hooks/useExternalAccess'
 import { rankedRecent, useRecentExpressions } from '../../emojis/store/recentExpressions'
 
@@ -26,7 +34,7 @@ const ROW_ITEMS = 3
 const EAGER_SECTIONS = 2
 const FREQUENT_LIMIT = 6
 const FREQUENT_ID = 'sticker:frequent'
-const NO_SERVERS: { id: string; name: string; icon_url?: string | null }[] = []
+const NO_SERVERS: PickerServer[] = []
 
 const sectionHeight = (count: number): number => HEADER_PX + Math.max(Math.ceil(count / ROW_ITEMS), 1) * ROW_PX
 
@@ -103,37 +111,41 @@ function ServerStickerBar({ count, canAdd, onAdd }: { count: number; canAdd: boo
   )
 }
 
-/**
- * Aba "Figurinhas" do seletor de mídia: trilho e seções dos servidores da
- * pessoa, o atual primeiro. Figurinha de outro servidor fica desabilitada, com
- * o motivo, sem a permissão de usá-las aqui.
- */
-export default function StickersTab({
-  serverId,
-  channelId,
-  search,
-  onAdd,
-  onSelectSticker
-}: PickerDestination & {
-  search: string
-  onAdd: () => void
-  onSelectSticker: (sticker: ServerSticker) => void
-}): React.JSX.Element {
-  const stickersByServer = useStickerStore((s) => s.stickersByServer)
-  const deleteSticker = useStickerStore((s) => s.deleteSticker)
-  const servers = useServerStore((s) => s.servers) ?? NO_SERVERS
-  const currentUserId = useAuthStore((s) => s.user?.id)
-  const viewingServer = useServerStore((s) => Boolean(serverId && s.currentServer?.id === serverId))
-  const access = useServerAccess()
-  const allowed = useExternalAccess({ serverId, channelId })
-  const recent = useRecentExpressions((s) => s.sticker)
-  const record = useRecentExpressions((s) => s.record)
-  useEffect(() => useRecentExpressions.getState().load(currentUserId), [currentUserId])
+/** O servidor atual sem figurinhas: o aviso e, com a permissão, o primeiro envio. */
+function NoStickersYet({ canAdd, onAdd }: { canAdd: boolean; onAdd: () => void }): React.JSX.Element {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 p-4 text-center text-ds-xs text-faint">
+      <span>Nenhuma figurinha no servidor ainda.</span>
+      {canAdd && (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="focus-ring cursor-pointer rounded-lg bg-fg/10 px-3 py-1.5 text-ds-xs text-strong transition-colors hover:bg-fg/20"
+        >
+          Adicionar a primeira
+        </button>
+      )}
+    </div>
+  )
+}
 
-  const canModerate = viewingServer && access.can(Perm.MANAGE_EXPRESSIONS)
-  // Só dá para conferir cargos do servidor aberto; em outro, o servidor decide.
-  const canAdd = !viewingServer || access.can(Perm.ADD_STICKERS)
-  const searching = search.trim() !== ''
+/** As figurinhas dos servidores da pessoa em seções, os usados com frequência e quem é quem. */
+function useStickerSections(
+  serverId: string | null | undefined,
+  search: string
+): {
+  sections: ServerSection<ServerSticker>[]
+  byId: Map<string, ServerSticker>
+  frequent: ServerSticker[]
+  servers: PickerServer[]
+  count: number
+  meId: string | undefined
+} {
+  const stickersByServer = useStickerStore((s) => s.stickersByServer)
+  const servers = useServerStore((s) => s.servers) ?? NO_SERVERS
+  const meId = useAuthStore((s) => s.user?.id)
+  const recent = useRecentExpressions((s) => s.sticker)
+  useEffect(() => useRecentExpressions.getState().load(meId), [meId])
 
   const sections = useMemo(
     () =>
@@ -154,7 +166,48 @@ export default function StickersTab({
     () => frequentItems(rankedRecent(recent), (id) => byId.get(id), [], FREQUENT_LIMIT),
     [recent, byId]
   )
-  const serverOf = (id: string): (typeof servers)[number] | undefined => servers.find((s) => s.id === id)
+  const count = serverId ? (stickersByServer[serverId]?.length ?? 0) : 0
+  return { sections, byId, frequent, servers, count, meId }
+}
+
+/** O que a pessoa pode fazer com as figurinhas neste destino. */
+function useStickerRights({ serverId, channelId }: PickerDestination): {
+  allowed: boolean
+  canModerate: boolean
+  canAdd: boolean
+} {
+  const viewing = useServerStore((s) => Boolean(serverId && s.currentServer?.id === serverId))
+  const access = useServerAccess()
+  return {
+    allowed: useExternalAccess({ serverId, channelId }),
+    canModerate: viewing && access.can(Perm.MANAGE_EXPRESSIONS),
+    // Só dá para conferir cargos do servidor aberto; em outro, o servidor decide.
+    canAdd: !viewing || access.can(Perm.ADD_STICKERS)
+  }
+}
+
+/**
+ * Aba "Figurinhas" do seletor de mídia: trilho e seções dos servidores da
+ * pessoa, o atual primeiro. Figurinha de outro servidor fica desabilitada, com
+ * o motivo, sem a permissão de usá-las aqui.
+ */
+export default function StickersTab({
+  serverId,
+  channelId,
+  search,
+  onAdd,
+  onSelectSticker
+}: PickerDestination & {
+  search: string
+  onAdd: () => void
+  onSelectSticker: (sticker: ServerSticker) => void
+}): React.JSX.Element {
+  const deleteSticker = useStickerStore((s) => s.deleteSticker)
+  const record = useRecentExpressions((s) => s.record)
+  const { sections, byId, frequent, servers, count, meId } = useStickerSections(serverId, search)
+  const { allowed, canModerate, canAdd } = useStickerRights({ serverId, channelId })
+  const searching = search.trim() !== ''
+  const showFrequent = !searching && frequent.length > 0
 
   const isDisabled = (s: ServerSticker): boolean => !allowed && s.server_id !== serverId
   const pick = (s: ServerSticker): void => {
@@ -167,10 +220,10 @@ export default function StickersTab({
     })
   }
   const canDeleteSticker = (s: ServerSticker): boolean =>
-    s.uploader_id === currentUserId || (s.server_id === serverId && canModerate)
+    s.uploader_id === meId || (s.server_id === serverId && canModerate)
 
   const rail: PickerRailEntry[] = [
-    ...(!searching && frequent.length ? [{ sectionId: FREQUENT_ID, label: 'Usados com frequência', icon: <ClockIcon size={20} /> }] : []),
+    ...(showFrequent ? [{ sectionId: FREQUENT_ID, label: 'Usados com frequência', icon: <ClockIcon size={20} /> }] : []),
     ...sections.map((s) => ({
       sectionId: `sticker:${s.server.id}`,
       label: s.server.name,
@@ -181,12 +234,10 @@ export default function StickersTab({
   const describe = (key: string): PickerPreview | null => {
     const sticker = byId.get(key)
     if (!sticker) return null
-    const server = serverOf(sticker.server_id)
+    const server = servers.find((s) => s.id === sticker.server_id)
     return {
+      ...itemPreview(sticker.name, server?.name, isDisabled(sticker)),
       media: <StickerImage sticker={sticker} />,
-      title: sticker.name,
-      detail: server ? `de ${server.name}` : undefined,
-      reason: isDisabled(sticker) ? EXTERNAL_REASON : undefined,
       aside: server && <ServerBadge name={server.name} iconUrl={server.icon_url} />
     }
   }
@@ -194,17 +245,16 @@ export default function StickersTab({
   const renderItem = (s: ServerSticker): React.JSX.Element => (
     <StickerItem key={s.id} sticker={s} disabled={isDisabled(s)} canDelete={canDeleteSticker(s)} onSelect={pick} onDelete={handleDelete} />
   )
-  const hasExternal = sections.some((s) => s.external && s.items.length > 0)
 
   return (
     <ExpressionPicker
       rail={rail}
-      header={serverId && <ServerStickerBar count={stickersByServer[serverId]?.length ?? 0} canAdd={canAdd} onAdd={onAdd} />}
-      notice={!allowed && hasExternal ? EXTERNAL_REASON : undefined}
+      header={serverId && <ServerStickerBar count={count} canAdd={canAdd} onAdd={onAdd} />}
+      notice={externalNotice(allowed, sections)}
       describe={describe}
       idleHint="Passe o mouse ou toque em uma figurinha para ver de onde ela vem."
     >
-      {!searching && frequent.length > 0 && (
+      {showFrequent && (
         <PickerSection id={FREQUENT_ID} title="Usados com frequência" icon={<ClockIcon size={12} />} eager estimatedHeight={sectionHeight(frequent.length)}>
           <div className={GRID}>{frequent.map(renderItem)}</div>
         </PickerSection>
@@ -218,22 +268,7 @@ export default function StickersTab({
           eager={searching || i < EAGER_SECTIONS}
           estimatedHeight={sectionHeight(section.items.length)}
         >
-          {section.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 p-4 text-center text-ds-xs text-faint">
-              <span>Nenhuma figurinha no servidor ainda.</span>
-              {canAdd && (
-                <button
-                  type="button"
-                  onClick={onAdd}
-                  className="focus-ring cursor-pointer rounded-lg bg-fg/10 px-3 py-1.5 text-ds-xs text-strong transition-colors hover:bg-fg/20"
-                >
-                  Adicionar a primeira
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className={GRID}>{section.items.map(renderItem)}</div>
-          )}
+          {section.items.length === 0 ? <NoStickersYet canAdd={canAdd} onAdd={onAdd} /> : <div className={GRID}>{section.items.map(renderItem)}</div>}
         </PickerSection>
       ))}
       {sections.length === 0 && (

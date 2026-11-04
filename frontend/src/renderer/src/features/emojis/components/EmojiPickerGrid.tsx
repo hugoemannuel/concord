@@ -7,7 +7,17 @@ import { showToast } from '../../../shared/store/toastStore'
 import type { CustomEmoji as Emoji, ServerEmojis } from '../api/emojis'
 import { messageToken, reactionToken } from '../lib/emojiToken'
 import { searchCategories } from '../lib/baseEmojis'
-import { EXTERNAL_REASON, frequentItems, serverSections, withItemServers, type ServerSection } from '../lib/pickerSections'
+import {
+  EXTERNAL_REASON,
+  customIdOf,
+  customKey,
+  externalNotice,
+  frequentItems,
+  itemPreview,
+  serverSections,
+  withItemServers,
+  type ServerSection
+} from '../lib/pickerSections'
 import { useEmojiStore } from '../store/emojiStore'
 import { rankedRecent, useRecentExpressions } from '../store/recentExpressions'
 import { useCustomEmojis } from '../hooks/useCustomEmojis'
@@ -34,7 +44,6 @@ const EAGER_CATEGORIES = 2
 const FREQUENT_LIMIT = 18
 const FREQUENT_ID = 'emoji:frequent'
 const BASE_PREFIX = 'emoji:base:'
-const customKey = (id: string): string => `custom:${id}`
 
 const sectionHeight = (count: number): number => HEADER_PX + Math.ceil(count / ROW_ITEMS) * ROW_PX
 
@@ -96,6 +105,24 @@ function UnicodeCell({ item, onPick }: { item: EmoteItem; onPick: (value: string
   )
 }
 
+/** O rodapé de um emoji: o nome e, no personalizado, de que servidor vem e se pode ser usado. */
+export function emojiPreview(
+  key: string,
+  serverOf: Map<string, ServerEmojis>,
+  unicode: Map<string, EmoteItem>,
+  isDisabled: (emoji: Emoji) => boolean
+): PickerPreview | null {
+  const id = customIdOf(key)
+  if (id === null) return { media: key, title: unicode.get(key)?.label ?? key }
+  const group = serverOf.get(id)
+  const emoji = group?.emojis.find((e) => e.id === id)
+  if (!emoji) return null
+  return {
+    ...itemPreview(`:${emoji.name}:`, group?.server_name, isDisabled(emoji)),
+    media: <CustomEmoji id={id} name={emoji.name} size="picker" />
+  }
+}
+
 /** Tudo que a grade precisa saber, já calculado a partir dos stores. */
 function usePickerData(
   search: string,
@@ -141,8 +168,9 @@ function usePickerData(
   )
   const frequent = useMemo(() => {
     const lookup = (key: string): FrequentItem | undefined => {
-      if (key.startsWith('custom:')) {
-        const emoji = customs ? byId[key.slice('custom:'.length)] : undefined
+      const id = customIdOf(key)
+      if (id !== null) {
+        const emoji = customs ? byId[id] : undefined
         return emoji && { custom: emoji }
       }
       const item = unicode.get(key)
@@ -219,30 +247,15 @@ export default function EmojiPickerGrid({
       : [])
   ]
 
-  const describe = (key: string): PickerPreview | null => {
-    if (key.startsWith('custom:')) {
-      const id = key.slice('custom:'.length)
-      const group = serverOf.get(id)
-      const emoji = group?.emojis.find((e) => e.id === id)
-      if (!group || !emoji) return null
-      return {
-        media: <CustomEmoji id={id} name={emoji.name} size="picker" />,
-        title: `:${emoji.name}:`,
-        detail: `de ${group.server_name}`,
-        reason: isDisabled(emoji) ? EXTERNAL_REASON : undefined
-      }
-    }
-    return { media: key, title: unicode.get(key)?.label ?? key }
-  }
+  const describe = (key: string): PickerPreview | null => emojiPreview(key, serverOf, unicode, isDisabled)
 
-  const hasExternal = sections.some((s) => s.external && s.items.length > 0)
   const nothing = sections.length === 0 && categories.length === 0
 
   return (
     <ExpressionPicker
       rail={rail}
       header={header}
-      notice={!allowed && hasExternal ? EXTERNAL_REASON : undefined}
+      notice={externalNotice(allowed, sections)}
       describe={describe}
       idleHint="Passe o mouse ou toque em um emoji para ver de onde ele vem."
     >

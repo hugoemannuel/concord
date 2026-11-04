@@ -108,3 +108,33 @@ export function frequentItems<T>(
   }
   return out
 }
+
+/** O que o rodapé diz de um item de servidor. */
+export interface ItemPreview {
+  title: string
+  detail?: string
+  reason?: string
+}
+
+export function itemPreview(title: string, serverName: string | undefined, disabled: boolean): ItemPreview {
+  return {
+    title,
+    detail: serverName ? `de ${serverName}` : undefined,
+    reason: disabled ? EXTERNAL_REASON : undefined
+  }
+}
+
+/** Sem a permissão e com algo de fora na lista, o seletor avisa uma vez, em cima. */
+export function externalNotice<T>(allowed: boolean, sections: ServerSection<T>[]): string | undefined {
+  if (allowed) return undefined
+  return sections.some((s) => s.external && s.items.length > 0) ? EXTERNAL_REASON : undefined
+}
+
+const CUSTOM_PREFIX = 'custom:'
+
+/** A chave do emoji personalizado (nos usados com frequência e no rodapé). */
+export const customKey = (id: string): string => `${CUSTOM_PREFIX}${id}`
+
+/** O id do emoji personalizado, ou null se a chave é de um emoji Unicode. */
+export const customIdOf = (key: string): string | null =>
+  key.startsWith(CUSTOM_PREFIX) ? key.slice(CUSTOM_PREFIX.length) : null

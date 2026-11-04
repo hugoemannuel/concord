@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextCell } from './gridNav'
+import { activeSectionAt, nextCell } from './gridNav'
 
 // Duas linhas de três, e uma terceira só com uma.
 const cells = [
@@ -36,5 +36,24 @@ describe('nextCell', () => {
 
   it('tecla que não é seta não anda', () => {
     expect(nextCell(cells, 1, 'Enter')).toBe(1)
+  })
+})
+
+describe('activeSectionAt', () => {
+  const sections = [
+    { id: 'a', top: 0 },
+    { id: 'b', top: 100 },
+    { id: 'c', top: 300 }
+  ]
+
+  it('é a última que já chegou ao topo, com uma folga', () => {
+    expect(activeSectionAt(sections, 0)).toBe('a')
+    expect(activeSectionAt(sections, 95)).toBe('b')
+    expect(activeSectionAt(sections, 1000)).toBe('c')
+  })
+
+  it('sem nenhuma no topo, ou sem seções, nada', () => {
+    expect(activeSectionAt([{ id: 'a', top: 50 }], 0)).toBeNull()
+    expect(activeSectionAt([], 0)).toBeNull()
   })
 })

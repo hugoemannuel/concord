@@ -43,7 +43,7 @@ vi.mock('../../servers/hooks/useServerAccess', () => ({
   })
 }))
 
-import EmojiPickerGrid from './EmojiPickerGrid'
+import EmojiPickerGrid, { emojiPreview } from './EmojiPickerGrid'
 import EmojisTab from '../../chat/components/EmojisTab'
 import EmojiUploadModal from './EmojiUploadModal'
 import { Perm } from '../../servers/lib/permissions'
@@ -152,6 +152,29 @@ describe('EmojiPickerGrid', () => {
     expect(html).toContain('cat3')
     expect(html).not.toContain('aria-label="n3"')
     expect(html).toContain('height:64px')
+  })
+})
+
+describe('emojiPreview', () => {
+  const serverOf = new Map(groups.flatMap((g) => g.emojis.map((e): [string, ServerEmojis] => [e.id, g])))
+  const unicode = new Map([['👍', { emoji: '👍', label: 'Joinha', keywords: [] }]])
+  const REASON = 'Você não tem permissão para usar itens de outros servidores aqui.'
+
+  it('emoji de servidor: o :nome: e de onde vem', () => {
+    expect(emojiPreview('custom:e3', serverOf, unicode, () => false)).toMatchObject({ title: ':gato:', detail: 'de Beta' })
+  })
+
+  it('desabilitado: o motivo', () => {
+    expect(emojiPreview('custom:e3', serverOf, unicode, () => true)?.reason).toBe(REASON)
+  })
+
+  it('emoji que sumiu: nada', () => {
+    expect(emojiPreview('custom:sumiu', serverOf, unicode, () => false)).toBeNull()
+  })
+
+  it('emoji comum: o rótulo; sem rótulo, o próprio emoji', () => {
+    expect(emojiPreview('👍', serverOf, unicode, () => false)).toMatchObject({ title: 'Joinha', media: '👍' })
+    expect(emojiPreview('🔥', serverOf, unicode, () => false)).toMatchObject({ title: '🔥' })
   })
 })
 

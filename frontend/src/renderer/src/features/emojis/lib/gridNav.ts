@@ -38,3 +38,17 @@ export function nextCell(cells: CellBox[], index: number, key: string): number {
       return index
   }
 }
+
+/** A seção que está no topo da área que rola: a última que já passou dele (com folga). */
+export function activeSectionAt(
+  sections: { id?: string; top: number }[],
+  scrollTop: number,
+  slack = 8
+): string | null {
+  let current: string | null = null
+  for (const section of sections) {
+    if (section.top > scrollTop + slack) break
+    current = section.id ?? null
+  }
+  return current
+}

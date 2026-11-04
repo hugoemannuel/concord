@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronDownIcon } from '../../../shared/ui/icons'
 import { isCollapsed, setCollapsed } from '../lib/collapsedSections'
-import { nextCell } from '../lib/gridNav'
+import { activeSectionAt, nextCell } from '../lib/gridNav'
 import { observeOnce } from '../lib/observeOnce'
 
 // A casca do seletor de emojis e figurinhas: trilho (um ícone por servidor),
@@ -101,12 +101,8 @@ function useActiveSection(scroller: React.RefObject<HTMLDivElement | null>): {
     frame.current = null
     const box = scroller.current
     if (!box) return
-    let current: string | null = null
-    for (const el of box.querySelectorAll<HTMLElement>('[data-section-id]')) {
-      if (el.offsetTop > box.scrollTop + 8) break
-      current = el.dataset.sectionId ?? null
-    }
-    setActive(current)
+    const sections = [...box.querySelectorAll<HTMLElement>('[data-section-id]')]
+    setActive(activeSectionAt(sections.map((el) => ({ id: el.dataset.sectionId, top: el.offsetTop })), box.scrollTop))
   }, [scroller])
 
   useEffect(() => {

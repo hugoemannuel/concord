@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { externalAllowed, frequentItems, orderServers, serverSections, withItemServers } from './pickerSections'
+import {
+  EXTERNAL_REASON,
+  customIdOf,
+  customKey,
+  externalAllowed,
+  externalNotice,
+  frequentItems,
+  itemPreview,
+  orderServers,
+  serverSections,
+  withItemServers
+} from './pickerSections'
 
 const server = (id: string, name = id): { id: string; name: string } => ({ id, name })
 
@@ -98,5 +109,42 @@ describe('frequentItems', () => {
 
   it('respeita o limite', () => {
     expect(frequentItems(['a', 'b', 'd'], lookup, [], 2)).toEqual(['A', 'B'])
+  })
+})
+
+describe('itemPreview', () => {
+  it('diz de que servidor vem', () => {
+    expect(itemPreview(':festa:', 'Alfa', false)).toEqual({ title: ':festa:', detail: 'de Alfa', reason: undefined })
+  })
+
+  it('desabilitado diz o motivo', () => {
+    expect(itemPreview(':festa:', 'Alfa', true).reason).toBe(EXTERNAL_REASON)
+  })
+
+  it('sem servidor conhecido não inventa', () => {
+    expect(itemPreview('gato', undefined, false).detail).toBeUndefined()
+  })
+})
+
+describe('externalNotice', () => {
+  const section = (external: boolean, items: string[]) => ({ server: server('a'), external, items })
+
+  it('com a permissão não avisa', () => {
+    expect(externalNotice(true, [section(true, ['x'])])).toBeUndefined()
+  })
+
+  it('sem a permissão, avisa se há algo de fora', () => {
+    expect(externalNotice(false, [section(true, ['x'])])).toBe(EXTERNAL_REASON)
+  })
+
+  it('sem nada de fora (ou seção de fora vazia) não avisa', () => {
+    expect(externalNotice(false, [section(false, ['x']), section(true, [])])).toBeUndefined()
+  })
+})
+
+describe('customKey e customIdOf', () => {
+  it('ida e volta; emoji Unicode não tem id', () => {
+    expect(customIdOf(customKey('e1'))).toBe('e1')
+    expect(customIdOf('👍')).toBeNull()
   })
 })
