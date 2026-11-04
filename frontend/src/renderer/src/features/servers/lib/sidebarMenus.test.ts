@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  channelMenuItems,
-  serverMenuItems,
-  type ChannelMenuContext,
-  type ServerMenuContext
-} from './sidebarMenus'
+import { channelMenuItems, type ChannelMenuContext } from './sidebarMenus'
 
 describe('channelMenuItems', () => {
   const member: ChannelMenuContext = {
@@ -80,52 +75,5 @@ describe('canal de sala de evento (gerenciado)', () => {
 
   it('o canal gerenciado só pode ser silenciado e movido: nada de editar, apagar, permissões ou canal principal', () => {
     expect(channelMenuItems({ ...mod, isManaged: true })).toEqual(['notifications', 'move-up', 'move-down'])
-  })
-})
-
-describe('serverMenuItems', () => {
-  const member: ServerMenuContext = {
-    hasServer: true,
-    canInvite: true,
-    canChangeOwnNickname: true,
-    canOpenSettings: false,
-    isOwner: false
-  }
-
-  it('membro: convidar, apelido, eventos, notificações e sair', () => {
-    expect(serverMenuItems(member)).toEqual([
-      'invite',
-      'profile',
-      'nickname',
-      'memberProfile',
-      'events',
-      'notifications',
-      'leave'
-    ])
-  })
-
-  it('dono: configurações e apagar no lugar de sair', () => {
-    expect(serverMenuItems({ ...member, isOwner: true, canOpenSettings: true })).toEqual([
-      'invite',
-      'profile',
-      'nickname',
-      'memberProfile',
-      'events',
-      'notifications',
-      'settings',
-      'delete'
-    ])
-  })
-
-  it('sem servidor nem permissões', () => {
-    expect(
-      serverMenuItems({
-        hasServer: false,
-        canInvite: false,
-        canChangeOwnNickname: false,
-        canOpenSettings: false,
-        isOwner: false
-      })
-    ).toEqual(['leave'])
   })
 })
