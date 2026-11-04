@@ -88,3 +88,29 @@ func TestFavoritosNoBancoOrdemAtualizacaoELimite(t *testing.T) {
 		t.Fatalf("sobraram %d favoritos de usuário apagado", n)
 	}
 }
+
+// Favoritos antigos (sem provedor) viram giphy; os novos guardam o provedor.
+func TestFavoritosGuardamOProvedor(t *testing.T) {
+	repo, db, user := favoritesDB(t)
+	ctx := context.Background()
+	// Linha como a de antes da migration: sem a coluna provider no INSERT.
+	_, err := db.Exec(ctx, `INSERT INTO gif_favorites (user_id, gif_id, url) VALUES ($1, 'velho', 'https://media.giphy.com/velho.gif')`, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	klipy := GIFItem{ID: "935d7ab9d8c6202580a668421940ec81", URL: "https://static.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/md.gif", Provider: ProviderKlipy}
+	if err := repo.AddFavorite(ctx, user, klipy, 5); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.ListFavorites(ctx, user)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("lista = %+v, err = %v", got, err)
+	}
+	byID := map[string]string{}
+	for _, g := range got {
+		byID[g.ID] = g.Provider
+	}
+	if byID["velho"] != ProviderGiphy || byID[klipy.ID] != ProviderKlipy {
+		t.Fatalf("provedores = %v", byID)
+	}
+}

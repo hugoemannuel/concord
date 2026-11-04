@@ -61,7 +61,10 @@ func (a *app) wireChat() {
 	stickerHandler.SetAudit(a.audit)
 	a.messageService.SetStickerChecker(stickerRepository)
 
-	gifsHandler := gifs.NewHandler(os.Getenv("GIPHY_API_KEY"))
+	gifsHandler := gifs.NewHandler(gifs.Config{
+		AppKey: os.Getenv("KLIPY_API_KEY"),
+		Proxy:  os.Getenv("KLIPY_PROXY_SERVIDOR") == "1",
+	})
 
 	// Perfil (avatar/banner numa subpasta que a limpeza dos anexos não varre)
 	profileMediaDir := filepath.Join(a.uploadsDir, user.ProfileMediaDir)
