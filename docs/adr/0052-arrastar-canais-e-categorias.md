@@ -20,9 +20,9 @@ Gesto:
 1. **Arrastar nativo (HTML5), o padrão do repo** (`useServerRailDrag`): não
    funciona no toque, não deixa desenhar o fantasma com os canais da categoria e
    não dá controle sobre a rolagem automática.
-2. **Biblioteca (`dnd-kit` ou parecida)**: resolve tudo, mas é dependência nova e
-   desenhada para listas reordenadas com animação; aqui o alvo tem regras
-   próprias (seções por tipo, categoria recolhida, canais ocultos).
+2. **Biblioteca (`dnd-kit` ou parecida)**: é dependência nova, e o alvo aqui tem
+   regras próprias (seções por tipo, categoria recolhida, canais ocultos) que
+   ficariam no nosso código de qualquer jeito. Não foi avaliada a fundo.
 3. **Eventos de ponteiro, sem dependência**: um gesto só para mouse e toque, com
    fantasma próprio e alvo descoberto por `elementFromPoint`, como faz o modo de
    toque do Sortable.
@@ -66,5 +66,5 @@ Nativo (Rust): sem ganho aqui; é interação de DOM dentro do renderer.
 - As rotas `PUT /categories/:id/order` e `PUT /categories/channels/:id` ficam para os
   apps ainda não atualizados. O app atual não as usa; podem sair numa próxima versão.
 - O código do gesto é nosso para manter (toque longo, rolagem, clique engolido).
-  Foi conferido no Chromium, com mouse e com toque de verdade pelo protocolo do
-  navegador; não foi conferido em Safari/iOS.
+  Foi conferido no build web em Chromium, com mouse e com toque simulado pelo
+  protocolo do navegador; não foi conferido em aparelho real nem em Safari/iOS.
