@@ -61,13 +61,13 @@ function InviteConfirm({ code }: { code: string }): React.JSX.Element {
         className="flex max-h-full w-full max-w-[880px] overflow-hidden rounded-xl border border-subtle bg-modal shadow-2xl shadow-black/60"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex min-h-[420px] w-full flex-col items-center justify-center px-8 py-10 md:w-[420px] md:shrink-0">
+        <div className="flex min-h-[420px] w-full flex-col items-center overflow-y-auto px-8 py-10 md:w-[420px] md:shrink-0">
           {state.status === 'loading' && <InviteLoading />}
           {state.status === 'error' && <InviteUnavailable message={state.message} onClose={close} />}
           {preview && (
             <div className="flex w-full flex-1 flex-col items-center">
-              <div className="flex flex-1 flex-col justify-center">
-                <InviteServerInfo preview={preview} />
+              <div className="flex w-full flex-1 flex-col justify-center">
+                <InviteServerInfo preview={preview} code={code} signedIn />
               </div>
               <InviteNotices join={join} />
               <InviteConfirmActions preview={preview} isMember={isMember} join={join} onOpen={openServer} onClose={close} />
