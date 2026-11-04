@@ -76,6 +76,29 @@ describe('detalhes do que mudou', () => {
     ])
   })
 
+  it('customização do servidor: a imagem não mostra o endereço', () => {
+    expect(
+      describeChanges(
+        entry({
+          action: 'server.update',
+          changes: [
+            { field: 'banner', before: '/api/server-profile-images/x', after: 'azul' },
+            { field: 'strip', after: '/api/server-profile-images/y' },
+            { field: 'server_theme_dim', before: 10, after: 20 },
+            { field: 'profile_private', before: false, after: true },
+            { field: 'tag_name', before: 'ABC', after: 'XYZ' }
+          ]
+        })
+      )
+    ).toEqual([
+      { label: 'Banner', before: 'imagem', after: 'azul' },
+      { label: 'Faixa', before: 'padrão', after: 'imagem' },
+      { label: 'Escurecer a imagem', before: '10%', after: '20%' },
+      { label: 'Perfil privado', before: 'Não', after: 'Sim' },
+      { label: 'Nome da tag', before: 'ABC', after: 'XYZ' }
+    ])
+  })
+
   it('apelido, ícone, tipo e canal principal', () => {
     expect(
       describeChanges(entry({ action: 'member.nickname', changes: [{ field: 'nick', before: 'Ana' }] }))

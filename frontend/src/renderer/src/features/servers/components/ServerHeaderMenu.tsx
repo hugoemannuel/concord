@@ -9,6 +9,7 @@ import {
   CalendarIcon,
   ChevronDownIcon,
   GearIcon,
+  ImageIcon,
   PencilIcon,
   TrashIcon,
   UserPlusIcon,
@@ -31,6 +32,8 @@ import { useServerLevelModalStore } from '../../serverlevel/store/serverLevelMod
 import EventsPanelHost from '../../events/components/EventsPanelHost'
 import { useEventAccess } from '../../events/hooks/useEventAccess'
 import { useEventsPanelStore } from '../../events/store/eventsPanelStore'
+import ServerStripArt, { useServerStrip } from '../../serverprofile/components/ServerStripArt'
+import { useServerCardStore } from '../../serverprofile/store/serverCardStore'
 
 const LOOK: Record<
   ServerMenuItem,
@@ -41,6 +44,7 @@ const LOOK: Record<
     icon: <UserPlusIcon className="h-4 w-4" />,
     tone: 'brand'
   },
+  profile: { label: 'Perfil do servidor', icon: <ImageIcon className="h-3.5 w-3.5" /> },
   nickname: { label: 'Alterar apelido', icon: <PencilIcon className="h-3.5 w-3.5" /> },
   events: { label: 'Eventos', icon: <CalendarIcon className="h-3.5 w-3.5" /> },
   notifications: { label: 'Notificações do servidor' },
@@ -94,6 +98,7 @@ export function ServerMenuItems({
   // Os itens que dependem do servidor só aparecem com ele (hasServer).
   const actions: Record<ServerMenuItem, () => void> = {
     invite: openInviteModal,
+    profile: () => server && useServerCardStore.getState().open(server.id),
     nickname: () => server && user && askOwnNickname(server, user),
     events: () => server && useEventsPanelStore.getState().open(server.id),
     notifications: () => server && openNotifyModal({ serverId: server.id, name: server.name }),
@@ -143,8 +148,14 @@ function ServerHeaderMenu({
   const [open, setOpen] = useState(false)
   const name = server?.name ?? 'Servidor'
   const toggle = (): void => setOpen((d) => !d)
+  const strip = useServerStrip(server?.id)
   return (
-    <div className="relative flex h-14 shrink-0 items-center gap-1.5 px-4 border-b border-subtle shadow-xs">
+    <div
+      className={`relative isolate flex shrink-0 gap-1.5 px-4 border-b border-subtle shadow-xs ${
+        strip ? 'on-media h-24 items-start pt-3' : 'h-14 items-center'
+      }`}
+    >
+      {strip && <ServerStripArt art={strip} />}
       {/* O selo de nível é um botão próprio: não pode ficar dentro do botão do menu. */}
       <button
         onClick={toggle}

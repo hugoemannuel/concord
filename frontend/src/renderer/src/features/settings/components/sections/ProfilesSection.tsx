@@ -10,6 +10,7 @@ import ProfileEditModal, { type ProfileModalId } from '../profile/modals/Profile
 import ProfileTiles from '../profile/tiles/ProfileTiles'
 import ConfirmModal from '../../../friends/components/ConfirmModal'
 import SavedProfilesPanel from '../../../savedProfiles/components/SavedProfilesPanel'
+import MyServerTagPicker from '../../../serverprofile/components/MyServerTagPicker'
 
 const MEDIA_KINDS: ImageKind[] = ['avatar', 'banner']
 
@@ -123,6 +124,8 @@ function ProfilesSection(): React.JSX.Element | null {
           onOpen={setModal}
         />
       </div>
+
+      <MyServerTagPicker />
 
       <FileInputs inputs={inputs} onPick={profile.pickFile} />
       <CropModal profile={profile} />

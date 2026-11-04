@@ -3,6 +3,7 @@ import StyledName from '../StyledName'
 import type { CardProfile } from '../ProfileCardBody'
 import type { CardSpot } from '../../lib/cardSpots'
 import EditableSpot from './EditableSpot'
+import UserServerTag from '../../../serverprofile/components/ServerTagChip'
 
 /** O nome em destaque: o apelido do servidor ou o nome de exibição estilizado. */
 function NameLine({
@@ -97,6 +98,7 @@ export default function CardNames({
       <EditableSpot spot="pronouns" onEdit={onEdit}>
         <SubLine profile={profile} badges={badges} placeholder={pronounsPlaceholder} />
       </EditableSpot>
+      <UserServerTag userId={profile.id} className="mt-1" />
     </div>
   )
 }

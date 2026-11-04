@@ -17,6 +17,7 @@ import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
 import TTSBadge from '../../tts/components/TTSBadge'
 import { useChatStore } from '../store/chatStore'
+import UserServerTag from '../../serverprofile/components/ServerTagChip'
 import { messagePreviewParts } from '../lib/polls'
 import { textPreview, type Preview } from '../lib/preview'
 
@@ -203,6 +204,7 @@ export function MessageHeader({
           <StyledName name={name} userId={message.author_id} style={message.author?.name_style} />
         )}
       </button>
+      <UserServerTag userId={message.author_id} className="self-center" />
       <MessageTime
         iso={message.created_at}
         className="shrink-0 text-ds-xs font-medium text-faint"

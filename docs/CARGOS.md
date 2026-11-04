@@ -32,7 +32,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | Geral | Ver canais | Vê o canal (sem isso ele é invisível). |
 | | Gerenciar canais | Criar, editar, reordenar e apagar canais. |
 | | Gerenciar cargos | Criar/editar cargos abaixo do seu, dar e tirar cargos, editar permissões de canal. |
-| | Gerenciar servidor | Nome, ícone e canal principal. |
+| | Gerenciar servidor | Nome, ícone, canal principal e a customização: perfil do servidor (banner, traços, descrição, jogos, perfil privado), tag, faixa e tema de fundo. Ver [ADR 0050](adr/0050-customizacao-do-servidor.md). |
 | | Ver registro de auditoria | Ver em Configurações do servidor → Registro de auditoria quem fez cada ação de moderação e administração (últimos 90 dias). **Fora do @everyone**: só o dono, o Administrador e os cargos que ganharem. Ver [ADR 0036](adr/0036-registro-de-auditoria.md). |
 | | Criar convite | Convidar amigos e ver o código do servidor. |
 | | Gerenciar mesa de áudio | Apagar áudios (e figurinhas) de outras pessoas. |

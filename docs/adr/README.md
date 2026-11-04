@@ -88,3 +88,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0049. Guardar a ordem e as pastas de servidores por usuário como layout reconciliado em `internal/server`](0049-ordem-e-pastas-de-servidores.md)
 - [0052. Arrastar canais e categorias com eventos de ponteiro e gravar a organização numa rota atômica com revisão](0052-arrastar-canais-e-categorias.md)
 - [0053. KLIPY no lugar do GIPHY: os apps chamam a KLIPY direto e o servidor só entrega a configuração](0053-klipy-no-lugar-do-giphy.md)
+- [0050. Customizar o servidor num domínio próprio, com a tag buscada à parte das mensagens](0050-customizacao-do-servidor.md)

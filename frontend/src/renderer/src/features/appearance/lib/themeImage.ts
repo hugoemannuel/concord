@@ -1,8 +1,9 @@
-// Imagem de fundo de um tema próprio (ADR 0043): só a enviada pelo próprio app
-// ("/api/app-theme-images/<uuid>"), nunca URL de fora nem texto que escape do
-// url() do CSS. Puro.
+// Imagem de fundo de um tema (ADR 0043): só a enviada pelo próprio app
+// ("/api/app-theme-images/<uuid>", ou "/api/server-profile-images/<uuid>" no fundo
+// do servidor, ADR 0050), nunca URL de fora nem texto que escape do url() do CSS.
+// Puro.
 
-const IMAGE = /^\/api\/app-theme-images\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+const IMAGE = /^\/api\/(?:app-theme-images|server-profile-images)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export function isThemeImage(value: unknown): value is string {
   return typeof value === 'string' && IMAGE.test(value)

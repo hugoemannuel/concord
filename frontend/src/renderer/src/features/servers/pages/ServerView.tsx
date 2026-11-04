@@ -16,6 +16,7 @@ import {
 } from '../lib/serverChannel'
 import ServerViewLayout, { ServerViewSkeleton } from '../components/ServerViewLayout'
 import ServerRightPanel from '../components/ServerRightPanel'
+import ServerThemeHost from '../../serverprofile/components/ServerThemeHost'
 import VoiceChatPanel from '../../chat/components/VoiceChatPanel'
 import { useServerRightColumn } from '../hooks/useServerRightColumn'
 import ServerInviteModal from '../components/ServerInviteModal'
@@ -139,6 +140,7 @@ export function ServerView(): React.JSX.Element {
     >
       {/* Tela estreita: o chat da call é uma sobreposição em tela cheia. */}
       {chatOverlay && channelId && <VoiceChatPanel channelId={channelId} />}
+      <ServerThemeHost serverId={currentServer.id} />
       <ServerInviteModal server={currentServer} />
       <ServerMembersDrawer server={currentServer} />
     </ServerViewLayout>

@@ -85,7 +85,7 @@ func setupModeration() (*Moderation, *fakeModeration, *removedRecorder, *[]strin
 	f, rec := newFakeModeration(), &removedRecorder{}
 	m := newModeration(f, f, rec)
 	var leftCalls []string
-	m.SetOnRemoved(func(_ context.Context, _ string, userID string) { leftCalls = append(leftCalls, userID) })
+	m.OnRemoved(func(_ context.Context, _ string, userID string) { leftCalls = append(leftCalls, userID) })
 	return m, f, rec, &leftCalls
 }
 
@@ -208,5 +208,16 @@ func TestLeave(t *testing.T) {
 	}
 	if f.snap.IsMember("ana") || rec.events[0].Reason != RemovedLeave {
 		t.Fatalf("ana devia sair: %+v", rec.events)
+	}
+}
+
+// Mais de uma área ouve a saída: a chamada de voz e a tag do servidor.
+func TestModerationAvisaTodosOsGanchos(t *testing.T) {
+	m, _, _, leftCalls := setupModeration()
+	var second []string
+	m.OnRemoved(func(_ context.Context, serverID string, _ string) { second = append(second, serverID) })
+	m.removed(context.Background(), "s1", "ana", RemovedLeave)
+	if len(*leftCalls) != 1 || len(second) != 1 || second[0] != "s1" {
+		t.Errorf("ganchos: %v e %v", *leftCalls, second)
 	}
 }
