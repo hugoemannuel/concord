@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { fetchTrendingGifs, searchGifs, type GiphyItem } from '../api/giphy'
+import { fetchTrendingGifs, searchGifs, type GifItem } from '../api/gifs'
 
 interface GifResult {
   query: string
-  gifs: GiphyItem[]
+  gifs: GifItem[]
 }
 
 /**
@@ -14,7 +14,7 @@ interface GifResult {
 export function useGifSearch(
   enabled: boolean,
   search: string
-): { gifs: GiphyItem[]; loading: boolean } {
+): { gifs: GifItem[]; loading: boolean } {
   const [result, setResult] = useState<GifResult | null>(null)
 
   useEffect(() => {

@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native'
-import { fetchTrendingGifs, searchGifs } from '../api/giphy'
+import { fetchTrendingGifs, searchGifs } from '../api/gifs'
 import { useGifSearch } from './useGifSearch'
 
-jest.mock('../api/giphy', () => ({ fetchTrendingGifs: jest.fn(), searchGifs: jest.fn() }))
+jest.mock('../api/gifs', () => ({ fetchTrendingGifs: jest.fn(), searchGifs: jest.fn() }))
 const gif = { id: 'g1', title: 'x', url: 'u', preview_url: 'p', width: 1, height: 1 }
 
 describe('useGifSearch', () => {

@@ -1,9 +1,9 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { colors, fontSize, radius, spacing } from '../../../shared/theme/tokens'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 
 /** Aba "GIFs" do seletor: grade de 2 colunas com a prévia de cada GIF. */
-export function GifsTab({ gifs, loading, onSelect }: { gifs: GiphyItem[]; loading: boolean; onSelect: (gif: GiphyItem) => void }) {
+export function GifsTab({ gifs, loading, onSelect }: { gifs: GifItem[]; loading: boolean; onSelect: (gif: GifItem) => void }) {
   if (loading || gifs.length === 0) {
     return (
       <View style={styles.empty}>

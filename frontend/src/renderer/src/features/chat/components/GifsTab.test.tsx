@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import GifsTab from './GifsTab'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 
-const gif = { id: 'g1', title: 'Gato', url: 'https://g/1.gif', preview_url: '' } as GiphyItem
-const fav = { id: 'f1', title: 'Cão', url: 'https://g/2.gif', preview_url: '' } as GiphyItem
+const gif = { id: 'g1', title: 'Gato', url: 'https://g/1.gif', preview_url: '' } as GifItem
+const fav = { id: 'f1', title: 'Cão', url: 'https://g/2.gif', preview_url: '' } as GifItem
 
 const render = (
-  gifs: GiphyItem[],
+  gifs: GifItem[],
   loading: boolean,
-  favorites: GiphyItem[] = [],
+  favorites: GifItem[] = [],
   searching = false
 ): string =>
   renderToStaticMarkup(

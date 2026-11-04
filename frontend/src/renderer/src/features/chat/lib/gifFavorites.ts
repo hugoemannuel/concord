@@ -1,4 +1,4 @@
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 
 /** Limite de favoritos por pessoa (o mesmo do backend). */
 export const MAX_GIF_FAVORITES = 200
@@ -24,7 +24,7 @@ interface GifMessageMeta {
 }
 
 /** O GIF de uma mensagem como item do seletor; null se o id não der para tirar da URL. */
-export function gifFromMessage(gifUrl: string, meta?: GifMessageMeta | null): GiphyItem | null {
+export function gifFromMessage(gifUrl: string, meta?: GifMessageMeta | null): GifItem | null {
   const id = gifIdFromUrl(gifUrl)
   if (!id) return null
   return {

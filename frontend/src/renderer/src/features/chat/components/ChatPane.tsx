@@ -13,7 +13,7 @@ import MessageItem from './MessageItem'
 import { copyText } from '../../../shared/lib/clipboard'
 import CreatePollModal from './CreatePollModal'
 import type { ServerSticker } from '../api/stickers'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import { usePinStore } from '../store/pinStore'
 import {
   ACCEPT_ATTRIBUTE,
@@ -443,7 +443,7 @@ function ChatPane({
     }
   }
 
-  const handleSendGif = async (gif: GiphyItem): Promise<void> => {
+  const handleSendGif = async (gif: GifItem): Promise<void> => {
     stickToBottom.current = true
     const sentReply = replyingTo
     setReplyState(null)

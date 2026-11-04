@@ -1,4 +1,4 @@
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import IconButton from '../../../shared/ui/IconButton'
 import { StarIcon, type IconProps } from '../../../shared/ui/icons'
 
@@ -12,9 +12,9 @@ export default function GifFavoriteButton({
   onToggle,
   className = ''
 }: {
-  gif: GiphyItem
+  gif: GifItem
   favorite: boolean
-  onToggle: (gif: GiphyItem) => void
+  onToggle: (gif: GifItem) => void
   className?: string
 }): React.JSX.Element {
   return (

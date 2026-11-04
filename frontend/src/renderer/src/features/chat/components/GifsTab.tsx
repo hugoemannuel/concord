@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import GifGrid from './GifGrid'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }): React.JSX.Element {
@@ -23,17 +23,17 @@ export default function GifsTab({
   onSelect,
   onToggleFavorite
 }: {
-  gifs: GiphyItem[]
+  gifs: GifItem[]
   loading: boolean
-  favorites: GiphyItem[]
+  favorites: GifItem[]
   /** Tem texto na busca: os favoritos saem e só aparece o resultado. */
   searching: boolean
-  onSelect: (gif: GiphyItem) => void
-  onToggleFavorite: (gif: GiphyItem) => void
+  onSelect: (gif: GifItem) => void
+  onToggleFavorite: (gif: GifItem) => void
 }): React.JSX.Element {
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites])
   const showFavorites = !searching && favorites.length > 0
-  const grid = (list: GiphyItem[]): React.JSX.Element => (
+  const grid = (list: GifItem[]): React.JSX.Element => (
     <GifGrid
       gifs={list}
       favoriteIds={favoriteIds}

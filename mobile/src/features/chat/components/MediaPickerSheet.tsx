@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, fontSize, MIN_TOUCH, radius, spacing } from '../../../shared/theme/tokens'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import type { ServerSticker } from '../api/stickers'
 import { useGifSearch } from '../hooks/useGifSearch'
 import { useServerStickers } from '../hooks/useServerStickers'
@@ -23,7 +23,7 @@ interface MediaPickerSheetProps {
   /** Servidor do canal aberto (as figurinhas são do servidor); ausente na DM. */
   serverId?: string | null
   onSelectEmoji: (emoji: string) => void
-  onSelectGif: (gif: GiphyItem) => void
+  onSelectGif: (gif: GifItem) => void
   onSelectSticker: (sticker: ServerSticker) => void
   onClose: () => void
 }

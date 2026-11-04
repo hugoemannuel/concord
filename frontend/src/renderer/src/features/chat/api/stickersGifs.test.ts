@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { stickerFileUrl, MAX_STICKER_BYTES, MAX_STICKER_NAME_LEN } from './stickers'
-import { fetchTrendingGifs, searchGifs } from './giphy'
+import { fetchTrendingGifs, searchGifs } from './gifs'
 import * as client from '../../../shared/api/client'
 
-describe('stickers and giphy API helpers', () => {
+describe('stickers and gifs API helpers', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })

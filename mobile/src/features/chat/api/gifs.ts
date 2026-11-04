@@ -1,6 +1,6 @@
 import { request } from '../../../shared/api/client'
 
-export interface GiphyItem {
+export interface GifItem {
   id: string
   title: string
   url: string
@@ -9,19 +9,19 @@ export interface GiphyItem {
   height: number
 }
 
-export function fetchTrendingGifs(limit = 25, offset = 0): Promise<GiphyItem[]> {
+export function fetchTrendingGifs(limit = 25, offset = 0): Promise<GifItem[]> {
   const query = new URLSearchParams({
     limit: String(limit),
     offset: String(offset)
   })
-  return request<GiphyItem[]>(`/gifs/trending?${query.toString()}`)
+  return request<GifItem[]>(`/gifs/trending?${query.toString()}`)
 }
 
-export function searchGifs(queryText: string, limit = 25, offset = 0): Promise<GiphyItem[]> {
+export function searchGifs(queryText: string, limit = 25, offset = 0): Promise<GifItem[]> {
   const query = new URLSearchParams({
     q: queryText,
     limit: String(limit),
     offset: String(offset)
   })
-  return request<GiphyItem[]>(`/gifs/search?${query.toString()}`)
+  return request<GifItem[]>(`/gifs/search?${query.toString()}`)
 }

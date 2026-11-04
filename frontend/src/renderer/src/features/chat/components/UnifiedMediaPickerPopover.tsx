@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import { useGifSearch } from '../hooks/useGifSearch'
 import { useGifFavorites } from '../hooks/useGifFavorites'
 import type { ServerSticker } from '../api/stickers'
@@ -28,7 +28,7 @@ const TABS: {
 interface UnifiedMediaPickerPopoverProps {
   serverId?: string | null
   onSelectEmoji: (emoji: string) => void
-  onSelectGif: (gif: GiphyItem) => void
+  onSelectGif: (gif: GifItem) => void
   onSelectSticker: (sticker: ServerSticker) => void
   onClose: () => void
 }
