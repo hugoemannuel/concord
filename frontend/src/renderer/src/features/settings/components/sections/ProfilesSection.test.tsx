@@ -19,8 +19,14 @@ vi.mock('../../../profile/components/EntranceSoundSettings', () => ({ default: (
 vi.mock('../../../../shared/ui/Avatar', () => ({ default: () => <span data-avatar /> }))
 // O corpo do cartão puxa a atividade (e a call); aqui basta o que a prévia recebe.
 vi.mock('../../../profile/components/ProfileCardBody', () => ({
-  default: ({ profile }: { profile: { display_name: string; links: string[] } }) => (
-    <div data-preview={profile.display_name}>{profile.links.join(' ')}</div>
+  default: ({
+    profile
+  }: {
+    profile: { display_name: string; links: string[]; avatar_decoration_url?: string | null }
+  }) => (
+    <div data-preview={profile.display_name} data-decoration={profile.avatar_decoration_url ?? ''}>
+      {profile.links.join(' ')}
+    </div>
   )
 }))
 
@@ -39,6 +45,7 @@ beforeEach(() => {
     links: [{ url: 'https://github.com/ana' }],
     banner_color: '#112233',
     avatar_url: '/a.png',
+    avatar_decoration_url: '/api/profile-media/d',
     banner_url: '/b.png',
     status: 'online'
   }
@@ -50,10 +57,11 @@ describe('ProfilesSection', () => {
     expect(render()).toBe('')
   })
 
-  it('o cartão grande e a coluna de blocos, sem abas nem formulário', () => {
+  it('o cartão grande e a coluna de blocos, sem abas nem formulário, repassando a moldura na prévia', () => {
     const html = render()
     expect(html).toContain('Como os outros veem')
     expect(html).toContain('data-preview="Ana"')
+    expect(html).toContain('data-decoration="/api/profile-media/d"')
     expect(html).toContain('aria-label="Personalizar perfil"')
     expect(html).toContain('qualquer parte do cartão')
     // Nada do editor antigo: abas, campos soltos e a barra de alterações.

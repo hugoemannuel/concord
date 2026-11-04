@@ -28,6 +28,8 @@ export default function CosmeticsEditor({
       <CosmeticsModal
         user={editor.user}
         busy={editor.busy}
+        status={editor.status}
+        animatedPreview={editor.animatedPreview}
         onChoose={editor.choose}
         onPickDecoration={() => inputs.decoration.current?.click()}
         onRemove={editor.remove}

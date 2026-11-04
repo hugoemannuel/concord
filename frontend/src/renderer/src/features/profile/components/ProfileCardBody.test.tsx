@@ -14,7 +14,9 @@ vi.mock('../../activity/store/listeningStore', () => ({
 vi.mock('../../activity/components/GameIcon', () => ({ default: () => <i data-game-icon /> }))
 vi.mock('../../activity/components/ActivityCard', () => ({ Elapsed: () => <i>há 5 min</i> }))
 vi.mock('../../../shared/ui/Avatar', () => ({
-  default: ({ name }: { name: string }) => <span data-avatar={name} />
+  default: ({ name, decorationUrl }: { name: string; decorationUrl?: string | null }) => (
+    <span data-avatar={name} data-decoration={decorationUrl ?? ''} />
+  )
 }))
 vi.mock('./StyledName', () => ({ default: ({ name }: { name: string }) => <b>{name}</b> }))
 vi.mock('../../../assets/maestro-banner.gif', () => ({ default: 'maestro.gif' }))
@@ -149,5 +151,13 @@ describe('ProfileCardBody', () => {
     const html = render({ badge: <i>nivel</i>, badges: <i>badges</i> })
     expect(html).toContain('<i>nivel</i>')
     expect(html).toContain('<i>badges</i>')
+  })
+
+  it('prévia do cartão repassa a moldura do avatar para o Avatar', () => {
+    const html = render({
+      preview: true,
+      profile: { ...base, avatar_decoration_url: '/api/profile-media/d' }
+    })
+    expect(html).toContain('data-decoration="/api/profile-media/d"')
   })
 })

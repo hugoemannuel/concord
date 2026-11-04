@@ -5,6 +5,7 @@ vi.mock('../api/channels', () => ({}))
 vi.mock('../api/servers', () => ({}))
 vi.mock('../api/invites', () => ({}))
 vi.mock('../api/roles', () => ({}))
+vi.mock('../api/serverLayout', () => ({}))
 vi.mock('../../auth/store/authStore', () => ({
   useAuthStore: { getState: () => ({ accessToken: 't' }) }
 }))
@@ -12,6 +13,7 @@ vi.mock('../../auth/store/authStore', () => ({
 const { useServerStore } = await import('./serverStore')
 const { handleServerRoleEvent, removedMessage } = await import('./serverEvents')
 const { useInviteCodeStore } = await import('./inviteCodeStore')
+const { useServerLayoutStore } = await import('./serverLayoutStore')
 
 const role = (id: string, position: number, extra: Partial<Role> = {}): Role => ({
   id,
@@ -118,6 +120,11 @@ describe('eventos de permissão e remoção', () => {
   it('server:removed passa o motivo', () => {
     send('server:removed', { server_id: 's1', user_id: 'eu', reason: 'ban' })
     expect(deps.onServerRemoved).toHaveBeenCalledWith('s1', 'ban')
+  })
+
+  it('server:layout repassa os itens para o serverLayoutStore', () => {
+    expect(send('server:layout', { items: [{ kind: 'server', server_id: 's1' }] })).toBe(true)
+    expect(useServerLayoutStore.getState().items).toEqual([{ kind: 'server', server_id: 's1' }])
   })
 
   it('devolve false para eventos que não são deste tipo', () => {

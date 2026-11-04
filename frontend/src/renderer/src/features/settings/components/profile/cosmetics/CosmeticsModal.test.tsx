@@ -87,11 +87,12 @@ describe('CosmeticsModal', () => {
 })
 
 describe('CosmeticsModal ocupado', () => {
-  it('as opções ficam com aria-disabled (o foco não se perde)', () => {
+  it('as opções ficam com aria-disabled, o botão de moldura indica carregamento e o status é exibido', () => {
     const html = renderToStaticMarkup(
       <CosmeticsModal
         user={{ ...base, nameplate_mode: 'off' }}
         busy
+        status="Enviando a imagem: 42%"
         onChoose={noop}
         onPickDecoration={noop}
         onRemove={noop}
@@ -100,5 +101,7 @@ describe('CosmeticsModal ocupado', () => {
     )
     expect(html).toMatch(/role="radio"[^>]*aria-disabled="true"/)
     expect(html).not.toMatch(/role="radio"[^>]*disabled=""/)
+    expect(html).toContain('aria-busy="true"')
+    expect(html).toContain('Enviando a imagem: 42%')
   })
 })
