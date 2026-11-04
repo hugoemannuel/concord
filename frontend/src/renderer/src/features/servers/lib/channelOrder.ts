@@ -1,5 +1,5 @@
-// Ordem dos canais na barra lateral (arrastar e soltar dentro da seção de
-// texto ou de voz). Puro, sem React.
+// Ordem dos canais na barra lateral (dentro da seção de texto ou de voz). Puro,
+// sem React.
 
 type ChannelKind = 'text' | 'voice'
 
@@ -13,22 +13,9 @@ export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
   return next
 }
 
-/**
- * Onde a linha de soltar aparece, como índice de inserção (0..n, "antes do
- * item i"): metade de cima da linha do canal = antes dele, de baixo = depois.
- */
-export function dropInsertionIndex(index: number, offsetY: number, height: number): number {
-  return offsetY < height / 2 ? index : index + 1
-}
-
 /** Índice de inserção → índice final do item arrastado (para moveItem). */
 export function insertionToTarget(from: number, insertion: number): number {
   return insertion > from ? insertion - 1 : insertion
-}
-
-/** Soltar logo acima ou logo abaixo do próprio canal não muda nada. */
-export function isNoopDrop(from: number, insertion: number): boolean {
-  return insertion === from || insertion === from + 1
 }
 
 /**
@@ -52,9 +39,4 @@ export function applyChannelOrder<C extends { id: string; type?: string }>(
   if (sorted.every((c, i) => c === section[i])) return channels
   let next = 0
   return channels.map((c) => (isType(c) ? sorted[next++] : c))
-}
-
-/** Tipo do dataTransfer no arrasto de canal (um por seção, minúsculo). */
-export function channelDragType(type: ChannelKind): string {
-  return `application/x-concord-channel-${type}`
 }

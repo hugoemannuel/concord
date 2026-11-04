@@ -6,7 +6,7 @@ import { useServerStore } from '../store/serverStore'
 import { useVoiceParticipants } from '../hooks/useVoiceParticipants'
 import { useChannelBadge } from '../hooks/useChannelBadge'
 import type { ChannelBadge } from '../lib/channelBadge'
-import { useVoiceUserDrop, type ChannelDropTarget } from '../hooks/useVoiceUserDrop'
+import { useVoiceUserDrop } from '../hooks/useVoiceUserDrop'
 import { Perm } from '../lib/permissions'
 import type { ServerAccess } from '../lib/serverAccess'
 import {
@@ -146,12 +146,6 @@ function VoiceChannelButton({
 export interface VoiceChannelRowProps {
   channel: Channel
   access: ServerAccess
-  /** Este canal é o que está sendo arrastado (reordenar). */
-  dragging: boolean
-  /** Linha de soltar (reordenar), ou nada. */
-  dropLine: React.ReactNode
-  dropTarget: ChannelDropTarget
-  dragSource: React.HTMLAttributes<HTMLDivElement> & { draggable?: boolean }
   onJoin: () => void
   onContextMenu?: (e: React.MouseEvent) => void
   /** O "•••" do canal (só quem abre o menu); onHover = só aparece no hover. */
@@ -164,10 +158,6 @@ export interface VoiceChannelRowProps {
 function VoiceChannelRow({
   channel,
   access,
-  dragging,
-  dropLine,
-  dropTarget,
-  dragSource,
   onJoin,
   onContextMenu,
   renderMenuButton,
@@ -178,18 +168,14 @@ function VoiceChannelRow({
   const connectedHere = useCallStore((s) => isConnectedTo(s, channel.id))
   const inviteCall = useCallStore((s) => inviteCallId(s, channel.id))
   const participants = useVoiceParticipants(entry, serverId)
-  const drop = useVoiceUserDrop(channel.id, participants, dropTarget)
+  const drop = useVoiceUserDrop(channel.id, participants)
   const badge = useChannelBadge(serverId, channel.id)
   const locked = Boolean(entry?.call?.locked)
   return (
-    <div
-      className={`relative transition-opacity ${dragging ? 'opacity-40' : ''}`}
-      {...drop.handlers}
-    >
+    <div className="relative" {...drop.handlers}>
       {/* O "•••" é absoluto, alinhado à primeira linha do nome: precisa ficar
           preso à linha do canal, não ao bloco todo (que cresce com a lista). */}
-      {dropLine}
-      <div className="group/voicech relative" {...dragSource}>
+      <div className="group/voicech relative">
         <VoiceChannelButton
           channel={channel}
           access={access}
