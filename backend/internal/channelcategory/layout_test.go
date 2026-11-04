@@ -157,3 +157,35 @@ func TestLayoutRevision(t *testing.T) {
 		}
 	})
 }
+
+func TestPlanSave(t *testing.T) {
+	current := layoutFixture()
+	revision := layoutRevision(visibleLayout(current, allButHidden))
+	channels := []Placement{
+		{ChannelID: "livre"},
+		{ChannelID: "a1", CategoryID: cat("a"), Position: 0},
+		{ChannelID: "a2", CategoryID: cat("a"), Position: 1},
+		{ChannelID: "b1", CategoryID: cat("b")},
+	}
+	t.Run("lista que mudou depois da leitura é conflito, mesmo com pedido válido", func(t *testing.T) {
+		_, err := planSave(current, allButHidden, LayoutWrite{Revision: "velha", Categories: []string{"a", "b"}, Channels: channels})
+		if !errors.Is(err, ErrLayoutConflict) {
+			t.Fatalf("erro = %v, quer ErrLayoutConflict", err)
+		}
+	})
+	t.Run("revisão certa com pedido inválido é pedido inválido", func(t *testing.T) {
+		_, err := planSave(current, allButHidden, LayoutWrite{Revision: revision, Categories: []string{"a"}, Channels: channels})
+		if !errors.Is(err, ErrInvalidLayout) {
+			t.Fatalf("erro = %v, quer ErrInvalidLayout", err)
+		}
+	})
+	t.Run("revisão certa monta o plano e guarda o que o membro via", func(t *testing.T) {
+		plan, err := planSave(current, allButHidden, LayoutWrite{Revision: revision, Categories: []string{"b", "a"}, Channels: channels})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if plan.seen != revision || !reflect.DeepEqual(plan.categories, []string{"b", "a"}) || len(plan.placements) != 5 {
+			t.Fatalf("plano = %+v", plan)
+		}
+	})
+}

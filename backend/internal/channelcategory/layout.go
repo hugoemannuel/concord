@@ -68,6 +68,26 @@ func layoutRevision(layout Layout) string {
 	return hex.EncodeToString(hash.Sum(nil))[:32]
 }
 
+// layoutPlan: o que gravar e a revisão que o membro via antes.
+type layoutPlan struct {
+	categories []string
+	placements []Placement
+	seen       string
+}
+
+// planSave recusa quem leu uma lista que já mudou e monta a ordem final.
+func planSave(current Layout, canView func(string) bool, write LayoutWrite) (layoutPlan, error) {
+	seen := layoutRevision(visibleLayout(current, canView))
+	if seen != write.Revision {
+		return layoutPlan{}, ErrLayoutConflict
+	}
+	categories, placements, err := planLayout(current, canView, write)
+	if err != nil {
+		return layoutPlan{}, err
+	}
+	return layoutPlan{categories: categories, placements: placements, seen: seen}, nil
+}
+
 // planLayout confere o pedido contra o que está gravado e devolve a ordem final
 // das categorias e de todos os canais. Canal que o membro não vê não entra no
 // pedido: fica na categoria e no índice dele, entre os que foram movidos.

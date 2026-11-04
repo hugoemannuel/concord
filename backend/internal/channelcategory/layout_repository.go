@@ -24,26 +24,31 @@ func (r *Repository) SaveLayout(ctx context.Context, server string, write Layout
 }
 
 func saveLayoutInTx(ctx context.Context, tx pgx.Tx, server string, write LayoutWrite, canView func(string) bool) (SaveResult, error) {
+	current, err := lockedLayout(ctx, tx, server)
+	if err != nil {
+		return SaveResult{}, err
+	}
+	plan, err := planSave(current, canView, write)
+	if err != nil {
+		return SaveResult{}, err
+	}
+	return applyPlan(ctx, tx, server, plan, canView)
+}
+
+// lockedLayout lê a organização depois de garantir que todo canal tem linha e
+// de segurar as categorias: excluir uma delas espera esta gravação terminar.
+func lockedLayout(ctx context.Context, tx pgx.Tx, server string) (Layout, error) {
 	if err := prepareLayout(ctx, tx, server); err != nil {
-		return SaveResult{}, err
+		return Layout{}, err
 	}
-	// Segura as linhas: excluir uma categoria espera esta gravação terminar.
 	if _, err := categoryIDs(ctx, tx, server); err != nil {
-		return SaveResult{}, err
+		return Layout{}, err
 	}
-	current, err := readLayout(ctx, tx, server)
-	if err != nil {
-		return SaveResult{}, err
-	}
-	seen := layoutRevision(visibleLayout(current, canView))
-	if seen != write.Revision {
-		return SaveResult{}, ErrLayoutConflict
-	}
-	categories, placements, err := planLayout(current, canView, write)
-	if err != nil {
-		return SaveResult{}, err
-	}
-	if err := writeLayout(ctx, tx, server, categories, placements); err != nil {
+	return readLayout(ctx, tx, server)
+}
+
+func applyPlan(ctx context.Context, tx pgx.Tx, server string, plan layoutPlan, canView func(string) bool) (SaveResult, error) {
+	if err := writeLayout(ctx, tx, server, plan.categories, plan.placements); err != nil {
 		return SaveResult{}, err
 	}
 	saved, err := readLayout(ctx, tx, server)
@@ -51,7 +56,7 @@ func saveLayoutInTx(ctx context.Context, tx pgx.Tx, server string, write LayoutW
 		return SaveResult{}, err
 	}
 	revision := layoutRevision(visibleLayout(saved, canView))
-	return SaveResult{Revision: revision, Changed: revision != seen}, nil
+	return SaveResult{Revision: revision, Changed: revision != plan.seen}, nil
 }
 
 func writeLayout(ctx context.Context, tx pgx.Tx, server string, categories []string, placements []Placement) error {
