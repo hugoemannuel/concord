@@ -232,3 +232,10 @@ func TestHostsAceitos(t *testing.T) {
 		}
 	}
 }
+
+func TestFavoritoSemProvedorEhDoGiphy(t *testing.T) {
+	t.Parallel()
+	if providerOrGiphy("") != ProviderGiphy || providerOrGiphy(ProviderKlipy) != ProviderKlipy {
+		t.Fatal("provedor vazio deve virar giphy e o informado deve ser mantido")
+	}
+}

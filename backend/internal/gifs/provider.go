@@ -48,3 +48,11 @@ func klipyIDFromURL(raw string) string {
 	}
 	return ""
 }
+
+// providerOrGiphy: favorito sem provedor é dos antigos (do GIPHY).
+func providerOrGiphy(provider string) string {
+	if provider == "" {
+		return ProviderGiphy
+	}
+	return provider
+}

@@ -39,9 +39,6 @@ func (r *FavoriteRepository) ListFavorites(ctx context.Context, userID string) (
 // AddFavorite favorita o GIF (já favoritado atualiza os dados e não muda a
 // ordem). Com max favoritos o próximo dá ErrFavoritesFull.
 func (r *FavoriteRepository) AddFavorite(ctx context.Context, userID string, gif GIFItem, max int) error {
-	if gif.Provider == "" {
-		gif.Provider = ProviderGiphy
-	}
 	tag, err := r.db.Exec(
 		ctx,
 		`INSERT INTO gif_favorites (user_id, gif_id, title, url, preview_url, width, height, provider)
@@ -51,7 +48,7 @@ func (r *FavoriteRepository) AddFavorite(ctx context.Context, userID string, gif
 		ON CONFLICT (user_id, gif_id) DO UPDATE
 			SET title = EXCLUDED.title, url = EXCLUDED.url, preview_url = EXCLUDED.preview_url,
 				width = EXCLUDED.width, height = EXCLUDED.height, provider = EXCLUDED.provider`,
-		userID, gif.ID, gif.Title, gif.URL, gif.PreviewURL, gif.Width, gif.Height, max, gif.Provider,
+		userID, gif.ID, gif.Title, gif.URL, gif.PreviewURL, gif.Width, gif.Height, max, providerOrGiphy(gif.Provider),
 	)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrFavoritesFull

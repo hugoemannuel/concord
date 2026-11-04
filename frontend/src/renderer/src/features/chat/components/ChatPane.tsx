@@ -12,8 +12,6 @@ import { isGroupedWithPrevious } from '../lib/messageGrouping'
 import MessageItem from './MessageItem'
 import { copyText } from '../../../shared/lib/clipboard'
 import CreatePollModal from './CreatePollModal'
-import type { ServerSticker } from '../api/stickers'
-import type { GifItem } from '../api/gifs'
 import { usePinStore } from '../store/pinStore'
 import {
   ACCEPT_ATTRIBUTE,
@@ -27,6 +25,7 @@ import { ApiError } from '../../../shared/api/client'
 import ComposerAttachments from './ComposerAttachments'
 import { useAttachmentDraft } from '../hooks/useAttachmentDraft'
 import { useRoomDraft } from '../hooks/useRoomDraft'
+import { useSendMedia } from '../hooks/useSendMedia'
 import { useRoomState } from '../hooks/useRoomState'
 import { useTypingSender } from '../hooks/useTypingSender'
 import { useFileDropZone } from '../hooks/useFileDropZone'
@@ -432,31 +431,14 @@ function ChatPane({
     inputRef.current?.focus()
   }
 
-  const handleSendSticker = async (stk: ServerSticker): Promise<void> => {
-    stickToBottom.current = true
-    const sentReply = replyingTo
-    setReplyState(null)
-    try {
-      await sendToRoom(room, '', [], sentReply?.id ?? null, { stickerId: stk.id })
-    } catch {
-      showToast.error('Não foi possível enviar a figurinha.')
-    }
-  }
-
-  const handleSendGif = async (gif: GifItem): Promise<void> => {
-    stickToBottom.current = true
-    const sentReply = replyingTo
-    setReplyState(null)
-    try {
-      await sendToRoom(room, draft, [], sentReply?.id ?? null, {
-        gifUrl: gif.url,
-        gifMetadata: { width: gif.width, height: gif.height, preview_url: gif.preview_url }
-      })
-      setDraft('')
-    } catch {
-      showToast.error('Não foi possível enviar o GIF.')
-    }
-  }
+  const { handleSendSticker, handleSendGif } = useSendMedia({
+    room,
+    draft,
+    setDraft,
+    replyingTo,
+    setReplyState,
+    stickToBottom
+  })
 
   const handleDelete = async (messageId: string): Promise<void> => {
     try {
