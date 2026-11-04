@@ -1,13 +1,10 @@
 import { useDroppable } from '@dnd-kit/core'
 import type { ProposalStatus } from '../api/proposals'
-import { canDropOn } from '../lib/proposals'
+import { columnDrop } from '../lib/columnDrop'
 
 /**
  * Coluna do quadro e também o alvo de soltar do card. Durante um arrasto ela
- * mostra se aceita o card (`dragFrom` é a coluna de origem): acende quando
- * aceita e fica tracejada com cursor de proibido quando não (Em votação não
- * reabre, e soltar na mesma coluna não faz nada). Nada
- * muda de tamanho durante o arrasto: o que estava embaixo do mouse continua lá.
+ * mostra se aceita o card (`dragFrom` é a coluna de origem; veja columnDrop).
  */
 function BoardColumn({
   status,
@@ -25,20 +22,13 @@ function BoardColumn({
   children: React.ReactNode
 }): React.JSX.Element {
   const { setNodeRef, isOver } = useDroppable({ id: status })
-  const dragging = dragFrom != null
-  const accepts = dragging && canDropOn(dragFrom, status)
-  const isOrigin = dragging && dragFrom === status
-
-  let state = 'border-subtle'
-  if (accepts) state = isOver ? 'border-violet-400 bg-violet-500/10' : 'border-violet-400/30'
-  else if (dragging && !isOrigin)
-    state = `cursor-not-allowed border-dashed ${isOver ? 'border-red-400/70' : 'border-subtle'}`
+  const drop = columnDrop(dragFrom, status, isOver, hint)
 
   return (
     <section
       ref={setNodeRef}
       data-column={status}
-      className={`flex min-h-0 min-w-64 flex-1 basis-64 flex-col rounded-2xl border bg-surface transition-colors ${state}`}
+      className={`flex min-h-0 min-w-64 flex-1 basis-64 flex-col rounded-2xl border bg-surface transition-colors ${drop.state}`}
     >
       <div className="shrink-0 px-3 pb-2 pt-3">
         <div className="flex items-center justify-between">
@@ -47,9 +37,7 @@ function BoardColumn({
             {count}
           </span>
         </div>
-        <p className="text-[11px] text-gray-500">
-          {dragging && !accepts && !isOrigin && status === 'voting' ? 'A votação não reabre' : hint}
-        </p>
+        <p className="text-[11px] text-gray-500">{drop.hint}</p>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-3">{children}</div>
     </section>
