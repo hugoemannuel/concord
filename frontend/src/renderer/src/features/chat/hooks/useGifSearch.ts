@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { fetchTrendingGifs, searchGifs, type GiphyItem } from '../api/giphy'
+import { fetchTrendingGifs, searchGifs, type GifItem } from '../api/gifs'
 
 interface GifResult {
   query: string
-  gifs: GiphyItem[]
+  gifs: GifItem[]
+  /** Sem chave no servidor ou a KLIPY falhou: a aba mostra "GIFs indisponíveis". */
+  unavailable: boolean
 }
 
 /**
@@ -14,7 +16,7 @@ interface GifResult {
 export function useGifSearch(
   enabled: boolean,
   search: string
-): { gifs: GiphyItem[]; loading: boolean } {
+): { gifs: GifItem[]; loading: boolean; unavailable: boolean } {
   const [result, setResult] = useState<GifResult | null>(null)
 
   useEffect(() => {
@@ -25,9 +27,10 @@ export function useGifSearch(
       const trimmed = search.trim()
       const req = trimmed ? searchGifs(trimmed) : fetchTrendingGifs()
       req
-        .catch(() => [])
-        .then((gifs) => {
-          if (!cancelled) setResult({ query: search, gifs })
+        .then((gifs) => ({ gifs, unavailable: false }))
+        .catch(() => ({ gifs: [] as GifItem[], unavailable: true }))
+        .then((done) => {
+          if (!cancelled) setResult({ query: search, ...done })
         })
     }, 250)
 
@@ -37,5 +40,9 @@ export function useGifSearch(
     }
   }, [enabled, search])
 
-  return { gifs: result?.gifs ?? [], loading: enabled && result?.query !== search }
+  return {
+    gifs: result?.gifs ?? [],
+    loading: enabled && result?.query !== search,
+    unavailable: result?.unavailable ?? false
+  }
 }

@@ -1,4 +1,4 @@
-package giphy
+package gifs
 
 import (
 	"context"
@@ -20,7 +20,7 @@ func NewFavoriteRepository(db *pgxpool.Pool) *FavoriteRepository {
 func (r *FavoriteRepository) ListFavorites(ctx context.Context, userID string) ([]GIFItem, error) {
 	rows, err := r.db.Query(
 		ctx,
-		`SELECT gif_id, title, url, preview_url, width, height
+		`SELECT gif_id, title, url, preview_url, width, height, provider
 		FROM gif_favorites
 		WHERE user_id = $1
 		ORDER BY created_at DESC, gif_id`,
@@ -31,7 +31,7 @@ func (r *FavoriteRepository) ListFavorites(ctx context.Context, userID string) (
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (GIFItem, error) {
 		var g GIFItem
-		err := row.Scan(&g.ID, &g.Title, &g.URL, &g.PreviewURL, &g.Width, &g.Height)
+		err := row.Scan(&g.ID, &g.Title, &g.URL, &g.PreviewURL, &g.Width, &g.Height, &g.Provider)
 		return g, err
 	})
 }
@@ -41,14 +41,14 @@ func (r *FavoriteRepository) ListFavorites(ctx context.Context, userID string) (
 func (r *FavoriteRepository) AddFavorite(ctx context.Context, userID string, gif GIFItem, max int) error {
 	tag, err := r.db.Exec(
 		ctx,
-		`INSERT INTO gif_favorites (user_id, gif_id, title, url, preview_url, width, height)
-		SELECT $1::uuid, $2::varchar, $3::varchar, $4::varchar, $5::varchar, $6::int, $7::int
+		`INSERT INTO gif_favorites (user_id, gif_id, title, url, preview_url, width, height, provider)
+		SELECT $1::uuid, $2::varchar, $3::varchar, $4::varchar, $5::varchar, $6::int, $7::int, $9::varchar
 		WHERE (SELECT COUNT(*) FROM gif_favorites WHERE user_id = $1::uuid) < $8::int
 			OR EXISTS (SELECT 1 FROM gif_favorites WHERE user_id = $1::uuid AND gif_id = $2::varchar)
 		ON CONFLICT (user_id, gif_id) DO UPDATE
 			SET title = EXCLUDED.title, url = EXCLUDED.url, preview_url = EXCLUDED.preview_url,
-				width = EXCLUDED.width, height = EXCLUDED.height`,
-		userID, gif.ID, gif.Title, gif.URL, gif.PreviewURL, gif.Width, gif.Height, max,
+				width = EXCLUDED.width, height = EXCLUDED.height, provider = EXCLUDED.provider`,
+		userID, gif.ID, gif.Title, gif.URL, gif.PreviewURL, gif.Width, gif.Height, max, providerOrGiphy(gif.Provider),
 	)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrFavoritesFull
