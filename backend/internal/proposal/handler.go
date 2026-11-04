@@ -191,7 +191,7 @@ func (h *Handler) SetStatus(c *gin.Context) {
 	}
 	p, err := h.service.SetStatus(c.Request.Context(), id, c.GetString("userID"), body.Status, body.TakeOver)
 	if err != nil {
-		h.fail(c, err)
+		h.failArchive(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, p)

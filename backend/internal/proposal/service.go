@@ -76,6 +76,10 @@ type store interface {
 	DeleteVote(ctx context.Context, id, userID string, now time.Time) (bool, error)
 	Delete(ctx context.Context, id string) error
 	SetStatus(ctx context.Context, id, userID, status, assigneeID string) error
+	Archive(ctx context.Context, ids []string) ([]string, error)
+	ArchiveByStatus(ctx context.Context, status string) ([]string, error)
+	Unarchive(ctx context.Context, id string) (bool, error)
+	ListArchived(ctx context.Context, viewerID, query string, limit, offset int) ([]Proposal, bool, error)
 	CloseDue(ctx context.Context, now time.Time) ([]string, error)
 	WithoutIssue(ctx context.Context) ([]Proposal, error)
 	SetIssue(ctx context.Context, id string, number int, url string) error
@@ -320,6 +324,9 @@ func (s *Service) SetStatus(ctx context.Context, id, userID, status string, take
 	before, err := s.store.Get(ctx, id, nil)
 	if err != nil {
 		return nil, err
+	}
+	if before.ArchivedAt != nil {
+		return nil, ErrArchived
 	}
 	if before.Status == status {
 		return nil, ErrInvalidStatus

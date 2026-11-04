@@ -34,7 +34,7 @@ const selectProposal = `
 			FROM proposal_images i WHERE i.proposal_id = p.id), '[]'::jsonb),
 		(SELECT v.approve FROM proposal_votes v WHERE v.proposal_id = p.id AND v.user_id = $1::uuid),
 		p.assignee_id, au.display_name, au.avatar_url, au.github_username,
-		p.github_issue_state, p.github_assignee
+		p.github_issue_state, p.github_assignee, p.archived_at
 	FROM proposals p
 	JOIN users u ON u.id = p.author_id
 	LEFT JOIN users au ON au.id = p.assignee_id
@@ -52,7 +52,7 @@ func scanProposal(row pgx.Row) (Proposal, error) {
 		&p.GithubIssueNumber, &p.GithubIssueURL,
 		&p.YesVotes, &p.NoVotes, &p.CommentCount, &images, &p.MyVote,
 		&assigneeID, &assigneeName, &assigneeAvatar, &p.AssigneeGithub,
-		&p.IssueState, &p.IssueAssignee,
+		&p.IssueState, &p.IssueAssignee, &p.ArchivedAt,
 	)
 	if err != nil {
 		return p, err
@@ -89,11 +89,13 @@ func (r *Repository) query(ctx context.Context, viewerID *string, where string, 
 }
 
 // List devolve o quadro inteiro: o que está em votação e o que o time tech
-// ainda não concluiu, mais as recusadas e concluídas dos últimos 30 dias.
+// ainda não concluiu, mais as recusadas e concluídas dos últimos 30 dias. As
+// arquivadas ficam de fora (ListArchived).
 func (r *Repository) List(ctx context.Context, viewerID string) ([]Proposal, error) {
 	return r.query(ctx, &viewerID, `
-		WHERE p.status IN ('voting', 'proposed', 'in_progress')
-		   OR p.moved_at > NOW() - INTERVAL '30 days'
+		WHERE p.archived_at IS NULL
+		  AND (p.status IN ('voting', 'proposed', 'in_progress')
+		       OR p.moved_at > NOW() - INTERVAL '30 days')
 		ORDER BY p.created_at DESC
 		LIMIT 500`)
 }
