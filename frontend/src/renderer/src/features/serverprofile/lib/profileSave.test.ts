@@ -33,7 +33,7 @@ describe('basicsDirty', () => {
 
 describe('shownIcon', () => {
   it('a prévia, nada ou o atual', () => {
-    expect(shownIcon({ kind: 'set', file: file as File, previewUrl: 'blob:x' }, '/a')).toBe('blob:x')
+    expect(shownIcon({ kind: 'set', file, previewUrl: 'blob:x', animated: false }, '/a')).toBe('blob:x')
     expect(shownIcon({ kind: 'remove' }, '/a')).toBeNull()
     expect(shownIcon({ kind: 'keep' }, '/a')).toBe('/a')
   })
@@ -49,7 +49,7 @@ describe('saveProfileForm', () => {
   })
 
   it('salva o nome aparado, o ícone e o perfil', async () => {
-    const f = form({ name: ' Novo ', icon: { kind: 'set', file: file as File, previewUrl: 'blob:x' }, draftDirty: true })
+    const f = form({ name: ' Novo ', icon: { kind: 'set', file, previewUrl: 'blob:x', animated: false }, draftDirty: true })
     await expect(saveProfileForm(f)).resolves.toBe(true)
     expect(f.actions.updateServer).toHaveBeenCalledWith('s1', 'Novo')
     expect(f.actions.setServerIcon).toHaveBeenCalledWith('s1', { file, staticFrame: undefined })
