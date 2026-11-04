@@ -100,4 +100,9 @@ describe('MessageItem', () => {
     await fireEvent.press(screen.getByText('Usuário'))
     expect(onOpenProfile).toHaveBeenCalledWith('u7')
   })
+
+  it('figurinha apagada na origem mostra o :nome:', async () => {
+    await render(<MessageItem item={item({}, message({ content: '', deleted_sticker_name: 'gato' }))} timeZone="UTC" />)
+    expect(screen.getByText(':gato:')).toBeOnTheScreen()
+  })
 })
