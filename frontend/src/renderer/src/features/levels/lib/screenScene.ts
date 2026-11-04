@@ -8,13 +8,16 @@ import {
 import { PRIDE_COLORS } from './levelBadgeStyle'
 import { buildScene, DRAWS_NUMBER, IMPACT_MS, type SceneInput } from './milestoneScenes'
 import { prideScene } from './prideScene'
+import { RED_STAR_COLORS, redStarScene } from './redStarScene'
 import { rng, type Scene } from './sceneKit'
 
 /** Nível com a cena do arco-íris do orgulho (decisão do dono). */
 export const PRIDE_LEVEL = 24
+/** Nível com a cena da estrela vermelha (decisão do dono). */
+export const RED_STAR_LEVEL = 13
 
 /** Cenas feitas para um nível só (decisão do dono), fora dos marcos. */
-export type SpecialSceneKind = 'pride'
+export type SpecialSceneKind = 'pride' | 'redstar'
 export type ScreenSceneKind = MilestoneKind | SpecialSceneKind
 
 /**
@@ -72,17 +75,30 @@ interface SpecialDef {
   color: string
   accent: string
   colors: string[]
+  /** Cores do degradê do número grande. */
+  numberColors: string[]
   durationMs: number
   titleAt: number
   impactMs: number
 }
 
 const SPECIAL_SCENES: Record<number, SpecialDef> = {
+  [RED_STAR_LEVEL]: {
+    kind: 'redstar',
+    color: '#d50000',
+    accent: '#8e0000',
+    colors: RED_STAR_COLORS,
+    numberColors: ['#ffffff', '#ffd54f', '#ffffff'],
+    durationMs: 3400,
+    titleAt: 700,
+    impactMs: 350
+  },
   [PRIDE_LEVEL]: {
     kind: 'pride',
     color: '#c084fc',
     accent: '#750787',
     colors: PRIDE_COLORS,
+    numberColors: PRIDE_COLORS,
     durationMs: 3400,
     titleAt: 900,
     impactMs: 1300
@@ -94,7 +110,8 @@ const SPECIAL_BUILDERS: Record<
   SpecialSceneKind,
   (s: SceneInput, r: () => number, ctx: CanvasRenderingContext2D) => Scene
 > = {
-  pride: (s, r) => prideScene(s, r)
+  pride: (s, r) => prideScene(s, r),
+  redstar: redStarScene
 }
 
 function specialSceneFor(def: SpecialDef, level: number, previous: number): ScreenScene {
@@ -108,12 +125,13 @@ function specialSceneFor(def: SpecialDef, level: number, previous: number): Scre
     colors: def.colors,
     budget: Math.max(0, Math.min(levelIntensity(level).milestoneParticles, MAX_PARTICLES - others)),
     power: fx.power,
-    durationMs: def.durationMs,
+    // Nunca passa do tempo da celebração (o selo/banner some junto com ela).
+    durationMs: Math.min(def.durationMs, fx.durationMs),
     titleAt: def.titleAt,
     impactMs: def.impactMs,
     numberText: String(level),
     label: `Nível ${level}`,
-    gradient: `linear-gradient(90deg, ${[...def.colors, def.colors[0]].join(', ')})`,
+    gradient: `linear-gradient(90deg, ${[...def.numberColors, def.numberColors[0]].join(', ')})`,
     shine: true,
     crown: false,
     drawsNumber: false
