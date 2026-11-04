@@ -1,5 +1,4 @@
-import { useEmojiStore } from '../store/emojiStore'
-import { useCustomEmojis } from '../hooks/useCustomEmojis'
+import { useEmojiView } from '../hooks/useEmojiView'
 import { useEmojiSrc } from '../hooks/useEmojiSrc'
 
 export type CustomEmojiSize = 'inline' | 'jumbo' | 'reaction' | 'picker'
@@ -14,9 +13,9 @@ const SIZE_CLASS: Record<CustomEmojiSize, string> = {
 const SIZE_PX: Record<CustomEmojiSize, number> = { inline: 22, jumbo: 48, reaction: 20, picker: 28 }
 
 /**
- * Emoji personalizado. Só quem é membro do servidor dele vê a imagem; para os
- * outros (ou emoji apagado) fica o ":nome:". Antes de a lista chegar, guarda o
- * espaço do emoji para a linha não pular.
+ * Emoji personalizado. Aparece para quem é membro do servidor dele e para quem
+ * recebeu depois de ele ser usado fora do servidor; apagado (ou sem acesso) fica
+ * o ":nome:". Antes de saber, guarda o espaço do emoji para a linha não pular.
  */
 export default function CustomEmoji({
   id,
@@ -27,13 +26,11 @@ export default function CustomEmoji({
   name: string
   size?: CustomEmojiSize
 }): React.JSX.Element {
-  useCustomEmojis()
-  const known = useEmojiStore((s) => id in s.byId)
-  const loaded = useEmojiStore((s) => s.loaded)
-  const { src, onError } = useEmojiSrc(id, known)
+  const { visible, settled } = useEmojiView(id)
+  const { src, onError } = useEmojiSrc(id, visible)
   const label = `:${name}:`
-  if (!known && loaded) return <>{label}</>
-  if (!known || !src) {
+  if (settled && !visible) return <>{label}</>
+  if (!visible || !src) {
     return <span role="img" aria-label={label} className={`inline-block ${SIZE_CLASS[size]}`} />
   }
   return (

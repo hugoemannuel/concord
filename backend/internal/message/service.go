@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"gin-quickstart/backend/internal/audit"
-	"gin-quickstart/backend/internal/bot"
+	"gin-quickstart/backend/internal/expression"
 	"gin-quickstart/backend/internal/permission"
 	"log"
 	"strings"
@@ -50,10 +50,6 @@ type ConversationResolver interface {
 	RevealConversation(ctx context.Context, conversationID string) error
 }
 
-type StickerChecker interface {
-	StickerServerID(ctx context.Context, stickerID string) (string, error)
-}
-
 // FileRemover apaga o arquivo de um anexo do disco (media.Store).
 type FileRemover interface {
 	Remove(name string) error
@@ -68,7 +64,7 @@ type Service struct {
 	files           FileRemover
 	perms           PermissionChecker
 	mentionLimiter  *mentionLimiter
-	stickerChecker  StickerChecker
+	expressions     *expressionUse
 	audit           AuditRecorder
 }
 
@@ -83,10 +79,6 @@ func MessageService(repository *Repository, publisher EventPublisher, channelRes
 		perms:           perms,
 		mentionLimiter:  newMentionLimiter(mentionEveryoneCooldown, time.Now),
 	}
-}
-
-func (s *Service) SetStickerChecker(checker StickerChecker) {
-	s.stickerChecker = checker
 }
 
 func SameRoomTarget(target *Message, channelID string, conversationID string) bool {
@@ -135,16 +127,11 @@ func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, au
 		return nil, err
 	}
 
-	serverID := ""
-	if s.channelResolver != nil {
-		serverID, _ = s.channelResolver.ChannelServerID(ctx, channelID)
-	}
-
-	if stickerID != nil && s.stickerChecker != nil {
-		stkServerID, err := s.stickerChecker.StickerServerID(ctx, *stickerID)
-		if err != nil || stkServerID != serverID {
-			return nil, ErrInvalidSticker
-		}
+	dest := s.channelDestination(ctx, channelID)
+	serverID := dest.ServerID
+	content, err = s.expressions.message(ctx, dest, authorID, content, stickerID)
+	if err != nil {
+		return nil, err
 	}
 
 	mentionEveryone := s.resolveMentionEveryone(ctx, serverID, channelID, authorID, content)
@@ -176,11 +163,12 @@ func (s *Service) CreateConversationMessage(ctx context.Context, conversationID 
 	if err := validateNewMessageWithMedia(content, attachmentIDs, hasMedia); err != nil {
 		return nil, err
 	}
-	if stickerID != nil {
-		return nil, ErrInvalidSticker
+	content, err = s.expressions.message(ctx, expression.Destination{}, authorID, content, stickerID)
+	if err != nil {
+		return nil, err
 	}
 	// Em DM @all/@here é texto puro.
-	msg, err := s.create(ctx, "", conversationID, authorID, content, replyToID, attachmentIDs, nil, nil, gifURL, gifMetadata)
+	msg, err := s.create(ctx, "", conversationID, authorID, content, replyToID, attachmentIDs, nil, stickerID, gifURL, gifMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -345,126 +333,6 @@ func (s *Service) deleteWithFiles(ctx context.Context, messageID string) error {
 				log.Printf("failed to remove attachment file %s: %v", id, err)
 			}
 		}
-	}
-	return nil
-}
-
-func (s *Service) AddChannelReaction(ctx context.Context, channelID string, messageID string, userID string, emoji string) error {
-	if err := ValidateEmoji(emoji); err != nil {
-		return err
-	}
-
-	msg, err := s.repository.FindByID(ctx, messageID)
-	if err != nil || !SameRoomTarget(msg, channelID, "") {
-		return ErrMessageNotFound
-	}
-
-	added, err := s.repository.AddReaction(ctx, messageID, userID, emoji)
-	if err != nil {
-		return err
-	}
-	if added {
-		s.publisher.PublishReactionAdd(ReactionEvent{
-			ChannelID: msg.ChannelID,
-			MessageID: msg.ID,
-			UserID:    userID,
-			Emoji:     emoji,
-		})
-	}
-	return nil
-}
-
-func (s *Service) RemoveChannelReaction(ctx context.Context, channelID string, messageID string, userID string, emoji string) error {
-	if err := ValidateEmoji(emoji); err != nil {
-		return err
-	}
-
-	msg, err := s.repository.FindByID(ctx, messageID)
-	if err != nil || !SameRoomTarget(msg, channelID, "") {
-		return ErrMessageNotFound
-	}
-
-	removed, err := s.repository.RemoveReaction(ctx, messageID, userID, emoji)
-	if err != nil {
-		return err
-	}
-	if removed {
-		s.publisher.PublishReactionRemove(ReactionEvent{
-			ChannelID: msg.ChannelID,
-			MessageID: msg.ID,
-			UserID:    userID,
-			Emoji:     emoji,
-		})
-	}
-	return nil
-}
-
-// botConversation: a conversa é com um bot e quem age não é ele (só leitura).
-func (s *Service) botConversation(ctx context.Context, conversationID string, userID string) bool {
-	if s.convResolver == nil {
-		return false
-	}
-	ids, err := s.convResolver.ConversationParticipantIDs(ctx, conversationID)
-	if err != nil {
-		return false
-	}
-	for _, id := range ids {
-		if id != userID && bot.IsBot(id) {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *Service) AddConversationReaction(ctx context.Context, conversationID string, messageID string, userID string, emoji string) error {
-	if err := ValidateEmoji(emoji); err != nil {
-		return err
-	}
-	if s.botConversation(ctx, conversationID, userID) {
-		return ErrBotConversation
-	}
-
-	msg, err := s.repository.FindByID(ctx, messageID)
-	if err != nil || !SameRoomTarget(msg, "", conversationID) {
-		return ErrMessageNotFound
-	}
-
-	added, err := s.repository.AddReaction(ctx, messageID, userID, emoji)
-	if err != nil {
-		return err
-	}
-	if added {
-		s.publisher.PublishReactionAdd(ReactionEvent{
-			ConversationID: msg.ConversationID,
-			MessageID:      msg.ID,
-			UserID:         userID,
-			Emoji:          emoji,
-		})
-	}
-	return nil
-}
-
-func (s *Service) RemoveConversationReaction(ctx context.Context, conversationID string, messageID string, userID string, emoji string) error {
-	if err := ValidateEmoji(emoji); err != nil {
-		return err
-	}
-
-	msg, err := s.repository.FindByID(ctx, messageID)
-	if err != nil || !SameRoomTarget(msg, "", conversationID) {
-		return ErrMessageNotFound
-	}
-
-	removed, err := s.repository.RemoveReaction(ctx, messageID, userID, emoji)
-	if err != nil {
-		return err
-	}
-	if removed {
-		s.publisher.PublishReactionRemove(ReactionEvent{
-			ConversationID: msg.ConversationID,
-			MessageID:      msg.ID,
-			UserID:         userID,
-			Emoji:          emoji,
-		})
 	}
 	return nil
 }

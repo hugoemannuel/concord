@@ -59,7 +59,7 @@ func (a *app) wireChat() {
 	stickerRepository := sticker.NewRepository(a.db)
 	stickerHandler := sticker.NewHandler(stickerRepository, stickersUploads, a.uploadSpace, a.permissionService, a.permissionService, a.authService, a.hub)
 	stickerHandler.SetAudit(a.audit)
-	a.messageService.SetStickerChecker(stickerRepository)
+	a.wireExpressions()
 
 	gifsHandler := gifs.NewHandler(gifs.Config{
 		AppKey: os.Getenv("KLIPY_API_KEY"),

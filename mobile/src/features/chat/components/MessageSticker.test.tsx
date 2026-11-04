@@ -13,16 +13,16 @@ describe('MessageSticker', () => {
     expect(img.props.source.uri).toMatch(/\/stickers\/s1\/file\?token=tk$/)
   })
 
-  it('sem token: "Figurinha indisponível"', async () => {
+  it('sem token: o :nome:', async () => {
     jest.mocked(ensureMediaToken).mockRejectedValue(new Error('x'))
     await render(<MessageSticker sticker={sticker} />)
-    expect(await screen.findByText('Figurinha indisponível')).toBeOnTheScreen()
+    expect(await screen.findByText(':oi:')).toBeOnTheScreen()
   })
 
-  it('imagem que falha também vira "indisponível"', async () => {
+  it('imagem que falha (apagada na origem) também vira o :nome:', async () => {
     jest.mocked(ensureMediaToken).mockResolvedValue('tk')
     await render(<MessageSticker sticker={sticker} />)
     await fireEvent(await screen.findByLabelText('oi'), 'error')
-    expect(screen.getByText('Figurinha indisponível')).toBeOnTheScreen()
+    expect(screen.getByText(':oi:')).toBeOnTheScreen()
   })
 })

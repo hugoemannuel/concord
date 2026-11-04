@@ -168,7 +168,7 @@ describe('UnifiedMediaPickerPopover & Media Components', () => {
 
 describe('useStickerStore', () => {
   beforeEach(() => {
-    useStickerStore.setState({ stickersByServer: {}, loadingByServer: {} })
+    useStickerStore.setState({ stickersByServer: {} })
     vi.restoreAllMocks()
   })
 
@@ -193,8 +193,10 @@ describe('useStickerStore', () => {
       created_at: '2026-10-26T12:00:00Z'
     }
 
-    vi.spyOn(stickersApi, 'fetchServerStickers').mockResolvedValue([sampleSticker])
-    await useStickerStore.getState().loadStickers('srv-1')
+    vi.spyOn(stickersApi, 'fetchMyStickers').mockResolvedValue([
+      { server_id: 'srv-1', server_name: 'Alfa', stickers: [sampleSticker] }
+    ])
+    await useStickerStore.getState().loadMine()
     expect(useStickerStore.getState().stickersByServer['srv-1']).toEqual([sampleSticker])
 
     const uploadedSticker: stickersApi.ServerSticker = {

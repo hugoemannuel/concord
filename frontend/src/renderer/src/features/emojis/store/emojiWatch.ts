@@ -2,6 +2,7 @@ import { useAuthStore } from '../../auth/store/authStore'
 import { useServerStore } from '../../servers/store/serverStore'
 import { resetEmojiStore, useEmojiStore } from './emojiStore'
 import { clearEmojiSrcs } from './emojiSrc'
+import { resetExpressionOrigins } from './expressionOrigins'
 
 // Invalidação explícita dos emojis: entrou, saiu, foi expulso ou o servidor
 // sumiu → a lista de servidores muda e recarrega (se já tinha carregado);
@@ -26,5 +27,6 @@ export function startEmojiWatch(): void {
     if (state.user?.id === prev.user?.id) return
     resetEmojiStore()
     clearEmojiSrcs()
+    resetExpressionOrigins()
   })
 }

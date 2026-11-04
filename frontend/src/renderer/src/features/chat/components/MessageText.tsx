@@ -3,7 +3,7 @@ import type { MentionEveryone } from '../api/messages'
 import { messageParts } from '../lib/linkify'
 import { mentionChipText, sameLabels, type MentionLabels } from '../lib/mentions'
 import MentionChip from './MentionChip'
-import CustomEmoji from '../../emojis/components/CustomEmoji'
+import MessageCustomEmoji from '../../emojis/components/MessageCustomEmoji'
 import { isEmojiOnly } from '../../emojis/lib/emojiToken'
 
 /** Host de verdade do link (em punycode: "аpple.com" cirílico aparece xn--…). */
@@ -60,7 +60,7 @@ function MessageText({
             {part.text}
           </a>
         ) : part.emoji ? (
-          <CustomEmoji key={i} id={part.emoji.id} name={part.emoji.name} size={emojiSize} />
+          <MessageCustomEmoji key={i} id={part.emoji.id} name={part.emoji.name} size={emojiSize} />
         ) : part.mention ? (
           <MentionChip
             key={i}

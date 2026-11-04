@@ -11,17 +11,9 @@ import (
 	"testing"
 
 	"gin-quickstart/backend/internal/bot"
+	"gin-quickstart/backend/internal/expression"
 	"gin-quickstart/backend/internal/permission"
 )
-
-type mockStickerChecker struct {
-	serverID string
-	err      error
-}
-
-func (m *mockStickerChecker) StickerServerID(ctx context.Context, stickerID string) (string, error) {
-	return m.serverID, m.err
-}
 
 func TestValidateNewMessageWithMedia(t *testing.T) {
 	// Regular message with content
@@ -74,15 +66,13 @@ func TestStickerAndGifValidationInService(t *testing.T) {
 	ctx := context.Background()
 	svc := &Service{
 		channelResolver: fakeRooms{}, // returns server "s1"
-		stickerChecker:  &mockStickerChecker{serverID: "other-server"},
+		expressions:     &expressionUse{guard: &fakeExpressionGuard{stickerErr: expression.ErrUnknownSticker}},
 	}
 
-	stkID := "stk-from-other-server"
+	stkID := "stk-apagada"
 	if _, err := svc.CreateChannelMessage(ctx, "geral", "ana", "", nil, nil, &stkID, nil, nil); !errors.Is(err, ErrInvalidSticker) {
-		t.Fatalf("expected ErrInvalidSticker when sticker belongs to another server, got %v", err)
+		t.Fatalf("expected ErrInvalidSticker when sticker does not exist, got %v", err)
 	}
-
-	// Sticker in DM is always rejected
 	if _, err := svc.CreateConversationMessage(ctx, "dm1", "ana", "", nil, nil, &stkID, nil, nil); !errors.Is(err, ErrInvalidSticker) {
 		t.Fatalf("expected ErrInvalidSticker in conversation, got %v", err)
 	}
