@@ -40,9 +40,13 @@ func (r *Repository) archived(ctx context.Context, sql string, arg any) ([]strin
 	return out, rows.Err()
 }
 
-// Unarchive devolve o card ao quadro; false se ele não estava arquivado.
+// Unarchive devolve o card ao quadro; false se ele não estava arquivado. O
+// moved_at renova: o quadro só mostra concluídas dos últimos 30 dias, e o card
+// desarquivado precisa aparecer (no topo da coluna).
 func (r *Repository) Unarchive(ctx context.Context, id string) (bool, error) {
-	tag, err := r.db.Exec(ctx, `UPDATE proposals SET archived_at = NULL WHERE id = $1 AND archived_at IS NOT NULL`, id)
+	tag, err := r.db.Exec(ctx, `
+		UPDATE proposals SET archived_at = NULL, moved_at = NOW()
+		WHERE id = $1 AND archived_at IS NOT NULL`, id)
 	if err != nil {
 		return false, err
 	}

@@ -25,7 +25,7 @@ function ProposalsPage(): React.JSX.Element {
       <div
         role="tablist"
         aria-label="Propostas"
-        className="flex shrink-0 items-center gap-1 border-b border-subtle px-4"
+        className="flex shrink-0 items-center gap-1 border-b border-subtle pl-16 pr-4"
       >
         {TABS.map((t) => (
           <button

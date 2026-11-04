@@ -94,7 +94,7 @@ func TestArchiveSomeDoQuadroMasNaoDoBanco(t *testing.T) {
 }
 
 func TestArchiveAllPorStatusEUnarchive(t *testing.T) {
-	repo, _, newUser, card := archiveEnv(t)
+	repo, db, newUser, card := archiveEnv(t)
 	ctx := context.Background()
 	u := newUser()
 	d1, d2, rej := card(u, "Done um", StatusDone), card(u, "Done dois", StatusDone), card(u, "Recusada", StatusRejected)
@@ -110,6 +110,8 @@ func TestArchiveAllPorStatusEUnarchive(t *testing.T) {
 	if len(again) != 0 {
 		t.Fatalf("segunda rodada arquivou %v de novo", again)
 	}
+	// Concluída há mais de 30 dias já ficaria fora do quadro: desarquivar a traz de volta.
+	db.Exec(ctx, `UPDATE proposals SET moved_at = NOW() - INTERVAL '60 days' WHERE id = $1`, d1)
 	if ok, err := repo.Unarchive(ctx, d1); err != nil || !ok {
 		t.Fatalf("Unarchive = %v %v", ok, err)
 	}
