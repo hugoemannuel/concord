@@ -1,87 +1,23 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Server } from '../api/servers'
 import { useAuthStore } from '../../auth/store/authStore'
-import { useModerationStore } from '../../call/store/moderationStore'
-import { useNotifySettingsStore } from '../../notifications/store/notifySettingsStore'
-import { useUIStore } from '../../../shared/store/uiStore'
 import { Skeleton } from '../../../shared/ui/skeleton/Skeleton'
-import {
-  CalendarIcon,
-  ChevronDownIcon,
-  GearIcon,
-  HashIcon,
-  ImageIcon,
-  PencilIcon,
-  PlusIcon,
-  TrashIcon,
-  UserPlusIcon,
-  XIcon
-} from '../../../shared/ui/icons'
+import { ChevronDownIcon, XIcon } from '../../../shared/ui/icons'
 import { useServerStore } from '../store/serverStore'
-import { useServerSettingsStore } from '../store/serverSettingsStore'
-import { useChannelSidebarStore } from '../store/channelSidebarStore'
-import { useHideMutedStore } from '../store/hideMutedStore'
-import { Perm } from '../lib/permissions'
 import type { ServerAccess } from '../lib/serverAccess'
-import { serverDisplayName } from '../lib/serverNames'
-import { canOpenServerSettings } from '../lib/serverSettingsNav'
-import { serverMenuItems, type ServerMenuItem } from '../lib/sidebarMenus'
+import { serverMenuContext, serverMenuItems, type ServerMenuItem } from '../lib/serverMenu'
+import { SERVER_MENU_LOOK } from '../lib/serverMenuLook'
 import { WRAP_NAME } from '../lib/voiceChannelRow'
-import SidebarMenuItem, { type SidebarMenuTone } from './SidebarMenuItem'
-import { HideMutedMark } from './SidebarAreaMenu'
+import { useHideMutedLook } from '../hooks/useHideMutedLook'
+import { useServerMenuActions } from '../hooks/useServerMenuActions'
+import SidebarMenuItem from './SidebarMenuItem'
 import ServerLevelCard from '../../serverlevel/components/ServerLevelCard'
 import ServerLevelChip from '../../serverlevel/components/ServerLevelChip'
-import ServerLevelModal from '../../serverlevel/components/ServerLevelModal'
-import { useServerLevelModalStore } from '../../serverlevel/store/serverLevelModalStore'
 import EventsPanelHost from '../../events/components/EventsPanelHost'
 import { useEventAccess } from '../../events/hooks/useEventAccess'
-import { useEventsPanelStore } from '../../events/store/eventsPanelStore'
 import ServerStripArt, { useServerStrip } from '../../serverprofile/components/ServerStripArt'
-import { useServerCardStore } from '../../serverprofile/store/serverCardStore'
-import { openMemberProfileEditor } from '../../memberProfiles/store/profileEditorScopeStore'
 
-const LOOK: Record<
-  ServerMenuItem,
-  { label: string; icon?: React.ReactNode; tone?: SidebarMenuTone }
-> = {
-  invite: {
-    label: 'Convidar pessoas',
-    icon: <UserPlusIcon className="h-4 w-4" />,
-    tone: 'brand'
-  },
-  createChannel: { label: 'Criar canal', icon: <HashIcon className="h-3.5 w-3.5" /> },
-  createCategory: { label: 'Criar categoria', icon: <PlusIcon className="h-3.5 w-3.5" /> },
-  hideMuted: { label: 'Ocultar canais silenciados' },
-  profile: { label: 'Perfil do servidor', icon: <ImageIcon className="h-3.5 w-3.5" /> },
-  nickname: { label: 'Alterar apelido', icon: <PencilIcon className="h-3.5 w-3.5" /> },
-  memberProfile: { label: 'Editar perfil do servidor', icon: <PencilIcon className="h-3.5 w-3.5" /> },
-  events: { label: 'Eventos', icon: <CalendarIcon className="h-3.5 w-3.5" /> },
-  notifications: { label: 'Notificações do servidor' },
-  settings: { label: 'Configurações do servidor', icon: <GearIcon className="h-3.5 w-3.5" /> },
-  leave: { label: 'Sair do servidor', icon: <TrashIcon className="h-3.5 w-3.5" />, tone: 'danger' },
-  delete: {
-    label: 'Deletar servidor',
-    icon: <TrashIcon className="h-3.5 w-3.5" />,
-    tone: 'danger'
-  }
-}
-
-type Me = NonNullable<ReturnType<typeof useAuthStore.getState>['user']>
-
-/** Pede o meu apelido neste servidor (o mesmo diálogo da moderação). */
-function askOwnNickname(server: Server, user: Me): void {
-  const mine = useServerStore.getState().currentMembers.find((m) => m.user_id === user.id)
-  useModerationStore.getState().askNickname({
-    serverId: server.id,
-    userId: user.id,
-    name: serverDisplayName(mine, user),
-    nickname: mine?.nickname ?? null,
-    displayName: user.display_name || user.username,
-    self: true
-  })
-}
-
-/** O menu que abre no nome do servidor. */
+/** O menu que abre no nome do servidor (os itens vêm de `lib/serverMenu`, os mesmos do menu do ícone). */
 export function ServerMenuItems({
   server,
   access,
@@ -91,55 +27,40 @@ export function ServerMenuItems({
   access: ServerAccess
   onPicked: () => void
 }): React.JSX.Element {
-  const user = useAuthStore((s) => s.user)
-  const openInviteModal = useUIStore((s) => s.openServerInviteModal)
-  const openNotifyModal = useNotifySettingsStore((s) => s.openModal)
-  const openConfirm = useChannelSidebarStore((s) => s.openConfirm)
+  const userId = useAuthStore((s) => s.user?.id)
+  const hideMuted = useHideMutedLook(server?.id)
+  const members = useServerStore((s) => s.currentMembers)
   // O dono pode liberar a configuração dos eventos para um cargo sem dar nenhuma outra permissão.
   const canConfigureEvents = Boolean(useEventAccess(server?.id)?.configure)
-  const hideMuted = useHideMutedStore((s) => s.isOn(user?.id ?? '', server?.id ?? ''))
-  const items = serverMenuItems({
-    hasServer: Boolean(server),
-    canInvite: access.can(Perm.CREATE_INVITE),
-    canManageChannels: access.can(Perm.MANAGE_CHANNELS),
-    canChangeOwnNickname: Boolean(user && access.canChangeNickname(user.id)),
-    canOpenSettings: canOpenServerSettings(access.perms, access.isOwner, canConfigureEvents),
-    isOwner: access.isOwner
-  })
-  // Os itens que dependem do servidor só aparecem com ele (hasServer).
-  const actions: Record<ServerMenuItem, () => void> = {
-    invite: openInviteModal,
-    createChannel: () => useChannelSidebarStore.getState().openCreate('text'),
-    createCategory: () => useChannelSidebarStore.getState().openCategoryDialog({ kind: 'create' }),
-    hideMuted: () => server && user && useHideMutedStore.getState().toggle(user.id, server.id),
-    profile: () => server && useServerCardStore.getState().open(server.id),
-    nickname: () => server && user && askOwnNickname(server, user),
-    memberProfile: () => server && openMemberProfileEditor(server.id),
-    events: () => server && useEventsPanelStore.getState().open(server.id),
-    notifications: () => server && openNotifyModal({ serverId: server.id, name: server.name }),
-    settings: () => useServerSettingsStore.getState().openSettings(),
-    leave: () => openConfirm('leave'),
-    delete: () => openConfirm('delete-server')
-  }
+  const data = useMemo(() => (server ? { server, members, access } : null), [server, members, access])
+  const actions = useServerMenuActions(data)
+  const items = serverMenuItems(
+    serverMenuContext({ access: server ? access : null, userId, canConfigureEvents })
+  )
   return (
-    <div className="absolute top-14 left-3 right-3 z-30 flex flex-col rounded-xl border border-subtle bg-floating p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2">
+    <div
+      role="menu"
+      className="absolute top-14 left-3 right-3 z-30 flex flex-col rounded-xl border border-subtle bg-floating p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2"
+    >
       {server && (
         <ServerLevelCard
           serverId={server.id}
           onOpen={() => {
             onPicked()
-            useServerLevelModalStore.getState().open(server.id)
+            actions?.level()
           }}
         />
       )}
       {items.map((item) => (
         <SidebarMenuItem
           key={item}
-          {...LOOK[item]}
-          {...(item === 'hideMuted' ? { checked: hideMuted, icon: <HideMutedMark on={hideMuted} /> } : {})}
+          role="menuitem"
+          {...SERVER_MENU_LOOK[item]}
+          {...(item === 'hideMuted' ? hideMuted : {})}
           onClick={() => {
             onPicked()
-            actions[item]()
+            // Item que só existe no menu do ícone (mute, moveTo) nunca chega aqui.
+            actions?.[item as Exclude<ServerMenuItem, 'mute' | 'moveTo'>]()
           }}
         />
       ))}
@@ -167,7 +88,7 @@ function ServerHeaderMenu({
   const strip = useServerStrip(server?.id)
   return (
     <div
-      className={`relative isolate flex shrink-0 gap-1.5 px-4 border-b border-subtle shadow-xs ${
+      className={`relative isolate z-20 flex shrink-0 gap-1.5 px-4 border-b border-subtle shadow-xs ${
         strip ? 'on-media h-24 items-start pt-3' : 'h-14 items-center'
       }`}
     >
@@ -204,7 +125,6 @@ function ServerHeaderMenu({
         <MenuToggleIcon open={open} />
       </button>
       {open && <ServerMenuItems server={server} access={access} onPicked={() => setOpen(false)} />}
-      <ServerLevelModal />
       <EventsPanelHost serverId={server?.id} />
     </div>
   )

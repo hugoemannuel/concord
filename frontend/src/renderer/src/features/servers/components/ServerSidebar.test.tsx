@@ -217,6 +217,14 @@ describe('ServerSidebar', () => {
     expect(html).toContain('Nenhum canal ainda.')
   })
 
+  // O isolate do cabeçalho prende o z-30 do menu aberto: sem z-index próprio,
+  // os canais logo abaixo pintam e recebem o clique por cima do menu.
+  it('o cabeçalho fica acima da lista de canais (o menu do servidor abre por cima)', () => {
+    setup()
+    const header = /<div class="[^"]*\bisolate\b[^"]*"/.exec(render())?.[0] ?? ''
+    expect(header).toMatch(/\bz-20\b/)
+  })
+
   it('abrindo o servidor: nome em skeleton', () => {
     setup()
     useServerStore.setState({ currentServer: null })
