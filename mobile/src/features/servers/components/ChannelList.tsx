@@ -5,12 +5,14 @@ import { Banner } from '../../../shared/ui/Banner'
 import { Button } from '../../../shared/ui/Button'
 import type { CallUser } from '../../call/lib/callTypes'
 import { UnreadDot } from '../../chat/components/UnreadBadge'
-import type { Channel } from '../api/channels'
+import type { Channel, ChannelLayout } from '../api/channels'
 import { channelSections } from '../lib/channelSections'
 
 interface ChannelListProps {
   serverName: string
   channels: Channel[]
+  /** A organização da barra (sem ela, os canais aparecem por tipo). */
+  layout?: ChannelLayout | null
   /** A lista de canais deste servidor falhou ao carregar. */
   error: boolean
   /** Não lidas por canal (só na sessão): o nome fica em negrito e ganha um ponto. */
@@ -59,8 +61,8 @@ function ChannelRow({ channel, unread, members, onPress }: ChannelRowProps) {
   )
 }
 
-/** Coluna do meio: nome do servidor e os canais de texto e de voz. */
-export function ChannelList({ serverName, channels, error, unreadChannels = {}, voiceMembers = {}, onOpenChannel, onJoinVoice, onRetry }: ChannelListProps) {
+/** Coluna do meio: nome do servidor, os canais soltos e as categorias. */
+export function ChannelList({ serverName, channels, layout, error, unreadChannels = {}, voiceMembers = {}, onOpenChannel, onJoinVoice, onRetry }: ChannelListProps) {
   const open = (channel: Channel): void => (channel.type === 'voice' ? onJoinVoice?.(channel) : onOpenChannel(channel))
 
   return (
@@ -75,9 +77,9 @@ export function ChannelList({ serverName, channels, error, unreadChannels = {}, 
             <Button title="Tentar de novo" onPress={onRetry} variant="secondary" />
           </View>
         ) : null}
-        {channelSections(channels).map((section) => (
-          <View key={section.kind}>
-            <Text style={styles.section}>{section.title}</Text>
+        {channelSections(channels, layout).map((section) => (
+          <View key={section.key}>
+            {section.title ? <Text style={styles.section}>{section.title}</Text> : null}
             {section.channels.map((channel) => (
               <ChannelRow
                 key={channel.id}

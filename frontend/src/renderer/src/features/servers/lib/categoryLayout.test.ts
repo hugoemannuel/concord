@@ -8,13 +8,17 @@ describe('organização dos canais', () => {
       { channel_id: 'b', category_id: 'x', position: 1 },
       { channel_id: 'a', category_id: 'x', position: 0 }
     ])).toEqual([
-      { id: 'a', category_id: 'x' }, { id: 'b', category_id: 'x' }, { id: 'c', category_id: null }
+      { id: 'a', category_id: 'x', synced: true }, { id: 'b', category_id: 'x', synced: true }, { id: 'c', category_id: null, synced: true }
     ])
   })
-  it('move pelo menu entre canais do mesmo tipo sem perder os demais tipos', () => {
+  it('o que o servidor diz sobre estar vinculado acompanha o canal', () => {
+    expect(channelsWithPlacement([{ id: 'a' }], [{ channel_id: 'a', category_id: 'x', position: 0, synced: false }])).toEqual([{ id: 'a', category_id: 'x', synced: false }])
+  })
+  it('o menu move entre vizinhos, de qualquer tipo', () => {
     const group = [{ id: 'a', category_id: 'cat' }, { id: 'voz', category_id: 'cat' }, { id: 'b', category_id: 'cat' }]
-    expect(categoryMenuMove(group, [group[0], group[2]], 0, 1)).toEqual({ channel: 'a', category: 'cat', before: null })
-    expect(categoryMenuMove(group, [group[0], group[2]], 1, 0)).toEqual({ channel: 'b', category: 'cat', before: 'a' })
-    expect(categoryMenuMove(group, [group[0]], 0, 3)).toBeNull()
+    expect(categoryMenuMove(group, 0, 1)).toEqual({ channel: 'a', category: 'cat', before: 'b' })
+    expect(categoryMenuMove(group, 2, 1)).toEqual({ channel: 'b', category: 'cat', before: 'voz' })
+    expect(categoryMenuMove(group, 1, 2)).toEqual({ channel: 'voz', category: 'cat', before: null })
+    expect(categoryMenuMove(group, 0, -1)).toBeNull()
   })
 })

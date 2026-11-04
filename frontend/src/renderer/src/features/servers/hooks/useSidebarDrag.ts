@@ -21,7 +21,6 @@ type DragSourceProps = {
   onPointerDown?: (event: React.PointerEvent<HTMLElement>) => void
   'data-dnd'?: string
   'data-id'?: string
-  'data-type'?: string
   'data-category'?: string
   'data-collapsed'?: string
 }
@@ -35,7 +34,8 @@ export interface SidebarDragApi {
   channelRow: (channelId: string, type: ChannelType, categoryId: string | null) => DragSourceProps
   categoryHeader: (categoryId: string, collapsed: boolean) => DragSourceProps
   categoryBlock: (categoryId: string) => DragSourceProps
-  section: (type: ChannelType) => DragSourceProps
+  /** A lista sem categoria, inclusive vazia: soltar nela tira o canal da categoria. */
+  loose: () => DragSourceProps
   /** Liga o fantasma: ele segue o ponteiro sem re-renderizar a lista. */
   attachGhost: (element: HTMLElement | null) => void
 }
@@ -44,7 +44,6 @@ interface DragOptions {
   serverId: string
   canManage: boolean
   tree: LayoutTree
-  typeOf: (id: string) => ChannelType
   onDrop: (drag: SidebarDrag, target: DropTarget) => void
 }
 
@@ -75,7 +74,7 @@ function setPageDragging(on: boolean): void {
 
 /** Arrastar canais e categorias na barra (mouse e toque; quem não gerencia não arrasta). */
 export function useSidebarDrag(options: DragOptions): SidebarDragApi {
-  const { serverId, canManage, tree, typeOf } = options
+  const { serverId, canManage, tree } = options
   const [drag, setDrag] = useState<SidebarDrag | null>(null)
   const [hover, setHover] = useState<DropHover | null>(null)
   const [peeked, setPeeked] = useState<string[]>([])
@@ -100,8 +99,8 @@ export function useSidebarDrag(options: DragOptions): SidebarDragApi {
     setHover(next)
   }
   const finish = (source: SidebarDrag, drop: boolean): void => {
-    const { tree: finalTree, typeOf: finalTypeOf, onDrop } = latest.current
-    const landed = resolveDrop(finalTree, source, hoverNow.current, finalTypeOf)
+    const { tree: finalTree, onDrop } = latest.current
+    const landed = resolveDrop(finalTree, source, hoverNow.current)
     peek.hover(null)
     hoverNow.current = null
     cancelGesture.current = null
@@ -147,13 +146,12 @@ export function useSidebarDrag(options: DragOptions): SidebarDragApi {
   const managed = (props: DragSourceProps): DragSourceProps => (canManage ? props : {})
   return {
     drag,
-    target: drag ? resolveDrop(tree, drag, hover, typeOf) : null,
+    target: drag ? resolveDrop(tree, drag, hover) : null,
     isPeeked: (id) => peeked.includes(id),
     channelRow: (id, type, categoryId) => managed({
       onPointerDown: press({ kind: 'channel', id, type, categoryId }),
       'data-dnd': 'channel',
       'data-id': id,
-      'data-type': type,
       'data-category': categoryId ?? undefined
     }),
     categoryHeader: (id, collapsed) => managed({
@@ -163,7 +161,7 @@ export function useSidebarDrag(options: DragOptions): SidebarDragApi {
       'data-collapsed': String(collapsed)
     }),
     categoryBlock: (id) => managed({ 'data-dnd': 'category-block', 'data-id': id }),
-    section: (type) => managed({ 'data-dnd': 'section', 'data-type': type }),
+    loose: () => managed({ 'data-dnd': 'loose' }),
     attachGhost
   }
 }

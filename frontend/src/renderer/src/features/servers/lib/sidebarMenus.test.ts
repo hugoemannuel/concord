@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  channelAreaMenuItems,
   channelMenuItems,
+  isEmptyChannelArea,
   serverMenuItems,
   type ChannelMenuContext,
   type ServerMenuContext
@@ -87,6 +89,7 @@ describe('serverMenuItems', () => {
   const member: ServerMenuContext = {
     hasServer: true,
     canInvite: true,
+    canManageChannels: false,
     canChangeOwnNickname: true,
     canOpenSettings: false,
     isOwner: false
@@ -95,6 +98,7 @@ describe('serverMenuItems', () => {
   it('membro: convidar, apelido, eventos, notificações e sair', () => {
     expect(serverMenuItems(member)).toEqual([
       'invite',
+      'hideMuted',
       'profile',
       'nickname',
       'memberProfile',
@@ -105,8 +109,11 @@ describe('serverMenuItems', () => {
   })
 
   it('dono: configurações e apagar no lugar de sair', () => {
-    expect(serverMenuItems({ ...member, isOwner: true, canOpenSettings: true })).toEqual([
+    expect(serverMenuItems({ ...member, isOwner: true, canOpenSettings: true, canManageChannels: true })).toEqual([
       'invite',
+      'createChannel',
+      'createCategory',
+      'hideMuted',
       'profile',
       'nickname',
       'memberProfile',
@@ -122,10 +129,27 @@ describe('serverMenuItems', () => {
       serverMenuItems({
         hasServer: false,
         canInvite: false,
+        canManageChannels: true,
         canChangeOwnNickname: false,
         canOpenSettings: false,
         isOwner: false
       })
     ).toEqual(['leave'])
+  })
+})
+
+describe('channelAreaMenuItems', () => {
+  it('cada item só com a permissão certa, na ordem do menu', () => {
+    expect(channelAreaMenuItems({ canManageChannels: true, canInvite: true })).toEqual(['hideMuted', 'createChannel', 'createCategory', 'invite'])
+    expect(channelAreaMenuItems({ canManageChannels: false, canInvite: true })).toEqual(['hideMuted', 'invite'])
+    expect(channelAreaMenuItems({ canManageChannels: false, canInvite: false })).toEqual(['hideMuted'])
+  })
+})
+
+describe('isEmptyChannelArea', () => {
+  const target = (inside: boolean): Element => ({ closest: () => (inside ? {} : null) }) as unknown as Element
+  it('linha e cabeçalho têm menu próprio', () => {
+    expect(isEmptyChannelArea(target(true))).toBe(false)
+    expect(isEmptyChannelArea(target(false))).toBe(true)
   })
 })

@@ -9,8 +9,10 @@ import {
   CalendarIcon,
   ChevronDownIcon,
   GearIcon,
+  HashIcon,
   ImageIcon,
   PencilIcon,
+  PlusIcon,
   TrashIcon,
   UserPlusIcon,
   XIcon
@@ -18,6 +20,7 @@ import {
 import { useServerStore } from '../store/serverStore'
 import { useServerSettingsStore } from '../store/serverSettingsStore'
 import { useChannelSidebarStore } from '../store/channelSidebarStore'
+import { useHideMutedStore } from '../store/hideMutedStore'
 import { Perm } from '../lib/permissions'
 import type { ServerAccess } from '../lib/serverAccess'
 import { serverDisplayName } from '../lib/serverNames'
@@ -25,6 +28,7 @@ import { canOpenServerSettings } from '../lib/serverSettingsNav'
 import { serverMenuItems, type ServerMenuItem } from '../lib/sidebarMenus'
 import { WRAP_NAME } from '../lib/voiceChannelRow'
 import SidebarMenuItem, { type SidebarMenuTone } from './SidebarMenuItem'
+import { HideMutedMark } from './SidebarAreaMenu'
 import ServerLevelCard from '../../serverlevel/components/ServerLevelCard'
 import ServerLevelChip from '../../serverlevel/components/ServerLevelChip'
 import ServerLevelModal from '../../serverlevel/components/ServerLevelModal'
@@ -45,6 +49,9 @@ const LOOK: Record<
     icon: <UserPlusIcon className="h-4 w-4" />,
     tone: 'brand'
   },
+  createChannel: { label: 'Criar canal', icon: <HashIcon className="h-3.5 w-3.5" /> },
+  createCategory: { label: 'Criar categoria', icon: <PlusIcon className="h-3.5 w-3.5" /> },
+  hideMuted: { label: 'Ocultar canais silenciados' },
   profile: { label: 'Perfil do servidor', icon: <ImageIcon className="h-3.5 w-3.5" /> },
   nickname: { label: 'Alterar apelido', icon: <PencilIcon className="h-3.5 w-3.5" /> },
   memberProfile: { label: 'Editar perfil do servidor', icon: <PencilIcon className="h-3.5 w-3.5" /> },
@@ -90,9 +97,11 @@ export function ServerMenuItems({
   const openConfirm = useChannelSidebarStore((s) => s.openConfirm)
   // O dono pode liberar a configuração dos eventos para um cargo sem dar nenhuma outra permissão.
   const canConfigureEvents = Boolean(useEventAccess(server?.id)?.configure)
+  const hideMuted = useHideMutedStore((s) => s.isOn(user?.id ?? '', server?.id ?? ''))
   const items = serverMenuItems({
     hasServer: Boolean(server),
     canInvite: access.can(Perm.CREATE_INVITE),
+    canManageChannels: access.can(Perm.MANAGE_CHANNELS),
     canChangeOwnNickname: Boolean(user && access.canChangeNickname(user.id)),
     canOpenSettings: canOpenServerSettings(access.perms, access.isOwner, canConfigureEvents),
     isOwner: access.isOwner
@@ -100,6 +109,9 @@ export function ServerMenuItems({
   // Os itens que dependem do servidor só aparecem com ele (hasServer).
   const actions: Record<ServerMenuItem, () => void> = {
     invite: openInviteModal,
+    createChannel: () => useChannelSidebarStore.getState().openCreate('text'),
+    createCategory: () => useChannelSidebarStore.getState().openCategoryDialog({ kind: 'create' }),
+    hideMuted: () => server && user && useHideMutedStore.getState().toggle(user.id, server.id),
     profile: () => server && useServerCardStore.getState().open(server.id),
     nickname: () => server && user && askOwnNickname(server, user),
     memberProfile: () => server && openMemberProfileEditor(server.id),
@@ -124,6 +136,7 @@ export function ServerMenuItems({
         <SidebarMenuItem
           key={item}
           {...LOOK[item]}
+          {...(item === 'hideMuted' ? { checked: hideMuted, icon: <HideMutedMark on={hideMuted} /> } : {})}
           onClick={() => {
             onPicked()
             actions[item]()

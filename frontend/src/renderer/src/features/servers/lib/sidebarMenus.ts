@@ -37,11 +37,23 @@ export function channelMenuItems(context: ChannelMenuContext): ChannelMenuItem[]
 }
 
 export type ServerMenuItem =
-  'invite' | 'profile' | 'nickname' | 'memberProfile' | 'events' | 'notifications' | 'settings' | 'leave' | 'delete'
+  | 'invite'
+  | 'createChannel'
+  | 'createCategory'
+  | 'hideMuted'
+  | 'profile'
+  | 'nickname'
+  | 'memberProfile'
+  | 'events'
+  | 'notifications'
+  | 'settings'
+  | 'leave'
+  | 'delete'
 
 export interface ServerMenuContext {
   hasServer: boolean
   canInvite: boolean
+  canManageChannels: boolean
   canChangeOwnNickname: boolean
   canOpenSettings: boolean
   isOwner: boolean
@@ -50,6 +62,10 @@ export interface ServerMenuContext {
 const SERVER_RULES: [ServerMenuItem, (c: ServerMenuContext) => boolean][] = [
   // Quem tem CREATE_INVITE convida (por padrão, todo membro).
   ['invite', (c) => c.canInvite],
+  // Os mesmos do botão direito na área de canais, para quem usa só o teclado.
+  ['createChannel', (c) => c.hasServer && c.canManageChannels],
+  ['createCategory', (c) => c.hasServer && c.canManageChannels],
+  ['hideMuted', (c) => c.hasServer],
   // O cartão do servidor, como os outros o veem.
   ['profile', (c) => c.hasServer],
   // O próprio apelido neste servidor ("Alterar apelido", todo mundo por padrão).
@@ -68,4 +84,28 @@ const SERVER_RULES: [ServerMenuItem, (c: ServerMenuContext) => boolean][] = [
 /** Itens do menu do servidor (cabeçalho da barra), na ordem em que aparecem. */
 export function serverMenuItems(context: ServerMenuContext): ServerMenuItem[] {
   return SERVER_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
+}
+
+export type ChannelAreaMenuItem = 'hideMuted' | 'createChannel' | 'createCategory' | 'invite'
+
+export interface ChannelAreaMenuContext {
+  canManageChannels: boolean
+  canInvite: boolean
+}
+
+const AREA_RULES: [ChannelAreaMenuItem, (c: ChannelAreaMenuContext) => boolean][] = [
+  ['hideMuted', () => true],
+  ['createChannel', (c) => c.canManageChannels],
+  ['createCategory', (c) => c.canManageChannels],
+  ['invite', (c) => c.canInvite]
+]
+
+/** Itens do menu do botão direito na parte vazia da lista de canais, na ordem do menu. */
+export function channelAreaMenuItems(context: ChannelAreaMenuContext): ChannelAreaMenuItem[] {
+  return AREA_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
+}
+
+/** Linhas e cabeçalhos têm o próprio menu: o da área vale só para o espaço vazio. */
+export function isEmptyChannelArea(target: Element): boolean {
+  return !target.closest('[data-sidebar-item]')
 }

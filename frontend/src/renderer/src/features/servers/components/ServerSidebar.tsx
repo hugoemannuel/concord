@@ -16,23 +16,24 @@ import { Perm } from '../lib/permissions'
 import type { ServerAccess } from '../lib/serverAccess'
 import { canOpenChannelMenu, sidebarSections, type SidebarSections } from '../lib/channelSidebar'
 import { categoryMenuMove } from '../lib/categoryLayout'
+import { useChannelAreaMenu } from '../hooks/useChannelAreaMenu'
 import SidebarFooter from '../../../app/SidebarFooter'
 import ResizeHandle from '../../../shared/ui/ResizeHandle'
 import { useResizableWidth } from '../../../shared/hooks/useResizableWidth'
 import ServerHeaderMenu from './ServerHeaderMenu'
-import ChannelSection from './ChannelSection'
 import { ChannelMenuButton, ChannelMenuHost } from './ChannelMenu'
 import TextChannelRow from './TextChannelRow'
 import VoiceChannelRow from './VoiceChannelRow'
 import SidebarDialogs from './SidebarDialogs'
 import { CategoryPanel, type MoveChannel } from './CategoryPanel'
+import { SidebarAreaMenu } from './SidebarAreaMenu'
 
 /** O que as linhas de canal das duas seções compartilham. */
 interface ChannelListProps {
   serverId: string
   sections: SidebarSections
   access: ServerAccess
-  /** Mover para cima/baixo no menu (dentro do tipo, no grupo do canal). */
+  /** Mover para cima/baixo no menu (entre os vizinhos do grupo do canal). */
   move: (type: ChannelType, from: number, to: number) => void
   menuRef: React.Ref<HTMLDivElement>
   categoryControls?: React.ReactNode
@@ -127,7 +128,7 @@ function VoiceChannelItem({
   )
 }
 
-/** As duas seções de canais (texto e voz) do servidor aberto. */
+/** A lista de canais do servidor aberto: os soltos e as categorias. */
 function ChannelLists({
   server,
   access
@@ -146,59 +147,32 @@ function ChannelLists({
   const canManage = access.can(Perm.MANAGE_CHANNELS)
   const categories = useCategories(serverId, channels.map((channel) => channel.id).join(','))
   const onJoin = useJoinVoiceChannel(access, server?.id)
+  const areaMenu = useChannelAreaMenu()
   const renderChannel = (
     ch: Channel,
     group: PlacedChannel[],
     categoryControls: React.ReactNode,
     moveChannel: MoveChannel
   ): React.ReactNode => {
-    const groupedSections = { ...sections, text: group.filter((item) => item.type === 'text'), voice: group.filter((item) => item.type === 'voice') }
+    // A lista é uma só, de texto e voz: subir e descer andam pelo grupo inteiro.
+    const groupedSections = { ...sections, text: group, voice: group }
     const list: ChannelListProps = {
       serverId, access, menuRef, categoryControls, sections: groupedSections,
-      move: (type, from, to) => {
-        const step = categoryMenuMove(group, groupedSections[type], from, to)
+      move: (_type, from, to) => {
+        const step = categoryMenuMove(group, from, to)
         if (step) moveChannel(step)
       }
     }
     return ch.type === 'voice' ? <VoiceChannelItem list={list} ch={ch} onJoin={onJoin} /> : <TextChannelItem list={list} ch={ch} />
   }
+  const ready = sections.ready && (categories.layout !== null || categories.failed)
   return (
-    <div data-dnd="list" className="flex-1 overflow-y-auto overscroll-contain px-2 py-3">
-      <CategoryPanel serverId={serverId} userId={userId} layout={categories.layout} channels={sections.ready ? channels : []} canManage={canManage && Boolean(serverId)} run={categories.run} saveLayout={categories.saveLayout}
+    <div data-dnd="list" {...areaMenu.areaProps} className="flex-1 overflow-y-auto overscroll-contain px-2 py-3">
+      <CategoryPanel serverId={serverId} userId={userId} layout={categories.layout} channels={ready ? channels : []} ready={ready}
+        canManage={canManage && Boolean(serverId)} canManageRoles={access.can(Perm.MANAGE_ROLES)} run={categories.run} saveLayout={categories.saveLayout}
         onCreateChannel={openCreate}
-        renderChannel={renderChannel}
-        fallback={(onCreateCategory, ungrouped, renderRows, sectionDrop) => {
-          const text = ungrouped.filter((channel) => (channel.type ?? 'text') === 'text')
-          const voice = ungrouped.filter((channel) => channel.type === 'voice')
-          return <>
-            <ChannelSection
-              title="Canais de texto"
-              addLabel="Criar canal de texto"
-              onAdd={canManage ? () => openCreate('text') : undefined}
-              onAddCategory={onCreateCategory}
-              ready={sections.ready}
-              count={text.length}
-              emptyText="Nenhum canal ainda."
-              skeleton={{ count: 6 }}
-              {...sectionDrop('text')}
-            >
-              {renderRows(text)}
-            </ChannelSection>
-            <ChannelSection
-              title="Canais de voz"
-              addLabel="Criar canal de voz"
-              onAdd={canManage ? () => openCreate('voice') : undefined}
-              onAddCategory={onCreateCategory}
-              ready={sections.ready}
-              count={voice.length}
-              emptyText="Nenhum canal de voz ainda."
-              skeleton={{ count: 3, offset: 4 }}
-              {...sectionDrop('voice')}
-            >
-              {renderRows(voice)}
-            </ChannelSection>
-          </>
-        }} />
+        renderChannel={renderChannel} />
+      {areaMenu.point && serverId && <SidebarAreaMenu serverId={serverId} access={access} point={areaMenu.point} onClose={areaMenu.close} />}
     </div>
   )
 }

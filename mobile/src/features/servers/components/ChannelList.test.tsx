@@ -22,6 +22,21 @@ describe('ChannelList', () => {
     expect(screen.getByText('Canais de voz')).toBeOnTheScreen()
   })
 
+  it('com a organização, mostra as categorias e os canais soltos sem título', async () => {
+    const layout = {
+      categories: [{ id: 'jogos', name: 'Jogos', position: 0 }],
+      channels: [
+        { channel_id: 't1', category_id: null, position: 0 },
+        { channel_id: 'v1', category_id: 'jogos', position: 0 }
+      ]
+    }
+    await render(<ChannelList {...base} channels={channels} layout={layout} />)
+    expect(screen.getByText('Jogos')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'geral' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'sala-1' })).toBeOnTheScreen()
+    expect(screen.queryByText('Canais de texto')).toBeNull()
+  })
+
   it('tocar num canal de texto abre ele', async () => {
     const onOpenChannel = jest.fn()
     await render(<ChannelList {...base} channels={channels} onOpenChannel={onOpenChannel} />)
