@@ -2,7 +2,10 @@ package apptheme
 
 import (
 	"errors"
+	"slices"
 	"testing"
+
+	"gin-quickstart/backend/internal/profiletheme"
 )
 
 const imageURL = "/api/app-theme-images/0f8fad5b-d9cb-469f-a165-70867728950e"
@@ -69,5 +72,60 @@ func TestImageURLs(t *testing.T) {
 	got := imageIDs([]Theme{a, b})
 	if len(got) != 1 || !got["0f8fad5b-d9cb-469f-a165-70867728950e"] {
 		t.Fatalf("got %v", got)
+	}
+}
+
+func TestNormalizeEffectLook(t *testing.T) {
+	t.Run("tema salvo sem os campos novos fica igual", func(t *testing.T) {
+		got, err := Normalize([]Theme{valid()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		g := got[0]
+		if *g.EffectSize != 50 || g.EffectDirection != "default" || *g.EffectOpacity != 100 || g.EffectPalette != "single" || g.EffectColor2 != "" || g.EffectArea != "full" || *g.EffectGlow != 0 {
+			t.Fatalf("padrões: %+v", g)
+		}
+	})
+
+	t.Run("valores válidos e efeito novo ficam", func(t *testing.T) {
+		th := valid()
+		th.Effect, th.EffectSize, th.EffectDirection, th.EffectOpacity = "fireworks", intp(100), "left", intp(10)
+		th.EffectPalette, th.EffectColor2, th.EffectArea, th.EffectGlow = "duo", "#ABCDEF", "banner", intp(100)
+		got, err := Normalize([]Theme{th})
+		if err != nil {
+			t.Fatal(err)
+		}
+		g := got[0]
+		if g.Effect != "fireworks" || g.EffectColor2 != "#abcdef" || g.EffectArea != "banner" || *g.EffectGlow != 100 {
+			t.Fatalf("got %+v", g)
+		}
+	})
+
+	bad := map[string]func(*Theme){
+		"tamanho zero":         func(th *Theme) { th.EffectSize = intp(0) },
+		"tamanho acima":        func(th *Theme) { th.EffectSize = intp(101) },
+		"opacidade zero":       func(th *Theme) { th.EffectOpacity = intp(0) },
+		"brilho acima":         func(th *Theme) { th.EffectGlow = intp(101) },
+		"brilho negativo":      func(th *Theme) { th.EffectGlow = intp(-1) },
+		"direção desconhecida": func(th *Theme) { th.EffectDirection = "diagonal" },
+		"mistura desconhecida": func(th *Theme) { th.EffectPalette = "neon" },
+		"área desconhecida":    func(th *Theme) { th.EffectArea = "avatar" },
+		"segunda cor inválida": func(th *Theme) { th.EffectColor2 = "azul" },
+	}
+	for name, f := range bad {
+		t.Run(name, func(t *testing.T) {
+			th := valid()
+			f(&th)
+			if _, err := Normalize([]Theme{th}); !errors.Is(err, ErrInvalidThemes) {
+				t.Fatalf("err = %v, queria ErrInvalidThemes", err)
+			}
+		})
+	}
+}
+
+// O fundo do app aceita exatamente os efeitos do cartão de perfil.
+func TestEffectsSameAsProfile(t *testing.T) {
+	if !slices.Equal(effects, profiletheme.Effects) {
+		t.Fatalf("efeitos diferentes: %v", effects)
 	}
 }

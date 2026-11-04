@@ -30,7 +30,7 @@ func TestValidate(t *testing.T) {
 		{"fundo sólido", Theme{Border: "none", Background: "solid", BackgroundColors: []string{"#abcdef"}, Effect: "particles"}, true},
 		{"borda inexistente", Theme{Border: "dotted", Background: "default", Effect: "none"}, false},
 		{"fundo inexistente", Theme{Border: "none", Background: "image", Effect: "none"}, false},
-		{"efeito inexistente", Theme{Border: "none", Background: "default", Effect: "fireworks"}, false},
+		{"efeito inexistente", Theme{Border: "none", Background: "default", Effect: "disco"}, false},
 		{"vazio", Theme{}, false},
 		{"cor por nome", Theme{Border: "solid", BorderColors: []string{"red"}, Background: "default", Effect: "none"}, false},
 		{"cor curta", Theme{Border: "solid", BorderColors: []string{"#fff"}, Background: "default", Effect: "none"}, false},
@@ -142,6 +142,82 @@ func TestThemeJSONFlat(t *testing.T) {
 	for _, key := range []string{`"effect":"none"`, `"effect_color":""`, `"effect_density":50`, `"effect_speed":50`, `"border_animation":"default"`, `"border_width":2`, `"background_angle":180`, `"texture":"none"`} {
 		if !strings.Contains(string(b), key) {
 			t.Fatalf("%s sem %s", b, key)
+		}
+	}
+}
+
+func TestEffectLookValidate(t *testing.T) {
+	cases := []struct {
+		name string
+		in   EffectLook
+		ok   bool
+	}{
+		{"tudo preenchido", EffectLook{EffectSize: 100, EffectDirection: "left", EffectOpacity: 1, EffectPalette: "duo", EffectColor2: "#ABCDEF", EffectArea: "banner", EffectGlow: 100}, true},
+		{"arco-íris", EffectLook{EffectPalette: "rainbow"}, true},
+		{"tamanho acima", EffectLook{EffectSize: 101}, false},
+		{"tamanho negativo", EffectLook{EffectSize: -1}, false},
+		{"opacidade acima", EffectLook{EffectOpacity: 101}, false},
+		{"brilho acima", EffectLook{EffectGlow: 101}, false},
+		{"brilho negativo", EffectLook{EffectGlow: -1}, false},
+		{"direção desconhecida", EffectLook{EffectDirection: "diagonal"}, false},
+		{"mistura desconhecida", EffectLook{EffectPalette: "neon"}, false},
+		{"área desconhecida", EffectLook{EffectArea: "avatar"}, false},
+		{"segunda cor inválida", EffectLook{EffectColor2: "#000000;x"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := Default()
+			th.EffectLook = tc.in
+			_, err := Validate(th)
+			if tc.ok && err != nil {
+				t.Fatalf("erro inesperado: %v", err)
+			}
+			if !tc.ok && !errors.Is(err, ErrInvalid) {
+				t.Fatalf("err = %v, want ErrInvalid", err)
+			}
+		})
+	}
+}
+
+// Tema salvo antes das opções novas (ou mandado por app antigo) continua igual.
+func TestEffectLookCompat(t *testing.T) {
+	th := Default()
+	th.EffectLook = EffectLook{}
+	got, err := Validate(th)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := DefaultEffectLook()
+	if got.EffectLook != want {
+		t.Fatalf("got %+v, want %+v", got.EffectLook, want)
+	}
+	if want.EffectSize != 50 || want.EffectOpacity != 100 || want.EffectGlow != 0 || want.EffectDirection != "default" || want.EffectPalette != "single" || want.EffectArea != "full" || want.EffectColor2 != "" {
+		t.Fatalf("padrão mudou: %+v", want)
+	}
+	var old Theme
+	if err := json.Unmarshal([]byte(`{"border":"none","border_colors":[],"background":"default","background_colors":[],"effect":"fire","effect_density":70}`), &old); err != nil {
+		t.Fatal(err)
+	}
+	clean, err := Validate(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if clean.EffectLook != want || clean.EffectDensity != 70 {
+		t.Fatalf("tema antigo: %+v", clean)
+	}
+	got.EffectColor2 = "#ABCDEF"
+	norm, err := Validate(got)
+	if err != nil || norm.EffectColor2 != "#abcdef" {
+		t.Fatalf("segunda cor: %q, %v", norm.EffectColor2, err)
+	}
+}
+
+func TestNewEffectsAccepted(t *testing.T) {
+	for _, id := range []string{"fireflies", "sakura", "leaves", "bubbles", "ocean", "meteors", "fog", "sunbeams", "lava", "money", "clouds", "hexagons", "pixels", "bunting", "fireworks"} {
+		th := Default()
+		th.Effect = id
+		if _, err := Validate(th); err != nil {
+			t.Fatalf("%s: %v", id, err)
 		}
 	}
 }

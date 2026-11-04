@@ -23,6 +23,8 @@ var Backgrounds = []string{"default", "solid", "gradient", "pride"}
 var Effects = []string{
 	"none", "particles", "sparkles", "snow",
 	"fire", "matrix", "glitch", "storm", "galaxy", "aurora", "hearts", "confetti", "synthwave", "rain",
+	"fireflies", "sakura", "leaves", "bubbles", "ocean", "meteors", "fog", "sunbeams", "lava",
+	"money", "clouds", "hexagons", "pixels", "bunting", "fireworks",
 }
 
 // borderColors e backgroundColors: quantas cores cada opção usa (exatamente).
