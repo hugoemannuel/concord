@@ -11,6 +11,7 @@ import { BRAZIL_COLORS, brazilScene } from './brazilScene'
 import { JAGUAR_COLORS, JAGUAR_LEVEL, JAGUAR_MS, JAGUAR_TITLE_AT, jaguarScene, ROAR_AT } from './jaguarScene'
 import { prideScene } from './prideScene'
 import { RED_STAR_COLORS, redStarScene } from './redStarScene'
+import { VINES_NUMBER_GRADIENT, VINES_TITLE_MS } from './vinesScene'
 import { rng, type Scene } from './sceneKit'
 
 /** Nível com a cena do arco-íris do orgulho (decisão do dono). */
@@ -63,7 +64,7 @@ export interface ScreenScene {
 const TITLE_AT: Record<MilestoneKind, number> = {
   coins: 150,
   shockwave: 120,
-  vines: 900,
+  vines: VINES_TITLE_MS,
   ripple: 520,
   crystals: 1500,
   fire: 150,
@@ -71,6 +72,13 @@ const TITLE_AT: Record<MilestoneKind, number> = {
   blackhole: 1950,
   constellation: 2100,
   legendary: 650
+}
+
+/** Degradê do número de um marco (as vinhas têm o próprio, para ler sobre o verde). */
+function milestoneGradient(kind: MilestoneKind, tier: { color: string; accent: string }): string {
+  if (kind === 'legendary') return `linear-gradient(90deg, ${RAINBOW.join(', ')})`
+  if (kind === 'vines') return VINES_NUMBER_GRADIENT
+  return `linear-gradient(180deg, #ffffff 0%, ${tier.color} 45%, ${tier.accent} 100%)`
 }
 
 /** O que muda de uma cena especial para outra; o resto do esqueleto é comum. */
@@ -189,9 +197,7 @@ export function screenSceneFor(level: number, previous: number): ScreenScene | n
     impactMs: IMPACT_MS[kind],
     numberText: legendary ? 'LENDÁRIO' : String(milestone.level),
     label: legendary ? `Nível ${milestone.level}` : `Marco ${milestone.level} · ${milestone.title}`,
-    gradient: legendary
-      ? `linear-gradient(90deg, ${RAINBOW.join(', ')})`
-      : `linear-gradient(180deg, #ffffff 0%, ${tier.color} 45%, ${tier.accent} 100%)`,
+    gradient: milestoneGradient(kind, tier),
     shine: false,
     crown: legendary,
     drawsNumber: DRAWS_NUMBER.has(kind)
