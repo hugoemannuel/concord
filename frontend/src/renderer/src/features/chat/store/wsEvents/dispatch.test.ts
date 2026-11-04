@@ -16,6 +16,7 @@ const h = vi.hoisted(() => {
     boost: store(),
     badge: store(),
     proposal: store(),
+    archived: store(),
     notify: store(),
     updateCheck: vi.fn(),
     ping: vi.fn(),
@@ -41,6 +42,9 @@ vi.mock('../../../levels/store/boostStore', () => ({ useBoostStore: of(h.boost).
 vi.mock('../../../levels/store/badgeStore', () => ({ useBadgeStore: of(h.badge).useStore }))
 vi.mock('../../../proposals/store/proposalStore', () => ({
   useProposalStore: of(h.proposal).useStore
+}))
+vi.mock('../../../proposals/store/archivedProposalStore', () => ({
+  useArchivedProposalStore: of(h.archived).useStore
 }))
 vi.mock('../../../notifications/store/notifySettingsStore', () => ({
   useNotifySettingsStore: of(h.notify).useStore
@@ -85,7 +89,9 @@ describe('dispatchWsEvent', () => {
     ['voice:boost', h.boost],
     ['badge:earned', h.badge],
     ['notification-settings:update', h.notify],
-    ['proposal:update', h.proposal]
+    ['proposal:update', h.proposal],
+    ['proposal:archive', h.archived],
+    ['proposal:unarchive', h.archived]
   ])('%s vai só para o store dono', (type, owner) => {
     send(type)
     const owners = [
@@ -98,6 +104,7 @@ describe('dispatchWsEvent', () => {
       h.boost,
       h.badge,
       h.proposal,
+      h.archived,
       h.notify
     ]
     for (const s of owners) expect(s.handleWsEvent).toHaveBeenCalledTimes(s === owner ? 1 : 0)

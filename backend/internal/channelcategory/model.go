@@ -17,6 +17,8 @@ type Placement struct {
 type Layout struct {
 	Categories []Category  `json:"categories"`
 	Channels   []Placement `json:"channels"`
+	// Revision identifica o que o membro está vendo: volta na gravação da ordem.
+	Revision string `json:"revision"`
 }
 
 type Store interface {
@@ -26,4 +28,5 @@ type Store interface {
 	Delete(context.Context, string, string) error
 	MoveCategory(context.Context, string, string, string) error
 	MoveChannel(context.Context, string, string, *string, *string) error
+	SaveLayout(ctx context.Context, server string, write LayoutWrite, canView func(string) bool) (SaveResult, error)
 }

@@ -12,11 +12,6 @@ interface TextChannelRowProps {
   active: boolean
   isPrivate: boolean
   isPrimary: boolean
-  /** Este canal é o que está sendo arrastado (reordenar). */
-  dragging: boolean
-  /** Arrastar (moderadores) e soltar outro canal aqui. */
-  dragProps: React.HTMLAttributes<HTMLDivElement>
-  dropLine: React.ReactNode
   onContextMenu?: (e: React.MouseEvent) => void
   /** O "•••" (todo membro abre o menu do canal de texto) e o menu, quando aberto. */
   menuButton?: React.ReactNode
@@ -30,9 +25,6 @@ function TextChannelRow({
   active,
   isPrivate,
   isPrimary,
-  dragging,
-  dragProps,
-  dropLine,
   onContextMenu,
   menuButton,
   menu
@@ -41,8 +33,7 @@ function TextChannelRow({
   const { mentions, unread, muted } = useChannelUnread(serverId, channel.id)
   const badge = channelBadge(mentions, unread, muted)
   return (
-    <div className={`relative transition-opacity ${dragging ? 'opacity-40' : ''}`} {...dragProps}>
-      {dropLine}
+    <div className="relative">
       <button
         onClick={() => navigate(`/servers/${serverId}/channels/${channel.id}`)}
         onContextMenu={onContextMenu}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useUIStore } from '../../../shared/store/uiStore'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useChatStore } from '../store/chatStore'
@@ -7,9 +7,10 @@ import { showToast } from '../../../shared/store/toastStore'
 import { useMusicStore } from '../../music/store/musicStore'
 import { useServerNicknames } from '../../servers/hooks/useServerNames'
 import { applyMention, mentionLabels, mentionQuery } from '../lib/mentions'
-import { editErrorMessage, editOutcome, lastEditableMessage } from '../lib/messageEdit'
+import { lastEditableMessage } from '../lib/messageEdit'
 import { isGroupedWithPrevious } from '../lib/messageGrouping'
 import MessageItem from './MessageItem'
+import MessageDayDivider from './MessageDayDivider'
 import { copyText } from '../../../shared/lib/clipboard'
 import CreatePollModal from './CreatePollModal'
 import { usePinStore } from '../store/pinStore'
@@ -27,6 +28,7 @@ import { useAttachmentDraft } from '../hooks/useAttachmentDraft'
 import { useRoomDraft } from '../hooks/useRoomDraft'
 import { useSendMedia } from '../hooks/useSendMedia'
 import { useRoomState } from '../hooks/useRoomState'
+import { useMessageEditing } from '../hooks/useMessageEditing'
 import { useTypingSender } from '../hooks/useTypingSender'
 import { useFileDropZone } from '../hooks/useFileDropZone'
 import TypingIndicator from './TypingIndicator'
@@ -128,13 +130,8 @@ function ChatPane({
   const createPollInRoom = useChatStore((s) => s.createPollInRoom)
   const votePollInRoom = useChatStore((s) => s.votePollInRoom)
   const endPollInRoom = useChatStore((s) => s.endPollInRoom)
-  const editInRoom = useChatStore((s) => s.editInRoom)
   const [pollOpen, setPollOpen] = useRoomState(room, false)
   const [mediaPickerOpen, setMediaPickerOpen] = useRoomState(room, false)
-  // Mensagem aberta na edição, por sala (o ServerView reaproveita o ChatPane).
-  const [editState, setEditState] = useState<{ room: string; id: string } | null>(null)
-  const editingId = inRoom(editState, room, 'id')
-  const [savingEdit, setSavingEdit] = useState(false)
   const meId = useAuthStore((s) => s.user?.id)
 
   const [draft, setDraft] = useRoomDraft(room)
@@ -184,6 +181,11 @@ function ChatPane({
       mountedRef.current = false
     }
   }, [])
+  const { editingId, savingEdit, startEdit, closeEdit, saveEdit } = useMessageEditing({
+    room,
+    roomRef,
+    inputRef
+  })
   const nicknames = useServerNicknames(serverId)
   const [mention, setMention] = useRoomState<{ query: string; start: number } | null>(room, null)
   const [highlightChoice, setHighlight] = useRoomState<number | null>(room, null)
@@ -273,43 +275,6 @@ function ChatPane({
     }
     if (e.key === 'Escape' && replyingTo) {
       setReplyState(null)
-    }
-  }
-
-  const startEdit = (messageId: string): void => {
-    setEditState({ room, id: messageId })
-    requestAnimationFrame(() =>
-      document.getElementById(`msg-${messageId}`)?.scrollIntoView({ block: 'nearest' })
-    )
-  }
-
-  const closeEdit = (): void => {
-    setEditState(null)
-    requestAnimationFrame(() => inputRef.current?.focus())
-  }
-
-  const handleSaveEdit = async (message: Message, draft: string): Promise<void> => {
-    const hasMedia = Boolean(
-      message.attachments?.length || message.sticker_id || message.sticker || message.gif_url
-    )
-    const outcome = editOutcome(message.content, draft, hasMedia)
-    if (outcome.kind === 'unchanged') {
-      closeEdit()
-      return
-    }
-    if (outcome.kind === 'empty') {
-      showToast.error('A mensagem não pode ficar vazia.')
-      return
-    }
-    const editedRoom = room
-    setSavingEdit(true)
-    try {
-      await editInRoom(editedRoom, message.id, outcome.content)
-      if (roomRef.current === editedRoom) closeEdit()
-    } catch (err) {
-      showToast.error(editErrorMessage(err) ?? actionErrorMessage(err, 'Falha ao editar mensagem.'))
-    } finally {
-      setSavingEdit(false)
     }
   }
 
@@ -543,31 +508,33 @@ function ChatPane({
             <OlderMessagesLoader ref={olderSentinelRef} visible={hasMore} loading={loadingOlder} />
             <EmptyRoomNotice empty={messages.length === 0} />
             {messages.map((m, i) => (
-              <MessageItem
-                key={m.id}
-                message={m}
-                grouped={isGroupedWithPrevious(m, messages[i - 1])}
-                serverId={serverId}
-                isHighlighted={highlightedId === m.id}
-                mentionLabels={labels}
-                onReply={() => handleStartReply(m)}
-                onReact={(emoji) => reactToMessage(m, emoji)}
-                onJumpToMessage={handleJumpToMessage}
-                onDelete={() => handleDelete(m.id)}
-                onVote={(answerIds) => votePollInRoom(room, m.id, answerIds)}
-                onEndPoll={() => endPollInRoom(room, m.id)}
-                onCopy={() => copyText(m.content)}
-                onStartEdit={() => startEdit(m.id)}
-                onSaveEdit={(text) => void handleSaveEdit(m, text)}
-                onCancelEdit={closeEdit}
-                isEditing={editingId === m.id}
-                savingEdit={savingEdit && editingId === m.id}
-                canReact={permissions.canReact}
-                canModerate={permissions.canModerate}
-                canDelete={canDeleteMessages}
-                canPin={isChannel && permissions.canModerate}
-                onTogglePin={() => void handleTogglePin(m)}
-              />
+              <Fragment key={m.id}>
+                <MessageDayDivider message={m} previous={messages[i - 1]} />
+                <MessageItem
+                  message={m}
+                  grouped={isGroupedWithPrevious(m, messages[i - 1])}
+                  serverId={serverId}
+                  isHighlighted={highlightedId === m.id}
+                  mentionLabels={labels}
+                  onReply={() => handleStartReply(m)}
+                  onReact={(emoji) => reactToMessage(m, emoji)}
+                  onJumpToMessage={handleJumpToMessage}
+                  onDelete={() => handleDelete(m.id)}
+                  onVote={(answerIds) => votePollInRoom(room, m.id, answerIds)}
+                  onEndPoll={() => endPollInRoom(room, m.id)}
+                  onCopy={() => copyText(m.content)}
+                  onStartEdit={() => startEdit(m.id)}
+                  onSaveEdit={(text) => void saveEdit(m, text)}
+                  onCancelEdit={closeEdit}
+                  isEditing={editingId === m.id}
+                  savingEdit={savingEdit && editingId === m.id}
+                  canReact={permissions.canReact}
+                  canModerate={permissions.canModerate}
+                  canDelete={canDeleteMessages}
+                  canPin={isChannel && permissions.canModerate}
+                  onTogglePin={() => void handleTogglePin(m)}
+                />
+              </Fragment>
             ))}
             <MessageListTail room={room} serverId={serverId} bottomRef={bottomRef} />
           </div>

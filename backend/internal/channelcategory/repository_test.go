@@ -2,7 +2,10 @@ package channelcategory
 
 import (
 	"context"
+	"errors"
 	"os"
+	"reflect"
+	"sync"
 	"testing"
 
 	"gin-quickstart/backend/internal/channel"
@@ -130,5 +133,186 @@ func TestRepositoryLayout(t *testing.T) {
 		if ch.CategoryID != nil {
 			t.Fatalf("categoria não removida: %+v", ch)
 		}
+	}
+}
+
+// layoutScene: servidor com duas categorias (a e b) e três canais visíveis,
+// mais um canal "oculto" para quem usa canViewAllButHidden.
+type layoutScene struct {
+	repo                  *Repository
+	ctx                   context.Context
+	server, other         string
+	a, b, foreignCategory string
+	free, inA, inB        string
+	hidden, foreignCh     string
+}
+
+func newLayoutScene(t *testing.T) *layoutScene {
+	t.Helper()
+	db, ctx := categoryTestDB(t)
+	owner, server, other := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	exec := func(sql string, args ...any) {
+		t.Helper()
+		if _, err := db.Exec(ctx, sql, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec(`INSERT INTO users(id,username,display_name,email,password_hash) VALUES($1,$2,$2,$3,'x')`, owner, "l"+owner[:8], owner[:8]+"@teste.dev")
+	t.Cleanup(func() { _, _ = db.Exec(ctx, `DELETE FROM users WHERE id=$1`, owner) })
+	exec(`INSERT INTO servers(id,name,owner_id) VALUES($1,'um',$3),($2,'dois',$3)`, server, other, owner)
+	t.Cleanup(func() { _, _ = db.Exec(ctx, `DELETE FROM servers WHERE id IN ($1,$2)`, server, other) })
+	scene := &layoutScene{repo: NewRepository(db), ctx: ctx, server: server, other: other}
+	scene.free, scene.inA, scene.inB, scene.hidden, scene.foreignCh = uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()
+	for i, id := range []string{scene.free, scene.inA, scene.hidden, scene.inB} {
+		exec(`INSERT INTO channels(id,server_id,name,type,position,created_by) VALUES($1,$2,$5,'text',$3,$4)`, id, server, i, owner, "c"+id[:8])
+	}
+	exec(`INSERT INTO channels(id,server_id,name,type,position,created_by) VALUES($1,$2,'fora','voice',0,$3)`, scene.foreignCh, other, owner)
+	for _, name := range []string{"a", "b"} {
+		if err := scene.repo.Create(ctx, server, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := scene.repo.Create(ctx, other, "fora"); err != nil {
+		t.Fatal(err)
+	}
+	layout := scene.layout(t)
+	scene.a, scene.b = layout.Categories[0].ID, layout.Categories[1].ID
+	foreign, err := scene.repo.List(ctx, other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scene.foreignCategory = foreign.Categories[0].ID
+	for _, move := range []struct {
+		channel  string
+		category *string
+	}{{scene.inA, &scene.a}, {scene.hidden, &scene.a}, {scene.inB, &scene.b}} {
+		if err := scene.repo.MoveChannel(ctx, server, move.channel, move.category, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return scene
+}
+
+func (s *layoutScene) layout(t *testing.T) Layout {
+	t.Helper()
+	layout, err := s.repo.List(s.ctx, s.server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return layout
+}
+
+func (s *layoutScene) canView(channel string) bool { return channel != s.hidden }
+
+func (s *layoutScene) revision(t *testing.T) string {
+	t.Helper()
+	return layoutRevision(visibleLayout(s.layout(t), s.canView))
+}
+
+func (s *layoutScene) group(t *testing.T, category *string) []string {
+	t.Helper()
+	ids := []string{}
+	for _, placement := range s.layout(t).Channels {
+		if categoryKey(placement.CategoryID) == categoryKey(category) {
+			ids = append(ids, placement.ChannelID)
+		}
+	}
+	return ids
+}
+
+func TestSaveLayoutWritesFinalOrder(t *testing.T) {
+	s := newLayoutScene(t)
+	result, err := s.repo.SaveLayout(s.ctx, s.server, LayoutWrite{
+		Revision:   s.revision(t),
+		Categories: []string{s.b, s.a},
+		Channels: []Placement{
+			{ChannelID: s.inB, CategoryID: nil, Position: 0},
+			{ChannelID: s.free, CategoryID: &s.b, Position: 0},
+			{ChannelID: s.inA, CategoryID: &s.b, Position: 1},
+		},
+	}, s.canView)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Changed || result.Revision != s.revision(t) {
+		t.Fatalf("resultado %+v, revisão gravada %s", result, s.revision(t))
+	}
+	if got := []string{s.layout(t).Categories[0].ID, s.layout(t).Categories[1].ID}; !reflect.DeepEqual(got, []string{s.b, s.a}) {
+		t.Errorf("categorias = %v", got)
+	}
+	if got := s.group(t, nil); !reflect.DeepEqual(got, []string{s.inB}) {
+		t.Errorf("sem categoria = %v", got)
+	}
+	if got := s.group(t, &s.b); !reflect.DeepEqual(got, []string{s.free, s.inA}) {
+		t.Errorf("grupo b = %v", got)
+	}
+	if got := s.group(t, &s.a); !reflect.DeepEqual(got, []string{s.hidden}) {
+		t.Errorf("grupo a = %v (o canal oculto não sai do lugar)", got)
+	}
+}
+
+func TestSaveLayoutWithoutChangesReportsUnchanged(t *testing.T) {
+	s := newLayoutScene(t)
+	result, err := s.repo.SaveLayout(s.ctx, s.server, LayoutWrite{
+		Revision:   s.revision(t),
+		Categories: []string{s.a, s.b},
+		Channels:   []Placement{{ChannelID: s.free}, {ChannelID: s.inA, CategoryID: &s.a}, {ChannelID: s.inB, CategoryID: &s.b}},
+	}, s.canView)
+	if err != nil || result.Changed {
+		t.Fatalf("resultado %+v erro %v", result, err)
+	}
+}
+
+func TestSaveLayoutRefusesOtherServerAndKeepsEverything(t *testing.T) {
+	s := newLayoutScene(t)
+	before := s.layout(t)
+	base := []Placement{{ChannelID: s.free}, {ChannelID: s.inA, CategoryID: &s.a}, {ChannelID: s.inB, CategoryID: &s.b}}
+	for name, write := range map[string]LayoutWrite{
+		"categoria de outro servidor na ordem": {Categories: []string{s.a, s.foreignCategory}, Channels: base},
+		"canal em categoria de outro servidor": {Categories: []string{s.a, s.b}, Channels: []Placement{{ChannelID: s.free, CategoryID: &s.foreignCategory}, base[1], base[2]}},
+		"canal de outro servidor":              {Categories: []string{s.a, s.b}, Channels: []Placement{{ChannelID: s.foreignCh}, base[1], base[2]}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			write.Revision = s.revision(t)
+			if _, err := s.repo.SaveLayout(s.ctx, s.server, write, s.canView); !errors.Is(err, ErrInvalidLayout) {
+				t.Fatalf("erro = %v", err)
+			}
+			if after := s.layout(t); !reflect.DeepEqual(before, after) {
+				t.Fatalf("gravou algo: %+v", after)
+			}
+		})
+	}
+}
+
+func TestSaveLayoutOnlyOneOfTwoConcurrentWins(t *testing.T) {
+	s := newLayoutScene(t)
+	revision := s.revision(t)
+	writes := []LayoutWrite{
+		{Revision: revision, Categories: []string{s.b, s.a}, Channels: []Placement{{ChannelID: s.free}, {ChannelID: s.inA, CategoryID: &s.a}, {ChannelID: s.inB, CategoryID: &s.b}}},
+		{Revision: revision, Categories: []string{s.a, s.b}, Channels: []Placement{{ChannelID: s.inA}, {ChannelID: s.free, CategoryID: &s.a}, {ChannelID: s.inB, CategoryID: &s.b}}},
+	}
+	errs := make([]error, len(writes))
+	var wg sync.WaitGroup
+	for i, write := range writes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = s.repo.SaveLayout(s.ctx, s.server, write, s.canView)
+		}()
+	}
+	wg.Wait()
+	conflicts, wins := 0, 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			wins++
+		case errors.Is(err, ErrLayoutConflict):
+			conflicts++
+		default:
+			t.Fatalf("erro inesperado: %v", err)
+		}
+	}
+	if wins != 1 || conflicts != 1 {
+		t.Fatalf("vitórias %d, conflitos %d: %v", wins, conflicts, errs)
 	}
 }

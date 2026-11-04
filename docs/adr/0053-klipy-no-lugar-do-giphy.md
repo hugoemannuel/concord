@@ -55,7 +55,7 @@ Opção 2, no pacote renomeado `internal/gifs` (o nome já não é de um provedo
   caminho), então só a causa é registrada (o GIPHY vazava `api_key` assim).
 - **Compatibilidade:** mensagens antigas com GIFs do GIPHY seguem aparecendo (a
   CSP e a validação de mídia aceitam `giphy.com` e `klipy.com`). Migration
-  `000189`: `gif_favorites.provider` (`DEFAULT 'giphy'` cobre os favoritos
+  `000190`: `gif_favorites.provider` (`DEFAULT 'giphy'` cobre os favoritos
   existentes; down remove só a coluna). O provedor de um favorito vem do host da
   URL, não do que o cliente diz. O id de um GIF da KLIPY é o hash de 32 hex da
   URL (`/ii/<hash>/…`, igual em todos os tamanhos), então a estrela de um GIF do

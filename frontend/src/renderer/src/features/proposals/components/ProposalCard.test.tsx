@@ -99,4 +99,11 @@ describe('ProposalCard', () => {
     expect(html).not.toContain('Excluir')
     expect(html).not.toContain('>Sim<')
   })
+
+  it('"Arquivar" só para o time tech, em card concluído ou recusado', () => {
+    expect(render({ status: 'done' }, { isTech: true })).toContain('>Arquivar<')
+    expect(render({ status: 'rejected' }, { isTech: true })).toContain('>Arquivar<')
+    expect(render({ status: 'proposed' }, { isTech: true })).not.toContain('>Arquivar<')
+    expect(render({ status: 'done' }, { isTech: false })).not.toContain('>Arquivar<')
+  })
 })

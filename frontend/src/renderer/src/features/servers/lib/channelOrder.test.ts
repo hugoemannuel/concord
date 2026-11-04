@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyChannelOrder,
-  channelDragType,
-  dropInsertionIndex,
   insertionToTarget,
-  isNoopDrop,
   moveItem
 } from './channelOrder'
 
@@ -28,14 +25,7 @@ describe('moveItem', () => {
   })
 })
 
-describe('dropInsertionIndex', () => {
-  it('metade de cima: antes do item; de baixo: depois', () => {
-    expect(dropInsertionIndex(2, 5, 32)).toBe(2)
-    expect(dropInsertionIndex(2, 20, 32)).toBe(3)
-  })
-})
-
-describe('insertionToTarget / isNoopDrop', () => {
+describe('insertionToTarget', () => {
   it('linha entre itens vira o índice final do item arrastado', () => {
     // arrastando "a" (0) para depois de "c" (linha 3) → índice 2
     expect(insertionToTarget(0, 3)).toBe(2)
@@ -44,12 +34,6 @@ describe('insertionToTarget / isNoopDrop', () => {
     expect(moveItem(['a', 'b', 'c', 'd'], 0, insertionToTarget(0, 3))).toEqual(['b', 'c', 'a', 'd'])
   })
 
-  it('soltar logo acima ou logo abaixo de si mesmo não muda nada', () => {
-    expect(isNoopDrop(2, 2)).toBe(true)
-    expect(isNoopDrop(2, 3)).toBe(true)
-    expect(isNoopDrop(2, 1)).toBe(false)
-    expect(isNoopDrop(2, 4)).toBe(false)
-  })
 })
 
 describe('applyChannelOrder', () => {
@@ -85,12 +69,5 @@ describe('applyChannelOrder', () => {
       ['c', 'a']
     )
     expect(r.map((c) => c.id)).toEqual(['c', 'b', 'a'])
-  })
-})
-
-describe('channelDragType', () => {
-  it('um tipo de arrasto por seção (texto não cai em voz)', () => {
-    expect(channelDragType('text')).not.toBe(channelDragType('voice'))
-    expect(channelDragType('voice')).toBe(channelDragType('voice').toLowerCase())
   })
 })

@@ -216,7 +216,7 @@ function VoiceChannelMembers({
   // Prévia da live no selo: mesma regra do cartão de perfil (ver e entrar no canal).
   const canWatch = access.canInChannel(channelId, Perm.VIEW_CHANNEL | Perm.CONNECT)
   return (
-    <div className="mb-1 ml-4 flex flex-col gap-0.5">
+    <div data-no-drag className="mb-1 ml-4 flex flex-col gap-0.5">
       {participants.map((p) => (
         <VoiceParticipantItem
           key={p.user_id}

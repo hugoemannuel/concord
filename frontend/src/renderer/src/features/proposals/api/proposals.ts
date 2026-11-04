@@ -24,6 +24,8 @@ export interface Proposal {
   created_at: string
   voting_ends_at: string
   closed_at?: string | null
+  /** Quando o time tech arquivou o card: arquivado some do quadro, mas nada é apagado. */
+  archived_at?: string | null
   /** Quando o card entrou na coluna atual: ordena as colunas (o movido sobe ao topo). */
   moved_at?: string | null
   /** Como a votação acabou: `manual` (o time tech moveu o card) ou `deadline` (o prazo venceu). */

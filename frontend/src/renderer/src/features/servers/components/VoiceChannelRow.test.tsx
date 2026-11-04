@@ -98,10 +98,6 @@ function render(props: Partial<VoiceChannelRowProps> = {}): string {
       <VoiceChannelRow
         channel={channel}
         access={fakeAccess(Perm.VIEW_CHANNEL | Perm.CONNECT)}
-        dragging={false}
-        dropLine={null}
-        dropTarget={{ onDragOver: () => {}, onDrop: () => {} }}
-        dragSource={{}}
         onJoin={() => {}}
         {...props}
       />
@@ -244,10 +240,9 @@ describe('VoiceChannelRow', () => {
 
   it('sala trancada, eu fora: pedir permissão', () => {
     inCall([participant('ana')], { locked: true })
-    const html = render({ dragging: true })
+    const html = render()
     expect(html).toContain('(trancada)')
     expect(html).toContain('Sala trancada · Pedir permissão')
-    expect(html).toContain('opacity-40')
   })
 
   it('sala trancada: pedido enviado e pedido recusado', () => {
