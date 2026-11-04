@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useUIStore } from '../../../shared/store/uiStore'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useChatStore } from '../store/chatStore'
@@ -10,6 +10,7 @@ import { applyMention, mentionLabels, mentionQuery } from '../lib/mentions'
 import { lastEditableMessage } from '../lib/messageEdit'
 import { isGroupedWithPrevious } from '../lib/messageGrouping'
 import MessageItem from './MessageItem'
+import MessageDayDivider from './MessageDayDivider'
 import { copyText } from '../../../shared/lib/clipboard'
 import CreatePollModal from './CreatePollModal'
 import type { ServerSticker } from '../api/stickers'
@@ -525,31 +526,33 @@ function ChatPane({
             <OlderMessagesLoader ref={olderSentinelRef} visible={hasMore} loading={loadingOlder} />
             <EmptyRoomNotice empty={messages.length === 0} />
             {messages.map((m, i) => (
-              <MessageItem
-                key={m.id}
-                message={m}
-                grouped={isGroupedWithPrevious(m, messages[i - 1])}
-                serverId={serverId}
-                isHighlighted={highlightedId === m.id}
-                mentionLabels={labels}
-                onReply={() => handleStartReply(m)}
-                onReact={(emoji) => reactToMessage(m, emoji)}
-                onJumpToMessage={handleJumpToMessage}
-                onDelete={() => handleDelete(m.id)}
-                onVote={(answerIds) => votePollInRoom(room, m.id, answerIds)}
-                onEndPoll={() => endPollInRoom(room, m.id)}
-                onCopy={() => copyText(m.content)}
-                onStartEdit={() => startEdit(m.id)}
-                onSaveEdit={(text) => void saveEdit(m, text)}
-                onCancelEdit={closeEdit}
-                isEditing={editingId === m.id}
-                savingEdit={savingEdit && editingId === m.id}
-                canReact={permissions.canReact}
-                canModerate={permissions.canModerate}
-                canDelete={canDeleteMessages}
-                canPin={isChannel && permissions.canModerate}
-                onTogglePin={() => void handleTogglePin(m)}
-              />
+              <Fragment key={m.id}>
+                <MessageDayDivider message={m} previous={messages[i - 1]} />
+                <MessageItem
+                  message={m}
+                  grouped={isGroupedWithPrevious(m, messages[i - 1])}
+                  serverId={serverId}
+                  isHighlighted={highlightedId === m.id}
+                  mentionLabels={labels}
+                  onReply={() => handleStartReply(m)}
+                  onReact={(emoji) => reactToMessage(m, emoji)}
+                  onJumpToMessage={handleJumpToMessage}
+                  onDelete={() => handleDelete(m.id)}
+                  onVote={(answerIds) => votePollInRoom(room, m.id, answerIds)}
+                  onEndPoll={() => endPollInRoom(room, m.id)}
+                  onCopy={() => copyText(m.content)}
+                  onStartEdit={() => startEdit(m.id)}
+                  onSaveEdit={(text) => void saveEdit(m, text)}
+                  onCancelEdit={closeEdit}
+                  isEditing={editingId === m.id}
+                  savingEdit={savingEdit && editingId === m.id}
+                  canReact={permissions.canReact}
+                  canModerate={permissions.canModerate}
+                  canDelete={canDeleteMessages}
+                  canPin={isChannel && permissions.canModerate}
+                  onTogglePin={() => void handleTogglePin(m)}
+                />
+              </Fragment>
             ))}
             <MessageListTail room={room} serverId={serverId} bottomRef={bottomRef} />
           </div>

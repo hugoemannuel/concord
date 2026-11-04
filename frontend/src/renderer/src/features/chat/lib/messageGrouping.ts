@@ -1,4 +1,5 @@
 import type { Message } from '../api/messages'
+import { dayKey } from './messageDates'
 
 /**
  * Agrupamento de mensagens seguidas, como no Discord: a primeira da sequência
@@ -36,14 +37,6 @@ function isReply(m: GroupableMessage): boolean {
   return Boolean(m.reply_to_id || m.reply_to)
 }
 
-function sameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  )
-}
-
 /**
  * `message` entra no grupo de `previous` (vira linha compacta)? Só se for do
  * mesmo autor, no mesmo canal/conversa, a menos de 7 minutos, no mesmo dia, e
@@ -65,5 +58,5 @@ export function isGroupedWithPrevious(
   const gap = now.getTime() - before.getTime()
   // NaN (data inválida) ou ordem trocada: na dúvida, mostra o cabeçalho.
   if (!(gap >= 0 && gap < GROUP_WINDOW_MS)) return false
-  return sameDay(now, before)
+  return dayKey(message.created_at) === dayKey(previous.created_at)
 }
