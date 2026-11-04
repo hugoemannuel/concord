@@ -4,7 +4,7 @@ import { Avatar } from '../../../shared/ui/Avatar'
 import { MessageAttachments } from './MessageAttachments'
 import { MessageGif } from './MessageGif'
 import { MessageSticker } from './MessageSticker'
-import { dayLabelText, timeText } from '../lib/dayLabel'
+import { dayLabelText, timeLabel } from '../lib/dayLabel'
 import type { GroupedMessage } from '../lib/messageGroups'
 import { isMaestroMessageKind } from '../../music/lib/music'
 import { MusicMessage } from '../../music/components/MusicMessage'
@@ -46,7 +46,7 @@ export function MessageItem({ item, timeZone, onOpenProfile }: MessageItemProps)
               <ProfileTap userId={message.author_id} label={name} onOpen={onOpenProfile}>
                 <Text style={styles.author}>{name}</Text>
               </ProfileTap>
-              <Text style={styles.time}>{timeText(message.created_at, timeZone)}</Text>
+              <Text style={styles.time}>{timeLabel(message.created_at, new Date(), timeZone)}</Text>
             </View>
           ) : null}
           {message.content.trim() ? (
