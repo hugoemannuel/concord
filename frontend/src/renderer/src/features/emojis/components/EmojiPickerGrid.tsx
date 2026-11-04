@@ -21,8 +21,9 @@ export type EmojiPickMode = 'message' | 'reaction'
 
 const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-1 max-md:grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))]'
 const CELL =
-  'flex h-9 w-full cursor-pointer items-center justify-center rounded-md text-ds-lg transition-colors hover:bg-fg/10 focus-ring max-md:h-11 max-md:text-ds-xl'
-const CELL_DISABLED = 'cursor-not-allowed opacity-40 hover:bg-transparent'
+  'flex h-9 w-full items-center justify-center rounded-md text-ds-lg transition-colors focus-ring max-md:h-11 max-md:text-ds-xl'
+const CELL_ENABLED = 'cursor-pointer hover:bg-fg/10'
+const CELL_DISABLED = 'cursor-not-allowed opacity-40'
 /** Altura de uma linha da grade (botão + espaço), para reservar o lugar do que não montou. */
 const ROW_PX = 36
 const HEADER_PX = 28
@@ -60,7 +61,7 @@ function CustomEmojiCell({
         onClick={() => {
           if (!disabled) onPick(emoji)
         }}
-        className={`${CELL} ${disabled ? CELL_DISABLED : ''}`}
+        className={`${CELL} ${disabled ? CELL_DISABLED : CELL_ENABLED}`}
         {...previewKeyProps(customKey(emoji.id))}
       >
         <CustomEmoji id={emoji.id} name={emoji.name} size="picker" />
@@ -87,7 +88,7 @@ function UnicodeCell({ item, onPick }: { item: EmoteItem; onPick: (value: string
       title={item.label}
       aria-label={item.label}
       onClick={() => onPick(item.emoji)}
-      className={CELL}
+      className={`${CELL} ${CELL_ENABLED}`}
       {...previewKeyProps(item.emoji)}
     >
       {item.emoji}

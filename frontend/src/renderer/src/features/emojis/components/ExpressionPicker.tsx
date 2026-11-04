@@ -69,7 +69,8 @@ function PickerRail({
 
 function PickerFooter({ preview, idleHint }: { preview: PickerPreview | null; idleHint: string }): React.JSX.Element {
   return (
-    <div className="mt-1 flex min-h-12 shrink-0 items-center gap-2 border-t border-subtle px-1 pt-1.5">
+    // No celular a tela é curta: o rodapé só aparece com um item em foco.
+    <div className={`mt-1 flex min-h-12 shrink-0 items-center gap-2 border-t border-subtle px-1 pt-1.5 ${preview ? '' : 'max-md:hidden'}`}>
       {preview ? (
         <>
           <span className="flex size-9 shrink-0 items-center justify-center text-ds-xl">{preview.media}</span>
