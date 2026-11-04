@@ -2,7 +2,9 @@
 // formatos antigos (v1: só as seis cores; v2: sem o fundo da v3): o que faltar ganha o padrão que reproduz a v1
 // (withDefaults); extra inválido cai no padrão sem perder o tema. Puro.
 
+import { backdropOfLook, lookOfBackdrop } from './backdropEditor'
 import { isHexColor } from './colorMath'
+import { resolveEffectLook } from '../../profile/lib/effectLook'
 import { PROFILE_EFFECTS } from '../../profile/lib/profileTheme'
 import { isThemeImage } from './themeImage'
 import {
@@ -64,6 +66,11 @@ const level = (value: unknown): number | undefined => (intIn(value, 100) ? (valu
 
 const EFFECT_IDS = PROFILE_EFFECTS.map((e) => e.id)
 
+/** Os ajustes do efeito: cada um inválido ou ausente fica no padrão. */
+function effectLook(r: Raw): Partial<ThemeInput> {
+  return backdropOfLook(resolveEffectLook(lookOfBackdrop(r as unknown as Parameters<typeof lookOfBackdrop>[0])))
+}
+
 /** Os campos v3 (fundo) que vieram válidos. */
 function backdrop(r: Raw): Partial<ThemeInput> {
   return {
@@ -71,6 +78,7 @@ function backdrop(r: Raw): Partial<ThemeInput> {
     effectDensity: level(r.effectDensity),
     effectSpeed: level(r.effectSpeed),
     effectColor: optionalColor(r.effectColor),
+    ...effectLook(r),
     image: isThemeImage(r.image) ? r.image : '',
     imageDim: intIn(r.imageDim, IMAGE_DIM_MAX),
     imageBlur: intIn(r.imageBlur, IMAGE_BLUR_MAX)

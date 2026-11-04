@@ -60,6 +60,49 @@ describe('ProfileThemeEditor', () => {
     expect(html).not.toContain('Usar a cor original')
   })
 
+  it('os efeitos aparecem por grupo', () => {
+    const html = render({})
+    for (const g of ['Básicos', 'Natureza', 'Clima', 'Espaço', 'Festa', 'Retrô']) {
+      expect(html).toContain(`aria-label="${g}"`)
+    }
+    for (const e of ['Vaga-lumes', 'Sakura', 'Estrelas cadentes', 'Bandeirinhas', 'Fogos']) {
+      expect(html).toContain(e)
+    }
+  })
+
+  it('sem efeito: nada de "Mais opções"', () => {
+    expect(render({})).not.toContain('Mais opções')
+  })
+
+  it('"Mais opções" começa recolhido e tem o que o efeito expõe', () => {
+    const html = render({ effect: 'rain' })
+    expect(html).toMatch(/aria-expanded="false"[^>]*>Mais opções/)
+    for (const t of ['Tamanho', 'Opacidade', 'Brilho', 'Direção', 'Onde aparece', 'Só o banner']) {
+      expect(html).toContain(t)
+    }
+    expect(html).toContain('Mistura de cor')
+    expect(html).toContain('aria-label="Para a esquerda"')
+  })
+
+  it('efeito sem direção nem tamanho (glitch): só opacidade e área', () => {
+    const html = render({ effect: 'glitch' })
+    expect(html).toContain('Opacidade')
+    expect(html).toContain('Onde aparece')
+    for (const t of ['Tamanho', 'Direção do efeito', 'Mistura de cor', '>Brilho<']) {
+      expect(html).not.toContain(t)
+    }
+  })
+
+  it('duas cores: a segunda amostra; arco-íris: sem amostra, com o caminho de volta', () => {
+    const duo = render({ effect: 'rain', effect_palette: 'duo' })
+    expect(duo).toContain('Segunda cor')
+    expect(duo).toContain('Usar a cor original')
+    const rainbow = render({ effect: 'rain', effect_palette: 'rainbow' })
+    expect(rainbow).not.toContain('Cor do efeito')
+    expect(rainbow).not.toContain('Segunda cor')
+    expect(rainbow).toContain('Usar a cor original')
+  })
+
   it('direção do degradê: a mesma seta girada pelo ângulo, sem setas de texto', () => {
     const html = render({ background: 'gradient', background_colors: ['#333333', '#444444'] })
     const group = html.match(/aria-label="Direção do degradê">([\s\S]*?)<\/div>/)![1]

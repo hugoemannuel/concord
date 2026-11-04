@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { effectDef, PROFILE_EFFECTS } from './effectCatalog'
+import { fxLook, type FxLook } from './effectLook'
 import { pickInk, type Ink } from './profileInk'
 import { PRIDE_PALETTE, prideGradient } from './profilePride'
 import type { EffectParams } from './effects/types'
@@ -122,7 +123,7 @@ export interface ProfileThemeLook {
   surface: string
   ink: Ink
   /** O efeito por cima e com que parâmetros (ProfileCardFrame desenha). */
-  fx: { id: string; kind: 'none' | 'css' | 'canvas'; params: EffectParams }
+  fx: { id: string; kind: 'none' | 'css' | 'canvas'; params: EffectParams; look: FxLook }
 }
 
 /** Fundo do corpo: sempre uma imagem (no "background" em camadas a cor só vai na última). */
@@ -166,7 +167,8 @@ export function profileThemeLook(theme: ProfileTheme): ProfileThemeLook {
     ...inkClass(bg, ink)
   ].join(' ')
   const def = effectDef(theme.effect)
-  const fx = { id: def.id, kind: def.kind, params: effectParams(theme, def.color ?? '#ffffff') }
+  const params = effectParams(theme, def.color ?? '#ffffff')
+  const fx = { id: def.id, kind: def.kind, params, look: fxLook(def, theme, params.color) }
   return {
     className,
     style: themeVars(theme, surface) as CSSProperties,

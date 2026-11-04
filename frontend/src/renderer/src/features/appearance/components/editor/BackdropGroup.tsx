@@ -17,6 +17,7 @@ export function BackdropGroup({ draft, update }: GroupProps): React.JSX.Element 
       <EffectControls
         value={toProfileEffect(draft)}
         onChange={(next) => update(fromProfileEffect(next), 'effect')}
+        areaLabels={{ full: 'Tela inteira', banner: 'Só o topo' }}
       />
     </EditorGroup>
   )

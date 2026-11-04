@@ -1,11 +1,13 @@
+import { DEFAULT_EFFECT_LOOK, resolveEffectLook, type ProfileEffectLook } from './effectLook'
 import type { EffectParams } from './effects/types'
 
 // Opções finas do tema do cartão (backend internal/profiletheme/extras.go):
 // cor, quantidade e velocidade do efeito, animação e espessura da borda,
 // ângulo do degradê e textura do fundo. Zero/vazio = padrão, então tema salvo
-// antes delas (ou mandado por cliente antigo) continua igual.
+// antes delas (ou mandado por cliente antigo) continua igual. Os ajustes de como o
+// efeito aparece ficam em effectLook.ts.
 
-export interface ProfileThemeExtras {
+export interface ProfileThemeExtras extends ProfileEffectLook {
   /** '' = a cor de sempre do efeito. */
   effect_color: string
   /** 1–100 (50 = padrão). */
@@ -59,7 +61,8 @@ export const DEFAULT_EXTRAS: ProfileThemeExtras = {
   border_animation: 'default',
   border_width: DEFAULT_BORDER_WIDTH,
   background_angle: DEFAULT_ANGLE,
-  texture: 'none'
+  texture: 'none',
+  ...DEFAULT_EFFECT_LOOK
 }
 
 const COLOR = /^#[0-9a-f]{6}$/i
@@ -85,7 +88,8 @@ export function resolveExtras(raw?: Partial<ProfileThemeExtras> | null): Profile
     border_animation: pick(raw?.border_animation, PROFILE_BORDER_ANIMATIONS),
     border_width: level(raw?.border_width, MAX_BORDER_WIDTH, DEFAULT_BORDER_WIDTH),
     background_angle: level(raw?.background_angle, 360, DEFAULT_ANGLE),
-    texture: pick(raw?.texture, PROFILE_TEXTURES)
+    texture: pick(raw?.texture, PROFILE_TEXTURES),
+    ...resolveEffectLook(raw)
   }
 }
 

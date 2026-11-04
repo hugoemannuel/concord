@@ -31,7 +31,7 @@ describe('resolveExtras', () => {
       background_angle: 360,
       texture: 'grid'
     }
-    expect(resolveExtras(v)).toEqual({ ...v, effect_color: '#aabbcc' })
+    expect(resolveExtras(v)).toEqual({ ...DEFAULT_EXTRAS, ...v, effect_color: '#aabbcc' })
   })
   it('cada valor inválido volta ao padrão sozinho', () => {
     const t = resolveExtras({
@@ -86,5 +86,28 @@ describe('fatores e parâmetros', () => {
       scene.draw(ctx, state)
       expect(ctx.bad).toEqual([])
     }
+  })
+})
+
+describe('ajustes do efeito escolhidos no desktop', () => {
+  it('passam intactos: salvar o perfil no app não os apaga', () => {
+    const look = {
+      effect_size: 90,
+      effect_direction: 'left',
+      effect_opacity: 40,
+      effect_palette: 'duo',
+      effect_color2: '#abcdef',
+      effect_area: 'banner',
+      effect_glow: 60
+    }
+    expect(resolveExtras(look)).toMatchObject(look)
+  })
+  it('tema antigo: os padrões; inválido volta ao padrão', () => {
+    expect(resolveExtras({})).toMatchObject({ effect_size: 50, effect_opacity: 100, effect_glow: 0, effect_area: 'full' })
+    expect(resolveExtras({ effect_glow: 101, effect_direction: 'x', effect_color2: 'url(x)' })).toMatchObject({
+      effect_glow: 0,
+      effect_direction: 'default',
+      effect_color2: ''
+    })
   })
 })
