@@ -7,7 +7,7 @@ import { showToast } from '../../../shared/store/toastStore'
 import { useMusicStore } from '../../music/store/musicStore'
 import { useServerNicknames } from '../../servers/hooks/useServerNames'
 import { applyMention, mentionLabels, mentionQuery } from '../lib/mentions'
-import { editErrorMessage, editOutcome, lastEditableMessage } from '../lib/messageEdit'
+import { lastEditableMessage } from '../lib/messageEdit'
 import { isGroupedWithPrevious } from '../lib/messageGrouping'
 import MessageItem from './MessageItem'
 import { copyText } from '../../../shared/lib/clipboard'
@@ -28,6 +28,7 @@ import ComposerAttachments from './ComposerAttachments'
 import { useAttachmentDraft } from '../hooks/useAttachmentDraft'
 import { useRoomDraft } from '../hooks/useRoomDraft'
 import { useRoomState } from '../hooks/useRoomState'
+import { useMessageEditing } from '../hooks/useMessageEditing'
 import { useTypingSender } from '../hooks/useTypingSender'
 import { useFileDropZone } from '../hooks/useFileDropZone'
 import TypingIndicator from './TypingIndicator'
@@ -129,13 +130,8 @@ function ChatPane({
   const createPollInRoom = useChatStore((s) => s.createPollInRoom)
   const votePollInRoom = useChatStore((s) => s.votePollInRoom)
   const endPollInRoom = useChatStore((s) => s.endPollInRoom)
-  const editInRoom = useChatStore((s) => s.editInRoom)
   const [pollOpen, setPollOpen] = useRoomState(room, false)
   const [mediaPickerOpen, setMediaPickerOpen] = useRoomState(room, false)
-  // Mensagem aberta na edição, por sala (o ServerView reaproveita o ChatPane).
-  const [editState, setEditState] = useState<{ room: string; id: string } | null>(null)
-  const editingId = inRoom(editState, room, 'id')
-  const [savingEdit, setSavingEdit] = useState(false)
   const meId = useAuthStore((s) => s.user?.id)
 
   const [draft, setDraft] = useRoomDraft(room)
@@ -185,6 +181,11 @@ function ChatPane({
       mountedRef.current = false
     }
   }, [])
+  const { editingId, savingEdit, startEdit, closeEdit, saveEdit } = useMessageEditing({
+    room,
+    roomRef,
+    inputRef
+  })
   const nicknames = useServerNicknames(serverId)
   const [mention, setMention] = useRoomState<{ query: string; start: number } | null>(room, null)
   const [highlightChoice, setHighlight] = useRoomState<number | null>(room, null)
@@ -274,43 +275,6 @@ function ChatPane({
     }
     if (e.key === 'Escape' && replyingTo) {
       setReplyState(null)
-    }
-  }
-
-  const startEdit = (messageId: string): void => {
-    setEditState({ room, id: messageId })
-    requestAnimationFrame(() =>
-      document.getElementById(`msg-${messageId}`)?.scrollIntoView({ block: 'nearest' })
-    )
-  }
-
-  const closeEdit = (): void => {
-    setEditState(null)
-    requestAnimationFrame(() => inputRef.current?.focus())
-  }
-
-  const handleSaveEdit = async (message: Message, draft: string): Promise<void> => {
-    const hasMedia = Boolean(
-      message.attachments?.length || message.sticker_id || message.sticker || message.gif_url
-    )
-    const outcome = editOutcome(message.content, draft, hasMedia)
-    if (outcome.kind === 'unchanged') {
-      closeEdit()
-      return
-    }
-    if (outcome.kind === 'empty') {
-      showToast.error('A mensagem não pode ficar vazia.')
-      return
-    }
-    const editedRoom = room
-    setSavingEdit(true)
-    try {
-      await editInRoom(editedRoom, message.id, outcome.content)
-      if (roomRef.current === editedRoom) closeEdit()
-    } catch (err) {
-      showToast.error(editErrorMessage(err) ?? actionErrorMessage(err, 'Falha ao editar mensagem.'))
-    } finally {
-      setSavingEdit(false)
     }
   }
 
@@ -576,7 +540,7 @@ function ChatPane({
                 onEndPoll={() => endPollInRoom(room, m.id)}
                 onCopy={() => copyText(m.content)}
                 onStartEdit={() => startEdit(m.id)}
-                onSaveEdit={(text) => void handleSaveEdit(m, text)}
+                onSaveEdit={(text) => void saveEdit(m, text)}
                 onCancelEdit={closeEdit}
                 isEditing={editingId === m.id}
                 savingEdit={savingEdit && editingId === m.id}
