@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Channel, ChannelType } from '../api/channels'
 import type { Category, CategoryLayout } from '../api/categories'
 import { categoryStepBefore, type LayoutTree } from '../lib/channelLayoutTree'
-import { categoryLine, channelLine, groupHighlighted, type DropTarget, type SidebarDrag } from '../lib/sidebarDrop'
+import { applyDrop, categoryLine, channelLine, groupHighlighted, type DropTarget, type SidebarDrag } from '../lib/sidebarDrop'
 import { useCollapsedCategories } from '../hooks/useCollapsedCategories'
 import { useSidebarDrag } from '../hooks/useSidebarDrag'
 import { useSidebarLayout, type PlacedChannel } from '../hooks/useSidebarLayout'
@@ -50,13 +50,13 @@ export function CategoryPanel({ serverId, userId, layout, channels, canManage, r
   const openDestination = (categoryId: string | null): void => {
     if (categoryId && collapsed.includes(categoryId)) setCollapsed(collapsed.filter((id) => id !== categoryId))
   }
-  const onDrop = (source: SidebarDrag, landed: DropTarget): void => {
-    if (source.kind === 'category' && landed.kind === 'category') sidebar.moveCategory(source.id, landed.beforeId)
-    if (source.kind === 'channel' && landed.kind === 'channel') {
-      sidebar.moveChannel(source.id, landed.categoryId, landed.beforeId)
-      openDestination(landed.categoryId)
+  const onDrop = (source: SidebarDrag, landed: DropTarget): void => applyDrop(source, landed, {
+    moveCategory: sidebar.moveCategory,
+    moveChannel: (id, categoryId, beforeId) => {
+      sidebar.moveChannel(id, categoryId, beforeId)
+      openDestination(categoryId)
     }
-  }
+  })
   // Antes de a organização chegar não dá para saber qual rota grava: ainda não arrasta.
   const dnd = useSidebarDrag({ serverId, canManage: canManage && layout !== null, tree, typeOf: sidebar.typeOf, onDrop })
   const menuMove: MoveChannel = ({ channel, category, before }) => sidebar.moveChannel(channel, category, before)

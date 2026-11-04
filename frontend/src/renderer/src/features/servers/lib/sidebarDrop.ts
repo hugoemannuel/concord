@@ -98,11 +98,17 @@ export function resolveDrop(tree: LayoutTree, drag: SidebarDrag, hover: DropHove
   return drag.kind === 'channel' ? resolveChannelDrop(tree, drag, hover, typeOf) : resolveCategoryDrop(tree, drag.id, hover)
 }
 
-/** A árvore depois de soltar. */
-export function treeAfterDrop(tree: LayoutTree, drag: SidebarDrag, target: DropTarget): LayoutTree {
-  if (drag.kind === 'category' && target.kind === 'category') return moveCategoryInTree(tree, drag.id, target.beforeId)
-  if (drag.kind === 'channel' && target.kind === 'channel') return moveChannelInTree(tree, drag.id, target.categoryId, target.beforeId)
-  return tree
+/** Faz o movimento que o item solto pede. */
+export function applyDrop(
+  drag: SidebarDrag,
+  target: DropTarget,
+  on: {
+    moveCategory: (id: string, beforeId: string | null) => void
+    moveChannel: (id: string, categoryId: string | null, beforeId: string | null) => void
+  }
+): void {
+  if (drag.kind === 'category' && target.kind === 'category') on.moveCategory(drag.id, target.beforeId)
+  if (drag.kind === 'channel' && target.kind === 'channel') on.moveChannel(drag.id, target.categoryId, target.beforeId)
 }
 
 /** Linha acima do canal alvo ou abaixo do último do grupo de destino. */

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { LayoutTree } from './channelLayoutTree'
 import {
+  applyDrop,
   autoScrollStep,
   categoryLine,
   channelLine,
@@ -12,7 +13,6 @@ import {
   pressCanDrag,
   resolveDrop,
   sameHover,
-  treeAfterDrop,
   type DropHover,
   type SidebarDrag
 } from './sidebarDrop'
@@ -189,14 +189,26 @@ describe('hoverFromElement', () => {
   })
 })
 
-describe('treeAfterDrop', () => {
-  it('aplica a categoria movida ou o canal movido', () => {
-    expect(treeAfterDrop(tree, { kind: 'category', id: 'b' }, { kind: 'category', beforeId: 'a' }).categories[0].id).toBe('b')
-    expect(treeAfterDrop(tree, channel('t1'), { kind: 'channel', categoryId: 'b', beforeId: null, type: 'text' }).categories[1].channels).toEqual(['t1'])
+describe('applyDrop', () => {
+  const actions = () => ({ moveCategory: vi.fn(), moveChannel: vi.fn() })
+  it('categoria solta em lugar de categoria', () => {
+    const on = actions()
+    applyDrop({ kind: 'category', id: 'b' }, { kind: 'category', beforeId: 'a' }, on)
+    expect(on.moveCategory).toHaveBeenCalledWith('b', 'a')
+    expect(on.moveChannel).not.toHaveBeenCalled()
   })
-  it('alvo de outro tipo não muda nada', () => {
-    expect(treeAfterDrop(tree, channel('t1'), { kind: 'category', beforeId: 'a' })).toEqual(tree)
-    expect(treeAfterDrop(tree, { kind: 'category', id: 'b' }, { kind: 'channel', categoryId: 'b', beforeId: null, type: 'text' })).toEqual(tree)
+  it('canal solto em lugar de canal', () => {
+    const on = actions()
+    applyDrop(channel('t1'), { kind: 'channel', categoryId: 'b', beforeId: null, type: 'text' }, on)
+    expect(on.moveChannel).toHaveBeenCalledWith('t1', 'b', null)
+    expect(on.moveCategory).not.toHaveBeenCalled()
+  })
+  it('alvo de outro tipo não faz nada', () => {
+    const on = actions()
+    applyDrop(channel('t1'), { kind: 'category', beforeId: 'a' }, on)
+    applyDrop({ kind: 'category', id: 'b' }, { kind: 'channel', categoryId: 'b', beforeId: null, type: 'text' }, on)
+    expect(on.moveCategory).not.toHaveBeenCalled()
+    expect(on.moveChannel).not.toHaveBeenCalled()
   })
 })
 
