@@ -105,18 +105,9 @@ func (r *Repository) CreateComment(ctx context.Context, proposalID, authorID, bo
 	}
 	defer tx.Rollback(ctx)
 
-	if replyToID != nil {
-		var ok bool
-		if err := tx.QueryRow(ctx, `
-			SELECT EXISTS (SELECT 1 FROM proposal_comments WHERE id = $1 AND proposal_id = $2)`,
-			*replyToID, proposalID).Scan(&ok); err != nil {
-			return "", err
-		}
-		if !ok {
-			return "", ErrInvalidReply
-		}
+	if err := checkReply(ctx, tx, replyToID, proposalID); err != nil {
+		return "", err
 	}
-
 	var id string
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO proposal_comments (proposal_id, author_id, body, reply_to_id) VALUES ($1, $2, $3, $4)
@@ -124,26 +115,58 @@ func (r *Repository) CreateComment(ctx context.Context, proposalID, authorID, bo
 		proposalID, authorID, body, replyToID).Scan(&id); err != nil {
 		return "", err
 	}
-	for _, uid := range mentionIDs {
+	if err := insertMentions(ctx, tx, id, mentionIDs); err != nil {
+		return "", err
+	}
+	if err := claimAttachments(ctx, tx, id, authorID, attachmentIDs); err != nil {
+		return "", err
+	}
+	return id, tx.Commit(ctx)
+}
+
+// checkReply: a resposta tem de ser de um comentário da mesma proposta.
+func checkReply(ctx context.Context, tx pgx.Tx, replyToID *string, proposalID string) error {
+	if replyToID == nil {
+		return nil
+	}
+	var ok bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM proposal_comments WHERE id = $1 AND proposal_id = $2)`,
+		*replyToID, proposalID).Scan(&ok); err != nil {
+		return err
+	}
+	if !ok {
+		return ErrInvalidReply
+	}
+	return nil
+}
+
+func insertMentions(ctx context.Context, tx pgx.Tx, commentID string, userIDs []string) error {
+	for _, uid := range userIDs {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO proposal_comment_mentions (comment_id, user_id) VALUES ($1, $2)
-			ON CONFLICT DO NOTHING`, id, uid); err != nil {
-			return "", err
+			ON CONFLICT DO NOTHING`, commentID, uid); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// claimAttachments liga ao comentário os anexos pendentes de quem comenta, na ordem dada.
+func claimAttachments(ctx context.Context, tx pgx.Tx, commentID, authorID string, attachmentIDs []string) error {
 	for pos, attID := range attachmentIDs {
 		tag, err := tx.Exec(ctx, `
 			UPDATE proposal_comment_attachments SET comment_id = $1, position = $3
 			WHERE id = $2 AND comment_id IS NULL AND uploader_id = $4`,
-			id, attID, pos, authorID)
+			commentID, attID, pos, authorID)
 		if err != nil {
-			return "", err
+			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return "", ErrInvalidAttachment
+			return ErrInvalidAttachment
 		}
 	}
-	return id, tx.Commit(ctx)
+	return nil
 }
 
 func (r *Repository) UpdateComment(ctx context.Context, id, body string) error {
