@@ -24,6 +24,7 @@ import { useHoverActive } from '../../../shared/hooks/useHoverActive'
 import type { NameStyle } from '../../profile/lib/nameStyle'
 import type { Server } from '../api/servers'
 import OwnerCrown from './OwnerCrown'
+import UserServerTag from '../../serverprofile/components/ServerTagChip'
 
 interface MemberRowProps {
   userId: string
@@ -112,6 +113,7 @@ export function MemberRow({
             {nickname?.trim() ? name : <StyledName name={name} userId={userId} style={nameStyle} />}
           </p>
           {isOwner && <OwnerCrown />}
+          <UserServerTag userId={userId} />
           {isBot ? (
             <span className="rounded bg-brand/30 px-1 text-ds-xxs font-bold uppercase text-brand">
               {T18.tag}

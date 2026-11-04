@@ -82,6 +82,9 @@ func (f *fakeStore) view(p *Proposal, viewer *string) *Proposal {
 func (f *fakeStore) List(_ context.Context, viewerID string) ([]Proposal, error) {
 	var out []Proposal
 	for _, p := range f.items {
+		if p.ArchivedAt != nil {
+			continue
+		}
 		out = append(out, *f.view(p, &viewerID))
 	}
 	return out, nil

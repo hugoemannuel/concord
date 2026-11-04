@@ -4,7 +4,7 @@ import Friends from '../features/friends/pages/Friends'
 import ServerView from '../features/servers/pages/ServerView'
 import DmChat from '../features/chat/pages/DmChat'
 import GroupChat from '../features/chat/pages/GroupChat'
-import Proposals from '../features/proposals/pages/Proposals'
+import ProposalsPage from '../features/proposals/pages/ProposalsPage'
 import Changelog from '../features/updates/pages/Changelog'
 import HubBackFrame from '../features/improvements/components/HubBackFrame'
 import ImprovementsHub from '../features/improvements/pages/ImprovementsHub'
@@ -72,7 +72,7 @@ export const router = createRouter([
         path: 'proposals',
         element: (
           <HubBackFrame>
-            <Proposals />
+            <ProposalsPage />
           </HubBackFrame>
         )
       },

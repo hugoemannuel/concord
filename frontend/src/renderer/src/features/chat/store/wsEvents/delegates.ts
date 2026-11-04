@@ -12,6 +12,7 @@ import { useLevelStore } from '../../../levels/store/levelStore'
 import { useBoostStore } from '../../../levels/store/boostStore'
 import { useBadgeStore } from '../../../levels/store/badgeStore'
 import { useProposalStore } from '../../../proposals/store/proposalStore'
+import { useArchivedProposalStore } from '../../../proposals/store/archivedProposalStore'
 import { useNotifySettingsStore } from '../../../notifications/store/notifySettingsStore'
 import { handleGuestWsEvent } from '../../../guests/store/guestWsEvents'
 import { useEmojiStore } from '../../../emojis/store/emojiStore'
@@ -53,6 +54,10 @@ export const DELEGATES: Array<[Match, Delegate]> = [
   [is('voice:boost'), (e) => useBoostStore.getState().handleWsEvent(e)],
   [prefix('badge:'), (e) => useBadgeStore.getState().handleWsEvent(e)],
   [is('proposal:mention'), handleProposalMention],
+  [
+    is('proposal:archive', 'proposal:unarchive'),
+    (e) => useArchivedProposalStore.getState().handleWsEvent(e)
+  ],
   [prefix('notification-settings:'), (e) => useNotifySettingsStore.getState().handleWsEvent(e)],
   [prefix('proposal:'), (e) => useProposalStore.getState().handleWsEvent(e)],
   [prefix('guest:'), handleGuestWsEvent],

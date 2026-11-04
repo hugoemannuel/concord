@@ -307,6 +307,10 @@ Numa VPS com IP público não precisa de playit, e dá para ter HTTPS de graça.
      e áudios do chat;
    - `UPLOADS_MIN_FREE_GB` (opcional; padrão 5): abaixo desse espaço livre no
      disco o servidor recusa uploads novos.
+   - `KLIPY_API_KEY` (opcional): chave da aba de GIFs (partner.klipy.com →
+     API Keys). Sem ela a aba mostra "GIFs indisponíveis". Os apps chamam a
+     KLIPY direto; o servidor só entrega a chave (`GET /api/gifs/config`).
+     Detalhes e passo a passo: [ADR 0053](adr/0053-klipy-no-lugar-do-giphy.md).
 4. **Endereço com HTTPS sem comprar domínio:** use `<ip-com-hífens>.sslip.io`
    (ex.: `74-0-5-252.sslip.io` aponta para `74.0.5.252`). O `/etc/caddy/Caddyfile`
    é o [`deploy/Caddyfile`](../deploy/Caddyfile) do repositório (veja

@@ -1,13 +1,29 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { colors, fontSize, radius, spacing } from '../../../shared/theme/tokens'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 
 /** Aba "GIFs" do seletor: grade de 2 colunas com a prévia de cada GIF. */
-export function GifsTab({ gifs, loading, onSelect }: { gifs: GiphyItem[]; loading: boolean; onSelect: (gif: GiphyItem) => void }) {
+function emptyMessage(loading: boolean, unavailable: boolean): string {
+  if (loading) return 'Carregando GIFs…'
+  return unavailable ? 'GIFs indisponíveis.' : 'Nenhum GIF encontrado.'
+}
+
+export function GifsTab({
+  gifs,
+  loading,
+  unavailable = false,
+  onSelect
+}: {
+  gifs: GifItem[]
+  loading: boolean
+  /** A busca falhou ou o servidor não tem chave da KLIPY. */
+  unavailable?: boolean
+  onSelect: (gif: GifItem) => void
+}) {
   if (loading || gifs.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>{loading ? 'Carregando GIFs…' : 'Nenhum GIF encontrado.'}</Text>
+        <Text style={styles.emptyText}>{emptyMessage(loading, unavailable)}</Text>
       </View>
     )
   }

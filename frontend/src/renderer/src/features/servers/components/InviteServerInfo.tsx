@@ -1,6 +1,8 @@
 import type { InvitePreview } from '../api/invites'
 import { serverIconSrc } from '../lib/serverIcon'
 import { formatInviteCount } from '../lib/invitePreview'
+import ServerCardView from '../../serverprofile/components/ServerCardView'
+import { useInviteCard } from '../../serverprofile/hooks/useServerCard'
 
 /** Ícone do servidor (ou a inicial), como na barra de servidores. */
 export function InviteServerIcon({
@@ -26,8 +28,31 @@ export function InviteServerIcon({
   )
 }
 
-/** Ícone, "Você foi convidado(a) para entrar", nome e contagens. */
-export function InviteServerInfo({ preview }: { preview: InvitePreview }): React.JSX.Element {
+/**
+ * "Você foi convidado(a) para entrar" e o cartão do servidor. Sem o cartão (ainda
+ * carregando ou servidor de versão antiga), o básico que a prévia já trouxe.
+ */
+export function InviteServerInfo({
+  preview,
+  code,
+  signedIn = false
+}: {
+  preview: InvitePreview
+  code?: string
+  signedIn?: boolean
+}): React.JSX.Element {
+  const state = useInviteCard(code, signedIn)
+  if (state.status !== 'ready') return <InviteBasics preview={preview} />
+  return (
+    <div className="flex w-full flex-col gap-3 text-center">
+      <p className="text-ds-sm text-secondary">Você foi convidado(a) para entrar</p>
+      <ServerCardView card={state.card} />
+    </div>
+  )
+}
+
+/** Ícone, nome e contagens. */
+function InviteBasics({ preview }: { preview: InvitePreview }): React.JSX.Element {
   return (
     <div className="flex flex-col items-center text-center">
       <InviteServerIcon name={preview.name} iconUrl={preview.icon_url} />

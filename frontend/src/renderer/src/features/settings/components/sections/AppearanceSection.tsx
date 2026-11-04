@@ -1,4 +1,5 @@
 import { CustomThemesSection } from '../../../appearance/components/CustomThemesSection'
+import ServerThemeToggle from '../../../serverprofile/components/ServerThemeToggle'
 import { ThemeCard } from '../../../appearance/components/ThemeCard'
 import { THEMES } from '../../lib/themes'
 import { useThemeStore } from '../../store/themeStore'
@@ -50,6 +51,8 @@ export function AppearanceSection(): React.JSX.Element {
       </fieldset>
 
       <CustomThemesSection />
+
+      <ServerThemeToggle />
     </div>
   )
 }

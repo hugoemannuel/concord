@@ -4,6 +4,7 @@ import { proposalImageSrc, timeLeftLabel, yesPercent } from '../lib/proposals'
 import Avatar from '../../../shared/ui/Avatar'
 import Button from '../../../shared/ui/Button'
 import { ChatBubbleIcon } from '../../../shared/ui/icons'
+import ArchiveButton from './ArchiveButton'
 import MoveSelect from './MoveSelect'
 
 /** Os controles de dentro do card não abrem o modal. */
@@ -155,15 +156,20 @@ export function ProposalIssueLink({ proposal: p }: { proposal: Proposal }): Reac
 
 /** Rodapé do time tech (mover) e de quem pode excluir. */
 export function ProposalCardActions({
+  proposalId,
   status,
   isTech,
+  canArchive,
   canDelete,
   busy,
   onMove,
   onDelete
 }: {
+  proposalId: string
   status: ProposalStatus
   isTech: boolean
+  /** Concluída ou recusada: o time tech pode arquivar. */
+  canArchive: boolean
   canDelete: boolean
   busy: boolean
   onMove: (status: ProposalStatus) => void
@@ -176,10 +182,11 @@ export function ProposalCardActions({
       onClick={stopPropagation}
     >
       {isTech && <MoveSelect status={status} disabled={busy} onMove={onMove} />}
+      {canArchive && <ArchiveButton id={proposalId} className="ml-auto" />}
       {canDelete && (
         <Button
           variant="ghost"
-          className="ml-auto px-3 py-1 text-ds-xs"
+          className={canArchive ? 'px-3 py-1 text-ds-xs' : 'ml-auto px-3 py-1 text-ds-xs'}
           disabled={busy}
           onClick={onDelete}
         >

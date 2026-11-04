@@ -34,7 +34,7 @@ func (a *app) wireCalls() {
 		a.callService.RevalidateServer(context.Background(), serverID)
 	})
 	// Expulso, banido ou saiu do servidor: sai da chamada de voz dele.
-	a.moderationService.SetOnRemoved(a.callService.RemoveFromServerCalls)
+	a.moderationService.OnRemoved(a.callService.RemoveFromServerCalls)
 	a.callService.SetBlockedCheck(a.friendshipService.IsBlockedEither)
 	a.callService.SetFriendChecker(a.friendshipService)
 	a.callService.SetPlaceSources(a.channelService, a.serverService)

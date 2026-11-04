@@ -10,7 +10,7 @@ import (
 	"gin-quickstart/backend/internal/auth"
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/conversation"
-	"gin-quickstart/backend/internal/giphy"
+	"gin-quickstart/backend/internal/gifs"
 	"gin-quickstart/backend/internal/message"
 	"gin-quickstart/backend/internal/platform/media"
 	"gin-quickstart/backend/internal/push"
@@ -61,7 +61,10 @@ func (a *app) wireChat() {
 	stickerHandler.SetAudit(a.audit)
 	a.messageService.SetStickerChecker(stickerRepository)
 
-	giphyHandler := giphy.NewHandler(os.Getenv("GIPHY_API_KEY"))
+	gifsHandler := gifs.NewHandler(gifs.Config{
+		AppKey: os.Getenv("KLIPY_API_KEY"),
+		Proxy:  os.Getenv("KLIPY_PROXY_SERVIDOR") == "1",
+	})
 
 	// Perfil (avatar/banner numa subpasta que a limpeza dos anexos não varre)
 	profileMediaDir := filepath.Join(a.uploadsDir, user.ProfileMediaDir)
@@ -90,8 +93,8 @@ func (a *app) wireChat() {
 		soundboard.Routes(api, soundboardHandler, a.authMiddleware)
 		soundboard.FavoriteRoutes(api, soundboard.NewFavoritesHandler(a.soundboardRepository, a.soundboardRepository, a.permissionService), a.authMiddleware)
 		sticker.Routes(api, stickerHandler, a.authMiddleware)
-		giphy.Routes(api, giphyHandler, a.authMiddleware)
-		giphy.FavoriteRoutes(api, giphy.NewFavoritesHandler(giphy.NewFavoriteRepository(a.db)), a.authMiddleware)
+		gifs.Routes(api, gifsHandler, a.authMiddleware)
+		gifs.FavoriteRoutes(api, gifs.NewFavoritesHandler(gifs.NewFavoriteRepository(a.db)), a.authMiddleware)
 	})
 }
 

@@ -65,7 +65,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       'presença',
       'online',
       'ausente',
-      'não perturbe'
+      'não perturbe',
+      'tag do servidor'
     ]
   },
   {

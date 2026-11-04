@@ -2,7 +2,13 @@ import { request } from '../../../shared/api/client'
 
 export interface Category { id: string; name: string; position: number }
 export interface ChannelPlacement { channel_id: string; category_id: string | null; position: number }
-export interface CategoryLayout { categories: Category[]; channels: ChannelPlacement[] }
+export interface CategoryLayout {
+  categories: Category[]
+  channels: ChannelPlacement[]
+  /** Identifica a lista lida: volta na gravação para o servidor recusar se ela mudou. */
+  revision?: string
+}
+export interface CategoryLayoutWrite { categories: string[]; channels: ChannelPlacement[] }
 
 const path = (serverId: string): string => `/servers/${serverId}/categories`
 
@@ -18,11 +24,7 @@ export function renameCategory(serverId: string, id: string, name: string): Prom
 export function deleteCategory(serverId: string, id: string): Promise<void> {
   return request(`${path(serverId)}/${id}`, { method: 'DELETE' })
 }
-export function moveCategory(serverId: string, id: string, direction: 'up' | 'down'): Promise<void> {
-  return request(`${path(serverId)}/${id}/order`, { method: 'PUT', body: JSON.stringify({ direction }) })
-}
-export function moveCategoryChannel(serverId: string, channelId: string, categoryId: string | null, beforeId: string | null = null): Promise<void> {
-  return request(`${path(serverId)}/channels/${channelId}`, {
-    method: 'PUT', body: JSON.stringify({ category_id: categoryId, before_id: beforeId })
-  })
+/** Grava a organização inteira de uma vez; 409 se a lista mudou depois de `revision`. */
+export function saveCategoryLayout(serverId: string, write: CategoryLayoutWrite, revision: string): Promise<{ revision: string }> {
+  return request(`${path(serverId)}/layout`, { method: 'PUT', body: JSON.stringify({ ...write, revision }) })
 }

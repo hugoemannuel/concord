@@ -15,7 +15,7 @@ export function fitMedia(
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
 }
 
-/** Caixa do GIF do Giphy: lado maior até 300, proporção mantida (como o desktop). */
+/** Caixa do GIF: lado maior até 300, proporção mantida (como o desktop). */
 export function fitGif(width?: number, height?: number): { width: number; height: number } | null {
   if (!width || !height) return null
   const ratio = width / height

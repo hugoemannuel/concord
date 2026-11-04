@@ -9,7 +9,7 @@ interface MessageGifProps {
   metadata?: GifMetadata | null
 }
 
-/** GIF do Giphy: caixa na proporção, selo "GIF" no canto e aviso se não carregar (igual ao desktop). */
+/** GIF: caixa na proporção, selo "GIF" no canto e aviso se não carregar (igual ao desktop). */
 export function MessageGif({ gifUrl, metadata }: MessageGifProps) {
   const [failed, setFailed] = useState(false)
   const box = fitGif(metadata?.width, metadata?.height) ?? { width: 240, height: 180 }
