@@ -214,9 +214,12 @@ export function MessageHeader({
   )
 }
 
-/** Figurinha, ou o aviso de "Figurinha indisponível". */
+/** Figurinha; apagada na origem, o :nome:; ou o aviso de "Figurinha indisponível". */
 function MessageStickerSlot({ message }: { message: Message }): React.JSX.Element | null {
   if (message.sticker) return <MessageSticker sticker={message.sticker} />
+  if (message.deleted_sticker_name) {
+    return <p className="text-ds-chat text-muted">:{message.deleted_sticker_name}:</p>
+  }
   if (!stickerUnavailable(message)) return null
   return (
     <div className="my-1 flex h-28 w-28 items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/5 p-2 text-center text-ds-xs text-faint">

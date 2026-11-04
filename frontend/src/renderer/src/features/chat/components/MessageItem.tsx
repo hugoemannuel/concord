@@ -176,6 +176,7 @@ function MessageActions({
       {actions.pickerOpen && item.canReact && (
         <EmotePickerPopover
           anchor={actions.pickerAnchor}
+          destination={{ serverId: item.serverId, channelId: item.message.channel_id }}
           onSelect={item.onReact}
           onClose={actions.closePicker}
         />

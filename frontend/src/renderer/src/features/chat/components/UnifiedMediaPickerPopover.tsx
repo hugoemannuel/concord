@@ -4,6 +4,8 @@ import { useGifSearch } from '../hooks/useGifSearch'
 import { useGifFavorites } from '../hooks/useGifFavorites'
 import type { ServerSticker } from '../api/stickers'
 import { useStickerStore } from '../store/stickerStore'
+import { useChatStore } from '../store/chatStore'
+import { channelIdOf } from '../lib/chatPaneView'
 import StickerUploadModal from './StickerUploadModal'
 import StickersTab from './StickersTab'
 import EmojisTab from './EmojisTab'
@@ -48,26 +50,25 @@ export default function UnifiedMediaPickerPopover({
   const { gifs, loading: loadingGifs, unavailable: gifsUnavailable } = useGifSearch(tab === 'gifs', search)
   const { favorites: favoriteGifs, toggle: toggleFavoriteGif } = useGifFavorites(tab === 'gifs')
 
-  // Stickers
-  const loadStickers = useStickerStore((s) => s.loadStickers)
+  const loadMyStickers = useStickerStore((s) => s.loadMine)
+  // O canal do campo é o da sala aberta: usar itens de fora vale por canal.
+  const channelId = useChatStore((s) => (s.activeRoom ? channelIdOf(s.activeRoom) : null))
 
   const ref = useRef<HTMLDivElement>(null)
 
   useMediaPickerDismiss(ref, upload !== null, onClose)
 
-  // Load stickers on mount if serverId present
+  // As figurinhas de todos os servidores da pessoa, numa consulta só.
   useEffect(() => {
-    if (serverId) {
-      loadStickers(serverId)
-    }
-  }, [serverId, loadStickers])
+    void loadMyStickers()
+  }, [loadMyStickers])
 
   return (
     <>
       <div
         ref={ref}
         onClick={(e) => e.stopPropagation()}
-        className="absolute bottom-14 right-2 z-40 flex h-96 w-80 flex-col rounded-xl border border-white/10 bg-floating p-3 shadow-2xl backdrop-blur-xl"
+        className="absolute bottom-14 right-2 z-40 flex h-[min(30rem,75dvh)] w-[min(28rem,calc(100vw-1rem))] flex-col rounded-xl border border-white/10 bg-floating p-3 shadow-2xl backdrop-blur-xl"
       >
         {/* Abas Superiores estilo WhatsApp */}
         <div className="mb-2 flex items-center justify-around border-b border-white/10 pb-2 text-ds-xs font-medium text-muted">
@@ -103,10 +104,11 @@ export default function UnifiedMediaPickerPopover({
         </div>
 
         {/* Conteúdo da Aba */}
-        <div className="flex-1 overflow-y-auto pr-1">
+        <div className="flex min-h-0 flex-1 flex-col">
           {tab === 'emojis' && (
             <EmojisTab
               serverId={serverId}
+              channelId={channelId}
               search={search}
               onAdd={() => setUpload('emojis')}
               onSelect={(emoji) => {
@@ -117,32 +119,33 @@ export default function UnifiedMediaPickerPopover({
           )}
 
           {tab === 'gifs' && (
-            <GifsTab
-              gifs={gifs}
-              loading={loadingGifs}
-              unavailable={gifsUnavailable}
-              favorites={favoriteGifs}
-              searching={search.trim() !== ''}
-              onToggleFavorite={toggleFavoriteGif}
-              onSelect={(gif) => {
-                onSelectGif(gif)
-                onClose()
-              }}
-            />
-          )}
-
-          {tab === 'stickers' && (
-            <div>
-              <StickersTab
-                serverId={serverId}
-                search={search}
-                onAdd={() => setUpload('stickers')}
-                onSelectSticker={(selected) => {
-                  onSelectSticker(selected)
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <GifsTab
+                gifs={gifs}
+                loading={loadingGifs}
+                unavailable={gifsUnavailable}
+                favorites={favoriteGifs}
+                searching={search.trim() !== ''}
+                onToggleFavorite={toggleFavoriteGif}
+                onSelect={(gif) => {
+                  onSelectGif(gif)
                   onClose()
                 }}
               />
             </div>
+          )}
+
+          {tab === 'stickers' && (
+            <StickersTab
+              serverId={serverId}
+              channelId={channelId}
+              search={search}
+              onAdd={() => setUpload('stickers')}
+              onSelectSticker={(selected) => {
+                onSelectSticker(selected)
+                onClose()
+              }}
+            />
           )}
         </div>
 

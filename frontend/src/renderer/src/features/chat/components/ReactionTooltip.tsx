@@ -9,7 +9,7 @@ import { useServerNicknames } from '../../servers/hooks/useServerNames'
 import { resolveReactionPeople } from '../lib/reactionPeople'
 import { insideElement } from '../lib/insideElement'
 import Avatar from '../../../shared/ui/Avatar'
-import ReactionEmoji, { useReactionLabel } from '../../emojis/components/ReactionEmoji'
+import ReactionEmoji, { ReactionOrigin, useReactionLabel } from '../../emojis/components/ReactionEmoji'
 
 const WIDTH = 240
 const GAP = 6
@@ -134,6 +134,7 @@ function ReactionTooltip({
           {userIds.length} {userIds.length === 1 ? 'reação' : 'reações'}
         </span>
       </div>
+      <ReactionOrigin emoji={emoji} />
       <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {people.map((person) => (
           <li key={person.id} className="flex items-center gap-2 px-1 py-1">

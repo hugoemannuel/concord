@@ -7,7 +7,9 @@ const state = vi.hoisted(() => ({
   emoji: { loaded: true, groups: [] as unknown[], byId: {} as Record<string, unknown>, base: null as unknown, remove: () => Promise.resolve() },
   me: 'ana',
   openServer: 's1' as string | undefined,
-  perms: new Set<string>()
+  perms: new Set<string>(),
+  servers: [] as { id: string; name: string }[],
+  roles: [{}]
 }))
 vi.mock('../store/emojiStore', () => ({
   useEmojiStore: Object.assign(<T,>(select: (s: typeof state.emoji) => T): T => select(state.emoji), {
@@ -27,14 +29,21 @@ vi.mock('../../auth/store/authStore', () => ({
   useAuthStore: <T,>(select: (s: { user: { id: string } }) => T): T => select({ user: { id: state.me } })
 }))
 vi.mock('../../servers/store/serverStore', () => ({
-  useServerStore: <T,>(select: (s: { currentServer?: { id: string } }) => T): T =>
-    select({ currentServer: state.openServer ? { id: state.openServer } : undefined })
+  useServerStore: <T,>(select: (s: { currentServer?: { id: string }; servers: unknown[]; roles: unknown[] }) => T): T =>
+    select({
+      currentServer: state.openServer ? { id: state.openServer } : undefined,
+      servers: state.servers,
+      roles: state.roles
+    })
 }))
 vi.mock('../../servers/hooks/useServerAccess', () => ({
-  useServerAccess: () => ({ can: (bit: number) => state.perms.has(String(bit)) })
+  useServerAccess: () => ({
+    can: (bit: number) => state.perms.has(String(bit)),
+    canInChannel: (_: string, bit: number) => state.perms.has(String(bit))
+  })
 }))
 
-import EmojiPickerGrid, { filterGroups } from './EmojiPickerGrid'
+import EmojiPickerGrid from './EmojiPickerGrid'
 import EmojisTab from '../../chat/components/EmojisTab'
 import EmojiUploadModal from './EmojiUploadModal'
 import { Perm } from '../../servers/lib/permissions'
@@ -59,22 +68,76 @@ beforeEach(() => {
   state.emoji.base = null
   state.openServer = 's1'
   state.perms = new Set()
+  state.servers = []
+  state.roles = [{}]
   vi.stubGlobal('document', { body: {} })
 })
 
-describe('filterGroups', () => {
-  it('filtra pelo nome sem acento e some com servidor sem resultado', () => {
-    expect(filterGroups(groups, 'GATO').map((g) => g.server_name)).toEqual(['Beta'])
-    expect(filterGroups(groups, '')).toBe(groups)
-  })
-})
-
 describe('EmojiPickerGrid', () => {
-  it('uma seção por servidor (com nome) antes do pack base', () => {
-    const html = renderToStaticMarkup(<EmojiPickerGrid search="" mode="message" onPick={() => {}} />)
+  const render = (props: Partial<Parameters<typeof EmojiPickerGrid>[0]> = {}): string =>
+    renderToStaticMarkup(<EmojiPickerGrid search="" mode="message" onPick={() => {}} {...props} />)
+  const REASON = 'Você não tem permissão para usar itens de outros servidores aqui.'
+  const naOrigem = { serverId: 's1', channelId: 'c1' }
+
+  it('frequentes, depois uma seção por servidor (com nome) e o pack base', () => {
+    const html = render({ destination: naOrigem })
+    expect(html.indexOf('Usados com frequência')).toBeLessThan(html.indexOf('Alfa'))
     expect(html.indexOf('Alfa')).toBeLessThan(html.indexOf('Beta'))
-    expect(html.indexOf('Beta')).toBeLessThan(html.indexOf('Frequentes'))
+    expect(html.indexOf('Beta')).toBeLessThan(html.indexOf('Emojis padrão'))
     expect(html).toContain('aria-label=":festa:"')
+  })
+
+  it('o servidor atual vem primeiro no trilho e nas seções', () => {
+    const html = render({ destination: { serverId: 's2', channelId: 'c1' } })
+    expect(html.indexOf('aria-label="Beta"')).toBeLessThan(html.indexOf('aria-label="Alfa"'))
+    expect(html.indexOf('data-section-id="emoji:s2"')).toBeLessThan(html.indexOf('data-section-id="emoji:s1"'))
+  })
+
+  it('o trilho tem um ícone por servidor com itens e os usados com frequência', () => {
+    state.servers = [
+      { id: 's2', name: 'Beta' },
+      { id: 's3', name: 'Sem emojis' },
+      { id: 's1', name: 'Alfa' }
+    ]
+    const nav = render({ destination: naOrigem }).split('</nav>')[0]
+    expect(nav).toContain('aria-label="Usados com frequência"')
+    expect(nav).toContain('aria-label="Alfa"')
+    expect(nav).toContain('aria-label="Beta"')
+    expect(nav).not.toContain('Sem emojis')
+  })
+
+  it('sem a permissão, os de fora ficam desabilitados com o motivo; os do servidor não', () => {
+    const html = render({ destination: naOrigem })
+    expect(html).toContain(REASON)
+    expect(html).toMatch(/title="[^"]*" aria-label=":gato:" aria-disabled="true"/)
+    expect(html).not.toMatch(/aria-label=":festa:" aria-disabled/)
+  })
+
+  it('com a permissão, nada fica desabilitado', () => {
+    state.perms.add(String(Perm.USE_EXTERNAL_EMOJIS))
+    const html = render({ destination: naOrigem })
+    expect(html).not.toContain(REASON)
+    expect(html).not.toContain('aria-disabled')
+  })
+
+  it('na DM não há cargos: nada fica desabilitado', () => {
+    const html = render()
+    expect(html).not.toContain(REASON)
+    expect(html).not.toContain('aria-disabled')
+  })
+
+  it('a busca alcança outros servidores e tira os frequentes', () => {
+    const html = render({ search: 'GATO', destination: naOrigem })
+    expect(html).toContain('aria-label=":gato:"')
+    expect(html).not.toContain('aria-label=":festa:"')
+    expect(html).not.toContain('Usados com frequência')
+  })
+
+  it('sem os personalizados (propostas) só fica o pack', () => {
+    const html = render({ customs: false })
+    expect(html).not.toContain('Alfa')
+    expect(html).not.toContain('aria-label=":festa:"')
+    expect(html).toContain('Joinha')
   })
 
   it('busca sem nada achado mostra o aviso', () => {
@@ -82,12 +145,13 @@ describe('EmojiPickerGrid', () => {
     expect(html).toContain('Nenhum emote encontrado')
   })
 
-  it('categorias depois das primeiras ficam só com o espaço reservado', () => {
+  it('categorias depois das primeiras ficam só com o título e o espaço reservado', () => {
     state.emoji.base = [1, 2, 3].map((n) => ({ id: `c${n}`, name: `cat${n}`, items: [{ emoji: `${n}️⃣`, label: `n${n}`, keywords: [] }] }))
-    const html = renderToStaticMarkup(<EmojiPickerGrid search="" mode="message" onPick={() => {}} />)
-    expect(html).toContain('cat2')
-    expect(html).not.toContain('cat3')
-    expect(html).toContain('height:56px')
+    const html = render()
+    expect(html).toContain('aria-label="n2"')
+    expect(html).toContain('cat3')
+    expect(html).not.toContain('aria-label="n3"')
+    expect(html).toContain('height:64px')
   })
 })
 

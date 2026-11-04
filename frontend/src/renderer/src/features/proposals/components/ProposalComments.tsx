@@ -156,6 +156,7 @@ function CommentRow({
       {picker.open && (
         <EmotePickerPopover
           anchor={picker.anchor}
+          customs={false}
           onSelect={(emoji) => void react(emoji)}
           onClose={picker.close}
         />

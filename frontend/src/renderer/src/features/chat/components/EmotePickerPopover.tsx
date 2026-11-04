@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import EmojiPickerGrid from '../../emojis/components/EmojiPickerGrid'
+import type { PickerDestination } from '../../emojis/hooks/useExternalAccess'
 import { useEmotePickerPlacement } from '../hooks/useEmotePickerPlacement'
 import { useAnchoredPickerPlacement } from '../hooks/useAnchoredPickerPlacement'
 import { useEmotePickerDismiss } from '../hooks/useEmotePickerDismiss'
@@ -8,26 +9,11 @@ import { useIsMobile } from '../../navigation/hooks/useIsMobile'
 
 /** Classes comuns; a posição muda conforme a âncora (veja `PLACE_*`). */
 const BASE =
-  'flex w-64 flex-col rounded-xl border border-subtle bg-floating p-3 shadow-2xl max-md:animate-sheet-in max-md:fixed max-md:inset-x-0 max-md:top-auto max-md:bottom-0 max-md:z-50 max-md:w-full max-md:rounded-b-none max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+  'flex h-[min(26rem,70dvh)] w-[min(24rem,calc(100vw-1rem))] flex-col rounded-xl border border-subtle bg-floating p-3 shadow-2xl max-md:animate-sheet-in max-md:fixed max-md:inset-x-0 max-md:top-auto max-md:bottom-0 max-md:z-50 max-md:w-full max-md:rounded-b-none max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]'
 /** Barra de ações: preso ao canto da linha. */
 const PLACE_ROW = 'absolute right-4 top-8 z-30'
 /** "+" ao lado dos chips: solto na tela, posicionado pelo estilo (ao lado do botão). */
 const PLACE_ANCHORED = 'fixed z-50'
-
-/** Emojis (personalizados e o pack base), cada um um botão; a reação leva <:id> no personalizado. */
-function EmoteGrid({
-  search,
-  onPick
-}: {
-  search: string
-  onPick: (emoji: string) => void
-}): React.JSX.Element {
-  return (
-    <div className="max-h-56 min-h-0 overflow-y-auto overscroll-contain pr-1 max-md:max-h-[45dvh]">
-      <EmojiPickerGrid search={search} mode="reaction" onPick={onPick} />
-    </div>
-  )
-}
 
 /** A âncora só vale fora do celular: lá o seletor é folha de baixo, na largura toda. */
 function useFloatingAnchor(anchor: HTMLElement | null): HTMLElement | null {
@@ -37,10 +23,14 @@ function useFloatingAnchor(anchor: HTMLElement | null): HTMLElement | null {
 /** O seletor em si: busca e emojis, preso ao canto da linha ou ao lado de `anchor`. */
 function EmotePickerPanel({
   anchor,
+  destination,
+  customs,
   onSelect,
   onClose
 }: {
   anchor: HTMLElement | null
+  destination?: PickerDestination
+  customs?: boolean
   onSelect: (emoji: string) => void
   onClose: () => void
 }): React.JSX.Element {
@@ -82,7 +72,8 @@ function EmotePickerPanel({
         aria-label="Buscar emote"
         className="mb-2 w-full rounded-md border border-subtle bg-input px-2.5 py-1 text-ds-xs text-strong max-md:py-2 max-md:text-ds-md placeholder:text-faint outline-none focus:border-brand/50"
       />
-      <EmoteGrid search={search} onPick={pick} />
+      {/* Personalizados e o pack base; a reação leva <:id> no personalizado. */}
+      <EmojiPickerGrid search={search} mode="reaction" onPick={pick} destination={destination} customs={customs} />
     </div>
   )
 }
@@ -94,15 +85,23 @@ function EmotePickerPanel({
  */
 function EmotePickerPopover({
   anchor = null,
+  destination,
+  customs,
   onSelect,
   onClose
 }: {
   /** Botão que abriu o seletor; null = a barra de ações. */
   anchor?: HTMLElement | null
+  /** Onde a reação vai: decide o que é de fora e a permissão. Vazio = DM ou grupo. */
+  destination?: PickerDestination
+  /** Sem os personalizados (onde eles não são aceitos, como nas propostas). */
+  customs?: boolean
   onSelect: (emoji: string) => void
   onClose: () => void
 }): React.JSX.Element {
-  const panel = <EmotePickerPanel anchor={anchor} onSelect={onSelect} onClose={onClose} />
+  const panel = (
+    <EmotePickerPanel anchor={anchor} destination={destination} customs={customs} onSelect={onSelect} onClose={onClose} />
+  )
   return anchor ? createPortal(panel, document.body) : panel
 }
 

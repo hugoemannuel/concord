@@ -101,6 +101,8 @@ export interface Message {
   attachments?: Attachment[] | null
   sticker_id?: string | null
   sticker?: { id: string; server_id: string; name: string; content_type: string } | null
+  /** Figurinha apagada na origem: sobrou o nome, para mostrar :nome:. */
+  deleted_sticker_name?: string | null
   gif_url?: string | null
   gif_metadata?: { width?: number; height?: number; preview_url?: string } | null
   created_at: string
