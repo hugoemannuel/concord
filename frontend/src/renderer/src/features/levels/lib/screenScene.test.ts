@@ -74,7 +74,7 @@ describe('screenSceneFor (cena em tela cheia da sua subida)', () => {
     expect(screenSceneFor(13, 9)?.kind).toBe('redstar')
     expect(screenSceneFor(13, 13)).toBeNull()
     expect(screenSceneFor(12, 11)).toBeNull()
-    expect(screenSceneFor(14, 13)).toBeNull()
+    expect(screenSceneFor(15, 14)).toBeNull()
   })
 
   it('a cena do 13 tem o esqueleto das outras e cabe no orçamento de partículas', () => {

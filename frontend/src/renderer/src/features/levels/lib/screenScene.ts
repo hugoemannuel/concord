@@ -8,6 +8,7 @@ import {
 import { PRIDE_COLORS } from './levelBadgeStyle'
 import { buildScene, DRAWS_NUMBER, IMPACT_MS, type SceneInput } from './milestoneScenes'
 import { BRAZIL_COLORS, brazilScene } from './brazilScene'
+import { JAGUAR_COLORS, JAGUAR_LEVEL, JAGUAR_MS, JAGUAR_TITLE_AT, jaguarScene, ROAR_AT } from './jaguarScene'
 import { prideScene } from './prideScene'
 import { RED_STAR_COLORS, redStarScene } from './redStarScene'
 import { rng, type Scene } from './sceneKit'
@@ -20,7 +21,7 @@ export const BRAZIL_LEVEL = 22
 export const RED_STAR_LEVEL = 13
 
 /** Cenas feitas para um nível só (decisão do dono), fora dos marcos. */
-export type SpecialSceneKind = 'pride' | 'redstar' | 'brazil'
+export type SpecialSceneKind = 'pride' | 'redstar' | 'brazil' | 'jaguar'
 export type ScreenSceneKind = MilestoneKind | SpecialSceneKind
 
 /**
@@ -106,6 +107,16 @@ const SPECIAL_SCENES: Record<number, SpecialDef> = {
     titleAt: 700,
     impactMs: 350
   },
+  [JAGUAR_LEVEL]: {
+    kind: 'jaguar',
+    color: '#f0b54a',
+    accent: '#7a3e0a',
+    colors: JAGUAR_COLORS,
+    numberColors: ['#ffe08a', '#f0b54a', '#c98420', '#f0b54a'],
+    durationMs: JAGUAR_MS,
+    titleAt: JAGUAR_TITLE_AT,
+    impactMs: ROAR_AT
+  },
   [PRIDE_LEVEL]: {
     kind: 'pride',
     color: '#c084fc',
@@ -124,6 +135,7 @@ const SPECIAL_BUILDERS: Record<
   (s: SceneInput, r: () => number, ctx: CanvasRenderingContext2D) => Scene
 > = {
   pride: (s, r) => prideScene(s, r),
+  jaguar: (s, r) => jaguarScene(s, r),
   redstar: redStarScene,
   brazil: brazilScene
 }
