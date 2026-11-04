@@ -114,7 +114,7 @@ func TestNormalizeDropsUnknownBits(t *testing.T) {
 }
 
 // O app faz bitwise em 32 bits (e devolve o resultado sem sinal). Não sobrou
-// nenhum: a próxima permissão precisa de outro formato (ADR 0052).
+// nenhum: a próxima permissão precisa de outro formato (ADR 0054).
 func TestAllBitsFit32Bits(t *testing.T) {
 	if All <= 0 || All >= 1<<32 {
 		t.Fatal("o app faz bitwise em 32 bits: todos os bits precisam caber neles")

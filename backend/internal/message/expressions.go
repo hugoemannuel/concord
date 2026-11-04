@@ -10,7 +10,7 @@ import (
 )
 
 // Emojis e figurinhas ao enviar: cada mensagem e reação passa pela regra do
-// pacote expression (docs/adr/0052-emojis-de-outros-servidores.md).
+// pacote expression (docs/adr/0054-emojis-de-outros-servidores.md).
 
 var (
 	ErrExternalExpression = expression.ErrForbidden

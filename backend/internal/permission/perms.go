@@ -11,7 +11,7 @@ import (
 // Bits de permissão. Cabem em 32 bits (o bitwise do JS, sem BigInt); o 1<<31 é o
 // último e, no app, sai com sinal: lib/permissions.ts devolve tudo sem sinal.
 // Os números são contrato com o app: não mudar. Acabaram os bits: a próxima
-// permissão precisa de outro formato (docs/adr/0052-emojis-de-outros-servidores.md).
+// permissão precisa de outro formato (docs/adr/0054-emojis-de-outros-servidores.md).
 const (
 	ViewChannel     int64 = 1 << 0
 	ManageChannels  int64 = 1 << 1
@@ -59,7 +59,7 @@ const (
 	// disputar os vizinhos livres com outras permissões.
 	SendTTSMessages int64 = 1 << 30
 	// Usar emojis e figurinhas de outros servidores: vale no servidor onde a
-	// mensagem vai, e por canal (ADR 0052). Ligada no @everyone.
+	// mensagem vai, e por canal (ADR 0054). Ligada no @everyone.
 	UseExternalEmojis int64 = 1 << 31
 )
 
@@ -110,7 +110,7 @@ const All = ViewChannel | ManageChannels | ManageRoles | ManageServer | CreateIn
 // DefaultEveryone: o que qualquer membro faz num servidor novo. Nos servidores
 // que já existiam, a migration 000039 ligou o CHANGE_NICKNAME no @everyone, a
 // 000127 o SEND_TTS_MESSAGES (ver docs/adr/0012-tts-no-cliente.md) e a 000125
-// o ADD_SOUNDS e o ADD_STICKERS; a 000174 o ADD_EMOJIS; a 000189 o
+// o ADD_SOUNDS e o ADD_STICKERS; a 000174 o ADD_EMOJIS; a 000192 o
 // USE_EXTERNAL_EMOJIS.
 const DefaultEveryone = ViewChannel | SendMessages | AttachFiles | AddReactions | ReadHistory |
 	CreateInvite | Connect | Speak | Stream | UseSoundboard | ChangeNickname |

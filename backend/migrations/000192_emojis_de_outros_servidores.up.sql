@@ -1,4 +1,4 @@
--- Usar emojis e figurinhas de outros servidores (docs/adr/0052-emojis-de-outros-servidores.md).
+-- Usar emojis e figurinhas de outros servidores (docs/adr/0054-emojis-de-outros-servidores.md).
 
 -- Permissão nova (backend/internal/permission/perms.go): USE_EXTERNAL_EMOJIS
 -- (1<<31 = 2147483648), ligada no @everyone de todo servidor.

@@ -1,6 +1,6 @@
 // Package expression decide quem pode usar emojis e figurinhas de outros
 // servidores e diz de onde eles vêm, sem vazar servidor privado
-// (docs/adr/0052-emojis-de-outros-servidores.md).
+// (docs/adr/0054-emojis-de-outros-servidores.md).
 package expression
 
 import (

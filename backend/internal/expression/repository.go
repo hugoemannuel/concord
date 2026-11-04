@@ -152,17 +152,10 @@ func (r *Repository) DeletedEmojis(ctx context.Context, ids []string) (map[strin
 	return names, rows.Err()
 }
 
-// PrivateServers: quais destes servidores têm o perfil privado (#528). A tabela
-// vem da customização do servidor, que pode entrar antes ou depois desta
-// feature; sem ela, nenhum é privado (ainda não dá para marcar). Quando as duas
-// estiverem na develop, a consulta à to_regclass pode sair.
+// PrivateServers: quais destes servidores têm o perfil privado (#528).
 func (r *Repository) PrivateServers(ctx context.Context, ids []string) (map[string]bool, error) {
 	private := map[string]bool{}
-	var exists bool
-	if err := r.db.QueryRow(ctx, `SELECT to_regclass('public.server_profiles') IS NOT NULL`).Scan(&exists); err != nil {
-		return nil, err
-	}
-	if !exists || len(ids) == 0 {
+	if len(ids) == 0 {
 		return private, nil
 	}
 	rows, err := r.db.Query(ctx, `SELECT server_id FROM server_profiles WHERE private AND server_id = ANY($1::uuid[])`, ids)

@@ -37,7 +37,7 @@ type Sticker struct {
 	SizeBytes    int64     `json:"size_bytes"`
 	CreatedAt    time.Time `json:"created_at"`
 	// PublishedAt: já foi usada fora do servidor; o arquivo passa a ser
-	// entregue a quem não é membro (ADR 0052).
+	// entregue a quem não é membro (ADR 0054).
 	PublishedAt *time.Time `json:"-"`
 }
 

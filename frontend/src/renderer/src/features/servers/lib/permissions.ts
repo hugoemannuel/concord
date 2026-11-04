@@ -8,7 +8,7 @@
  * Cuidado com o último (1<<31): o bitwise do JS devolve número com sinal e o
  * servidor manda sem sinal. Por isso o resultado que sai daqui (ou vai para o
  * servidor) passa por `>>> 0` e `has` compara sem sinal; `perms & Perm.X` como
- * teste de verdadeiro vale sempre. Ver docs/adr/0052-emojis-de-outros-servidores.md.
+ * teste de verdadeiro vale sempre. Ver docs/adr/0054-emojis-de-outros-servidores.md.
  */
 
 export const Perm = {
@@ -46,7 +46,7 @@ export const Perm = {
   ADD_SOUNDS: 1 << 28,
   ADD_STICKERS: 1 << 29,
   SEND_TTS_MESSAGES: 1 << 30,
-  /** Usar emojis e figurinhas de outros servidores (ADR 0052). `1 << 31` daria negativo. */
+  /** Usar emojis e figurinhas de outros servidores (ADR 0054). `1 << 31` daria negativo. */
   USE_EXTERNAL_EMOJIS: 2 ** 31
 } as const
 
@@ -61,7 +61,7 @@ export const ALL_PERMISSIONS: number =
  * vem ligado, como no Discord; nos servidores antigos a migration 000039 ligou.
  * "Adicionar sons", "Adicionar figurinhas" (migration 000125), "Adicionar emojis" (000174) e "Enviar
  * mensagens TTS" (a 000127 ligou nos antigos; ver docs/adr/0012-tts-no-cliente.md).
- * "Usar emojis e figurinhas de outros servidores" (000189; ADR 0052).
+ * "Usar emojis e figurinhas de outros servidores" (000192; ADR 0054).
  */
 export const DEFAULT_EVERYONE: number =
   (Perm.VIEW_CHANNEL |

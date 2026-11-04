@@ -1,4 +1,4 @@
-# 0052. Usar emojis e figurinhas de outros servidores
+# 0054. Usar emojis e figurinhas de outros servidores
 
 - Status: aceito
 - Data: 2026-11-04
@@ -48,7 +48,7 @@ e grupos, como no Discord e sem paywall. Quatro forças decidem o desenho:
 
 ## Decisão
 
-- `USE_EXTERNAL_EMOJIS` é o bit 31: ligada no @everyone (migration 000189) e por canal. Vale no
+- `USE_EXTERNAL_EMOJIS` é o bit 31: ligada no @everyone (migration 000192) e por canal. Vale no
   destino. Em DM e grupo não há cargos: basta ser membro da origem. **Não sobrou bit**: a próxima
   permissão precisa da opção 2 acima.
 - O novo pacote `internal/expression` concentra a regra (`Guard`), usada ao enviar, editar e reagir,
@@ -59,8 +59,7 @@ e grupos, como no Discord e sem paywall. Quatro forças decidem o desenho:
 - Somar-se a uma reação que já está na mensagem não pede nada: senão, quem não é da origem não
   conseguiria repetir a reação que está vendo.
 - Servidor com perfil privado (`server_profiles.private`, da #528) responde só `private: true` a
-  quem não é membro: nem nome nem ícone. Como a #528 pode entrar antes ou depois, a consulta confere
-  se a tabela existe; se a checagem falhar, ninguém de fora vê o nome.
+  quem não é membro: nem nome nem ícone. Se a consulta falhar, ninguém de fora vê o nome.
 - Apagado na origem: a mensagem guarda o nome da figurinha (`deleted_sticker_name`, gatilho antes do
   `DELETE`, porque o `ON DELETE SET NULL` perde o id) e o emoji deixa uma lápide (`deleted_emojis`),
   porque a reação só tem o id. Os dois mostram `:nome:`.

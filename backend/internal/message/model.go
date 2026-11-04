@@ -54,7 +54,7 @@ type Message struct {
 	Attachments     []Attachment    `json:"attachments,omitempty"`
 	StickerID       *string         `json:"sticker_id,omitempty"`
 	Sticker         *StickerPreview `json:"sticker,omitempty"`
-	// Figurinha apagada na origem: o nome, para mostrar :nome: (ADR 0052).
+	// Figurinha apagada na origem: o nome, para mostrar :nome: (ADR 0054).
 	DeletedStickerName *string `json:"deleted_sticker_name,omitempty"`
 	GifURL          *string         `json:"gif_url,omitempty"`
 	GifMetadata     *GifMetadata    `json:"gif_metadata,omitempty"`

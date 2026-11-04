@@ -131,8 +131,7 @@ func TestRepository(t *testing.T) {
 		}
 	})
 
-	t.Run("privados, com a tabela da #528", func(t *testing.T) {
-		exec(`CREATE TABLE IF NOT EXISTS server_profiles (server_id UUID PRIMARY KEY REFERENCES servers(id) ON DELETE CASCADE, private BOOLEAN NOT NULL DEFAULT FALSE)`)
+	t.Run("privados: o perfil do servidor (#528)", func(t *testing.T) {
 		exec(`INSERT INTO server_profiles (server_id, private) VALUES ($1, TRUE)`, alfa)
 		private, err := repo.PrivateServers(ctx, []string{alfa, uuid.NewString()})
 		if err != nil || len(private) != 1 || !private[alfa] {

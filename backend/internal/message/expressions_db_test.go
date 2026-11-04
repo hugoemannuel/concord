@@ -143,9 +143,6 @@ func TestExternoNoCanalComPermissaoPublicaEQuemRecebeResolve(t *testing.T) {
 // O perfil privado da #528: quem não é membro não vê nome nem ícone.
 func TestServidorPrivadoNaoVazaParaQuemRecebe(t *testing.T) {
 	e := newExternalDB(t)
-	if _, err := e.db.Exec(e.ctx, `CREATE TABLE IF NOT EXISTS server_profiles (server_id UUID PRIMARY KEY REFERENCES servers(id) ON DELETE CASCADE, private BOOLEAN NOT NULL DEFAULT FALSE)`); err != nil {
-		t.Fatal(err)
-	}
 	if _, err := e.db.Exec(e.ctx, `INSERT INTO server_profiles (server_id, private) VALUES ($1, TRUE)`, e.origem); err != nil {
 		t.Fatal(err)
 	}

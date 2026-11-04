@@ -1,7 +1,7 @@
 import { normalizeSearch } from './baseEmojis'
 
 // As seções do seletor de emojis e figurinhas: um servidor por seção, o atual
-// primeiro, e quem pode usar o quê (docs/adr/0052-emojis-de-outros-servidores.md).
+// primeiro, e quem pode usar o quê (docs/adr/0054-emojis-de-outros-servidores.md).
 
 /** Por que um item de fora está desabilitado. */
 export const EXTERNAL_REASON = 'Você não tem permissão para usar itens de outros servidores aqui.'

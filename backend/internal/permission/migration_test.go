@@ -23,8 +23,8 @@ const legacyModerator = DefaultEveryone&^UseExternalEmojis | ManageChannels |
 	ManageNicknames |
 	DisconnectMembers
 
-// externalMigration: a que criou o USE_EXTERNAL_EMOJIS (ADR 0052).
-const externalMigration = "000189_emojis_de_outros_servidores"
+// externalMigration: a que criou o USE_EXTERNAL_EMOJIS (ADR 0054).
+const externalMigration = "000192_emojis_de_outros_servidores"
 
 func readMigration(t *testing.T, name string) string {
 	t.Helper()
