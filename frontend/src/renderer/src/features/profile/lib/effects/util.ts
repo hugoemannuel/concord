@@ -22,6 +22,19 @@ export function countFor(base: number, density: number, max: number): number {
   return clamp(Math.round(base * d), 1, max)
 }
 
+/** Área de um cartão, em px²: até aqui a quantidade é a de sempre. */
+const CARD_AREA = 300 * 450
+const MAX_AREA_BOOST = 2.5
+
+/**
+ * Como countFor, mas área maior (o fundo do app) ganha mais elementos para não
+ * ficar ralo, sem nunca passar do mesmo teto `max`.
+ */
+export function countForArea(base: number, density: number, max: number, w: number, h: number): number {
+  const boost = clamp((w * h) / CARD_AREA, 1, MAX_AREA_BOOST)
+  return countFor(base * boost, density, max)
+}
+
 /** #rrggbb → [r, g, b]; cor inválida vira branco. */
 export function hexRgb(hex: string): RGB {
   const n = Number.parseInt(hex.slice(1, 7), 16)

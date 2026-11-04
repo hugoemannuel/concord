@@ -150,3 +150,49 @@ describe('createEffectLoop', () => {
     expect(r.pending()).toBe(false)
   })
 })
+
+describe('passo depois do desenho', () => {
+  const P: EffectParams = { density: 1, speed: 2, color: '#ffffff' }
+
+  it('roda depois da cena, com a área e o tempo do efeito', () => {
+    const { scene } = spyScene()
+    const { raf, caf, frame } = fakeRaf()
+    const post = vi.fn()
+    const loop = createEffectLoop({
+      scene: scene as Scene,
+      params: P,
+      ctx: fakeCtx(),
+      width: 300,
+      height: 400,
+      rand: seededRand(1),
+      raf,
+      caf,
+      post
+    })
+    loop.start()
+    frame(0)
+    frame(50)
+    const [w, h, t] = post.mock.calls[post.mock.calls.length - 1]
+    expect([w, h]).toEqual([300, 400])
+    // 50 ms na velocidade 2.
+    expect(t).toBeCloseTo(0.1)
+  })
+
+  it('o quadro parado (menos movimento) também recebe', () => {
+    const { scene } = spyScene()
+    const { raf, caf } = fakeRaf()
+    const post = vi.fn()
+    createEffectLoop({
+      scene: scene as Scene,
+      params: P,
+      ctx: fakeCtx(),
+      width: 300,
+      height: 400,
+      rand: seededRand(1),
+      raf,
+      caf,
+      post
+    }).renderStill()
+    expect(post).toHaveBeenCalledTimes(1)
+  })
+})

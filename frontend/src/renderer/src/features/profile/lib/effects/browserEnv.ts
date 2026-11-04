@@ -37,6 +37,10 @@ function reducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+function scratchCanvas(): HTMLCanvasElement | null {
+  return typeof document === 'undefined' ? null : document.createElement('canvas')
+}
+
 export function browserEnv(): MountEnv {
   return {
     raf: (cb) => requestAnimationFrame(cb),
@@ -46,6 +50,7 @@ export function browserEnv(): MountEnv {
     observeVisible,
     pageHidden,
     watchPage,
-    reducedMotion
+    reducedMotion,
+    scratchCanvas
   }
 }

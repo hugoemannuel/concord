@@ -2,8 +2,10 @@
 // rascunho do editor) → a mesma descrição de efeito do cartão de perfil, para o
 // mesmo motor desenhar (features/profile EffectLayer). Puro.
 
+import { fxLook, resolveEffectLook } from '../../profile/lib/effectLook'
 import { effectDef, type ProfileThemeLook } from '../../profile/lib/profileTheme'
 import { densityFactor, speedFactor } from '../../profile/lib/profileThemeExtras'
+import { lookOfBackdrop } from './backdropEditor'
 import { customThemeKey, type CustomTheme } from './customThemes'
 import type { ThemeBackdrop, ThemeInput } from './themeInput'
 
@@ -20,13 +22,16 @@ export function backdropFx(input: ThemeBackdrop | null): BackdropFx | null {
   if (!input) return null
   const def = effectDef(input.effect)
   if (def.kind === 'none') return null
+  const color = input.effectColor || def.color || '#ffffff'
   return {
     id: def.id,
     kind: def.kind,
     params: {
       density: densityFactor(input.effectDensity),
       speed: speedFactor(input.effectSpeed),
-      color: input.effectColor || def.color || '#ffffff'
-    }
+      color
+    },
+    // Tema gravado antes dos ajustes pode chegar sem eles: resolve no padrão.
+    look: fxLook(def, resolveEffectLook(lookOfBackdrop(input)), color)
   }
 }

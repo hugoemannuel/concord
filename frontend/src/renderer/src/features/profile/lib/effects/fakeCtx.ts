@@ -29,7 +29,8 @@ const METHODS = [
   'translate',
   'rotate',
   'scale',
-  'setTransform'
+  'setTransform',
+  'drawImage'
 ] as const
 
 export function fakeCtx(): FakeCtx {

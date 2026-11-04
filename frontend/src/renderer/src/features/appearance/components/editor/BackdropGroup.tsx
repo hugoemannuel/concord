@@ -1,4 +1,4 @@
-import { EffectControls } from '../../../settings/components/profile/theme/ThemeControls'
+import { EffectControls } from '../../../settings/components/profile/theme/EffectControls'
 import { fromProfileEffect, toProfileEffect } from '../../lib/backdropEditor'
 import { EditorGroup } from './EditorGroup'
 import type { GroupProps } from './types'
@@ -17,6 +17,7 @@ export function BackdropGroup({ draft, update }: GroupProps): React.JSX.Element 
       <EffectControls
         value={toProfileEffect(draft)}
         onChange={(next) => update(fromProfileEffect(next), 'effect')}
+        areaLabels={{ full: 'Tela inteira', banner: 'Só o topo' }}
       />
     </EditorGroup>
   )

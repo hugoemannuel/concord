@@ -30,6 +30,7 @@ export default function CardBanner({
 }): React.JSX.Element {
   return (
     <div
+      data-card-banner={src ? 'image' : 'plain'}
       className={`group/banner relative overflow-hidden rounded-t-[10px] ${src ? 'h-[106px]' : 'h-16'}`}
       style={bannerStyle(src, color, fallback)}
     >
