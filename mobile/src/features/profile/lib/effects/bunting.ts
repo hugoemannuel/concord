@@ -1,7 +1,7 @@
 // Bandeirinhas de festa junina: cordões atravessados no alto, com a barriga do
 // fio e as bandeiras balançando no vento. Paleta própria (ignora a cor).
 import type { Ctx, EffectParams, Rand, Scene } from './types'
-import { between, countFor, TAU } from './util'
+import { between, clamp, countFor, TAU } from './util'
 
 export const BUNTING_COLORS = [
   '#ef4444',
@@ -15,6 +15,8 @@ export const BUNTING_COLORS = [
 /** Teto de bandeiras por cordão: em tela larga elas só ficam mais espaçadas. */
 const MAX_FLAGS = 32
 const MIN_GAP = 20
+/** Altura que cada cordão precisa: área baixa (só o banner) fica com menos cordões. */
+const CORD_ROOM = 90
 
 export interface Flag {
   /** Posição no cordão, de 0 a 1. */
@@ -52,7 +54,7 @@ function newCord(i: number, w: number, h: number, rand: Rand): Cord {
       phase: rand() * TAU
     })),
     flagW: Math.min(gap * 0.82, 22),
-    flagH: Math.min(gap * 1.05, 28),
+    flagH: Math.min(gap * 1.05, 28, h * 0.45),
     phase: rand() * TAU
   }
 }
@@ -87,7 +89,7 @@ function drawFlag(ctx: Ctx, f: Flag, c: Cord, s: BuntingState): void {
 
 export const buntingScene: Scene<BuntingState> = {
   init(w: number, h: number, p: EffectParams, rand: Rand): BuntingState {
-    const n = countFor(3, p.density, 5)
+    const n = clamp(countFor(3, p.density, 5), 1, Math.max(1, Math.floor(h / CORD_ROOM)))
     return { w, h, t: 0, cords: Array.from({ length: n }, (_, i) => newCord(i, w, h, rand)) }
   },
   step(s: BuntingState, dt: number): void {

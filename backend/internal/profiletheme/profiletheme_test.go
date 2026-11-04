@@ -221,3 +221,35 @@ func TestNewEffectsAccepted(t *testing.T) {
 		}
 	}
 }
+
+// A coluna JSONB guarda os extras em JSON: os ajustes vão e voltam planos, e o
+// que foi salvo antes deles abre com os padrões.
+func TestEffectLookJSONRoundTrip(t *testing.T) {
+	in := DefaultExtras()
+	in.EffectSize, in.EffectDirection, in.EffectOpacity = 90, "left", 40
+	in.EffectPalette, in.EffectColor2, in.EffectArea, in.EffectGlow = "duo", "#abcdef", "banner", 60
+	raw, err := json.Marshal(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{`"effect_size":90`, `"effect_direction":"left"`, `"effect_opacity":40`, `"effect_palette":"duo"`, `"effect_color2":"#abcdef"`, `"effect_area":"banner"`, `"effect_glow":60`} {
+		if !strings.Contains(string(raw), key) {
+			t.Fatalf("%s sem %s", raw, key)
+		}
+	}
+	var back Extras
+	if err := json.Unmarshal(raw, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.Filled() != in {
+		t.Fatalf("voltou %+v, queria %+v", back.Filled(), in)
+	}
+	var saved Extras
+	if err := json.Unmarshal([]byte(`{"effect_color":"#ff0000","effect_density":80,"texture":"grain"}`), &saved); err != nil {
+		t.Fatal(err)
+	}
+	got := saved.Filled()
+	if got.EffectLook != DefaultEffectLook() || got.EffectDensity != 80 || got.EffectColor != "#ff0000" {
+		t.Fatalf("salvo antes: %+v", got)
+	}
+}

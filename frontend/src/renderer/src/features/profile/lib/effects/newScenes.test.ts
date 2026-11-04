@@ -248,6 +248,18 @@ describe('comportamentos específicos', () => {
     expect(wide.cords[0].flags.length).toBeLessThanOrEqual(32)
   })
 
+  it('bandeirinhas: em área baixa (só o banner) os cordões não se atropelam', () => {
+    const banner = CANVAS_EFFECTS.bunting.init(300, 64, params(2.7), seededRand(1)) as BuntingState
+    expect(banner.cords).toHaveLength(1)
+    expect(banner.cords[0].flagH + banner.cords[0].sag).toBeLessThanOrEqual(64)
+    const tall = CANVAS_EFFECTS.bunting.init(300, 450, params(2.7), seededRand(1)) as BuntingState
+    expect(tall.cords.length).toBeGreaterThan(1)
+    for (let i = 1; i < tall.cords.length; i++) {
+      const [a, b] = [tall.cords[i - 1], tall.cords[i]]
+      expect(b.y).toBeGreaterThanOrEqual(a.y + a.flagH * 0.8)
+    }
+  })
+
   it('pixels: os dois quadros de cada invasor têm o mesmo tamanho', () => {
     for (const frames of SPRITES) {
       expect(frames).toHaveLength(2)

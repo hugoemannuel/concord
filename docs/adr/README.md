@@ -86,3 +86,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0047. Som e imagem da live sincronizados (SyncStreams por sala)](0047-som-e-imagem-da-live-sincronizados.md)
 - [0048. Live sem lado ímpar e republicação quando o codec falha](0048-live-sem-lado-impar-e-codec-que-falha.md)
 - [0049. Guardar a ordem e as pastas de servidores por usuário como layout reconciliado em `internal/server`](0049-ordem-e-pastas-de-servidores.md)
+- [0054. Mais efeitos e ajustes de efeito sem mexer em cada cena](0054-mais-efeitos-e-ajustes.md)
