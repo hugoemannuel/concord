@@ -44,6 +44,9 @@ func invalid(msg string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidProfile, msg)
 }
 
+// InvalidProfile é o mesmo erro para quem valida perfil fora daqui.
+func InvalidProfile(msg string) error { return invalid(msg) }
+
 // ValidateProfile confere os limites e devolve o perfil arrumado (sem espaços
 // nas pontas, cor em minúsculas, links nunca nil). Tamanhos contam caracteres,
 // não bytes: "ç" e emoji contam como um.

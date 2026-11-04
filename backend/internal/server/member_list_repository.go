@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"gin-quickstart/backend/internal/cosmetics"
-	"gin-quickstart/backend/internal/namestyle"
+	"gin-quickstart/backend/internal/memberprofile"
 	"gin-quickstart/backend/internal/permission"
 )
 
@@ -31,26 +30,34 @@ var legacyRoleColumn = fmt.Sprintf(`CASE WHEN EXISTS (
 				))
 			) THEN 'admin' ELSE 'member' END`, permission.ManageChannels|permission.Administrator)
 
-func (r *Repository) ListMembers(ctx context.Context, serverID string) ([]ServerMember, error) {
-	rows, err := r.db.Query(
-		ctx,
-		`
-		SELECT
+// memberColumns: avatar, estilo e faixa/moldura efetivos (sem perfil do
+// servidor, os globais) mais os campos sobrescritos, na mesma consulta.
+var memberColumns = `
 			sm.server_id,
 			sm.user_id,
 			u.username,
 			u.display_name,
-			u.avatar_url,
-			`+namestyle.Expr("u")+`,
-			`+cosmetics.Expr("u")+`,
+			` + memberprofile.AvatarExpr("smp", "u") + `,
+			` + memberprofile.NameStyleExpr("smp", "u") + `,
+			` + memberprofile.LookExpr("smp", "u") + `,
 			u.is_bot,
 			sm.nickname,
-			`+legacyRoleColumn+`,
-			`+memberRoleIDsColumn+`,
+			` + legacyRoleColumn + `,
+			` + memberRoleIDsColumn + `,
 			sm.joined_at,
-			sm.updated_at
+			sm.updated_at,
+			` + memberprofile.OverridesExpr("smp", "u")
+
+const memberFrom = `
 		FROM server_members sm
 		JOIN users u ON u.id = sm.user_id
+		LEFT JOIN server_member_profiles smp ON smp.server_id = sm.server_id AND smp.user_id = sm.user_id`
+
+func (r *Repository) ListMembers(ctx context.Context, serverID string) ([]ServerMember, error) {
+	rows, err := r.db.Query(
+		ctx,
+		`
+		SELECT `+memberColumns+memberFrom+`
 		WHERE sm.server_id = $1
 		ORDER BY sm.joined_at
 		`,
@@ -78,6 +85,7 @@ func (r *Repository) ListMembers(ctx context.Context, serverID string) ([]Server
 			&m.RoleIDs,
 			&m.JoinedAt,
 			&m.UpdatedAt,
+			&m.ServerProfile,
 		); err != nil {
 			return nil, err
 		}
@@ -107,22 +115,7 @@ func (r *Repository) FindMemberByUserID(ctx context.Context, serverID string, us
 	err := r.db.QueryRow(
 		ctx,
 		`
-		SELECT
-			sm.server_id,
-			sm.user_id,
-			u.username,
-			u.display_name,
-			u.avatar_url,
-			`+namestyle.Expr("u")+`,
-			`+cosmetics.Expr("u")+`,
-			u.is_bot,
-			sm.nickname,
-			`+legacyRoleColumn+`,
-			`+memberRoleIDsColumn+`,
-			sm.joined_at,
-			sm.updated_at
-		FROM server_members sm
-		JOIN users u ON u.id = sm.user_id
+		SELECT `+memberColumns+memberFrom+`
 		WHERE sm.server_id = $1 AND sm.user_id = $2
 		`,
 		serverID,
@@ -141,6 +134,7 @@ func (r *Repository) FindMemberByUserID(ctx context.Context, serverID string, us
 		&m.RoleIDs,
 		&m.JoinedAt,
 		&m.UpdatedAt,
+		&m.ServerProfile,
 	)
 	if err != nil {
 		return nil, err
