@@ -40,7 +40,8 @@ type vectorFile struct {
 		ExpectBase    []string `json:"expect_base"`
 		ExpectChannel []string `json:"expect_channel"`
 	} `json:"compute"`
-	CanActOn []struct {
+	CategoryGate []categoryGateVector `json:"category_gate"`
+	CanActOn     []struct {
 		Name          string `json:"name"`
 		OwnerID       string `json:"owner_id"`
 		Actor         string `json:"actor"`
@@ -69,6 +70,25 @@ type vectorFile struct {
 		Changed []string `json:"changed"`
 		Expect  bool     `json:"expect"`
 	} `json:"can_grant"`
+}
+
+// categoryGateVector: quem não vê a categoria não tem nada nos canais dela.
+type categoryGateVector struct {
+	Name        string       `json:"name"`
+	OwnerID     string       `json:"owner_id"`
+	UserID      string       `json:"user_id"`
+	Everyone    []string     `json:"everyone"`
+	Roles       []vectorRole `json:"roles"`
+	MemberRoles []string     `json:"member_roles"`
+	Category    struct {
+		Overwrites []vectorOverwrite `json:"overwrites"`
+	} `json:"category"`
+	Channel struct {
+		Type       string            `json:"type"`
+		Overwrites []vectorOverwrite `json:"overwrites"`
+	} `json:"channel"`
+	ExpectCategory bool     `json:"expect_category"`
+	ExpectChannel  []string `json:"expect_channel"`
 }
 
 func loadVectors(t *testing.T) vectorFile {
@@ -137,6 +157,40 @@ func TestVectorsCompute(t *testing.T) {
 
 			if got, want := snap.Server(tc.UserID), bitsOf(t, tc.ExpectBase); got != want {
 				t.Errorf("base = %d, want %d", got, want)
+			}
+			if got, want := snap.Channel("c1", tc.UserID), bitsOf(t, tc.ExpectChannel); got != want {
+				t.Errorf("canal = %d, want %d", got, want)
+			}
+		})
+	}
+}
+
+func overwritesOf(t *testing.T, rows []vectorOverwrite) []Overwrite {
+	t.Helper()
+	overwrites := make([]Overwrite, 0, len(rows))
+	for _, o := range rows {
+		overwrites = append(overwrites, Overwrite{
+			TargetType: o.TargetType,
+			TargetID:   o.TargetID,
+			Allow:      bitsOf(t, o.Allow),
+			Deny:       bitsOf(t, o.Deny),
+		})
+	}
+	return overwrites
+}
+
+func TestVectorsCategoryGate(t *testing.T) {
+	for _, tc := range loadVectors(t).CategoryGate {
+		t.Run(tc.Name, func(t *testing.T) {
+			snap := NewSnapshot("s1", tc.OwnerID, bitsOf(t, tc.Everyone))
+			for _, r := range tc.Roles {
+				snap.WithRole(r.ID, r.Position, bitsOf(t, r.Permissions))
+			}
+			snap.WithMember(tc.UserID, tc.MemberRoles...)
+			snap.WithCategory("cat", overwritesOf(t, tc.Category.Overwrites)...)
+			snap.WithChannel("c1", tc.Channel.Type, overwritesOf(t, tc.Channel.Overwrites)...).InCategory("c1", "cat")
+			if got := snap.CanViewCategory("cat", tc.UserID); got != tc.ExpectCategory {
+				t.Errorf("categoria = %v, want %v", got, tc.ExpectCategory)
 			}
 			if got, want := snap.Channel("c1", tc.UserID), bitsOf(t, tc.ExpectChannel); got != want {
 				t.Errorf("canal = %d, want %d", got, want)

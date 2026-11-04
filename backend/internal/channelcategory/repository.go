@@ -38,36 +38,12 @@ func listCategories(ctx context.Context, db querier, server string) ([]Category,
 }
 
 func listChannels(ctx context.Context, db querier, server string) ([]Placement, error) {
-	rows, err := db.Query(ctx, `SELECT c.id::text AS channel_id, l.category_id::text AS category_id, COALESCE(l.position,c.position) AS position
+	rows, err := db.Query(ctx, `SELECT c.id::text AS channel_id, l.category_id::text AS category_id, COALESCE(l.position,c.position) AS position, (c.is_system OR c.managed) AS fixed
  FROM channels c LEFT JOIN channel_category_layout l ON l.channel_id=c.id WHERE c.server_id::text=$1 ORDER BY COALESCE(l.position,c.position), c.created_at, c.id`, server)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowToStructByName[Placement])
-}
-
-func (r *Repository) Create(ctx context.Context, server, name string) error {
-	_, err := r.db.Exec(ctx, `INSERT INTO channel_categories(server_id,name,position) SELECT id,$2,COALESCE((SELECT MAX(position)+1 FROM channel_categories WHERE server_id=servers.id),0) FROM servers WHERE id::text=$1`, server, name)
-	return err
-}
-
-func affected(tagRows int64, err error) error {
-	if err != nil {
-		return err
-	}
-	if tagRows == 0 {
-		return pgx.ErrNoRows
-	}
-	return nil
-}
-
-func (r *Repository) Rename(ctx context.Context, server, id, name string) error {
-	tag, err := r.db.Exec(ctx, `UPDATE channel_categories SET name=$3 WHERE server_id::text=$1 AND id::text=$2`, server, id, name)
-	return affected(tag.RowsAffected(), err)
-}
-func (r *Repository) Delete(ctx context.Context, server, id string) error {
-	tag, err := r.db.Exec(ctx, `DELETE FROM channel_categories WHERE server_id::text=$1 AND id::text=$2`, server, id)
-	return affected(tag.RowsAffected(), err)
 }
 
 func (r *Repository) MoveCategory(ctx context.Context, server, id, direction string) error {

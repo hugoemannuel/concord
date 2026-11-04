@@ -25,10 +25,12 @@ type LayoutWrite struct {
 	Channels   []Placement `json:"channels"`
 }
 
-// SaveResult: a revisão depois da gravação e se algo mudou de fato.
+// SaveResult: a revisão depois da gravação, se algo mudou de fato e se algum canal
+// trocou de categoria (o que muda quem o vê).
 type SaveResult struct {
 	Revision string
 	Changed  bool
+	Moved    bool
 }
 
 // categoryKey: a chave do grupo do canal; "" é a lista sem categoria.
@@ -39,15 +41,21 @@ func categoryKey(category *string) string {
 	return *category
 }
 
-// visibleLayout: a organização sem os canais que o membro não vê.
-func visibleLayout(layout Layout, canView func(string) bool) Layout {
+// visibleLayout: a organização sem as categorias e os canais que o membro não vê.
+func visibleLayout(layout Layout, viewer Viewer) Layout {
+	categories := make([]Category, 0, len(layout.Categories))
+	for _, category := range layout.Categories {
+		if viewer.Category(category.ID) {
+			categories = append(categories, category)
+		}
+	}
 	visible := make([]Placement, 0, len(layout.Channels))
 	for _, placement := range layout.Channels {
-		if canView(placement.ChannelID) {
+		if viewer.Channel(placement.ChannelID) {
 			visible = append(visible, placement)
 		}
 	}
-	return Layout{Categories: layout.Categories, Channels: visible}
+	return Layout{Categories: categories, Channels: visible}
 }
 
 // layoutRevision resume a ordem das categorias e a de cada grupo de canais. É
@@ -68,43 +76,58 @@ func layoutRevision(layout Layout) string {
 	return hex.EncodeToString(hash.Sum(nil))[:32]
 }
 
-// layoutPlan: o que gravar e a revisão que o membro via antes.
+// layoutPlan: o que gravar, a revisão que o membro via antes e os canais que trocam
+// de categoria.
 type layoutPlan struct {
 	categories []string
 	placements []Placement
 	seen       string
+	moves      []channelMove
 }
 
 // planSave recusa quem leu uma lista que já mudou e monta a ordem final.
-func planSave(current Layout, canView func(string) bool, write LayoutWrite) (layoutPlan, error) {
-	seen := layoutRevision(visibleLayout(current, canView))
+func planSave(current Layout, viewer Viewer, write LayoutWrite) (layoutPlan, error) {
+	seen := layoutRevision(visibleLayout(current, viewer))
 	if seen != write.Revision {
 		return layoutPlan{}, ErrLayoutConflict
 	}
-	categories, placements, err := planLayout(current, canView, write)
+	categories, placements, err := planLayout(current, viewer, write)
 	if err != nil {
 		return layoutPlan{}, err
 	}
-	return layoutPlan{categories: categories, placements: placements, seen: seen}, nil
+	return layoutPlan{categories: categories, placements: placements, seen: seen, moves: movesBetween(current.Channels, placements)}, nil
 }
 
 // planLayout confere o pedido contra o que está gravado e devolve a ordem final
-// das categorias e de todos os canais. Canal que o membro não vê não entra no
-// pedido: fica na categoria e no índice dele, entre os que foram movidos.
-func planLayout(current Layout, canView func(string) bool, write LayoutWrite) ([]string, []Placement, error) {
-	known := make(map[string]bool, len(current.Categories))
-	currentCategories := make([]string, 0, len(current.Categories))
-	for _, category := range current.Categories {
+// das categorias e de todos os canais. O que o membro não vê não entra no pedido:
+// fica no índice que tinha, entre o que foi movido.
+func planLayout(current Layout, viewer Viewer, write LayoutWrite) ([]string, []Placement, error) {
+	visible := visibleLayout(current, viewer)
+	known := make(map[string]bool, len(visible.Categories))
+	visibleCategories := make([]string, 0, len(visible.Categories))
+	for _, category := range visible.Categories {
 		known[category.ID] = true
-		currentCategories = append(currentCategories, category.ID)
+		visibleCategories = append(visibleCategories, category.ID)
 	}
-	if !samePermutation(currentCategories, write.Categories) {
+	if !samePermutation(visibleCategories, write.Categories) {
 		return nil, nil, ErrInvalidLayout
 	}
-	if err := validateChannels(visibleLayout(current, canView).Channels, write.Channels, known); err != nil {
+	if err := validateChannels(visible.Channels, write.Channels, known); err != nil {
 		return nil, nil, err
 	}
-	return write.Categories, mergeGroups(current, canView, write.Channels), nil
+	return mergeCategories(current.Categories, viewer, write.Categories), mergeGroups(current, viewer, write.Channels), nil
+}
+
+// mergeCategories: as visíveis na ordem pedida e as ocultas no índice que tinham.
+func mergeCategories(current []Category, viewer Viewer, requested []string) []string {
+	order := append([]string(nil), requested...)
+	for index, category := range current {
+		if !viewer.Category(category.ID) {
+			index = min(index, len(order))
+			order = append(order[:index], append([]string{category.ID}, order[index:]...)...)
+		}
+	}
+	return order
 }
 
 func samePermutation(current, requested []string) bool {
@@ -144,7 +167,7 @@ func validateChannels(visible, requested []Placement, known map[string]bool) err
 
 // mergeGroups monta cada grupo: os visíveis na ordem pedida e os ocultos de
 // volta no índice que tinham (ou no fim, se o grupo encolheu).
-func mergeGroups(current Layout, canView func(string) bool, requested []Placement) []Placement {
+func mergeGroups(current Layout, viewer Viewer, requested []Placement) []Placement {
 	groups := make(map[string][]Placement)
 	ordered := append([]Placement(nil), requested...)
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Position < ordered[j].Position })
@@ -152,7 +175,7 @@ func mergeGroups(current Layout, canView func(string) bool, requested []Placemen
 		key := categoryKey(placement.CategoryID)
 		groups[key] = append(groups[key], placement)
 	}
-	for key, hidden := range hiddenByIndex(current, canView) {
+	for key, hidden := range hiddenByIndex(current, viewer) {
 		for _, item := range hidden {
 			groups[key] = insertAt(groups[key], item.index, item.placement)
 		}
@@ -165,12 +188,12 @@ type hiddenPlacement struct {
 	placement Placement
 }
 
-func hiddenByIndex(current Layout, canView func(string) bool) map[string][]hiddenPlacement {
+func hiddenByIndex(current Layout, viewer Viewer) map[string][]hiddenPlacement {
 	seen := make(map[string]int)
 	hidden := make(map[string][]hiddenPlacement)
 	for _, placement := range current.Channels {
 		key := categoryKey(placement.CategoryID)
-		if !canView(placement.ChannelID) {
+		if !viewer.Channel(placement.ChannelID) {
 			hidden[key] = append(hidden[key], hiddenPlacement{seen[key], placement})
 		}
 		seen[key]++

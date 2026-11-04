@@ -10,29 +10,29 @@ import (
 // transação, com o servidor travado (as outras rotas de categoria usam a mesma
 // trava) e a revisão conferida depois de travar. De dois pedidos que leram a
 // mesma lista, o segundo recebe ErrLayoutConflict em vez de desfazer o primeiro.
-func (r *Repository) SaveLayout(ctx context.Context, server string, write LayoutWrite, canView func(string) bool) (SaveResult, error) {
+func (r *Repository) SaveLayout(ctx context.Context, server string, write LayoutWrite, viewer Viewer) (SaveResult, error) {
 	tx, err := r.beginLocked(ctx, server)
 	if err != nil {
 		return SaveResult{}, err
 	}
 	defer tx.Rollback(ctx)
-	result, err := saveLayoutInTx(ctx, tx, server, write, canView)
+	result, err := saveLayoutInTx(ctx, tx, server, write, viewer)
 	if err != nil {
 		return SaveResult{}, err
 	}
 	return result, tx.Commit(ctx)
 }
 
-func saveLayoutInTx(ctx context.Context, tx pgx.Tx, server string, write LayoutWrite, canView func(string) bool) (SaveResult, error) {
+func saveLayoutInTx(ctx context.Context, tx pgx.Tx, server string, write LayoutWrite, viewer Viewer) (SaveResult, error) {
 	current, err := lockedLayout(ctx, tx, server)
 	if err != nil {
 		return SaveResult{}, err
 	}
-	plan, err := planSave(current, canView, write)
+	plan, err := planSave(current, viewer, write)
 	if err != nil {
 		return SaveResult{}, err
 	}
-	return applyPlan(ctx, tx, server, plan, canView)
+	return applyPlan(ctx, tx, server, plan, viewer)
 }
 
 // lockedLayout lê a organização depois de garantir que todo canal tem linha e
@@ -47,16 +47,19 @@ func lockedLayout(ctx context.Context, tx pgx.Tx, server string) (Layout, error)
 	return readLayout(ctx, tx, server)
 }
 
-func applyPlan(ctx context.Context, tx pgx.Tx, server string, plan layoutPlan, canView func(string) bool) (SaveResult, error) {
+func applyPlan(ctx context.Context, tx pgx.Tx, server string, plan layoutPlan, viewer Viewer) (SaveResult, error) {
 	if err := writeLayout(ctx, tx, server, plan.categories, plan.placements); err != nil {
+		return SaveResult{}, err
+	}
+	if err := applyMoves(ctx, tx, server, plan.moves); err != nil {
 		return SaveResult{}, err
 	}
 	saved, err := readLayout(ctx, tx, server)
 	if err != nil {
 		return SaveResult{}, err
 	}
-	revision := layoutRevision(visibleLayout(saved, canView))
-	return SaveResult{Revision: revision, Changed: revision != plan.seen}, nil
+	revision := layoutRevision(visibleLayout(saved, viewer))
+	return SaveResult{Revision: revision, Changed: revision != plan.seen, Moved: len(plan.moves) > 0}, nil
 }
 
 func writeLayout(ctx context.Context, tx pgx.Tx, server string, categories []string, placements []Placement) error {

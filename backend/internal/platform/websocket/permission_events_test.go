@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"reflect"
 	"sort"
 	"testing"
@@ -60,6 +61,57 @@ func events(c *Client) []string {
 		}
 	}
 	return types
+}
+
+// Categoria privada: nem o canal com permissão própria entrega evento para quem não
+// vê a categoria, e o aviso de categoria não diz nada além do id do servidor.
+func TestPrivateCategoryKeepsEventsFromWhoCannotSee(t *testing.T) {
+	closed := permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel}
+	vip := permission.Overwrite{TargetType: permission.TargetRole, TargetID: "vip", Allow: permission.ViewChannel}
+	snap := visibilitySnapshot().
+		WithCategory("privada", closed, vip).
+		WithChannel("proprio", permission.ChannelText, permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Allow: permission.ViewChannel}).
+		InCategory("proprio", "privada")
+	h, clients := hubWithServerMembers(snap, "dono", "vip", "ana")
+	for _, c := range clients {
+		events(c)
+	}
+
+	h.BroadcastToServerChannel("s1", "proprio", writeEvent("message:create", map[string]string{"channel_id": "proprio", "content": "segredo"}))
+	if got := events(clients["ana"]); len(got) != 0 {
+		t.Fatalf("ana recebeu %v", got)
+	}
+	for _, user := range []string{"dono", "vip"} {
+		if got := events(clients[user]); len(got) != 1 {
+			t.Fatalf("%s recebeu %v", user, got)
+		}
+	}
+
+	h.PublishCategoryChanged("s1")
+	raw := <-clients["ana"].send
+	if text := string(raw); strings.Contains(text, "privada") || strings.Contains(text, "proprio") {
+		t.Fatalf("o aviso vazou: %s", text)
+	}
+}
+
+func TestRevalidateRemovesWhoLostTheCategoryFromTheRoom(t *testing.T) {
+	closed := permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel}
+	snap := visibilitySnapshot().
+		WithCategory("privada", closed).
+		WithChannel("c", permission.ChannelText).
+		InCategory("c", "privada")
+	h, clients := hubWithServerMembers(snap, "ana", "dono")
+	h.Subscribe(clients["ana"], "channel:c")
+	h.Subscribe(clients["dono"], "channel:c")
+	h.RevalidateServer("s1")
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if _, ana := h.rooms["channel:c"][clients["ana"]]; ana {
+		t.Fatal("ana continua na sala do canal")
+	}
+	if _, dono := h.rooms["channel:c"][clients["dono"]]; !dono {
+		t.Fatal("o dono saiu da sala do canal")
+	}
 }
 
 func TestMessageInPrivateChannelOnlyReachesViewers(t *testing.T) {

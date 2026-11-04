@@ -82,8 +82,18 @@ func (a *app) wireCore() {
 	a.channelService.SetPermissionCache(a.permissionService)
 	channelHandler := channel.ChannelHandler(a.channelService, a.permissionService)
 	channelHandler.SetAudit(a.audit)
-	categoryHandler := channelcategory.NewHandler(channelcategory.NewRepository(a.db), a.permissionService, a.hub)
+	categories := channelcategory.NewRepository(a.db)
+	categoryHandler := channelcategory.NewHandler(categories, a.permissionService, a.hub)
 	categoryHandler.SetAudit(a.audit)
+	categoryHandler.SetPermissionCache(a.permissionService)
+	// O canal do Maestro é o último que nasce com um servidor novo.
+	a.channelService.OnSystemCreated(func(ctx context.Context, ch *channel.Channel) {
+		if err := categories.CreateDefaults(ctx, ch.ServerID); err != nil {
+			log.Printf("[categorias] padrões do servidor %s: %v", ch.ServerID, err)
+			return
+		}
+		a.permissionService.InvalidateServer(ch.ServerID)
+	})
 
 	a.conversationRepository = conversation.ConversationRepository(a.db)
 	a.conversationService = conversation.ConversationService(a.conversationRepository)
