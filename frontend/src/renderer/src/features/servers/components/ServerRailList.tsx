@@ -82,14 +82,8 @@ function renderFolderEntry(
         targetId: folder.id
       })}
       onToggle={onToggle}
-      onContextMenu={(e) =>
-        env.openMenu({
-          kind: 'folder',
-          folderId: folder.id,
-          name: folder.name,
-          x: e.clientX,
-          y: e.clientY
-        })
+      onContextMenu={(point) =>
+        env.openMenu({ kind: 'folder', folderId: folder.id, name: folder.name, ...point })
       }
     >
       {memberStates.map(({ srv, isActive, view: srvView, people }, memberIdx) => (
@@ -104,14 +98,8 @@ function renderFolderEntry(
           dropZone={env.drag.folderMemberZone(folder.id, memberIdx)}
           dragProps={env.drag.folderMemberDragProps(folder.id, memberIdx, srv.id)}
           onOpen={() => env.navigate(`/servers/${srv.id}`)}
-          onContextMenu={(e) =>
-            env.openMenu({
-              kind: 'server',
-              serverId: srv.id,
-              name: srv.name,
-              x: e.clientX,
-              y: e.clientY
-            })
+          onContextMenu={(point) =>
+            env.openMenu({ kind: 'server', serverId: srv.id, name: srv.name, ...point })
           }
         />
       ))}
@@ -190,14 +178,8 @@ function ServerRailList(): React.JSX.Element {
                 targetId: srv.id
               })}
               onOpen={() => navigate(`/servers/${srv.id}`)}
-              onContextMenu={(e) =>
-                setMenuTarget({
-                  kind: 'server',
-                  serverId: srv.id,
-                  name: srv.name,
-                  x: e.clientX,
-                  y: e.clientY
-                })
+              onContextMenu={(point) =>
+                setMenuTarget({ kind: 'server', serverId: srv.id, name: srv.name, ...point })
               }
             />
           )

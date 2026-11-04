@@ -65,9 +65,14 @@ vi.mock('../../../shared/ui/Modal', () => ({
   }) => (open ? <div data-modal={title}>{children}</div> : null)
 }))
 
-vi.mock('../../auth/store/authStore', () => ({
-  useAuthStore: { getState: () => ({ accessToken: 'tok-1' }) }
-}))
+vi.mock('../../auth/store/authStore', () => {
+  const state = { accessToken: 'tok-1', user: { id: 'u1', username: 'ana' } }
+  return {
+    useAuthStore: Object.assign((sel: (s: unknown) => unknown) => sel(state), {
+      getState: () => state
+    })
+  }
+})
 
 vi.spyOn(React, 'useSyncExternalStore').mockImplementation((_subscribe, getSnapshot) =>
   getSnapshot()
@@ -79,7 +84,8 @@ const { useNotifySettingsStore } = await import('../../notifications/store/notif
 const { commitRailLayout, executeRailDrop } = await import('../hooks/useServerRailDrag')
 const { default: ServerRailList } = await import('./ServerRailList')
 const { createFolderInLayout, default: ServerFolderModal } = await import('./ServerFolderModal')
-const { FolderMenuBody, ServerMenuBody } = await import('./ServerRailContextMenu')
+const { FolderMenuBody } = await import('./ServerRailContextMenu')
+const { ServerMenuBody } = await import('./ServerRailMenu')
 
 const SERVERS: Server[] = [
   { id: 's1', name: 'Servidor Alpha', owner_id: 'u1', created_at: '', updated_at: '' },
@@ -142,29 +148,31 @@ describe('ServerRailList — E2E integrado (ordenação, pastas, menu e modal)',
       { kind: 'server', server_id: 's3' }
     ]
 
-    // Servidor avulso s3 pode criar pasta, mover para Jogos ou subir
+    // Menu do ícone: as escolhas de mover moram no submenu "Mover para…" (lib/railMoveMenu.test)
     const s3Menu = renderToStaticMarkup(
-      <ServerMenuBody
-        target={{ kind: 'server', serverId: 's3', name: 'Servidor Gamma', x: 0, y: 0 }}
-        items={items}
-        onClose={() => {}}
-      />
+      <MemoryRouter>
+        <ServerMenuBody serverId="s3" items={items} onClose={() => {}} />
+      </MemoryRouter>
     )
+    expect(s3Menu).toContain('Marcar como lido')
+    expect(s3Menu).toContain('Silenciar servidor')
     expect(s3Menu).toContain('Notificações do servidor')
-    expect(s3Menu).toContain('Criar pasta')
-    expect(s3Menu).toContain('Mover para Jogos')
-    expect(s3Menu).toContain('Mover para cima')
+    expect(s3Menu).toContain('Mover para…')
+    // Dono (u1): apaga em vez de sair. Sem permissões lidas ainda, nada de criar canal.
+    expect(s3Menu).toContain('Deletar servidor')
+    expect(s3Menu).not.toContain('Sair do servidor')
+    expect(s3Menu).not.toContain('Criar canal')
 
-    // Servidor s1 dentro da pasta Jogos pode sair da pasta ou descer
-    const s1Menu = renderToStaticMarkup(
-      <ServerMenuBody
-        target={{ kind: 'server', serverId: 's1', name: 'Servidor Alpha', x: 0, y: 0 }}
-        items={items}
-        onClose={() => {}}
-      />
+    // Servidor de outra pessoa: sai em vez de apagar
+    useServerStore.setState({ servers: [{ ...SERVERS[2], owner_id: 'outra-pessoa' }] })
+    const otherMenu = renderToStaticMarkup(
+      <MemoryRouter>
+        <ServerMenuBody serverId="s3" items={items} onClose={() => {}} />
+      </MemoryRouter>
     )
-    expect(s1Menu).toContain('Tirar da pasta')
-    expect(s1Menu).toContain('Mover para baixo')
+    expect(otherMenu).toContain('Sair do servidor')
+    expect(otherMenu).not.toContain('Deletar servidor')
+    expect(otherMenu).not.toContain('Configurações do servidor')
 
     // Menu da pasta Jogos permite editar o nome, descer e desfazer pasta
     const folderMenu = renderToStaticMarkup(
