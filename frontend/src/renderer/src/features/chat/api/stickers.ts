@@ -28,10 +28,6 @@ export function fetchMyStickers(): Promise<ServerStickers[]> {
   return request<ServerStickers[]>('/stickers')
 }
 
-export function fetchServerStickers(serverId: string): Promise<ServerSticker[]> {
-  return request<ServerSticker[]>(`/servers/${encodeURIComponent(serverId)}/stickers`)
-}
-
 export function deleteServerSticker(serverId: string, stickerId: string): Promise<void> {
   return request<void>(`/servers/${encodeURIComponent(serverId)}/stickers/${encodeURIComponent(stickerId)}`, {
     method: 'DELETE'

@@ -100,8 +100,9 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 | `POST /guest-invites` (estar na call do canal) | Convidar visitantes |
 | `GET /guest-invites?channel_id=`, `DELETE /guest-invites/:id`, `POST /guests/:userId/end` | Convidar visitantes ou Desconectar membros |
 | `GET /guest-invites/:token`, `POST /guest-invites/:token/join` | público (limite por IP) |
+| `POST /expressions/resolve` | com login: nome e origem dos emojis e figurinhas que a pessoa pode conhecer (membro da origem, ou item já usado fora dela); servidor privado não diz o nome |
 
-Erros de permissão vêm com `code` (`missing_permission`, `role_hierarchy`, `owner_roles`, `cannot_grant`, `banned`, `not_member`…) e o app os traduz.
+Reagir com emoji de outro servidor sem poder responde 403 com `code` `external_expression`. Erros de permissão vêm com `code` (`missing_permission`, `role_hierarchy`, `owner_roles`, `cannot_grant`, `banned`, `not_member`…) e o app os traduz.
 
 ## Eventos em tempo real
 

@@ -5,8 +5,7 @@ import * as stickersApi from '../api/stickers'
 describe('stickerStore', () => {
   beforeEach(() => {
     useStickerStore.setState({
-      stickersByServer: {},
-      loadingByServer: {}
+      stickersByServer: {}
     })
     vi.restoreAllMocks()
   })
@@ -16,7 +15,7 @@ describe('stickerStore', () => {
     expect(state.stickersByServer).toEqual({})
   })
 
-  it('carrega figurinhas do servidor', async () => {
+  it('carrega as figurinhas de todos os servidores da pessoa', async () => {
     const mockStickers: stickersApi.ServerSticker[] = [
       {
         id: 'stk-1',
@@ -29,10 +28,20 @@ describe('stickerStore', () => {
       }
     ]
 
-    vi.spyOn(stickersApi, 'fetchServerStickers').mockResolvedValue(mockStickers)
+    vi.spyOn(stickersApi, 'fetchMyStickers').mockResolvedValue([
+      { server_id: 'srv-1', server_name: 'Alfa', stickers: mockStickers }
+    ])
 
-    await useStickerStore.getState().loadStickers('srv-1')
+    await useStickerStore.getState().loadMine()
     expect(useStickerStore.getState().stickersByServer['srv-1']).toEqual(mockStickers)
+  })
+
+  it('sem rede, o seletor fica com o que já tinha', async () => {
+    useStickerStore.setState({ stickersByServer: { 'srv-1': [] } })
+    vi.spyOn(stickersApi, 'fetchMyStickers').mockRejectedValue(new Error('offline'))
+
+    await useStickerStore.getState().loadMine()
+    expect(useStickerStore.getState().stickersByServer).toEqual({ 'srv-1': [] })
   })
 
   it('adiciona figurinha no upload', async () => {

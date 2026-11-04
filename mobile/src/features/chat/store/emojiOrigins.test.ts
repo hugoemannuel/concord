@@ -1,3 +1,4 @@
+import { useAuthStore } from '../../auth/store/authStore'
 import { resolveEmojis } from '../api/expressions'
 import { requestEmojiOrigin, resetEmojiOrigins, useEmojiOrigins } from './emojiOrigins'
 
@@ -54,5 +55,14 @@ describe('emojiOrigins', () => {
     requestEmojiOrigin('a')
     await flush()
     expect(useEmojiOrigins.getState().byId.a?.name).toBe('festa')
+  })
+
+  it('trocar de conta esquece o que a outra podia conhecer', async () => {
+    resolve.mockResolvedValue({ emojis: [{ id: 'a', name: 'festa' }] })
+    requestEmojiOrigin('a')
+    await flush()
+    useAuthStore.setState({ user: { id: 'outra' } as never })
+    expect(useEmojiOrigins.getState().byId).toEqual({})
+    useAuthStore.setState({ user: null })
   })
 })

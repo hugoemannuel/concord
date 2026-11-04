@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useAuthStore } from '../../auth/store/authStore'
 import { MAX_RESOLVE, resolveEmojis, type ResolvedExpression } from '../api/expressions'
 
 // O que se sabe de cada emoji das mensagens: o servidor responde igual para
@@ -11,6 +12,11 @@ interface OriginsState {
 }
 
 export const useEmojiOrigins = create<OriginsState>(() => ({ byId: {} }))
+
+// Trocou de conta: o que cada um pode conhecer muda.
+useAuthStore.subscribe((state, prev) => {
+  if (state.user?.id !== prev.user?.id) resetEmojiOrigins()
+})
 
 const pending = new Set<string>()
 const inFlight = new Set<string>()
@@ -46,7 +52,7 @@ export function requestEmojiOrigin(id: string): void {
   timer ??= setTimeout(flush, 0)
 }
 
-/** Troca de conta e testes. */
+/** Volta ao estado inicial (troca de conta e testes). */
 export function resetEmojiOrigins(): void {
   if (timer) clearTimeout(timer)
   timer = null

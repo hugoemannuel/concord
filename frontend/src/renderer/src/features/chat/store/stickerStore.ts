@@ -3,15 +3,12 @@ import type { WsEvent } from '../../../shared/api/ws'
 import {
   type ServerSticker,
   fetchMyStickers,
-  fetchServerStickers,
   uploadServerSticker,
   deleteServerSticker
 } from '../api/stickers'
 
 interface StickerState {
   stickersByServer: Record<string, ServerSticker[]>
-  loadingByServer: Record<string, boolean>
-  loadStickers: (serverId: string) => Promise<void>
   /** As figurinhas de todos os servidores da pessoa, numa consulta só. */
   loadMine: () => Promise<void>
   uploadSticker: (
@@ -35,23 +32,6 @@ export const selectStickers =
 
 export const useStickerStore = create<StickerState>((set) => ({
   stickersByServer: {},
-  loadingByServer: {},
-
-  loadStickers: async (serverId: string) => {
-    if (!serverId) return
-    set((s) => ({ loadingByServer: { ...s.loadingByServer, [serverId]: true } }))
-    try {
-      const stickers = await fetchServerStickers(serverId)
-      set((s) => ({
-        stickersByServer: { ...s.stickersByServer, [serverId]: stickers },
-        loadingByServer: { ...s.loadingByServer, [serverId]: false }
-      }))
-    } catch {
-      set((s) => ({
-        loadingByServer: { ...s.loadingByServer, [serverId]: false }
-      }))
-    }
-  },
 
   loadMine: async () => {
     try {
