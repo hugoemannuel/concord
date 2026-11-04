@@ -26,12 +26,22 @@ export function HideMutedMark({ on }: { on: boolean }): React.JSX.Element {
   )
 }
 
+/** Setas andam pelos itens (o foco começa no menu: abrir com o mouse não acende nada). */
+function moveFocus(event: React.KeyboardEvent<HTMLDivElement>): void {
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+  event.preventDefault()
+  const items = Array.from(event.currentTarget.querySelectorAll('button'))
+  const at = items.indexOf(document.activeElement as HTMLButtonElement)
+  const next = event.key === 'ArrowDown' ? at + 1 : at - 1
+  items[(next + items.length) % items.length]?.focus()
+}
+
 /** Fecha com Escape, rolagem e ao redimensionar; devolve o foco para quem abriu. */
 function useMenuDismiss(onClose: () => void): React.RefObject<HTMLDivElement | null> {
   const menu = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const previous = document.activeElement
-    menu.current?.querySelector('button')?.focus()
+    menu.current?.focus()
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose()
     }
@@ -48,6 +58,36 @@ function useMenuDismiss(onClose: () => void): React.RefObject<HTMLDivElement | n
   return menu
 }
 
+/**
+ * Soltar o dedo depois de segurar (o gesto que abriu o menu) dispara um clique onde o dedo
+ * está: em cima do fundo ou de um item. Esse clique não conta: só vale o toque que
+ * começou com o menu já aberto (Enter e espaço chegam com detail 0 e valem sempre).
+ * O React sobe os eventos do portal até a lista: sem parar aqui, reabriria o menu.
+ */
+function useBackdrop(onClose: () => void): React.HTMLAttributes<HTMLDivElement> {
+  const pressed = useRef(false)
+  return {
+    onPointerDownCapture: () => {
+      pressed.current = true
+    },
+    onPointerDown: (event) => event.stopPropagation(),
+    onClickCapture: (event) => {
+      if (pressed.current || event.detail === 0) return
+      event.preventDefault()
+      event.stopPropagation()
+    },
+    onClick: (event) => {
+      event.stopPropagation()
+      onClose()
+    },
+    onContextMenu: (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (pressed.current) onClose()
+    }
+  }
+}
+
 /** Menu do botão direito (ou de segurar, no toque) na parte vazia da lista de canais. */
 export function SidebarAreaMenu({ serverId, access, point, onClose }: {
   serverId: string
@@ -58,6 +98,7 @@ export function SidebarAreaMenu({ serverId, access, point, onClose }: {
   const userId = useAuthStore((s) => s.user?.id ?? '')
   const hideMuted = useHideMutedStore((s) => s.isOn(userId, serverId))
   const menu = useMenuDismiss(onClose)
+  const backdrop = useBackdrop(onClose)
   const items = channelAreaMenuItems({ canManageChannels: access.can(Perm.MANAGE_CHANNELS), canInvite: access.can(Perm.CREATE_INVITE) })
   const actions: Record<ChannelAreaMenuItem, () => void> = {
     hideMuted: () => useHideMutedStore.getState().toggle(userId, serverId),
@@ -66,8 +107,8 @@ export function SidebarAreaMenu({ serverId, access, point, onClose }: {
     invite: () => useUIStore.getState().openServerInviteModal()
   }
   return createPortal(
-    <div className="fixed inset-0 z-50" onClick={onClose} onContextMenu={(event) => { event.preventDefault(); onClose() }}>
-      <div ref={menu} role="menu" aria-label="Opções da lista de canais"
+    <div className="fixed inset-0 z-50" {...backdrop}>
+      <div ref={menu} role="menu" tabIndex={-1} aria-label="Opções da lista de canais" onKeyDown={moveFocus}
         style={{ left: `min(${point.x}px, calc(100vw - 15rem))`, top: `min(${point.y}px, calc(100dvh - 13rem))` }}
         onClick={(event) => event.stopPropagation()}
         className="fixed flex w-56 max-w-[calc(100vw-1rem)] flex-col rounded-xl border border-subtle bg-floating p-1.5 shadow-2xl backdrop-blur-xl">

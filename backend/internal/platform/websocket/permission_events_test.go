@@ -94,6 +94,27 @@ func TestPrivateCategoryKeepsEventsFromWhoCannotSee(t *testing.T) {
 	}
 }
 
+// A ordem dos canais só diz a cada um os ids que ele vê.
+func TestChannelReorderOnlyShowsVisibleChannels(t *testing.T) {
+	snap := visibilitySnapshot().
+		WithCategory("privada", permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel}).
+		WithChannel("oculto", permission.ChannelText).
+		InCategory("oculto", "privada")
+	h, clients := hubWithServerMembers(snap, "dono", "ana")
+	for _, c := range clients {
+		events(c)
+	}
+	h.PublishChannelReorder(channel.ReorderEvent{ServerID: "s1", Type: "text", ChannelIDs: []string{"oculto", "segredo"}})
+	ana := string(<-clients["ana"].send)
+	if strings.Contains(ana, "oculto") || strings.Contains(ana, "segredo") {
+		t.Fatalf("ana recebeu: %s", ana)
+	}
+	dono := string(<-clients["dono"].send)
+	if !strings.Contains(dono, "oculto") || !strings.Contains(dono, "segredo") {
+		t.Fatalf("o dono recebeu: %s", dono)
+	}
+}
+
 func TestRevalidateRemovesWhoLostTheCategoryFromTheRoom(t *testing.T) {
 	closed := permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel}
 	snap := visibilitySnapshot().
