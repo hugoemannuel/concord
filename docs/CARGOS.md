@@ -52,6 +52,8 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 
 Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir, histórico, convidar, conectar, falar, transmitir, mesa de áudio, alterar o próprio apelido, adicionar sons e figurinhas, mensagens TTS) e o cargo fixo **Bots** (dos bots do servidor). Não há mais cargo **Moderador** padrão: quem quiser cria os seus. Nos servidores antigos o Moderador que já existia continua, como um cargo comum (dá para editar, mover e apagar).
 
+**Perfil por servidor** ([ADR 0051](adr/0051-perfil-por-servidor.md)): todo membro edita o próprio perfil em cada servidor (avatar, banner, cor, estilo do nome, pronomes, nota, Sobre mim, links, tema, faixa e moldura), sem permissão nenhuma. O nome nesse perfil é o apelido: *Alterar o próprio apelido* controla só ele. Sem ela, o nome fica travado e o resto continua liberado; um apelido imposto pela moderação não some ao apagar o perfil. Ninguém edita o perfil de servidor de outra pessoa.
+
 ## Hierarquia
 
 A posição do cargo define quem manda em quem (maior = mais alto).

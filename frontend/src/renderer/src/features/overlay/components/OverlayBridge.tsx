@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { mergeCallPeople } from '../../call/lib/callParticipants'
 import { buildOverlaySnapshot, sameOverlaySnapshot, type OverlaySnapshot } from '../lib/overlayState'
-import { serverDisplayName, withServerNames } from '../../servers/lib/serverNames'
+import { withServerNames } from '../../servers/lib/serverNames'
+import { useCallMemberProfiles } from '../../memberProfiles/hooks/useCallMemberProfiles'
+import { withMemberProfiles } from '../../memberProfiles/lib/memberProfile'
+import { overlayMe } from '../lib/overlayMe'
 import { useCallNicknames } from '../../servers/hooks/useServerNames'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useCallStore } from '../../call/store/callStore'
@@ -50,23 +53,25 @@ function OverlayBridge(): null {
   const liveWatchers = useMyLiveWatchers(meId)
   // Call num canal de voz: apelidos daquele servidor (mesmo olhando outro).
   const nicknames = useCallNicknames()
+  // A janela do overlay recebe URLs prontas: o avatar do servidor vai resolvido.
+  const memberProfiles = useCallMemberProfiles()
   const participants = useMemo(
     () =>
-      withServerNames(
-        mergeCallPeople(backendParticipants, mediaPeers, meId, (id) => {
-          const m = members.find((x) => x.user_id === id)
-          return m?.display_name || m?.username
-        }),
-        nicknames
+      withMemberProfiles(
+        withServerNames(
+          mergeCallPeople(backendParticipants, mediaPeers, meId, (id) => {
+            const m = members.find((x) => x.user_id === id)
+            return m?.display_name || m?.username
+          }),
+          nicknames
+        ),
+        memberProfiles
       ),
-    [backendParticipants, mediaPeers, meId, members, nicknames]
+    [backendParticipants, mediaPeers, meId, members, nicknames, memberProfiles]
   )
   const meInOverlay = useMemo(
-    () =>
-      me && meId && nicknames?.[meId]
-        ? { ...me, display_name: serverDisplayName({ nickname: nicknames[meId] }, me) }
-        : me,
-    [me, meId, nicknames]
+    () => overlayMe(me, nicknames, memberProfiles),
+    [me, nicknames, memberProfiles]
   )
 
   // Posição/tamanho editados no jogo (Shift+Tab) chegam pelo main: salva aqui.

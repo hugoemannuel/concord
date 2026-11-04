@@ -15,6 +15,7 @@ import {
   resolveServerChannel
 } from '../lib/serverChannel'
 import ServerViewLayout, { ServerViewSkeleton } from '../components/ServerViewLayout'
+import ProfileScope from '../../memberProfiles/components/ProfileScope'
 import ServerRightPanel from '../components/ServerRightPanel'
 import ServerThemeHost from '../../serverprofile/components/ServerThemeHost'
 import VoiceChatPanel from '../../chat/components/VoiceChatPanel'
@@ -102,48 +103,50 @@ export function ServerView(): React.JSX.Element {
   }
 
   return (
-    <ServerViewLayout
-      right={right}
-      bar={
-        <>
-          <div className="flex min-w-0 flex-1 items-center gap-1">
-            <MobileNavButton />
-            <ChannelTitle channel={activeChannel} fallback={currentServer.name} />
-          </div>
-          <ChannelActions
+    <ProfileScope serverId={currentServer.id}>
+      <ServerViewLayout
+        right={right}
+        bar={
+          <>
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <MobileNavButton />
+              <ChannelTitle channel={activeChannel} fallback={currentServer.name} />
+            </div>
+            <ChannelActions
+              channelId={channelId}
+              isVoice={isVoice}
+              pinsOpen={pinsOpen}
+              onTogglePins={() => setPinsOpen((v) => !v)}
+              onClosePins={() => setPinsOpen(false)}
+              canInvite={access.can(Perm.CREATE_INVITE)}
+              onInvite={openInviteModal}
+              canModerate={chatPermissions.canModerate}
+            />
+            <MembersDrawerButton />
+          </>
+        }
+        search={
+          <CollapsibleSearch>
+            <ServerSearch server={currentServer} />
+          </CollapsibleSearch>
+        }
+        content={
+          <ServerChannelContent
+            server={currentServer}
             channelId={channelId}
-            isVoice={isVoice}
-            pinsOpen={pinsOpen}
-            onTogglePins={() => setPinsOpen((v) => !v)}
-            onClosePins={() => setPinsOpen(false)}
-            canInvite={access.can(Perm.CREATE_INVITE)}
-            onInvite={openInviteModal}
-            canModerate={chatPermissions.canModerate}
+            channel={activeChannel}
+            permissions={chatPermissions}
           />
-          <MembersDrawerButton />
-        </>
-      }
-      search={
-        <CollapsibleSearch>
-          <ServerSearch server={currentServer} />
-        </CollapsibleSearch>
-      }
-      content={
-        <ServerChannelContent
-          server={currentServer}
-          channelId={channelId}
-          channel={activeChannel}
-          permissions={chatPermissions}
-        />
-      }
-      rightPanel={<ServerRightPanel right={right} server={currentServer} channelId={channelId} />}
-    >
-      {/* Tela estreita: o chat da call é uma sobreposição em tela cheia. */}
-      {chatOverlay && channelId && <VoiceChatPanel channelId={channelId} />}
-      <ServerThemeHost serverId={currentServer.id} />
-      <ServerInviteModal server={currentServer} />
-      <ServerMembersDrawer server={currentServer} />
-    </ServerViewLayout>
+        }
+        rightPanel={<ServerRightPanel right={right} server={currentServer} channelId={channelId} />}
+      >
+        {/* Tela estreita: o chat da call é uma sobreposição em tela cheia. */}
+        {chatOverlay && channelId && <VoiceChatPanel channelId={channelId} />}
+        <ServerThemeHost serverId={currentServer.id} />
+        <ServerInviteModal server={currentServer} />
+        <ServerMembersDrawer server={currentServer} />
+      </ServerViewLayout>
+    </ProfileScope>
   )
 }
 

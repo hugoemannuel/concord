@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { getProfile, type PublicProfile } from '../api/users'
 import { mergeProfile } from '../lib/profileRelationship'
+import { useScopedMemberProfile } from '../../memberProfiles/hooks/useProfileScope'
+import { overlayLook } from '../../memberProfiles/lib/memberProfile'
 
 // Perfis públicos já vistos (cartão de perfil) e a versão mais nova de cada
 // pessoa que chegou por "user:update". Avatar e nome em mensagens, listas e
@@ -63,11 +65,13 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
 
 /**
  * Nome e avatar mais novos de alguém: o do perfil conhecido, senão o que veio
- * junto com a mensagem/membro/amigo.
+ * junto com a mensagem/membro/amigo. Dentro de um servidor (ProfileScope), o
+ * perfil de lá vai por cima, campo a campo.
  */
 export function useUserLook(userId: string | undefined, fallback: LookFallback): UserLook {
   const profile = useProfileStore((s) => (userId ? s.profiles[userId] : undefined))
-  return lookOf(profile, fallback)
+  const memberProfile = useScopedMemberProfile(userId)
+  return overlayLook(lookOf(profile, fallback), memberProfile)
 }
 
 /** O que veio junto com a mensagem/membro/amigo. */

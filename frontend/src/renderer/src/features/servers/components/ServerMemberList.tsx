@@ -110,7 +110,11 @@ export function MemberRow({
             style={nameColor ? { color: nameColor } : undefined}
             className={`truncate text-ds-md font-medium ${nameColor ? '' : nameClass}`}
           >
-            {nickname?.trim() ? name : <StyledName name={name} userId={userId} style={nameStyle} />}
+            <StyledName
+              name={name}
+              userId={userId}
+              style={nickname?.trim() ? null : nameStyle}
+            />
           </p>
           {isOwner && <OwnerCrown />}
           <UserServerTag userId={userId} />

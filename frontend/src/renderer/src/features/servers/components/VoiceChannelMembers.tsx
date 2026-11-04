@@ -136,7 +136,7 @@ function VoiceParticipantItem({
           isMe ? 'font-bold text-strong' : 'font-medium text-secondary'
         }`}
       >
-        {nickname ? name : <StyledName name={name} userId={p.user_id} style={p.name_style} />}
+        <StyledName name={name} userId={p.user_id} style={nickname ? null : p.name_style} />
       </span>
       {/* Selo de nível só na lista de membros da direita; aqui o nível só
           ordena a lista (ver voiceOrder). */}

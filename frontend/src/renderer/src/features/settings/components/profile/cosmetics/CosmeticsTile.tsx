@@ -13,7 +13,7 @@ export default function CosmeticsTile({
 }): React.JSX.Element {
   const name = user.display_name || user.username
   return (
-    <TileSection title="Faixa e moldura">
+    <TileSection title="Faixa e moldura" field="cosmetics">
       <Tile label="Faixa e moldura" onClick={onOpen} className="h-12 w-full gap-3 px-3 pr-9">
         <Nameplate url={user.nameplate_url} active={false} fade="var(--bg-members)" />
         <Avatar
