@@ -173,6 +173,18 @@ canvas.pt-fx {
   width: 100%;
   height: 100%;
 }
+/* Área "só o banner": a altura segue a do banner (64 px, 106 px com imagem) e a
+   base some aos poucos. No fundo do app, ThemeBackdrop troca a variável. */
+.profile-frame:has([data-card-banner='image']) {
+  --pt-fx-area-h: 106px;
+}
+.pt-fx.pt-area-banner {
+  bottom: auto;
+  height: var(--pt-fx-area-h, 64px);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  mask-image: linear-gradient(#000 72%, transparent);
+}
 .pt-fx > span {
   position: absolute;
   display: block;
@@ -182,7 +194,7 @@ canvas.pt-fx {
 .pt-fx-particles > span {
   border-radius: 9999px;
   background: var(--pt-fxc, var(--pt-fx));
-  box-shadow: 0 0 6px var(--pt-fxc, var(--pt-fx));
+  box-shadow: 0 0 calc(6px + var(--pt-fxg, 0px)) var(--pt-fxc, var(--pt-fx));
   opacity: 0;
   animation: pt-float linear infinite;
 }
@@ -190,7 +202,7 @@ canvas.pt-fx {
 .pt-fx-sparkles > span {
   color: var(--pt-fxc, #fff6c2);
   line-height: 1;
-  text-shadow: 0 0 6px var(--pt-fxc, #ffd84d);
+  text-shadow: 0 0 calc(6px + var(--pt-fxg, 0px)) var(--pt-fxc, #ffd84d);
   opacity: 0;
   animation: pt-twinkle ease-in-out infinite;
 }
@@ -198,7 +210,9 @@ canvas.pt-fx {
 .pt-fx-snow > span {
   border-radius: 9999px;
   background: var(--pt-fxc, rgb(255 255 255 / 0.85));
-  box-shadow: 0 0 2px rgb(0 0 0 / 0.25);
+  box-shadow:
+    0 0 2px rgb(0 0 0 / 0.25),
+    0 0 var(--pt-fxg, 0px) var(--pt-fxc, #fff);
   animation: pt-snow linear infinite;
 }
 

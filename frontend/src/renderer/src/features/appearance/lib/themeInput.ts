@@ -70,6 +70,14 @@ export interface ThemeBackdrop {
   effectSpeed: number
   /** '' = a cor de sempre do efeito. */
   effectColor: string
+  /** Ajustes do efeito (profile/lib/effectLook.ts), com os mesmos valores do cartão. */
+  effectSize: number
+  effectDirection: string
+  effectOpacity: number
+  effectPalette: string
+  effectColor2: string
+  effectArea: string
+  effectGlow: number
   /** '' ou "/api/app-theme-images/<uuid>" (enviada pelo app). */
   image: string
   /** Véu por cima da imagem, 0–90 (%); a paleta garante um mínimo. */
@@ -110,6 +118,13 @@ export const DEFAULT_BACKDROP: ThemeBackdrop = {
   effectDensity: 50,
   effectSpeed: 50,
   effectColor: '',
+  effectSize: 50,
+  effectDirection: 'default',
+  effectOpacity: 100,
+  effectPalette: 'single',
+  effectColor2: '',
+  effectArea: 'full',
+  effectGlow: 0,
   image: '',
   imageDim: 40,
   imageBlur: 0
@@ -139,6 +154,7 @@ export function inputOf(t: ThemeInput): ThemeInput {
   const { accent, background, sidebar, card, text, glow, gradients, highlight, textMuted, border } = t
   const { glowStrength, glass, radius, density, font } = t
   const { effect, effectDensity, effectSpeed, effectColor, image, imageDim, imageBlur } = t
+  const { effectSize, effectDirection, effectOpacity, effectPalette, effectColor2, effectArea, effectGlow } = t
   return {
     accent,
     background,
@@ -159,6 +175,13 @@ export function inputOf(t: ThemeInput): ThemeInput {
     effectDensity,
     effectSpeed,
     effectColor,
+    effectSize,
+    effectDirection,
+    effectOpacity,
+    effectPalette,
+    effectColor2,
+    effectArea,
+    effectGlow,
     image,
     imageDim,
     imageBlur

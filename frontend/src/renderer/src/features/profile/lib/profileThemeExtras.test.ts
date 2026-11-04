@@ -32,7 +32,7 @@ describe('resolveExtras', () => {
       background_angle: 360,
       texture: 'grid'
     }
-    expect(resolveExtras(v)).toEqual({ ...v, effect_color: '#aabbcc' })
+    expect(resolveExtras(v)).toEqual({ ...DEFAULT_EXTRAS, ...v, effect_color: '#aabbcc' })
   })
   it('cada valor inválido volta ao padrão sozinho', () => {
     const t = resolveExtras({

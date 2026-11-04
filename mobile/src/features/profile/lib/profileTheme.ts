@@ -61,7 +61,22 @@ export const PROFILE_EFFECTS: readonly {
   { id: 'hearts', label: 'Corações', kind: 'canvas', color: '#ff4d8d' },
   { id: 'confetti', label: 'Confete', kind: 'canvas', color: null },
   { id: 'synthwave', label: 'Synthwave', kind: 'canvas', color: '#ff2bd6' },
-  { id: 'rain', label: 'Chuva', kind: 'canvas', color: '#7cc4ff' }
+  { id: 'rain', label: 'Chuva', kind: 'canvas', color: '#7cc4ff' },
+  { id: 'fireflies', label: 'Vaga-lumes', kind: 'canvas', color: '#d9f99d' },
+  { id: 'sakura', label: 'Sakura', kind: 'canvas', color: '#f9a8d4' },
+  { id: 'leaves', label: 'Folhas', kind: 'canvas', color: '#ea8a1f' },
+  { id: 'bubbles', label: 'Bolhas', kind: 'canvas', color: '#7dd3fc' },
+  { id: 'ocean', label: 'Ondas', kind: 'canvas', color: '#38bdf8' },
+  { id: 'meteors', label: 'Estrelas cadentes', kind: 'canvas', color: '#e0f2fe' },
+  { id: 'fog', label: 'Névoa', kind: 'canvas', color: '#cbd5e1' },
+  { id: 'sunbeams', label: 'Raios de luz', kind: 'canvas', color: '#fde68a' },
+  { id: 'lava', label: 'Lava', kind: 'canvas', color: '#ff5a1f' },
+  { id: 'money', label: 'Dinheiro', kind: 'canvas', color: '#4ade80' },
+  { id: 'clouds', label: 'Nuvens', kind: 'canvas', color: '#ffffff' },
+  { id: 'hexagons', label: 'Hexágonos', kind: 'canvas', color: '#22d3ee' },
+  { id: 'pixels', label: 'Pixels', kind: 'canvas', color: '#4ade80' },
+  { id: 'bunting', label: 'Bandeirinhas', kind: 'canvas', color: null },
+  { id: 'fireworks', label: 'Fogos', kind: 'canvas', color: null }
 ]
 
 /** Definição do efeito (desconhecido = "Nenhum"). */

@@ -27,8 +27,9 @@ export function particleCount(effect: string, density = 1): number {
  * Posições fixas (sempre as mesmas para o mesmo efeito): o desenho não muda a
  * cada render e o CSS só anima transform/opacity. `density` e `speed` são os
  * fatores do tema (1 = o de sempre): mais partículas e animação mais curta.
+ * `scale` é o fator de tamanho.
  */
-export function effectParticles(effect: string, density = 1, speed = 1): Particle[] {
+export function effectParticles(effect: string, density = 1, speed = 1, scale = 1): Particle[] {
   const count = particleCount(effect, density)
   let seed = effect.length * 7919 + 17
   const rand = (): number => {
@@ -41,7 +42,7 @@ export function effectParticles(effect: string, density = 1, speed = 1): Particl
       // Espalha por faixas para não amontoar.
       left: Math.round(((i + r[0]) / count) * 1000) / 10,
       top: Math.round(r[1] * 1000) / 10,
-      size: effect === 'sparkles' ? 8 + Math.round(r[2] * 6) : 2 + Math.round(r[2] * 3),
+      size: (effect === 'sparkles' ? 8 + Math.round(r[2] * 6) : 2 + Math.round(r[2] * 3)) * scale,
       delay: Math.round((r[3] * (effect === 'snow' ? 8 : 4) * 10) / speed) / 10,
       duration:
         Math.round(

@@ -19,7 +19,12 @@ export function ThemeBackdrop(): React.JSX.Element | null {
   const themes = useCustomThemesStore((s) => s.themes)
   const fx = useMemo(() => backdropFx(activeTheme(draft, theme, themes)), [draft, theme, themes])
   if (!fx) return null
-  const style = { opacity: EFFECT_PEAK, '--pt-fxc': fx.params.color } as CSSProperties
+  // "Só o topo" (--pt-fx-area-h): o banner do fundo do app é uma faixa da janela.
+  const style = {
+    opacity: EFFECT_PEAK,
+    '--pt-fxc': fx.params.color,
+    '--pt-fx-area-h': '32vh'
+  } as CSSProperties
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" style={style}>
       <EffectLayer fx={fx} />

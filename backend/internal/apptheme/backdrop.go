@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"gin-quickstart/backend/internal/profiletheme"
 )
 
 // Campos da v3 (ADR 0043): um efeito animado no fundo do app (os mesmos do
@@ -17,11 +19,8 @@ const (
 	defaultLevel    = 50
 )
 
-// Os ids dos efeitos do cartão de perfil (frontend features/profile/lib/profileTheme.ts).
-var effects = []string{
-	"none", "particles", "sparkles", "snow", "fire", "matrix", "glitch",
-	"storm", "galaxy", "aurora", "hearts", "confetti", "synthwave", "rain",
-}
+// Os mesmos efeitos do cartão de perfil.
+var effects = profiletheme.Effects
 
 // Só imagem enviada pelo próprio app (image.go): nada de URL de fora nem texto
 // que escape do url() do CSS.
@@ -33,7 +32,7 @@ func backdropDefaults(t Theme) Theme {
 	t.EffectSpeed = intOr(t.EffectSpeed, defaultLevel)
 	t.ImageDim = intOr(t.ImageDim, DefaultImageDim)
 	t.ImageBlur = intOr(t.ImageBlur, 0)
-	return t
+	return effectLookDefaults(t)
 }
 
 func level(p *int) bool {
@@ -44,7 +43,7 @@ func level(p *int) bool {
 func normalizeBackdrop(t Theme) (Theme, bool) {
 	t = backdropDefaults(t)
 	ok := slices.Contains(effects, t.Effect) && level(t.EffectDensity) && level(t.EffectSpeed)
-	ok = ok && optionalColor(&t.EffectColor)
+	ok = ok && optionalColor(&t.EffectColor) && validEffectLook(&t)
 	t.Image = strings.TrimSpace(t.Image)
 	ok = ok && (t.Image == "" || imagePattern.MatchString(t.Image))
 	ok = ok && inRange(t.ImageDim, MaxImageDim) && inRange(t.ImageBlur, MaxImageBlur)
