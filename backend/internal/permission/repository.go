@@ -38,27 +38,35 @@ func (r *Repository) LoadSnapshot(ctx context.Context, serverID string) (*Snapsh
 		return nil, err
 	}
 
-	rows, err := r.db.Query(ctx, `SELECT `+roleColumns+` FROM roles WHERE server_id = $1`, serverID)
-	if err != nil {
-		return nil, err
+	for _, load := range []func(context.Context, *Snapshot) error{r.loadRoles, r.loadMembers, r.loadChannels} {
+		if err := load(ctx, snap); err != nil {
+			return nil, err
+		}
 	}
+	return snap, nil
+}
+
+func (r *Repository) loadRoles(ctx context.Context, snap *Snapshot) error {
+	rows, err := r.db.Query(ctx, `SELECT `+roleColumns+` FROM roles WHERE server_id = $1`, snap.ServerID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
 	for rows.Next() {
 		var role Role
 		if err := scanRole(rows, &role); err != nil {
-			rows.Close()
-			return nil, err
+			return err
 		}
 		snap.Roles[role.ID] = role
 		if role.IsDefault {
 			snap.Everyone = role
 		}
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
+	return rows.Err()
+}
 
-	rows, err = r.db.Query(
+func (r *Repository) loadMembers(ctx context.Context, snap *Snapshot) error {
+	rows, err := r.db.Query(
 		ctx,
 		`
 		SELECT sm.user_id, COALESCE(array_agg(mr.role_id::text) FILTER (WHERE mr.role_id IS NOT NULL), '{}')
@@ -67,26 +75,25 @@ func (r *Repository) LoadSnapshot(ctx context.Context, serverID string) (*Snapsh
 		WHERE sm.server_id = $1
 		GROUP BY sm.user_id
 		`,
-		serverID,
+		snap.ServerID,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var userID string
 		var roleIDs []string
 		if err := rows.Scan(&userID, &roleIDs); err != nil {
-			rows.Close()
-			return nil, err
+			return err
 		}
 		snap.MemberRoles[userID] = roleIDs
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
+	return rows.Err()
+}
 
-	rows, err = r.db.Query(
+func (r *Repository) loadChannels(ctx context.Context, snap *Snapshot) error {
+	rows, err := r.db.Query(
 		ctx,
 		`
 		SELECT c.id, c.type, o.target_type, o.target_id::text, o.allow, o.deny
@@ -94,10 +101,10 @@ func (r *Repository) LoadSnapshot(ctx context.Context, serverID string) (*Snapsh
 		LEFT JOIN channel_overwrites o ON o.channel_id = c.id
 		WHERE c.server_id = $1
 		`,
-		serverID,
+		snap.ServerID,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -105,7 +112,7 @@ func (r *Repository) LoadSnapshot(ctx context.Context, serverID string) (*Snapsh
 		var targetType, targetID *string
 		var allow, deny *int64
 		if err := rows.Scan(&chID, &chType, &targetType, &targetID, &allow, &deny); err != nil {
-			return nil, err
+			return err
 		}
 		info := snap.Channels[chID]
 		info.ID, info.Type = chID, chType
@@ -120,7 +127,7 @@ func (r *Repository) LoadSnapshot(ctx context.Context, serverID string) (*Snapsh
 		}
 		snap.Channels[chID] = info
 	}
-	return snap, rows.Err()
+	return rows.Err()
 }
 
 // ChannelServerID: servidor dono do canal ("" + ErrChannelNotFound se não existe).
