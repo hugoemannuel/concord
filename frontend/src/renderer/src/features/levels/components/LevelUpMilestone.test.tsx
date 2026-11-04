@@ -62,6 +62,25 @@ describe('LevelUpMilestone', () => {
     expect(html).toContain('Nível 22')
   })
 
+  it('no 30 toca as vinhas de esmeralda, com o rótulo do marco', () => {
+    celebrate(30)
+    const html = renderToStaticMarkup(<LevelUpMilestone />)
+    expect(html).toContain('data-milestone="vines"')
+    expect(html).toContain('<canvas')
+    expect(html).toContain('>30</p>')
+    expect(html).toContain('Marco 30 · Vinhas de esmeralda')
+  })
+
+  it('no 30 com movimento reduzido: sem vinhas, só o título', () => {
+    screen(true)
+    celebrate(30)
+    const html = renderToStaticMarkup(<LevelUpMilestone />)
+    expect(html).toContain('data-milestone="vines"')
+    expect(html).not.toContain('<canvas')
+    expect(html).toContain('level-fade')
+    expect(html).toContain('>30</p>')
+  })
+
   it('o marco lendário mantém coroa e "LENDÁRIO"', () => {
     celebrate(100)
     const html = renderToStaticMarkup(<LevelUpMilestone />)

@@ -1,5 +1,5 @@
 import { RAINBOW, type MilestoneKind } from './levels'
-import { vinesScene } from './vinesScene'
+import { VINES_IMPACT_MS, vinesScene } from './vinesScene'
 import {
   rng,
   clamp01,
@@ -1093,7 +1093,7 @@ const BUILDERS: Record<MilestoneKind, Builder> = {
 export const IMPACT_MS: Record<MilestoneKind, number> = {
   coins: 0,
   shockwave: 100,
-  vines: 1200,
+  vines: VINES_IMPACT_MS,
   ripple: 460,
   crystals: 1400,
   fire: 60,

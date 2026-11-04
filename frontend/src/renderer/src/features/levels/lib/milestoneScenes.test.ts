@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MILESTONE_KINDS, type MilestoneKind } from './levels'
 import { buildScene, DRAWS_NUMBER, type SceneInput } from './milestoneScenes'
 
-// Só o que a montagem usa: gradientes (as cenas de número precisam do DOM).
+// Só o que a montagem usa: gradientes (as cenas de número precisam do DOM). As
+// vinhas pré-desenham em canvas escondidos: sem contexto 2D, ficam sem imagem.
 const gradient = { addColorStop: (): void => {} }
 const ctx = {
   createLinearGradient: () => gradient,
@@ -26,6 +27,11 @@ const input = (budget: number): SceneInput => ({
 
 describe('cenas de marco: orçamento de partículas', () => {
   const kinds = MILESTONE_KINDS.filter((k) => !DRAWS_NUMBER.has(k)) as MilestoneKind[]
+
+  beforeEach(() => {
+    vi.stubGlobal('document', { createElement: () => ({ getContext: () => null }) })
+  })
+  afterEach(() => vi.unstubAllGlobals())
 
   it('nenhuma cena cria mais partículas que o budget (contagem real)', () => {
     for (const kind of kinds) {
