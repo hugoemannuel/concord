@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  channelAreaMenuItems,
   channelMenuItems,
-  serverMenuItems,
-  type ChannelMenuContext,
-  type ServerMenuContext
+  isEmptyChannelArea,
+  nextMenuFocus,
+  type ChannelMenuContext
 } from './sidebarMenus'
 
 describe('channelMenuItems', () => {
@@ -83,49 +84,28 @@ describe('canal de sala de evento (gerenciado)', () => {
   })
 })
 
-describe('serverMenuItems', () => {
-  const member: ServerMenuContext = {
-    hasServer: true,
-    canInvite: true,
-    canChangeOwnNickname: true,
-    canOpenSettings: false,
-    isOwner: false
-  }
-
-  it('membro: convidar, apelido, eventos, notificações e sair', () => {
-    expect(serverMenuItems(member)).toEqual([
-      'invite',
-      'profile',
-      'nickname',
-      'memberProfile',
-      'events',
-      'notifications',
-      'leave'
-    ])
+describe('channelAreaMenuItems', () => {
+  it('cada item só com a permissão certa, na ordem do menu', () => {
+    expect(channelAreaMenuItems({ canManageChannels: true, canInvite: true })).toEqual(['hideMuted', 'createChannel', 'createCategory', 'invite'])
+    expect(channelAreaMenuItems({ canManageChannels: false, canInvite: true })).toEqual(['hideMuted', 'invite'])
+    expect(channelAreaMenuItems({ canManageChannels: false, canInvite: false })).toEqual(['hideMuted'])
   })
+})
 
-  it('dono: configurações e apagar no lugar de sair', () => {
-    expect(serverMenuItems({ ...member, isOwner: true, canOpenSettings: true })).toEqual([
-      'invite',
-      'profile',
-      'nickname',
-      'memberProfile',
-      'events',
-      'notifications',
-      'settings',
-      'delete'
-    ])
+describe('isEmptyChannelArea', () => {
+  const target = (inside: boolean): Element => ({ closest: () => (inside ? {} : null) }) as unknown as Element
+  it('linha e cabeçalho têm menu próprio', () => {
+    expect(isEmptyChannelArea(target(true))).toBe(false)
+    expect(isEmptyChannelArea(target(false))).toBe(true)
   })
+})
 
-  it('sem servidor nem permissões', () => {
-    expect(
-      serverMenuItems({
-        hasServer: false,
-        canInvite: false,
-        canChangeOwnNickname: false,
-        canOpenSettings: false,
-        isOwner: false
-      })
-    ).toEqual(['leave'])
+describe('nextMenuFocus', () => {
+  it('setas andam e dão a volta; o resto não mexe', () => {
+    expect(nextMenuFocus('ArrowDown', -1, 4)).toBe(0)
+    expect(nextMenuFocus('ArrowDown', 3, 4)).toBe(0)
+    expect(nextMenuFocus('ArrowUp', 0, 4)).toBe(3)
+    expect(nextMenuFocus('ArrowUp', 2, 4)).toBe(1)
+    expect(nextMenuFocus('Enter', 2, 4)).toBeNull()
   })
 })

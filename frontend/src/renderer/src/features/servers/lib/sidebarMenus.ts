@@ -36,36 +36,33 @@ export function channelMenuItems(context: ChannelMenuContext): ChannelMenuItem[]
   return CHANNEL_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
 }
 
-export type ServerMenuItem =
-  'invite' | 'profile' | 'nickname' | 'memberProfile' | 'events' | 'notifications' | 'settings' | 'leave' | 'delete'
+export type ChannelAreaMenuItem = 'hideMuted' | 'createChannel' | 'createCategory' | 'invite'
 
-export interface ServerMenuContext {
-  hasServer: boolean
+export interface ChannelAreaMenuContext {
+  canManageChannels: boolean
   canInvite: boolean
-  canChangeOwnNickname: boolean
-  canOpenSettings: boolean
-  isOwner: boolean
 }
 
-const SERVER_RULES: [ServerMenuItem, (c: ServerMenuContext) => boolean][] = [
-  // Quem tem CREATE_INVITE convida (por padrão, todo membro).
-  ['invite', (c) => c.canInvite],
-  // O cartão do servidor, como os outros o veem.
-  ['profile', (c) => c.hasServer],
-  // O próprio apelido neste servidor ("Alterar apelido", todo mundo por padrão).
-  ['nickname', (c) => c.canChangeOwnNickname],
-  // O perfil neste servidor é de todo membro (CHANGE_NICKNAME só controla o nome).
-  ['memberProfile', (c) => c.hasServer],
-  // Todo membro vê os eventos e responde; criar exige Gerenciar eventos (dentro do painel).
-  ['events', (c) => c.hasServer],
-  ['notifications', (c) => c.hasServer],
-  ['settings', (c) => c.canOpenSettings],
-  // O dono não sai: apaga o servidor.
-  ['leave', (c) => !c.isOwner],
-  ['delete', (c) => c.isOwner]
+const AREA_RULES: [ChannelAreaMenuItem, (c: ChannelAreaMenuContext) => boolean][] = [
+  ['hideMuted', () => true],
+  ['createChannel', (c) => c.canManageChannels],
+  ['createCategory', (c) => c.canManageChannels],
+  ['invite', (c) => c.canInvite]
 ]
 
-/** Itens do menu do servidor (cabeçalho da barra), na ordem em que aparecem. */
-export function serverMenuItems(context: ServerMenuContext): ServerMenuItem[] {
-  return SERVER_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
+/** Itens do menu do botão direito na parte vazia da lista de canais, na ordem do menu. */
+export function channelAreaMenuItems(context: ChannelAreaMenuContext): ChannelAreaMenuItem[] {
+  return AREA_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
+}
+
+/** Linhas e cabeçalhos têm o próprio menu: o da área vale só para o espaço vazio. */
+export function isEmptyChannelArea(target: Element): boolean {
+  return !target.closest('[data-sidebar-item]')
+}
+
+/** Para onde as setas levam o foco no menu (dá a volta nas pontas); sem seta, null. */
+export function nextMenuFocus(key: string, current: number, total: number): number | null {
+  if (key !== 'ArrowDown' && key !== 'ArrowUp') return null
+  const next = key === 'ArrowDown' ? current + 1 : current - 1
+  return (next + total) % total
 }

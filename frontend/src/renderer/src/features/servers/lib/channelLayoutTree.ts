@@ -92,12 +92,13 @@ export function treeToLayoutWrite(tree: LayoutTree): CategoryLayoutWrite {
 /** A mesma organização no formato da API (atualização otimista). */
 export function applyTreeToLayout(layout: CategoryLayout, tree: LayoutTree): CategoryLayout {
   const byId = new Map(layout.categories.map((category) => [category.id, category]))
+  const synced = new Map(layout.channels.map((channel) => [channel.channel_id, channel.synced]))
   return {
     ...layout,
     categories: tree.categories.flatMap((category, position) => {
       const known = byId.get(category.id)
       return known ? [{ ...known, position }] : []
     }),
-    channels: treeToLayoutWrite(tree).channels
+    channels: treeToLayoutWrite(tree).channels.map((channel) => ({ ...channel, synced: synced.get(channel.channel_id) }))
   }
 }

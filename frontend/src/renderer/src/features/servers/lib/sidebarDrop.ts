@@ -12,73 +12,62 @@ export type SidebarDrag =
   | { kind: 'category'; id: string }
 
 export type DropHover =
-  | { kind: 'channel'; id: string; type: ChannelType; categoryId: string | null; zone: DropZone }
+  | { kind: 'channel'; id: string; categoryId: string | null; zone: DropZone }
   | { kind: 'category-header'; id: string; collapsed: boolean }
   | { kind: 'category-body'; id: string }
   | { kind: 'category-block'; id: string; zone: DropZone }
-  | { kind: 'section'; type: ChannelType }
+  | { kind: 'loose' }
   | { kind: 'list' }
 
 export type DropTarget =
-  | { kind: 'channel'; categoryId: string | null; beforeId: string | null; type: ChannelType }
+  | { kind: 'channel'; categoryId: string | null; beforeId: string | null }
   | { kind: 'category'; beforeId: string | null }
 
-type TypeOf = (id: string) => ChannelType
 type ChannelDrag = Extract<SidebarDrag, { kind: 'channel' }>
 type ChannelHover = Extract<DropHover, { kind: 'channel' }>
 type Spot = { categoryId: string | null; beforeId: string | null }
 
-/** Vizinhos visíveis do canal arrastado no grupo: sem categoria, cada tipo tem a sua seção. */
-function peersIn(tree: LayoutTree, categoryId: string | null, drag: ChannelDrag, typeOf: TypeOf): string[] {
+/** Vizinhos do canal arrastado no grupo: sem categoria é uma lista só, de texto e voz. */
+function peersIn(tree: LayoutTree, categoryId: string | null, dragId: string): string[] {
   const ids = categoryId === null
-    ? tree.uncategorized.filter((id) => typeOf(id) === drag.type)
+    ? tree.uncategorized
     : tree.categories.find((category) => category.id === categoryId)?.channels ?? []
-  return ids.filter((id) => id !== drag.id)
+  return ids.filter((id) => id !== dragId)
 }
 
-function spotOverChannel(hover: ChannelHover, peers: string[], drag: ChannelDrag): Spot {
-  if (hover.categoryId === null && hover.type !== drag.type) return { categoryId: null, beforeId: null }
+function spotOverChannel(hover: ChannelHover, peers: string[]): Spot {
   const beforeId = hover.zone === 'before' ? hover.id : peers[peers.indexOf(hover.id) + 1] ?? null
   return { categoryId: hover.categoryId, beforeId }
 }
 
-function channelSpot(tree: LayoutTree, drag: ChannelDrag, hover: DropHover, typeOf: TypeOf): Spot | null {
+function channelSpot(tree: LayoutTree, drag: ChannelDrag, hover: DropHover): Spot | null {
   switch (hover.kind) {
     case 'channel':
-      return hover.id === drag.id ? null : spotOverChannel(hover, peersIn(tree, hover.categoryId, drag, typeOf), drag)
+      return hover.id === drag.id ? null : spotOverChannel(hover, peersIn(tree, hover.categoryId, drag.id))
     case 'category-header':
       return {
         categoryId: hover.id,
-        beforeId: hover.collapsed ? null : peersIn(tree, hover.id, drag, typeOf)[0] ?? null
+        beforeId: hover.collapsed ? null : peersIn(tree, hover.id, drag.id)[0] ?? null
       }
     case 'category-body':
       return { categoryId: hover.id, beforeId: null }
-    case 'section':
+    case 'loose':
       return { categoryId: null, beforeId: null }
     default:
       return null
   }
 }
 
-/** Sem categoria só importa a ordem dentro do tipo: a seção é uma por tipo. */
-function sameVisibleOrder(a: LayoutTree, b: LayoutTree, type: ChannelType, typeOf: TypeOf): boolean {
-  const visible = (tree: LayoutTree): unknown => ({
-    free: tree.uncategorized.filter((id) => typeOf(id) === type),
-    categories: tree.categories
-  })
-  return JSON.stringify(visible(a)) === JSON.stringify(visible(b))
-}
-
-function resolveChannelDrop(tree: LayoutTree, drag: ChannelDrag, hover: DropHover, typeOf: TypeOf): DropTarget | null {
-  const spot = channelSpot(tree, drag, hover, typeOf)
+function resolveChannelDrop(tree: LayoutTree, drag: ChannelDrag, hover: DropHover): DropTarget | null {
+  const spot = channelSpot(tree, drag, hover)
   if (!spot) return null
   const next = moveChannelInTree(tree, drag.id, spot.categoryId, spot.beforeId)
-  return sameVisibleOrder(tree, next, drag.type, typeOf) ? null : { kind: 'channel', ...spot, type: drag.type }
+  return JSON.stringify(next) === JSON.stringify(tree) ? null : { kind: 'channel', ...spot }
 }
 
 function categoryBefore(tree: LayoutTree, dragId: string, hover: DropHover): string | null | undefined {
   const others = tree.categories.map((category) => category.id).filter((id) => id !== dragId)
-  if (hover.kind === 'section') return tree.categories[0]?.id ?? null
+  if (hover.kind === 'loose') return tree.categories[0]?.id ?? null
   if (hover.kind === 'list') return null
   if (hover.kind !== 'category-block') return undefined
   if (hover.id === dragId) return dragId
@@ -93,9 +82,9 @@ function resolveCategoryDrop(tree: LayoutTree, dragId: string, hover: DropHover)
 }
 
 /** Onde o item cairia; null se não é alvo ou se soltar ali não muda nada. */
-export function resolveDrop(tree: LayoutTree, drag: SidebarDrag, hover: DropHover | null, typeOf: TypeOf): DropTarget | null {
+export function resolveDrop(tree: LayoutTree, drag: SidebarDrag, hover: DropHover | null): DropTarget | null {
   if (!hover) return null
-  return drag.kind === 'channel' ? resolveChannelDrop(tree, drag, hover, typeOf) : resolveCategoryDrop(tree, drag.id, hover)
+  return drag.kind === 'channel' ? resolveChannelDrop(tree, drag, hover) : resolveCategoryDrop(tree, drag.id, hover)
 }
 
 /** Faz o movimento que o item solto pede. */
@@ -115,14 +104,12 @@ export function applyDrop(
 export function channelLine(
   target: DropTarget | null,
   rowId: string,
-  rowType: ChannelType,
   rowCategory: string | null,
   last: boolean
 ): DropLineSide {
   if (target?.kind !== 'channel' || target.categoryId !== rowCategory) return null
   if (target.beforeId === rowId) return 'before'
-  const rightSection = rowCategory !== null || rowType === target.type
-  return target.beforeId === null && last && rightSection ? 'after' : null
+  return target.beforeId === null && last ? 'after' : null
 }
 
 /** Linha acima da categoria alvo ou abaixo da última. */
@@ -132,10 +119,9 @@ export function categoryLine(target: DropTarget | null, id: string, last: boolea
   return target.beforeId === null && last ? 'after' : null
 }
 
-/** O grupo que vai receber o canal fica realçado (sem categoria: a seção do tipo). */
-export function groupHighlighted(target: DropTarget | null, categoryId: string | null, sectionType?: ChannelType): boolean {
-  if (target?.kind !== 'channel' || target.categoryId !== categoryId) return false
-  return categoryId !== null || target.type === sectionType
+/** O grupo que vai receber o canal fica realçado (null: a lista sem categoria). */
+export function groupHighlighted(target: DropTarget | null, categoryId: string | null): boolean {
+  return target?.kind === 'channel' && target.categoryId === categoryId
 }
 
 /** Mesmo alvo sob o ponteiro (não re-renderiza à toa durante o arrasto). */
@@ -205,8 +191,7 @@ const near = (element: Element, kind: string): HTMLElement | null =>
   element.closest<HTMLElement>(`[data-dnd="${kind}"]`)
 
 function commonHover(element: Element): DropHover | null {
-  const section = near(element, 'section')
-  if (section) return { kind: 'section', type: section.dataset.type as ChannelType }
+  if (near(element, 'loose')) return { kind: 'loose' }
   return near(element, 'list') ? { kind: 'list' } : null
 }
 
@@ -216,7 +201,6 @@ function channelDragHover(element: Element, y: number): DropHover | null {
     return {
       kind: 'channel',
       id: row.dataset.id as string,
-      type: row.dataset.type as ChannelType,
       categoryId: row.dataset.category ?? null,
       zone: zoneIn(row, y)
     }
@@ -232,7 +216,7 @@ function categoryDragHover(element: Element, y: number): DropHover | null {
   return block ? { kind: 'category-block', id: block.dataset.id as string, zone: zoneIn(block, y) } : commonHover(element)
 }
 
-/** O alvo sob o ponteiro, pelos `data-dnd` das linhas, categorias e seções. */
+/** O alvo sob o ponteiro, pelos `data-dnd` das linhas, das categorias e da lista sem categoria. */
 export function hoverFromElement(element: Element | null, y: number, drag: SidebarDrag['kind']): DropHover | null {
   if (!element) return null
   return drag === 'channel' ? channelDragHover(element, y) : categoryDragHover(element, y)

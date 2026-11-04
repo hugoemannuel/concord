@@ -11,8 +11,8 @@ vi.mock('../../call/store/callStore', () => ({
   })
 }))
 const chat = vi.hoisted(() => ({ state: {} as Record<string, unknown> }))
-const categoryState = vi.hoisted(() => ({ layout: null as import('../api/categories').CategoryLayout | null }))
-vi.mock('../hooks/useCategories', () => ({ useCategories: () => ({ layout: categoryState.layout, run: vi.fn(), refresh: vi.fn(), saveLayout: vi.fn() }) }))
+const categoryState = vi.hoisted(() => ({ layout: null as import('../api/categories').CategoryLayout | null, failed: false }))
+vi.mock('../hooks/useCategories', () => ({ useCategories: () => ({ layout: categoryState.layout, failed: categoryState.failed, run: vi.fn(), refresh: vi.fn(), saveLayout: vi.fn() }) }))
 vi.mock('../../chat/store/chatStore', () => ({
   useChatStore: Object.assign((sel: (s: unknown) => unknown) => sel(chat.state), {
     getState: () => chat.state
@@ -93,7 +93,8 @@ function render(path = '/servers/s1/channels/geral'): string {
 
 describe('ServerSidebar', () => {
   beforeEach(() => {
-    categoryState.layout = null
+    categoryState.layout = { categories: [], channels: [] }
+    categoryState.failed = false
     call.state = {
       serverCalls: {},
       status: 'idle',
@@ -120,20 +121,20 @@ describe('ServerSidebar', () => {
     })
   })
 
-  it('membro: nome do servidor, canais de texto e de voz, não lidas e o rodapé', () => {
+  it('membro: nome do servidor, canais soltos, não lidas e o rodapé', () => {
     setup()
     const html = render()
     expect(html).toContain('title="Salinha"')
-    expect(html).toContain('Canais de texto')
-    expect(html).toContain('Canais de voz')
     expect(html).toContain('title="geral"')
     expect(html).toContain('resenha')
     expect(html).toContain('bg-fg/10 text-strong shadow-sm')
     expect(html).toContain('>2</span>')
     expect(html).toContain('Canal principal')
     expect(html).toContain('data-rodape')
-    // Membro comum não cria nem arrasta canais; o "•••" do texto é de todos.
-    expect(html).not.toContain('Criar canal de texto')
+    // As seções por tipo não existem mais.
+    expect(html).not.toContain('Canais de texto')
+    expect(html).not.toContain('Canais de voz')
+    // Membro comum não arrasta canais; o "•••" do texto é de todos.
     expect(html).not.toContain('data-dnd="channel"')
     expect(html).toContain('aria-label="Opções do canal"')
     // Os três pontos são o ícone desenhado, não "•••" de texto.
@@ -141,36 +142,45 @@ describe('ServerSidebar', () => {
     expect(html).toMatch(/aria-label="Opções do canal"[^>]*><svg/)
   })
 
-  it('dono: cria nos dois tipos, arrasta e vê o canal privado com cadeado', () => {
+  it('dono: arrasta e vê o canal privado com cadeado', () => {
     setup({ me: 'dono' })
-    categoryState.layout = { categories: [], channels: [] }
     const html = render()
-    expect(html).toContain('aria-label="Criar canal de texto"')
-    expect(html).toContain('aria-label="Criar canal de voz"')
     expect(html).toContain('data-dnd="channel"')
     expect(html).toContain('(canal privado)')
   })
 
-  it('criar categoria não troca as seções existentes por Sem categoria', () => {
+  it('"Canais de texto" agora é uma categoria como outra qualquer', () => {
     setup({ me: 'dono' })
-    categoryState.layout = { categories: [{ id: 'jogos', name: 'Jogos', position: 0 }], channels: [] }
+    categoryState.layout = {
+      categories: [{ id: 'texto', name: 'Canais de texto', position: 0 }],
+      channels: [{ channel_id: 'geral', category_id: 'texto', position: 0, synced: true }]
+    }
     const html = render()
-    expect(html).toContain('Canais de texto')
-    expect(html).toContain('Canais de voz')
-    expect(html).toContain('title="geral"')
-    expect(html).toContain('resenha')
-    expect(html).toContain('Jogos')
-    expect(html).not.toContain('>Sem categoria</p>')
+    expect(html).toContain('Opções da categoria Canais de texto')
+    expect(html).toContain('Criar canal em Canais de texto')
     expect(html.match(/title="geral"/g)).toHaveLength(1)
   })
 
-  it('apenas os canais vinculados saem das seções anteriores', () => {
+  it('só os canais de uma categoria saem da lista solta', () => {
     setup({ me: 'dono' })
     categoryState.layout = { categories: [{ id: 'jogos', name: 'Jogos', position: 0 }], channels: [{ channel_id: 'geral', category_id: 'jogos', position: 0 }] }
     const html = render()
     expect(html.indexOf('title="geral"')).toBeGreaterThan(html.indexOf('Opções da categoria Jogos'))
     expect(html.indexOf('title="segredo"')).toBeLessThan(html.indexOf('Opções da categoria Jogos'))
     expect(html.match(/title="geral"/g)).toHaveLength(1)
+  })
+
+  it('organização ainda não chegou: esqueleto, para a lista não pular', () => {
+    setup()
+    categoryState.layout = null
+    expect(render()).not.toContain('title="geral"')
+  })
+
+  it('organização falhou: os canais aparecem mesmo assim', () => {
+    setup()
+    categoryState.layout = null
+    categoryState.failed = true
+    expect(render()).toContain('title="geral"')
   })
 
   it('menu do canal aberto: itens de quem gerencia', () => {
@@ -205,7 +215,14 @@ describe('ServerSidebar', () => {
     useServerStore.setState({ channels: [] })
     const html = render()
     expect(html).toContain('Nenhum canal ainda.')
-    expect(html).toContain('Nenhum canal de voz ainda.')
+  })
+
+  // O isolate do cabeçalho prende o z-30 do menu aberto: sem z-index próprio,
+  // os canais logo abaixo pintam e recebem o clique por cima do menu.
+  it('o cabeçalho fica acima da lista de canais (o menu do servidor abre por cima)', () => {
+    setup()
+    const header = /<div class="[^"]*\bisolate\b[^"]*"/.exec(render())?.[0] ?? ''
+    expect(header).toMatch(/\bz-20\b/)
   })
 
   it('abrindo o servidor: nome em skeleton', () => {

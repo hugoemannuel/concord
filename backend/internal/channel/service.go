@@ -108,7 +108,8 @@ func (s *Service) create(ctx context.Context, ch *Channel, overwrites []permissi
 	if err := s.repository.Create(ctx, ch, overwrites); err != nil {
 		return err
 	}
-	ch.Overwrites = append([]permission.Overwrite{}, overwrites...)
+	// As que o canal herdou da categoria já vêm preenchidas pelo repositório.
+	ch.Overwrites = append(append([]permission.Overwrite{}, ch.Overwrites...), overwrites...)
 	for i := range ch.Overwrites {
 		ch.Overwrites[i].ChannelID = ch.ID
 	}

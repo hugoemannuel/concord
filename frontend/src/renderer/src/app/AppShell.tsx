@@ -1,4 +1,5 @@
 import NotifySettingsModal from '../features/notifications/components/NotifySettingsModal'
+import ServerMenuHosts from '../features/servers/components/ServerMenuHosts'
 import { Outlet, useLocation } from 'react-router-dom'
 import ServerRail from '../features/servers/components/ServerRail'
 import FriendsSidebar from '../features/friends/components/FriendsSidebar'
@@ -103,6 +104,7 @@ function AppShell(): React.JSX.Element {
       <EnqueteHost />
       <BadgesModal />
       <NotifySettingsModal />
+      <ServerMenuHosts />
       {quickSwitcherOpen && <QuickSwitcherModal open onClose={() => setQuickSwitcherOpen(false)} />}
       <ShortcutsModal />
     </div>

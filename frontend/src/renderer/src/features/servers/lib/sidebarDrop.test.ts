@@ -24,20 +24,19 @@ const tree: LayoutTree = {
     { id: 'b', channels: [] }
   ]
 }
-const typeOf = (id: string): 'text' | 'voice' => (id.startsWith('v') ? 'voice' : 'text')
 const channel = (id: string, categoryId: string | null = null): SidebarDrag => ({
   kind: 'channel',
   id,
-  type: typeOf(id),
+  type: id.startsWith('v') ? 'voice' : 'text',
   categoryId
 })
-const resolve = (drag: SidebarDrag, hover: DropHover | null) => resolveDrop(tree, drag, hover, typeOf)
+const resolve = (drag: SidebarDrag, hover: DropHover | null) => resolveDrop(tree, drag, hover)
 
 describe('soltar canal', () => {
   it('sobre outro canal: antes ou depois, conforme a metade', () => {
-    expect(resolve(channel('t1'), { kind: 'channel', id: 'a2', categoryId: 'a', type: 'text', zone: 'before' })).toEqual({ kind: 'channel', categoryId: 'a', beforeId: 'a2', type: 'text' })
-    expect(resolve(channel('t1'), { kind: 'channel', id: 'a1', categoryId: 'a', type: 'text', zone: 'after' })).toEqual({ kind: 'channel', categoryId: 'a', beforeId: 'a2', type: 'text' })
-    expect(resolve(channel('t1'), { kind: 'channel', id: 'a2', categoryId: 'a', type: 'text', zone: 'after' })).toEqual({ kind: 'channel', categoryId: 'a', beforeId: null, type: 'text' })
+    expect(resolve(channel('t1'), { kind: 'channel', id: 'a2', categoryId: 'a', zone: 'before' })).toEqual({ kind: 'channel', categoryId: 'a', beforeId: 'a2' })
+    expect(resolve(channel('t1'), { kind: 'channel', id: 'a1', categoryId: 'a', zone: 'after' })).toEqual({ kind: 'channel', categoryId: 'a', beforeId: 'a2' })
+    expect(resolve(channel('t1'), { kind: 'channel', id: 'a2', categoryId: 'a', zone: 'after' })).toEqual({ kind: 'channel', categoryId: 'a', beforeId: null })
   })
   it('sobre a categoria aberta entra em primeiro; recolhida ou vazia, no fim', () => {
     expect(resolve(channel('t1'), { kind: 'category-header', id: 'a', collapsed: false })?.kind).toBe('channel')
@@ -48,23 +47,23 @@ describe('soltar canal', () => {
   it('no corpo da categoria vai para o fim', () => {
     expect(resolve(channel('t1'), { kind: 'category-body', id: 'b' })).toMatchObject({ categoryId: 'b', beforeId: null })
   })
-  it('para fora: na seção do próprio tipo, mesmo solto na seção do outro', () => {
-    expect(resolve(channel('a1', 'a'), { kind: 'section', type: 'voice' })).toEqual({ kind: 'channel', categoryId: null, beforeId: null, type: 'text' })
-    const withVoice: LayoutTree = { uncategorized: ['t1'], categories: [{ id: 'a', channels: ['va'] }] }
-    expect(resolveDrop(withVoice, channel('va', 'a'), { kind: 'channel', id: 't1', categoryId: null, type: 'text', zone: 'before' }, typeOf)).toEqual({ kind: 'channel', categoryId: null, beforeId: null, type: 'voice' })
+  it('acima da primeira categoria fica sem categoria, no fim da lista', () => {
+    expect(resolve(channel('a1', 'a'), { kind: 'loose' })).toEqual({ kind: 'channel', categoryId: null, beforeId: null })
   })
-  it('na lista sem categoria, "depois" pula o canal do outro tipo', () => {
-    expect(resolve(channel('a1', 'a'), { kind: 'channel', id: 't1', categoryId: null, type: 'text', zone: 'after' })).toMatchObject({ categoryId: null, beforeId: 't2' })
+  it('sem categoria, texto e voz são uma lista só', () => {
+    expect(resolve(channel('a1', 'a'), { kind: 'channel', id: 't1', categoryId: null, zone: 'after' })).toMatchObject({ categoryId: null, beforeId: 'v1' })
+    expect(resolve(channel('t1'), { kind: 'channel', id: 'v1', categoryId: null, zone: 'after' })).toMatchObject({ categoryId: null, beforeId: 't2' })
+    expect(resolve(channel('t2'), { kind: 'channel', id: 't1', categoryId: null, zone: 'after' })).toMatchObject({ categoryId: null, beforeId: 'v1' })
+    expect(resolve(channel('v1'), { kind: 'channel', id: 't1', categoryId: null, zone: 'before' })).toMatchObject({ categoryId: null, beforeId: 't1' })
   })
   it('sobre si mesmo ou logo ao lado não muda nada', () => {
-    expect(resolve(channel('a1', 'a'), { kind: 'channel', id: 'a1', categoryId: 'a', type: 'text', zone: 'after' })).toBeNull()
-    expect(resolve(channel('a1', 'a'), { kind: 'channel', id: 'a2', categoryId: 'a', type: 'text', zone: 'before' })).toBeNull()
+    expect(resolve(channel('a1', 'a'), { kind: 'channel', id: 'a1', categoryId: 'a', zone: 'after' })).toBeNull()
+    expect(resolve(channel('a1', 'a'), { kind: 'channel', id: 'a2', categoryId: 'a', zone: 'before' })).toBeNull()
     expect(resolve(channel('a2', 'a'), { kind: 'category-body', id: 'a' })).toBeNull()
   })
-  it('sem categoria, a ordem visível é a do tipo: pular o outro tipo não conta como mudança', () => {
-    expect(resolve(channel('t1'), { kind: 'channel', id: 't2', categoryId: null, type: 'text', zone: 'before' })).toBeNull()
-    expect(resolve(channel('t2'), { kind: 'section', type: 'text' })).toBeNull()
-    expect(resolve(channel('t2'), { kind: 'channel', id: 't1', categoryId: null, type: 'text', zone: 'before' })).toMatchObject({ beforeId: 't1' })
+  it('sem categoria, soltar no fim de onde já está não muda nada', () => {
+    expect(resolve(channel('t2'), { kind: 'loose' })).toBeNull()
+    expect(resolve(channel('t1'), { kind: 'channel', id: 'v1', categoryId: null, zone: 'before' })).toBeNull()
   })
   it('fora de qualquer alvo não solta', () => {
     expect(resolve(channel('t1'), null)).toBeNull()
@@ -80,7 +79,7 @@ describe('soltar categoria', () => {
     expect(resolve(drag, { kind: 'category-block', id: 'b', zone: 'after' })).toEqual({ kind: 'category', beforeId: null })
   })
   it('sobre a lista sem categoria vai para o começo', () => {
-    expect(resolve(dragB, { kind: 'section', type: 'text' })).toEqual({ kind: 'category', beforeId: 'a' })
+    expect(resolve(dragB, { kind: 'loose' })).toEqual({ kind: 'category', beforeId: 'a' })
   })
   it('no espaço abaixo de tudo vai para o fim', () => {
     expect(resolve(drag, { kind: 'list' })).toEqual({ kind: 'category', beforeId: null })
@@ -88,42 +87,42 @@ describe('soltar categoria', () => {
   it('sobre o próprio lugar não muda nada', () => {
     expect(resolve(drag, { kind: 'category-block', id: 'a', zone: 'after' })).toBeNull()
     expect(resolve(drag, { kind: 'category-block', id: 'b', zone: 'before' })).toBeNull()
-    expect(resolve(drag, { kind: 'section', type: 'voice' })).toBeNull()
+    expect(resolve(drag, { kind: 'loose' })).toBeNull()
     expect(resolve(drag, null)).toBeNull()
   })
 })
 
 describe('indicadores', () => {
   it('linha do canal: acima do alvo ou abaixo do último do grupo', () => {
-    const target = { kind: 'channel', categoryId: 'a', beforeId: 'a2', type: 'text' } as const
-    expect(channelLine(target, 'a2', 'text', 'a', false)).toBe('before')
-    expect(channelLine(target, 'a1', 'text', 'a', false)).toBeNull()
+    const target = { kind: 'channel', categoryId: 'a', beforeId: 'a2' } as const
+    expect(channelLine(target, 'a2', 'a', false)).toBe('before')
+    expect(channelLine(target, 'a1', 'a', false)).toBeNull()
     const end = { ...target, beforeId: null }
-    expect(channelLine(end, 'a2', 'text', 'a', true)).toBe('after')
-    expect(channelLine(end, 'a1', 'text', 'a', false)).toBeNull()
-    expect(channelLine(end, 'b1', 'text', 'b', true)).toBeNull()
-    expect(channelLine(null, 'a1', 'text', 'a', true)).toBeNull()
-    expect(channelLine({ kind: 'category', beforeId: null }, 'a1', 'text', 'a', true)).toBeNull()
+    expect(channelLine(end, 'a2', 'a', true)).toBe('after')
+    expect(channelLine(end, 'a1', 'a', false)).toBeNull()
+    expect(channelLine(end, 'b1', 'b', true)).toBeNull()
+    expect(channelLine(null, 'a1', 'a', true)).toBeNull()
+    expect(channelLine({ kind: 'category', beforeId: null }, 'a1', 'a', true)).toBeNull()
   })
-  it('sem categoria, a linha do fim só aparece na seção do tipo do canal', () => {
-    const end = { kind: 'channel', categoryId: null, beforeId: null, type: 'voice' } as const
-    expect(channelLine(end, 't2', 'text', null, true)).toBeNull()
-    expect(channelLine(end, 'v1', 'voice', null, true)).toBe('after')
+  it('sem categoria, a linha do fim fica no último da lista, seja de texto ou voz', () => {
+    const end = { kind: 'channel', categoryId: null, beforeId: null } as const
+    expect(channelLine(end, 't2', null, true)).toBe('after')
+    expect(channelLine(end, 'v1', null, false)).toBeNull()
   })
   it('linha da categoria', () => {
     expect(categoryLine({ kind: 'category', beforeId: 'b' }, 'b', true)).toBe('before')
     expect(categoryLine({ kind: 'category', beforeId: null }, 'b', true)).toBe('after')
     expect(categoryLine({ kind: 'category', beforeId: null }, 'a', false)).toBeNull()
-    expect(categoryLine({ kind: 'channel', categoryId: 'a', beforeId: null, type: 'text' }, 'a', true)).toBeNull()
+    expect(categoryLine({ kind: 'channel', categoryId: 'a', beforeId: null }, 'a', true)).toBeNull()
     expect(categoryLine(null, 'a', true)).toBeNull()
   })
   it('realce do grupo de destino', () => {
-    const target = { kind: 'channel', categoryId: 'a', beforeId: null, type: 'text' } as const
+    const target = { kind: 'channel', categoryId: 'a', beforeId: null } as const
     expect(groupHighlighted(target, 'a')).toBe(true)
     expect(groupHighlighted(target, 'b')).toBe(false)
     expect(groupHighlighted(null, 'a')).toBe(false)
-    expect(groupHighlighted({ kind: 'channel', categoryId: null, beforeId: null, type: 'voice' }, null, 'voice')).toBe(true)
-    expect(groupHighlighted({ kind: 'channel', categoryId: null, beforeId: null, type: 'voice' }, null, 'text')).toBe(false)
+    expect(groupHighlighted({ kind: 'channel', categoryId: null, beforeId: null }, null)).toBe(true)
+    expect(groupHighlighted({ kind: 'category', beforeId: null }, null)).toBe(false)
   })
 })
 
@@ -163,23 +162,23 @@ function element(data: Record<string, string>, top = 0, height = 100, parent: Re
 }
 
 describe('hoverFromElement', () => {
-  const row = (top = 0): Element => element({ dnd: 'channel', id: 'c', type: 'voice', category: 'a' }, top, 100)
+  const row = (top = 0): Element => element({ dnd: 'channel', id: 'c', category: 'a' }, top, 100)
   it('canal: metade de cima é antes, de baixo é depois', () => {
-    expect(hoverFromElement(row(), 20, 'channel')).toEqual({ kind: 'channel', id: 'c', type: 'voice', categoryId: 'a', zone: 'before' })
+    expect(hoverFromElement(row(), 20, 'channel')).toEqual({ kind: 'channel', id: 'c', categoryId: 'a', zone: 'before' })
     expect(hoverFromElement(row(), 80, 'channel')).toMatchObject({ zone: 'after' })
   })
   it('canal sem categoria', () => {
-    expect(hoverFromElement(element({ dnd: 'channel', id: 'c', type: 'text' }), 1, 'channel')).toMatchObject({ categoryId: null })
+    expect(hoverFromElement(element({ dnd: 'channel', id: 'c' }), 1, 'channel')).toMatchObject({ categoryId: null })
   })
-  it('arrastando canal: cabeçalho, corpo, seção e lista', () => {
+  it('arrastando canal: cabeçalho, corpo, lista sem categoria e espaço vazio', () => {
     expect(hoverFromElement(element({ dnd: 'category-header', id: 'a', collapsed: 'true' }), 0, 'channel')).toEqual({ kind: 'category-header', id: 'a', collapsed: true })
     expect(hoverFromElement(element({ dnd: 'category-block', id: 'a' }), 0, 'channel')).toEqual({ kind: 'category-body', id: 'a' })
-    expect(hoverFromElement(element({ dnd: 'section', type: 'voice' }), 0, 'channel')).toEqual({ kind: 'section', type: 'voice' })
+    expect(hoverFromElement(element({ dnd: 'loose' }), 0, 'channel')).toEqual({ kind: 'loose' })
     expect(hoverFromElement(element({ dnd: 'list' }), 0, 'channel')).toEqual({ kind: 'list' })
   })
   it('arrastando categoria: vale o bloco inteiro, mesmo por cima de um canal', () => {
     const block = element({ dnd: 'category-block', id: 'a' }, 0, 200)
-    const inner = element({ dnd: 'channel', id: 'c', type: 'text' }, 0, 10, block as unknown as Record<string, unknown>)
+    const inner = element({ dnd: 'channel', id: 'c' }, 0, 10, block as unknown as Record<string, unknown>)
     expect(hoverFromElement(inner, 150, 'category')).toEqual({ kind: 'category-block', id: 'a', zone: 'after' })
     expect(hoverFromElement(inner, 50, 'category')).toEqual({ kind: 'category-block', id: 'a', zone: 'before' })
   })
@@ -199,14 +198,14 @@ describe('applyDrop', () => {
   })
   it('canal solto em lugar de canal', () => {
     const on = actions()
-    applyDrop(channel('t1'), { kind: 'channel', categoryId: 'b', beforeId: null, type: 'text' }, on)
+    applyDrop(channel('t1'), { kind: 'channel', categoryId: 'b', beforeId: null }, on)
     expect(on.moveChannel).toHaveBeenCalledWith('t1', 'b', null)
     expect(on.moveCategory).not.toHaveBeenCalled()
   })
   it('alvo de outro tipo não faz nada', () => {
     const on = actions()
     applyDrop(channel('t1'), { kind: 'category', beforeId: 'a' }, on)
-    applyDrop({ kind: 'category', id: 'b' }, { kind: 'channel', categoryId: 'b', beforeId: null, type: 'text' }, on)
+    applyDrop({ kind: 'category', id: 'b' }, { kind: 'channel', categoryId: 'b', beforeId: null }, on)
     expect(on.moveCategory).not.toHaveBeenCalled()
     expect(on.moveChannel).not.toHaveBeenCalled()
   })

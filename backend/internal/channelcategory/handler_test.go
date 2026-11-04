@@ -20,32 +20,67 @@ func (p fakePermissions) Snapshot(context.Context, string) (*permission.Snapshot
 }
 
 type fakeStore struct {
-	creates     int
-	saves       int
-	saveResult  SaveResult
-	saveErr     error
-	lastWrite   LayoutWrite
-	lastCanView func(string) bool
+	creates           int
+	saves             int
+	saveResult        SaveResult
+	saveErr           error
+	lastWrite         LayoutWrite
+	lastViewer        Viewer
+	synced            int
+	syncErr           error
+	updates, deletes  int
+	lastOverwrites    []permission.Overwrite
+	currentOverwrites []permission.Overwrite
+	layout            *Layout
 }
 
-func (s *fakeStore) SaveLayout(_ context.Context, _ string, write LayoutWrite, canView func(string) bool) (SaveResult, error) {
+func (s *fakeStore) SaveLayout(_ context.Context, _ string, write LayoutWrite, viewer Viewer) (SaveResult, error) {
 	s.saves++
-	s.lastWrite, s.lastCanView = write, canView
+	s.lastWrite, s.lastViewer = write, viewer
 	return s.saveResult, s.saveErr
 }
 
 func (s *fakeStore) List(context.Context, string) (Layout, error) {
+	if s.layout != nil {
+		return *s.layout, nil
+	}
 	return Layout{Categories: []Category{}, Channels: []Placement{{ChannelID: "publico"}, {ChannelID: "privado"}}}, nil
 }
-func (s *fakeStore) Create(context.Context, string, string) error                        { s.creates++; return nil }
-func (s *fakeStore) Rename(context.Context, string, string, string) error                { return nil }
-func (s *fakeStore) Delete(context.Context, string, string) error                        { return nil }
+func (s *fakeStore) Create(_ context.Context, _, name string, overwrites []permission.Overwrite) (Category, error) {
+	s.creates++
+	s.lastOverwrites = overwrites
+	return Category{ID: "nova", Name: name, Overwrites: overwrites}, nil
+}
+func (s *fakeStore) Update(_ context.Context, _, id string, update CategoryUpdate) (CategoryChange, error) {
+	s.updates++
+	before := Category{ID: id, Name: "antigo", Overwrites: s.currentOverwrites}
+	after := before
+	if update.Name != "" {
+		after.Name = update.Name
+	}
+	if update.Overwrites != nil {
+		next, err := update.Overwrites(s.currentOverwrites)
+		if err != nil {
+			return CategoryChange{}, err
+		}
+		after.Overwrites, s.lastOverwrites = next, next
+	}
+	return CategoryChange{Before: before, After: after}, nil
+}
+func (s *fakeStore) Delete(_ context.Context, _, id string) (Category, error) {
+	s.deletes++
+	return Category{ID: id, Name: "apagada"}, nil
+}
 func (s *fakeStore) MoveCategory(context.Context, string, string, string) error          { return nil }
 func (s *fakeStore) MoveChannel(context.Context, string, string, *string, *string) error { return nil }
+func (s *fakeStore) SyncChannel(context.Context, string, string) (Category, error) {
+	s.synced++
+	return Category{ID: "cat", Name: "Jogos"}, s.syncErr
+}
 
 func TestCategoryRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	snap := permission.NewSnapshot("s1", "dono", permission.DefaultEveryone).WithMember("dono").WithMember("ana").WithChannel("publico", "text").WithChannel("privado", "text", permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel})
+	snap := permission.NewSnapshot("s1", "dono", permission.DefaultEveryone).WithMember("dono").WithMember("ana").WithChannel("publico", "text").WithChannel("privado", "text", permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel}).WithCategory("categoria")
 	store := &fakeStore{}
 	router := gin.New()
 	user := "ana"
@@ -107,9 +142,12 @@ type fakeAudit struct{ events []audit.Event }
 
 func (a *fakeAudit) Record(_ context.Context, e audit.Event) { a.events = append(a.events, e) }
 
-type fakePublisher struct{ servers []string }
+type fakePublisher struct{ servers, permissions []string }
 
 func (p *fakePublisher) PublishCategoryChanged(server string) { p.servers = append(p.servers, server) }
+func (p *fakePublisher) PublishPermissionsChanged(server string) {
+	p.permissions = append(p.permissions, server)
+}
 
 func TestSaveLayoutRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -150,8 +188,8 @@ func TestSaveLayoutRoute(t *testing.T) {
 		if store.lastWrite.Revision != "r1" || store.lastWrite.Categories[0] != "a" || *store.lastWrite.Channels[0].CategoryID != "a" {
 			t.Fatalf("pedido: %+v", store.lastWrite)
 		}
-		if !store.lastCanView("publico") {
-			t.Fatal("canView recusou um canal visível")
+		if !store.lastViewer.Channel("publico") {
+			t.Fatal("o viewer recusou um canal visível")
 		}
 		if len(publisher.servers) != 1 || publisher.servers[0] != "s1" {
 			t.Fatalf("eventos: %v", publisher.servers)

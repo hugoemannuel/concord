@@ -71,14 +71,15 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	var overwrites []permission.Overwrite
-	if input.Private {
-		var err error
-		overwrites, err = PrivateOverwrites(snap, input.Type, userID.(string), input.RoleIDs)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_target"})
-			return
-		}
+	if hiddenCategory(snap, input.CategoryID, userID.(string)) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "categoria não encontrada neste servidor", "code": "category_not_found"})
+		return
+	}
+
+	overwrites, err := creationOverwrites(snap, input.Private, input.Type, userID.(string), input.RoleIDs)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_target"})
+		return
 	}
 
 	ch := &Channel{
@@ -96,6 +97,25 @@ func (h *Handler) Create(c *gin.Context) {
 	h.record(c.Request.Context(), channelEvent(audit.ChannelCreate, ch.CreatedBy, ch, createdChanges(ch, input.Private)))
 
 	c.JSON(http.StatusCreated, ch)
+}
+
+// creationOverwrites: as regras com que o canal nasce (público nasce sem nenhuma, e o
+// repositório copia as da categoria, se houver).
+func creationOverwrites(snap *permission.Snapshot, private bool, chType, creatorID string, roleIDs []string) ([]permission.Overwrite, error) {
+	if !private {
+		return nil, nil
+	}
+	return PrivateOverwrites(snap, chType, creatorID, roleIDs)
+}
+
+// hiddenCategory: o pedido cita uma categoria que o membro não pode ver. Criar canal
+// lá seria descobrir que ela existe. Categoria desconhecida quem recusa é o repositório.
+func hiddenCategory(snap *permission.Snapshot, category *string, userID string) bool {
+	if category == nil {
+		return false
+	}
+	_, known := snap.Categories[*category]
+	return known && !snap.CanViewCategory(*category, userID)
 }
 
 // PrivateOverwrites monta as sobrescritas de um canal privado: o @everyone não

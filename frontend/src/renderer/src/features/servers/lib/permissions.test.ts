@@ -27,6 +27,13 @@ import {
 
 // Os mesmos casos rodam no backend (permission/vectors_test.go): os dois lados
 // têm que calcular igual.
+interface VectorOverwrite {
+  target_type: 'role' | 'member'
+  target_id: string
+  allow: string[]
+  deny: string[]
+}
+
 interface Vectors {
   bits: Record<string, number>
   defaults: { everyone: string[] }
@@ -47,6 +54,18 @@ interface Vectors {
       }[]
     }
     expect_base: string[]
+    expect_channel: string[]
+  }[]
+  category_gate: {
+    name: string
+    owner_id: string
+    user_id: string
+    everyone: string[]
+    roles: { id: string; position: number; permissions: string[] }[]
+    member_roles: string[]
+    category: { overwrites: VectorOverwrite[] }
+    channel: { type: ChannelKind; overwrites: VectorOverwrite[] }
+    expect_category: boolean
     expect_channel: string[]
   }[]
   can_act_on: {
@@ -118,6 +137,38 @@ describe('bits compartilhados com o backend', () => {
     expect(has(perms, (Perm.VIEW_CHANNEL | Perm.USE_EXTERNAL_EMOJIS) >>> 0)).toBe(true)
     expect(has(Perm.VIEW_CHANNEL, Perm.USE_EXTERNAL_EMOJIS)).toBe(false)
   })
+})
+
+// Quem não vê a categoria não tem nada nos canais dela. O app recebe a lista já filtrada,
+// mas a conta é a mesma: a da categoria é a de um canal, e bloqueia a do canal.
+describe('categoria bloqueia os canais (casos do backend)', () => {
+  for (const tc of vectors.category_gate) {
+    it(tc.name, () => {
+      const roles: Role[] = tc.roles.map((r) => ({
+        id: r.id,
+        server_id: 's',
+        name: r.id,
+        color: null,
+        position: r.position,
+        permissions: bits(r.permissions),
+        hoist: false,
+        is_default: false
+      }))
+      const base = computeBase(tc.owner_id, tc.user_id, bits(tc.everyone), rolesOfMember(roles, tc.member_roles))
+      const inChannel = (overwrites: VectorOverwrite[]): number =>
+        computeChannel(
+          base,
+          tc.channel.type,
+          overwrites.map((o) => ({ target_type: o.target_type, target_id: o.target_id, allow: bits(o.allow), deny: bits(o.deny) })),
+          'everyone',
+          tc.user_id,
+          tc.member_roles
+        )
+      const seesCategory = (inChannel(tc.category.overwrites) & Perm.VIEW_CHANNEL) !== 0
+      expect(seesCategory).toBe(tc.expect_category)
+      expect(seesCategory ? inChannel(tc.channel.overwrites) : 0).toBe(bits(tc.expect_channel))
+    })
+  }
 })
 
 describe('computeBase / computeChannel (casos do backend)', () => {

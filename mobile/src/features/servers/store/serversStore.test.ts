@@ -1,4 +1,4 @@
-import { listChannels, type Channel } from '../api/channels'
+import { getChannelLayout, listChannels, type Channel } from '../api/channels'
 import { listServers, type Server } from '../api/servers'
 import { useServersStore } from './serversStore'
 
@@ -7,6 +7,7 @@ jest.mock('../api/channels')
 
 const servers = jest.mocked(listServers)
 const channels = jest.mocked(listChannels)
+const layout = jest.mocked(getChannelLayout)
 const srv = (id: string): Server => ({ id, name: id, owner_id: 'u' })
 const ch = (id: string, serverId: string): Channel => ({
   id,
@@ -23,6 +24,7 @@ describe('serversStore', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     useServersStore.setState(useServersStore.getInitialState(), true)
+    layout.mockResolvedValue({ categories: [], channels: [] })
   })
 
   it('load guarda os servidores e termina "ready"', async () => {
@@ -45,6 +47,22 @@ describe('serversStore', () => {
     channels.mockResolvedValue([ch('c1', 'a')])
     await state().loadChannels('a')
     expect(state().channelsByServer['a'].map((c) => c.id)).toEqual(['c1'])
+  })
+
+  it('loadChannels guarda também a organização', async () => {
+    channels.mockResolvedValue([ch('c1', 'a')])
+    layout.mockResolvedValue({ categories: [{ id: 'x', name: 'Jogos', position: 0 }], channels: [] })
+    await state().loadChannels('a')
+    expect(state().layoutByServer['a']?.categories[0].name).toBe('Jogos')
+  })
+
+  it('sem a organização, os canais continuam aparecendo', async () => {
+    channels.mockResolvedValue([ch('c1', 'a')])
+    layout.mockRejectedValue(new Error('rede'))
+    await state().loadChannels('a')
+    expect(state().channelsByServer['a'].map((c) => c.id)).toEqual(['c1'])
+    expect(state().layoutByServer['a']).toBeNull()
+    expect(state().channelsError['a']).toBe(false)
   })
 
   it('falha ao carregar canais não derruba: lista fica vazia e marca erro do servidor', async () => {

@@ -124,6 +124,9 @@ func (r *Repository) Delete(ctx context.Context, serverID, roleID string) error 
 	if _, err := tx.Exec(ctx, `DELETE FROM channel_overwrites WHERE target_type = 'role' AND target_id = $1`, roleID); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `DELETE FROM category_overwrites WHERE target_type = 'role' AND target_id = $1`, roleID); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 

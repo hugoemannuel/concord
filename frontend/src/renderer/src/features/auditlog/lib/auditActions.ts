@@ -66,6 +66,14 @@ const ACTIONS: Record<AuditAction, ActionInfo> = {
     tone: 'delete',
     sentence: '{a} removeu as permissões de {t} em {c}'
   },
+  'channel.sync': {
+    label: 'Canal sincronizado com a categoria',
+    tone: 'update',
+    sentence: '{a} sincronizou o canal {t} com a categoria'
+  },
+  'category.create': { label: 'Categoria criada', tone: 'create', sentence: '{a} criou a categoria {t}' },
+  'category.update': { label: 'Categoria editada', tone: 'update', sentence: '{a} editou a categoria {t}' },
+  'category.delete': { label: 'Categoria apagada', tone: 'delete', sentence: '{a} apagou a categoria {t}' },
   'role.create': { label: 'Cargo criado', tone: 'create', sentence: '{a} criou o cargo {t}' },
   'role.update': { label: 'Cargo editado', tone: 'update', sentence: '{a} editou o cargo {t}' },
   'role.delete': { label: 'Cargo apagado', tone: 'delete', sentence: '{a} apagou o cargo {t}' },
@@ -128,7 +136,11 @@ export const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
       'channel.delete',
       'channel.reorder',
       'channel.overwrite.update',
-      'channel.overwrite.delete'
+      'channel.overwrite.delete',
+      'channel.sync',
+      'category.create',
+      'category.update',
+      'category.delete'
     ]
   },
   {

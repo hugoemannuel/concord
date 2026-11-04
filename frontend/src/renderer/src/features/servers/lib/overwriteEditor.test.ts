@@ -1,5 +1,6 @@
+import { Perm } from './permissions'
 import { describe, expect, it } from 'vitest'
-import { channelPermissionsCopy, editorSelection, memberCandidates } from './overwriteEditor'
+import { channelPermissionsCopy, editorSelection, memberCandidates, privateToggleWrites } from './overwriteEditor'
 import type { ChannelOverwrite } from './permissions'
 import type { OverwriteRow } from './channelPermissions'
 import type { ServerMember } from '../api/servers'
@@ -90,5 +91,26 @@ describe('channelPermissionsCopy', () => {
     expect(copy.kind).toBe('voice')
     expect(copy.title).toBe('Permissões de resenha')
     expect(copy.privateHint).toContain('ver e entrar neste canal')
+  })
+})
+
+describe('privateToggleWrites', () => {
+  const base = { overwrites: [], everyoneId: 'everyone', meId: 'ana' }
+  it('tornar privado nega ver ao @everyone e não tranca quem está mexendo', () => {
+    const [everyone, me] = privateToggleWrites({ ...base, makePrivate: true, alwaysSees: false, kind: 'text' })
+    expect(everyone).toMatchObject({ target_id: 'everyone', deny: Perm.VIEW_CHANNEL })
+    expect(me).toMatchObject({ target_type: 'member', target_id: 'ana', allow: Perm.VIEW_CHANNEL })
+  })
+  it('em voz e em categoria, quem mexe também conecta', () => {
+    for (const kind of ['voice', 'category'] as const) {
+      const [, me] = privateToggleWrites({ ...base, makePrivate: true, alwaysSees: false, kind })
+      expect(me.allow).toBe(Perm.VIEW_CHANNEL | Perm.CONNECT)
+    }
+  })
+  it('dono e Administrador veem sempre: só a regra do @everyone', () => {
+    expect(privateToggleWrites({ ...base, makePrivate: true, alwaysSees: true, kind: 'text' })).toHaveLength(1)
+  })
+  it('abrir é só tirar o negar do @everyone', () => {
+    expect(privateToggleWrites({ ...base, makePrivate: false, alwaysSees: false, kind: 'text' })).toHaveLength(1)
   })
 })
