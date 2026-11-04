@@ -292,8 +292,10 @@ export function mentionIdsIn(body: string, picked: ReadonlyMap<string, string>):
   return [...ids].slice(0, MAX_MENTIONS)
 }
 
-/** Junta o card vindo do tempo real mantendo o voto de quem está logado. */
+/** Junta o card vindo do tempo real mantendo o voto de quem está logado; arquivado sai do quadro. */
 export function mergeProposal(list: Proposal[], incoming: Proposal): Proposal[] {
+  // Card arquivado não fica no quadro (um evento de comentário/voto não o devolve).
+  if (incoming.archived_at) return list.filter((p) => p.id !== incoming.id)
   const current = list.find((p) => p.id === incoming.id)
   const merged = { ...incoming, my_vote: incoming.my_vote ?? current?.my_vote ?? null }
   if (!current) return [merged, ...list]
