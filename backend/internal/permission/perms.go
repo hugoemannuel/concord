@@ -8,8 +8,10 @@ import (
 	"net/http"
 )
 
-// Bits de permissão. Todos abaixo de 1<<31 para o frontend fazer bitwise sem
-// BigInt. Os números são contrato com o app (lib/permissions.ts): não mudar.
+// Bits de permissão. Cabem em 32 bits (o bitwise do JS, sem BigInt); o 1<<31 é o
+// último e, no app, sai com sinal: lib/permissions.ts devolve tudo sem sinal.
+// Os números são contrato com o app: não mudar. Acabaram os bits: a próxima
+// permissão precisa de outro formato (docs/adr/0052-emojis-de-outros-servidores.md).
 const (
 	ViewChannel     int64 = 1 << 0
 	ManageChannels  int64 = 1 << 1
@@ -56,6 +58,9 @@ const (
 	// Mensagens /tts (lidas em voz para quem está em call). Bit alto para não
 	// disputar os vizinhos livres com outras permissões.
 	SendTTSMessages int64 = 1 << 30
+	// Usar emojis e figurinhas de outros servidores: vale no servidor onde a
+	// mensagem vai, e por canal (ADR 0052). Ligada no @everyone.
+	UseExternalEmojis int64 = 1 << 31
 )
 
 // Names: nome de cada bit (o mesmo do app e de testdata/vectors.json).
@@ -91,6 +96,7 @@ var Names = map[string]int64{
 	"ADD_EMOJIS":           AddEmojis,
 	"SEND_TTS_MESSAGES":    SendTTSMessages,
 	"VIEW_AUDIT_LOG":       ViewAuditLog,
+	"USE_EXTERNAL_EMOJIS":  UseExternalEmojis,
 }
 
 // All é a soma de todos os bits conhecidos (dono e ADMINISTRATOR).
@@ -99,15 +105,16 @@ const All = ViewChannel | ManageChannels | ManageRoles | ManageServer | CreateIn
 	MentionEveryone | ManageMessages | ReadHistory | Connect | Speak | Stream |
 	MuteMembers | DeafenMembers | MoveMembers | DisconnectMembers | InviteGuests | UseSoundboard | ManageExpressions |
 	ChangeNickname | ManageNicknames | AddSounds | AddStickers | SendTTSMessages | AddEmojis |
-	ViewAuditLog
+	ViewAuditLog | UseExternalEmojis
 
 // DefaultEveryone: o que qualquer membro faz num servidor novo. Nos servidores
 // que já existiam, a migration 000039 ligou o CHANGE_NICKNAME no @everyone, a
 // 000127 o SEND_TTS_MESSAGES (ver docs/adr/0012-tts-no-cliente.md) e a 000125
-// o ADD_SOUNDS e o ADD_STICKERS; a 000174 o ADD_EMOJIS.
+// o ADD_SOUNDS e o ADD_STICKERS; a 000174 o ADD_EMOJIS; a 000189 o
+// USE_EXTERNAL_EMOJIS.
 const DefaultEveryone = ViewChannel | SendMessages | AttachFiles | AddReactions | ReadHistory |
 	CreateInvite | Connect | Speak | Stream | UseSoundboard | ChangeNickname |
-	AddSounds | AddStickers | SendTTSMessages | AddEmojis
+	AddSounds | AddStickers | SendTTSMessages | AddEmojis | UseExternalEmojis
 
 // BotsRoleName é o nome fixo do cargo de sistema exclusivo para bots do servidor.
 const BotsRoleName = "Bots"
@@ -153,7 +160,8 @@ func Has(perms, want int64) bool {
 	return perms&want == want
 }
 
-// Normalize descarta bits desconhecidos (o app pode mandar lixo).
+// Normalize descarta bits desconhecidos (o app pode mandar lixo). App antigo
+// manda o 1<<31 com sinal (número negativo): o E com All volta ao bit certo.
 func Normalize(perms int64) int64 {
 	return perms & All
 }

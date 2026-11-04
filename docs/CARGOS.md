@@ -42,6 +42,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | Membros | Expulsar / Banir | Tirar o membro (o ban impede de voltar até desbanir). |
 | | Administrador | Tudo, ignorando os canais. |
 | Texto | Enviar mensagens, Enviar arquivos, Adicionar reações, Ver histórico | Uso normal do chat. |
+| | Usar emojis e figurinhas de outros servidores | Usar em mensagens e reações deste servidor os emojis e figurinhas de outros servidores de que a pessoa participa. Vem ligada no @everyone e vale por canal. Em DM e grupo não há servidor de destino: basta ser membro do servidor de origem. Sem ela, os itens de fora aparecem desabilitados no seletor; quem mandar assim mesmo vê o emoji virar `:nome:` no texto e a figurinha e a reação serem recusadas. Somar-se a uma reação que já está na mensagem não pede a permissão. Ver [ADR 0052](adr/0052-emojis-de-outros-servidores.md). |
 | | Mencionar @all e @here | Avisar o canal inteiro. |
 | | Enviar mensagens TTS | Usar `/tts`: a mensagem é lida em voz para quem está em call no servidor (até 200 caracteres, uma a cada 10 s). Vem ligada no @everyone (no Discord vem desligada); quem quiser restringir desliga no cargo ou no canal. Ver [ADR 0012](adr/0012-tts-no-cliente.md). |
 | | Gerenciar mensagens | Apagar mensagem de outros e encerrar enquetes. |
@@ -50,7 +51,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | | Silenciar / Ensurdecer / Mover membros | Moderação na chamada (mover inclui desconectar). |
 | | Convidar visitantes | Gerar, na call em que está, um link para alguém de fora do servidor entrar só nela, por tempo limitado (ver "Visitantes" abaixo). **Fora do @everyone**: só o dono, o Administrador e os cargos que ganharem. Vale por canal (sobrescrita do canal de voz). |
 
-Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir, histórico, convidar, conectar, falar, transmitir, mesa de áudio, alterar o próprio apelido, adicionar sons e figurinhas, mensagens TTS) e o cargo fixo **Bots** (dos bots do servidor). Não há mais cargo **Moderador** padrão: quem quiser cria os seus. Nos servidores antigos o Moderador que já existia continua, como um cargo comum (dá para editar, mover e apagar).
+Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir, histórico, convidar, conectar, falar, transmitir, mesa de áudio, alterar o próprio apelido, adicionar sons e figurinhas, mensagens TTS, usar emojis e figurinhas de outros servidores) e o cargo fixo **Bots** (dos bots do servidor). Não há mais cargo **Moderador** padrão: quem quiser cria os seus. Nos servidores antigos o Moderador que já existia continua, como um cargo comum (dá para editar, mover e apagar).
 
 ## Hierarquia
 

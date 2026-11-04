@@ -9,8 +9,9 @@ import (
 )
 
 // legacyModerator: as permissões de um cargo de moderação típico (as do antigo cargo
-// Moderador, que servidor novo não cria mais).
-const legacyModerator = DefaultEveryone | ManageChannels |
+// Moderador, que servidor novo não cria mais). O USE_EXTERNAL_EMOJIS veio só no
+// @everyone, que todo moderador também tem.
+const legacyModerator = DefaultEveryone&^UseExternalEmojis | ManageChannels |
 	ManageServer |
 	MentionEveryone |
 	ManageMessages |
@@ -21,6 +22,9 @@ const legacyModerator = DefaultEveryone | ManageChannels |
 	ManageExpressions |
 	ManageNicknames |
 	DisconnectMembers
+
+// externalMigration: a que criou o USE_EXTERNAL_EMOJIS (ADR 0052).
+const externalMigration = "000189_emojis_de_outros_servidores"
 
 func readMigration(t *testing.T, name string) string {
 	t.Helper()
@@ -40,6 +44,7 @@ func TestMigrationDefaultsMatchConstants(t *testing.T) {
 	disconnectBits := disconnectMigrationBits(t)
 	ttsBits := roleUpdateBits(t, "000127_tts_messages.up.sql")
 	emojiBits := roleUpdateBits(t, "000174_create_server_emojis.up.sql")
+	externalBits := roleUpdateBits(t, externalMigration+".up.sql")
 	for name, want := range map[string]int64{"@everyone": DefaultEveryone, "Moderador": legacyModerator} {
 		needle := "'" + name + "', "
 		i := strings.Index(sql, "SELECT id, "+needle)
@@ -51,7 +56,7 @@ func TestMigrationDefaultsMatchConstants(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v (%q)", name, err, fields)
 		}
-		total := got | added[name] | disconnectBits[name] | ttsBits[name] | emojiBits[name] | expressionMigrationBits(t, got)
+		total := got | added[name] | disconnectBits[name] | ttsBits[name] | emojiBits[name] | externalBits[name] | expressionMigrationBits(t, got)
 		if total != want {
 			t.Errorf("%s: migrations = %d, Go = %d", name, total, want)
 		}
@@ -174,6 +179,29 @@ func TestTTSMigrationBits(t *testing.T) {
 	want := "& ~" + strconv.FormatInt(SendTTSMessages, 10)
 	if strings.Count(down, want) != 3 {
 		t.Errorf("down devia tirar o bit dos cargos e das sobrescritas (%q)", want)
+	}
+}
+
+// A migration de usar emojis de outros servidores liga o bit só no @everyone e
+// o down o tira de todos os cargos e sobrescritas.
+func TestExternalEmojisMigrationBits(t *testing.T) {
+	added := roleUpdateBits(t, externalMigration+".up.sql")
+	if added["@everyone"] != UseExternalEmojis || added["Moderador"] != 0 {
+		t.Errorf("liga %v, want só USE_EXTERNAL_EMOJIS (%d) no @everyone", added, UseExternalEmojis)
+	}
+	down := readMigration(t, externalMigration+".down.sql")
+	want := "& ~" + strconv.FormatInt(UseExternalEmojis, 10)
+	if strings.Count(down, want) != 3 {
+		t.Errorf("down devia tirar o bit dos cargos e das sobrescritas (%q)", want)
+	}
+}
+
+// App antigo manda o 1<<31 como número negativo (bitwise do JS com sinal); o
+// servidor guarda o bit certo, sem sinal.
+func TestNormalizeAceitaBitAltoComSinal(t *testing.T) {
+	const signed = int64(-2147483648) // (1 << 31) no JS
+	if got := Normalize(signed | SendMessages); got != UseExternalEmojis|SendMessages {
+		t.Errorf("Normalize = %d, want %d", got, UseExternalEmojis|SendMessages)
 	}
 }
 

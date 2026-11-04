@@ -132,6 +132,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
         scope: 'text'
       },
       {
+        name: 'USE_EXTERNAL_EMOJIS',
+        label: 'Usar emojis e figurinhas de outros servidores',
+        description:
+          'Usar nas mensagens e nas reações deste servidor os emojis e as figurinhas de outros servidores de que a pessoa participa.',
+        scope: 'text'
+      },
+      {
         name: 'MENTION_EVERYONE',
         label: 'Mencionar @all e @here',
         description: 'Avisar todo mundo do canal de uma vez.',

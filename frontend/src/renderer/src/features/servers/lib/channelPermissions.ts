@@ -31,8 +31,8 @@ export function withTriState(
     channel_id: o?.channel_id,
     target_type: target.type,
     target_id: target.id,
-    allow: state === 'allow' ? allow | bit : allow,
-    deny: state === 'deny' ? deny | bit : deny
+    allow: (state === 'allow' ? allow | bit : allow) >>> 0,
+    deny: (state === 'deny' ? deny | bit : deny) >>> 0
   }
 }
 

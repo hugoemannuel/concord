@@ -84,10 +84,10 @@ const vectors: Vectors = JSON.parse(
 
 const bits = (names: string[]): number =>
   names.reduce((sum, n) => {
-    if (n === 'ALL') return sum | ALL_PERMISSIONS
+    if (n === 'ALL') return (sum | ALL_PERMISSIONS) >>> 0
     const bit = vectors.bits[n]
     if (bit === undefined) throw new Error(`permissão desconhecida ${n}`)
-    return sum | bit
+    return (sum | bit) >>> 0
   }, 0)
 
 describe('bits compartilhados com o backend', () => {
@@ -99,13 +99,24 @@ describe('bits compartilhados com o backend', () => {
     expect(DEFAULT_EVERYONE).toBe(bits(vectors.defaults.everyone))
   })
 
-  it('cabem em 32 bits (bitwise do JS)', () => {
-    expect(ALL_PERMISSIONS).toBeGreaterThan(0)
-    expect(ALL_PERMISSIONS).toBeLessThan(2 ** 31)
+  it('cabem em 32 bits (bitwise do JS) e saem sem sinal', () => {
+    expect(ALL_PERMISSIONS).toBe(2 ** 32 - 1)
+    expect(Perm.USE_EXTERNAL_EMOJIS).toBe(2 ** 31)
+    expect(DEFAULT_EVERYONE).toBeGreaterThan(0)
   })
 
-  it('normalize descarta bits desconhecidos', () => {
+  it('normalize descarta bits desconhecidos e devolve sem sinal', () => {
     expect(normalize(ALL_PERMISSIONS | (1 << 14) | (1 << 29))).toBe(ALL_PERMISSIONS)
+    expect(normalize(-2147483648)).toBe(Perm.USE_EXTERNAL_EMOJIS)
+    expect(normalize(2 ** 32 + Perm.VIEW_CHANNEL)).toBe(Perm.VIEW_CHANNEL)
+  })
+
+  it('has reconhece o bit 31, com ou sem sinal', () => {
+    const perms = (Perm.VIEW_CHANNEL | Perm.USE_EXTERNAL_EMOJIS) >>> 0
+    expect(has(perms, Perm.USE_EXTERNAL_EMOJIS)).toBe(true)
+    expect(has(perms | 0, Perm.USE_EXTERNAL_EMOJIS)).toBe(true)
+    expect(has(perms, (Perm.VIEW_CHANNEL | Perm.USE_EXTERNAL_EMOJIS) >>> 0)).toBe(true)
+    expect(has(Perm.VIEW_CHANNEL, Perm.USE_EXTERNAL_EMOJIS)).toBe(false)
   })
 })
 

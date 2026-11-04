@@ -4,8 +4,11 @@
  * backend/internal/permission/testdata/vectors.json): o app só esconde ou
  * trava o que o servidor de fato recusaria.
  *
- * As permissões são bits. Todos ficam abaixo de 1<<31, então o bitwise do JS
- * funciona sem BigInt.
+ * As permissões são bits, 32 no total, então o bitwise do JS funciona sem BigInt.
+ * Cuidado com o último (1<<31): o bitwise do JS devolve número com sinal e o
+ * servidor manda sem sinal. Por isso o resultado que sai daqui (ou vai para o
+ * servidor) passa por `>>> 0` e `has` compara sem sinal; `perms & Perm.X` como
+ * teste de verdadeiro vale sempre. Ver docs/adr/0052-emojis-de-outros-servidores.md.
  */
 
 export const Perm = {
@@ -42,22 +45,26 @@ export const Perm = {
   MANAGE_NICKNAMES: 1 << 27,
   ADD_SOUNDS: 1 << 28,
   ADD_STICKERS: 1 << 29,
-  SEND_TTS_MESSAGES: 1 << 30
+  SEND_TTS_MESSAGES: 1 << 30,
+  /** Usar emojis e figurinhas de outros servidores (ADR 0052). `1 << 31` daria negativo. */
+  USE_EXTERNAL_EMOJIS: 2 ** 31
 } as const
 
 export type PermName = keyof typeof Perm
 
 /** Soma de todas as permissões conhecidas (dono e ADMINISTRATOR). */
-export const ALL_PERMISSIONS: number = Object.values(Perm).reduce((sum, bit) => sum | bit, 0)
+export const ALL_PERMISSIONS: number =
+  Object.values(Perm).reduce<number>((sum, bit) => sum | bit, 0) >>> 0
 
 /**
  * O que todo membro faz num servidor novo (igual ao backend). "Alterar apelido"
  * vem ligado, como no Discord; nos servidores antigos a migration 000039 ligou.
  * "Adicionar sons", "Adicionar figurinhas" (migration 000125), "Adicionar emojis" (000174) e "Enviar
  * mensagens TTS" (a 000127 ligou nos antigos; ver docs/adr/0012-tts-no-cliente.md).
+ * "Usar emojis e figurinhas de outros servidores" (000189; ADR 0052).
  */
 export const DEFAULT_EVERYONE: number =
-  Perm.VIEW_CHANNEL |
+  (Perm.VIEW_CHANNEL |
   Perm.SEND_MESSAGES |
   Perm.ATTACH_FILES |
   Perm.ADD_REACTIONS |
@@ -71,7 +78,9 @@ export const DEFAULT_EVERYONE: number =
   Perm.ADD_SOUNDS |
   Perm.ADD_STICKERS |
   Perm.SEND_TTS_MESSAGES |
-  Perm.ADD_EMOJIS
+  Perm.ADD_EMOJIS |
+  Perm.USE_EXTERNAL_EMOJIS) >>>
+  0
 
 export interface Role {
   id: string
@@ -103,10 +112,11 @@ export interface ChannelOverwrite {
 
 export type ChannelKind = 'text' | 'voice'
 
-export const has = (perms: number, want: number): boolean => (perms & want) === want
+/** Tem todos os bits de `want` (compara sem sinal: o `&` do bit 31 dá negativo). */
+export const has = (perms: number, want: number): boolean => (perms & want) >>> 0 === want >>> 0
 
-/** Descarta bits desconhecidos. */
-export const normalize = (perms: number): number => perms & ALL_PERMISSIONS
+/** Descarta bits desconhecidos e devolve sem sinal, como o servidor. */
+export const normalize = (perms: number): number => (perms & ALL_PERMISSIONS) >>> 0
 
 export const everyoneRole = (roles: Role[]): Role | undefined => roles.find((r) => r.is_default)
 
@@ -200,7 +210,7 @@ function implicitChannel(perms: number, channelType: ChannelKind): number {
       Perm.USE_SOUNDBOARD
     )
   }
-  return perms
+  return perms >>> 0
 }
 
 /** Só se liga ou desliga o que o ator mesmo tem (ADMINISTRATOR pode tudo). */
