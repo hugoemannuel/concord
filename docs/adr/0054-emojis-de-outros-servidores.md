@@ -48,7 +48,7 @@ e grupos, como no Discord e sem paywall. Quatro forças decidem o desenho:
 
 ## Decisão
 
-- `USE_EXTERNAL_EMOJIS` é o bit 31: ligada no @everyone (migration 000192) e por canal. Vale no
+- `USE_EXTERNAL_EMOJIS` é o bit 31: ligada no @everyone (migration 000193) e por canal. Vale no
   destino. Em DM e grupo não há cargos: basta ser membro da origem. **Não sobrou bit**: a próxima
   permissão precisa da opção 2 acima.
 - O novo pacote `internal/expression` concentra a regra (`Guard`), usada ao enviar, editar e reagir,
