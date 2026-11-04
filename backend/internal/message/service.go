@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"gin-quickstart/backend/internal/audit"
+	"gin-quickstart/backend/internal/expression"
 	"gin-quickstart/backend/internal/permission"
 	"log"
 	"strings"
@@ -49,10 +50,6 @@ type ConversationResolver interface {
 	RevealConversation(ctx context.Context, conversationID string) error
 }
 
-type StickerChecker interface {
-	StickerServerID(ctx context.Context, stickerID string) (string, error)
-}
-
 // FileRemover apaga o arquivo de um anexo do disco (media.Store).
 type FileRemover interface {
 	Remove(name string) error
@@ -67,7 +64,7 @@ type Service struct {
 	files           FileRemover
 	perms           PermissionChecker
 	mentionLimiter  *mentionLimiter
-	stickerChecker  StickerChecker
+	expressions     *expressionUse
 	audit           AuditRecorder
 }
 
@@ -82,10 +79,6 @@ func MessageService(repository *Repository, publisher EventPublisher, channelRes
 		perms:           perms,
 		mentionLimiter:  newMentionLimiter(mentionEveryoneCooldown, time.Now),
 	}
-}
-
-func (s *Service) SetStickerChecker(checker StickerChecker) {
-	s.stickerChecker = checker
 }
 
 func SameRoomTarget(target *Message, channelID string, conversationID string) bool {
@@ -134,16 +127,11 @@ func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, au
 		return nil, err
 	}
 
-	serverID := ""
-	if s.channelResolver != nil {
-		serverID, _ = s.channelResolver.ChannelServerID(ctx, channelID)
-	}
-
-	if stickerID != nil && s.stickerChecker != nil {
-		stkServerID, err := s.stickerChecker.StickerServerID(ctx, *stickerID)
-		if err != nil || stkServerID != serverID {
-			return nil, ErrInvalidSticker
-		}
+	dest := s.channelDestination(ctx, channelID)
+	serverID := dest.ServerID
+	content, err = s.expressions.message(ctx, dest, authorID, content, stickerID)
+	if err != nil {
+		return nil, err
 	}
 
 	mentionEveryone := s.resolveMentionEveryone(ctx, serverID, channelID, authorID, content)
@@ -175,11 +163,12 @@ func (s *Service) CreateConversationMessage(ctx context.Context, conversationID 
 	if err := validateNewMessageWithMedia(content, attachmentIDs, hasMedia); err != nil {
 		return nil, err
 	}
-	if stickerID != nil {
-		return nil, ErrInvalidSticker
+	content, err = s.expressions.message(ctx, expression.Destination{}, authorID, content, stickerID)
+	if err != nil {
+		return nil, err
 	}
 	// Em DM @all/@here é texto puro.
-	msg, err := s.create(ctx, "", conversationID, authorID, content, replyToID, attachmentIDs, nil, nil, gifURL, gifMetadata)
+	msg, err := s.create(ctx, "", conversationID, authorID, content, replyToID, attachmentIDs, nil, stickerID, gifURL, gifMetadata)
 	if err != nil {
 		return nil, err
 	}

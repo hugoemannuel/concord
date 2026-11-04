@@ -40,6 +40,9 @@ type Emoji struct {
 	ContentType string    `json:"content_type"`
 	SizeBytes   int64     `json:"size_bytes"`
 	CreatedAt   time.Time `json:"created_at"`
+	// PublishedAt: já foi usado fora do servidor; o arquivo passa a ser
+	// entregue a quem não é membro (ADR 0052).
+	PublishedAt *time.Time `json:"-"`
 }
 
 // ServerEmojis: os emojis de um servidor, com o que o seletor mostra no

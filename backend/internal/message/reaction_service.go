@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gin-quickstart/backend/internal/bot"
+	"gin-quickstart/backend/internal/expression"
 )
 
 // Pôr e tirar reações, no canal e na DM.
@@ -16,6 +17,9 @@ func (s *Service) AddChannelReaction(ctx context.Context, channelID string, mess
 	msg, err := s.repository.FindByID(ctx, messageID)
 	if err != nil || !SameRoomTarget(msg, channelID, "") {
 		return ErrMessageNotFound
+	}
+	if err := s.expressions.reaction(ctx, s.channelDestination(ctx, channelID), messageID, userID, emoji); err != nil {
+		return err
 	}
 
 	added, err := s.repository.AddReaction(ctx, messageID, userID, emoji)
@@ -86,6 +90,9 @@ func (s *Service) AddConversationReaction(ctx context.Context, conversationID st
 	msg, err := s.repository.FindByID(ctx, messageID)
 	if err != nil || !SameRoomTarget(msg, "", conversationID) {
 		return ErrMessageNotFound
+	}
+	if err := s.expressions.reaction(ctx, expression.Destination{}, messageID, userID, emoji); err != nil {
+		return err
 	}
 
 	added, err := s.repository.AddReaction(ctx, messageID, userID, emoji)

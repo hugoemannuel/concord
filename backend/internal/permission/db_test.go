@@ -119,7 +119,7 @@ func (e *env) roleByName(t *testing.T, serverID, name string) permission.Role {
 
 // legacyModerator: o que o antigo cargo padrão Moderador tem nos servidores
 // que já existiam (servidor novo não o cria mais).
-const legacyModerator = permission.DefaultEveryone | permission.ManageChannels | permission.ManageServer |
+const legacyModerator = permission.DefaultEveryone&^permission.UseExternalEmojis | permission.ManageChannels | permission.ManageServer |
 	permission.MentionEveryone | permission.ManageMessages | permission.MoveMembers | permission.MuteMembers |
 	permission.DeafenMembers | permission.KickMembers | permission.ManageExpressions | permission.ManageNicknames |
 	permission.DisconnectMembers

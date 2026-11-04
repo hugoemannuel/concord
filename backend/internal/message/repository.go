@@ -48,6 +48,7 @@ var messageColumns = `
 	stk.server_id,
 	stk.name,
 	stk.content_type,
+	m.deleted_sticker_name,
 	m.gif_url,
 	m.gif_metadata,
 	m.tts,
