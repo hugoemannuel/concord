@@ -11,7 +11,8 @@ export interface GroupedMessage {
   dayLabel: string | null
 }
 
-function dayKey(iso: string, timeZone?: string): string {
+/** Dia civil (AAAA-MM-DD) da data ISO, no fuso do aparelho (ou no pedido). */
+export function dayKey(iso: string, timeZone?: string): string {
   const date = new Date(iso)
   if (timeZone) return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
   const pad = (n: number): string => String(n).padStart(2, '0')
