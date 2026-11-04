@@ -12,7 +12,7 @@ vi.mock('../../call/store/callStore', () => ({
 }))
 const chat = vi.hoisted(() => ({ state: {} as Record<string, unknown> }))
 const categoryState = vi.hoisted(() => ({ layout: null as import('../api/categories').CategoryLayout | null }))
-vi.mock('../hooks/useCategories', () => ({ useCategories: () => ({ layout: categoryState.layout, run: vi.fn(), refresh: vi.fn() }) }))
+vi.mock('../hooks/useCategories', () => ({ useCategories: () => ({ layout: categoryState.layout, run: vi.fn(), refresh: vi.fn(), saveLayout: vi.fn() }) }))
 vi.mock('../../chat/store/chatStore', () => ({
   useChatStore: Object.assign((sel: (s: unknown) => unknown) => sel(chat.state), {
     getState: () => chat.state
@@ -134,7 +134,7 @@ describe('ServerSidebar', () => {
     expect(html).toContain('data-rodape')
     // Membro comum não cria nem arrasta canais; o "•••" do texto é de todos.
     expect(html).not.toContain('Criar canal de texto')
-    expect(html).not.toContain('draggable="true"')
+    expect(html).not.toContain('data-dnd="channel"')
     expect(html).toContain('aria-label="Opções do canal"')
     // Os três pontos são o ícone desenhado, não "•••" de texto.
     expect(html).not.toContain('•••')
@@ -143,10 +143,11 @@ describe('ServerSidebar', () => {
 
   it('dono: cria nos dois tipos, arrasta e vê o canal privado com cadeado', () => {
     setup({ me: 'dono' })
+    categoryState.layout = { categories: [], channels: [] }
     const html = render()
     expect(html).toContain('aria-label="Criar canal de texto"')
     expect(html).toContain('aria-label="Criar canal de voz"')
-    expect(html).toContain('draggable="true"')
+    expect(html).toContain('data-dnd="channel"')
     expect(html).toContain('(canal privado)')
   })
 

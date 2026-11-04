@@ -105,6 +105,7 @@ const ChannelMenu = forwardRef<HTMLDivElement, ChannelMenuProps>(function Channe
   return (
     <div
       ref={ref}
+      data-no-drag
       className="absolute right-1.5 top-full z-30 mt-1 flex w-48 flex-col rounded-xl border border-subtle bg-floating p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in"
     >
       {items.map((item) => (
