@@ -6,20 +6,28 @@ import {
   type MilestoneKind
 } from './levels'
 import { PRIDE_COLORS } from './levelBadgeStyle'
-import { JAGUAR_LEVEL, JAGUAR_TITLE_AT, jaguarScene, jaguarScreenScene } from './jaguarScene'
 import { buildScene, DRAWS_NUMBER, IMPACT_MS, type SceneInput } from './milestoneScenes'
+import { BRAZIL_COLORS, brazilScene } from './brazilScene'
+import { JAGUAR_COLORS, JAGUAR_LEVEL, JAGUAR_MS, JAGUAR_TITLE_AT, jaguarScene, ROAR_AT } from './jaguarScene'
 import { prideScene } from './prideScene'
+import { RED_STAR_COLORS, redStarScene } from './redStarScene'
 import { rng, type Scene } from './sceneKit'
 
 /** Nível com a cena do arco-íris do orgulho (decisão do dono). */
 export const PRIDE_LEVEL = 24
+/** Nível com a cena da bandeira do Brasil (decisão do dono). */
+export const BRAZIL_LEVEL = 22
+/** Nível com a cena da estrela vermelha (decisão do dono). */
+export const RED_STAR_LEVEL = 13
 
-export type ScreenSceneKind = MilestoneKind | 'pride' | 'jaguar'
+/** Cenas feitas para um nível só (decisão do dono), fora dos marcos. */
+export type SpecialSceneKind = 'pride' | 'redstar' | 'brazil' | 'jaguar'
+export type ScreenSceneKind = MilestoneKind | SpecialSceneKind
 
 /**
  * Cena em tela cheia da SUA subida (LevelUpMilestone): a de cada marco
- * (10, 20…) ou a especial do nível 24. Tudo o que o componente precisa,
- * já decidido aqui (o componente só desenha).
+ * (10, 20…) ou a especial de um nível (hoje o 24). Tudo o que o componente
+ * precisa, já decidido aqui (o componente só desenha).
  */
 export interface ScreenScene {
   kind: ScreenSceneKind
@@ -51,8 +59,8 @@ export interface ScreenScene {
   drawsNumber: boolean
 }
 
-/** Quando o título entra em cada cena (ms): depois do "momento" dela. */
-const TITLE_AT: Record<ScreenSceneKind, number> = {
+/** Quando o título entra em cada cena de marco (ms): depois do "momento" dela. */
+const TITLE_AT: Record<MilestoneKind, number> = {
   coins: 150,
   shockwave: 120,
   vines: 900,
@@ -62,31 +70,94 @@ const TITLE_AT: Record<ScreenSceneKind, number> = {
   prism: 700,
   blackhole: 1950,
   constellation: 2100,
-  legendary: 650,
-  pride: 900,
-  jaguar: JAGUAR_TITLE_AT
+  legendary: 650
 }
 
-const PRIDE_MS = 3400
-const PRIDE_IMPACT_MS = 1300
+/** O que muda de uma cena especial para outra; o resto do esqueleto é comum. */
+interface SpecialDef {
+  kind: SpecialSceneKind
+  color: string
+  accent: string
+  colors: string[]
+  /** Cores do degradê do número grande. */
+  numberColors: string[]
+  durationMs: number
+  titleAt: number
+  impactMs: number
+}
 
-function prideSceneFor(level: number, previous: number): ScreenScene {
-  const fx = levelUpEffects(level, previous)
-  const others = fx.sparks + fx.orbit + fx.confetti + fx.stars
-  return {
+const SPECIAL_SCENES: Record<number, SpecialDef> = {
+  [BRAZIL_LEVEL]: {
+    kind: 'brazil',
+    color: '#009c3b',
+    accent: '#002776',
+    colors: BRAZIL_COLORS,
+    numberColors: ['#ffffff', '#ffdf00', '#ffffff'],
+    durationMs: 3400,
+    titleAt: 900,
+    impactMs: 750
+  },
+  [RED_STAR_LEVEL]: {
+    kind: 'redstar',
+    color: '#d50000',
+    accent: '#8e0000',
+    colors: RED_STAR_COLORS,
+    numberColors: ['#ffffff', '#ffd54f', '#ffffff'],
+    durationMs: 3400,
+    titleAt: 700,
+    impactMs: 350
+  },
+  [JAGUAR_LEVEL]: {
+    kind: 'jaguar',
+    color: '#f0b54a',
+    accent: '#7a3e0a',
+    colors: JAGUAR_COLORS,
+    numberColors: ['#ffe08a', '#f0b54a', '#c98420', '#f0b54a'],
+    durationMs: JAGUAR_MS,
+    titleAt: JAGUAR_TITLE_AT,
+    impactMs: ROAR_AT
+  },
+  [PRIDE_LEVEL]: {
     kind: 'pride',
-    level,
     color: '#c084fc',
     accent: '#750787',
     colors: PRIDE_COLORS,
+    numberColors: PRIDE_COLORS,
+    durationMs: 3400,
+    titleAt: 900,
+    impactMs: 1300
+  }
+}
+
+/** Montador de cada cena especial (recebe o contexto onde vai desenhar). */
+const SPECIAL_BUILDERS: Record<
+  SpecialSceneKind,
+  (s: SceneInput, r: () => number, ctx: CanvasRenderingContext2D) => Scene
+> = {
+  pride: (s, r) => prideScene(s, r),
+  jaguar: (s, r) => jaguarScene(s, r),
+  redstar: redStarScene,
+  brazil: brazilScene
+}
+
+function specialSceneFor(def: SpecialDef, level: number, previous: number): ScreenScene {
+  const fx = levelUpEffects(level, previous)
+  const others = fx.sparks + fx.orbit + fx.confetti + fx.stars
+  return {
+    kind: def.kind,
+    level,
+    color: def.color,
+    accent: def.accent,
+    colors: def.colors,
     budget: Math.max(0, Math.min(levelIntensity(level).milestoneParticles, MAX_PARTICLES - others)),
     power: fx.power,
-    durationMs: PRIDE_MS,
-    titleAt: TITLE_AT.pride,
-    impactMs: PRIDE_IMPACT_MS,
+    // Nunca passa do tempo da celebração (o selo/banner some junto com ela).
+    durationMs: Math.min(def.durationMs, fx.durationMs),
+    titleAt: def.titleAt,
+    impactMs: def.impactMs,
     numberText: String(level),
     label: `Nível ${level}`,
-    gradient: `linear-gradient(90deg, ${[...PRIDE_COLORS, PRIDE_COLORS[0]].join(', ')})`,
+    gradient: `linear-gradient(90deg, ${[...def.numberColors, def.numberColors[0]].join(', ')})`,
     shine: true,
     crown: false,
     drawsNumber: false
@@ -95,11 +166,11 @@ function prideSceneFor(level: number, previous: number): ScreenScene {
 
 /**
  * A cena da subida de `previous` para `level`, ou null se ela não tem cena
- * (subida comum). Chegar no 24 ganha do marco que tenha sido pulado junto.
+ * (subida comum). Chegar num nível especial ganha do marco pulado junto.
  */
 export function screenSceneFor(level: number, previous: number): ScreenScene | null {
-  if (level === PRIDE_LEVEL && previous < PRIDE_LEVEL) return prideSceneFor(level, previous)
-  if (level === JAGUAR_LEVEL && previous < JAGUAR_LEVEL) return jaguarScreenScene(level, previous)
+  const special = SPECIAL_SCENES[level]
+  if (special && previous < level) return specialSceneFor(special, level, previous)
   const fx = levelUpEffects(level, previous)
   const milestone = fx.milestone
   if (!milestone) return null
@@ -127,15 +198,16 @@ export function screenSceneFor(level: number, previous: number): ScreenScene | n
   }
 }
 
-/** Monta o desenho da cena no canvas (marco ou a do 24). */
+/** Monta o desenho da cena no canvas (marco ou cena especial de um nível). */
 export function buildScreenScene(
   kind: ScreenSceneKind,
   input: SceneInput,
   ctx: CanvasRenderingContext2D
 ): Scene {
-  if (kind === 'pride') return prideScene(input, rng(input.level * 7919 + 17))
-  if (kind === 'jaguar') return jaguarScene(input, rng(input.level * 7919 + 17))
-  return buildScene(kind, input, ctx)
+  if (kind in SPECIAL_BUILDERS) {
+    return SPECIAL_BUILDERS[kind as SpecialSceneKind](input, rng(input.level * 7919 + 17), ctx)
+  }
+  return buildScene(kind as MilestoneKind, input, ctx)
 }
 
 export interface SceneLayout {

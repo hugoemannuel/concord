@@ -1,5 +1,6 @@
 import type { SceneInput } from './milestoneScenes'
-import { clamp01, drawGlow, easeOut, prog, sparkle, window4, type Scene } from './sceneKit'
+import { drawConfetto, makeConfetti } from './confetti'
+import { drawGlow, easeOut, prog, sparkle, window4, type Scene } from './sceneKit'
 
 /**
  * Cena do nível 24: um arco-íris do orgulho atravessa a tela (as 6 faixas
@@ -9,25 +10,9 @@ import { clamp01, drawGlow, easeOut, prog, sparkle, window4, type Scene } from '
  * por quadro, e respeita o orçamento de partículas.
  */
 
-/** Gravidade do confete, em px/ms². */
-const GRAVITY = 0.00045
 /** O arco começa e termina de se desenhar (ms). */
 const SWEEP_FROM = 100
 const SWEEP_TO = 1300
-
-interface Confetto {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  rot: number
-  spin: number
-  w: number
-  h: number
-  color: string
-  /** Quando aparece (ms). */
-  at: number
-}
 
 interface Twinkle {
   x: number
@@ -49,26 +34,6 @@ interface Arc {
 export function prideArc(s: Pick<SceneInput, 'w' | 'h'>): Arc {
   const outer = Math.min(Math.max(s.w * 0.55, s.h * 0.8), s.h * 0.95)
   return { cx: s.w / 2, cy: s.h * 1.1, outer, band: Math.max(8, outer * 0.055) }
-}
-
-function makeConfetti(s: SceneInput, r: () => number, count: number): Confetto[] {
-  return Array.from({ length: count }, (_, i) => {
-    const burst = i % 2 === 0
-    const angle = -Math.PI / 2 + (r() - 0.5) * Math.PI * 1.6
-    const speed = (0.35 + r() * 0.55) * (1 + s.power * 0.5)
-    return {
-      x: burst ? s.cx : r() * s.w,
-      y: burst ? s.cy : -20 - r() * 60,
-      vx: burst ? Math.cos(angle) * speed : (r() - 0.5) * 0.08,
-      vy: burst ? Math.sin(angle) * speed : 0.08 + r() * 0.12,
-      rot: r() * Math.PI,
-      spin: (r() - 0.5) * 0.02,
-      w: 5 + r() * 6,
-      h: 3 + r() * 4,
-      color: s.colors[i % s.colors.length],
-      at: burst ? SWEEP_TO : 200 + r() * 1600
-    }
-  })
 }
 
 function makeTwinkles(arc: Arc, r: () => number, count: number, colors: string[]): Twinkle[] {
@@ -112,22 +77,10 @@ function drawArc(
   ctx.globalAlpha = 1
 }
 
-function drawConfetto(ctx: CanvasRenderingContext2D, c: Confetto, t: number, fade: number): void {
-  const dt = t - c.at
-  if (dt < 0) return
-  ctx.save()
-  ctx.translate(c.x + c.vx * dt, c.y + c.vy * dt + 0.5 * GRAVITY * dt * dt)
-  ctx.rotate(c.rot + c.spin * dt)
-  ctx.globalAlpha = fade * clamp01(dt / 120)
-  ctx.fillStyle = c.color
-  ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h * Math.abs(Math.cos(c.rot + dt * 0.012)) + 1)
-  ctx.restore()
-}
-
 export function prideScene(s: SceneInput, r: () => number): Scene {
   const arc = prideArc(s)
   const twinkleCount = Math.min(8, Math.floor(s.budget * 0.15))
-  const confetti = makeConfetti(s, r, Math.max(0, s.budget - twinkleCount))
+  const confetti = makeConfetti(s, r, Math.max(0, s.budget - twinkleCount), SWEEP_TO)
   const twinkles = makeTwinkles(arc, r, twinkleCount, s.colors)
   return {
     particles: confetti.length + twinkles.length,

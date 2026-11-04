@@ -7,7 +7,6 @@ import {
   makeFronds,
   makeLeaves
 } from './jaguarJungle'
-import { levelIntensity, levelUpEffects, MAX_PARTICLES } from './levels'
 import type { SceneInput } from './milestoneScenes'
 import {
   clamp01,
@@ -19,7 +18,6 @@ import {
   window4,
   type Scene
 } from './sceneKit'
-import type { ScreenScene } from './screenScene'
 
 /**
  * Cena do nível 14: no escuro da mata, dois olhos dourados se abrem (e
@@ -36,7 +34,7 @@ export const JAGUAR_LEVEL = 14
 /** Dourados da pelagem e verdes da mata (partículas). */
 export const JAGUAR_COLORS = ['#f0b54a', '#ffd27a', '#c98420', '#2f9e44', '#7cc242', '#1f6f3a']
 
-const JAGUAR_MS = 3200
+export const JAGUAR_MS = 3200
 /** O número entra logo depois do rugido. */
 export const JAGUAR_TITLE_AT = 1350
 
@@ -46,7 +44,7 @@ const EYES_AT = 250
 const HEAD_FROM = 700
 const HEAD_TO = 1150
 const ROAR_FROM = 1100
-const ROAR_AT = 1250
+export const ROAR_AT = 1250
 const ROAR_CLOSE = 1900
 const ROAR_END = 2200
 
@@ -67,29 +65,6 @@ export function jaguarHead(s: Pick<SceneInput, 'w' | 'h' | 'cx' | 'cy' | 'fontPx
   return { x: s.cx, y: s.cy - s.fontPx * 0.5 - r * 0.95, r }
 }
 
-/** A cena da subida para o 14 (o que o LevelUpMilestone precisa). */
-export function jaguarScreenScene(level: number, previous: number): ScreenScene {
-  const fx = levelUpEffects(level, previous)
-  const others = fx.sparks + fx.orbit + fx.confetti + fx.stars
-  return {
-    kind: 'jaguar',
-    level,
-    color: '#f0b54a',
-    accent: '#7a3e0a',
-    colors: JAGUAR_COLORS,
-    budget: Math.max(0, Math.min(levelIntensity(level).milestoneParticles, MAX_PARTICLES - others)),
-    power: fx.power,
-    durationMs: JAGUAR_MS,
-    titleAt: JAGUAR_TITLE_AT,
-    impactMs: ROAR_AT,
-    numberText: String(level),
-    label: `Nível ${level}`,
-    gradient: 'linear-gradient(90deg, #ffe08a, #f0b54a, #c98420, #f0b54a, #ffe08a)',
-    shine: true,
-    crown: false,
-    drawsNumber: false
-  }
-}
 
 interface HeadSprite {
   canvas: HTMLCanvasElement
