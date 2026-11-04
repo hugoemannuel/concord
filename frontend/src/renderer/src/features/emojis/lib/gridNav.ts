@@ -52,3 +52,6 @@ export function activeSectionAt(
   }
   return current
 }
+
+/** Marca a célula para a prévia e as setas do teclado. */
+export const previewKeyProps = (key: string): { 'data-preview-key': string } => ({ 'data-preview-key': key })

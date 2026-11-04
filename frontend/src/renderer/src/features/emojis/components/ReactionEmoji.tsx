@@ -1,8 +1,8 @@
 import { reactionEmojiId } from '../lib/emojiToken'
+import { originText } from '../lib/originText'
 import { useEmojiView } from '../hooks/useEmojiView'
 import { useExpressionOrigin } from '../hooks/useExpressionOrigin'
 import CustomEmoji from './CustomEmoji'
-import { originText } from './ExpressionOriginCard'
 
 const FALLBACK_NAME = 'emoji'
 

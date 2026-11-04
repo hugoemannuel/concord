@@ -10,7 +10,6 @@ import { useStickerSrc } from '../hooks/useStickerSrc'
 import { ClockIcon, PlusIcon, TrashIcon } from '../../../shared/ui/icons'
 import ExpressionPicker, {
   PickerSection,
-  previewKeyProps,
   type PickerPreview,
   type PickerRailEntry
 } from '../../emojis/components/ExpressionPicker'
@@ -24,6 +23,7 @@ import {
   type PickerServer,
   type ServerSection
 } from '../../emojis/lib/pickerSections'
+import { previewKeyProps } from '../../emojis/lib/gridNav'
 import { useExternalAccess, type PickerDestination } from '../../emojis/hooks/useExternalAccess'
 import { rankedRecent, useRecentExpressions } from '../../emojis/store/recentExpressions'
 

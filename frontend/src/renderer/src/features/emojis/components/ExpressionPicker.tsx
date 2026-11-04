@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronDownIcon } from '../../../shared/ui/icons'
 import { isCollapsed, setCollapsed } from '../lib/collapsedSections'
 import { activeSectionAt, nextCell } from '../lib/gridNav'
@@ -28,9 +28,6 @@ export interface PickerPreview {
 
 const CELL_SELECTOR = '[data-preview-key]'
 const ARROWS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'])
-
-/** Marca a célula para a prévia e as setas do teclado. */
-export const previewKeyProps = (key: string): { 'data-preview-key': string } => ({ 'data-preview-key': key })
 
 function PickerRail({
   entries,
@@ -88,44 +85,35 @@ function PickerFooter({ preview, idleHint }: { preview: PickerPreview | null; id
   )
 }
 
-/** Acompanha qual seção está no topo da área que rola. */
-function useActiveSection(scroller: React.RefObject<HTMLDivElement | null>): {
-  active: string | null
-  onScroll: () => void
-  jump: (sectionId: string) => void
-} {
+/** Acompanha qual seção está no topo da área que rola (uma medida por quadro). */
+function useActiveSection(scroller: React.RefObject<HTMLDivElement | null>): string | null {
   const [active, setActive] = useState<string | null>(null)
-  const frame = useRef<number | null>(null)
-
-  const measure = useCallback(() => {
-    frame.current = null
-    const box = scroller.current
-    if (!box) return
-    const sections = [...box.querySelectorAll<HTMLElement>('[data-section-id]')]
-    setActive(activeSectionAt(sections.map((el) => ({ id: el.dataset.sectionId, top: el.offsetTop })), box.scrollTop))
-  }, [scroller])
-
   useEffect(() => {
-    measure()
-    return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current)
+    const box = scroller.current
+    if (!box) return undefined
+    let frame = 0
+    const measure = (): void => {
+      frame = 0
+      const sections = [...box.querySelectorAll<HTMLElement>('[data-section-id]')]
+      setActive(activeSectionAt(sections.map((el) => ({ id: el.dataset.sectionId, top: el.offsetTop })), box.scrollTop))
     }
-  }, [measure])
+    const schedule = (): void => {
+      frame ||= requestAnimationFrame(measure)
+    }
+    schedule()
+    box.addEventListener('scroll', schedule, { passive: true })
+    return () => {
+      box.removeEventListener('scroll', schedule)
+      cancelAnimationFrame(frame)
+    }
+  }, [scroller])
+  return active
+}
 
-  const onScroll = useCallback(() => {
-    frame.current ??= requestAnimationFrame(measure)
-  }, [measure])
-
-  const jump = useCallback(
-    (sectionId: string) => {
-      const box = scroller.current
-      const target = box?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(sectionId)}"]`)
-      if (box && target) box.scrollTop = target.offsetTop
-    },
-    [scroller]
-  )
-
-  return { active, onScroll, jump }
+/** O ícone do trilho leva ao começo da seção. */
+function jumpTo(box: HTMLElement | null, sectionId: string): void {
+  const target = box?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(sectionId)}"]`)
+  if (box && target) box.scrollTop = target.offsetTop
 }
 
 /** Setas andam entre as células, na ordem da tela. */
@@ -158,7 +146,7 @@ export default function ExpressionPicker({
 }): React.JSX.Element {
   const scroller = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState<string | null>(null)
-  const { active, onScroll, jump } = useActiveSection(scroller)
+  const active = useActiveSection(scroller)
 
   const track = (target: EventTarget): void => {
     const key = (target as HTMLElement).closest?.<HTMLElement>(CELL_SELECTOR)?.dataset.previewKey
@@ -170,10 +158,9 @@ export default function ExpressionPicker({
       {header}
       {notice && <p className="mb-1 shrink-0 text-ds-xs text-warning">{notice}</p>}
       <div className="flex min-h-0 flex-1 gap-1 max-md:flex-col">
-        <PickerRail entries={rail} active={active} onJump={jump} />
+        <PickerRail entries={rail} active={active} onJump={(id) => jumpTo(scroller.current, id)} />
         <div
           ref={scroller}
-          onScroll={onScroll}
           onMouseOver={(e) => track(e.target)}
           onFocus={(e) => track(e.target)}
           onKeyDown={(e) => scroller.current && moveFocus(scroller.current, e)}

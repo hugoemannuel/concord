@@ -7,13 +7,13 @@ import { showToast } from '../../../shared/store/toastStore'
 import type { CustomEmoji as Emoji, ServerEmojis } from '../api/emojis'
 import { messageToken, reactionToken } from '../lib/emojiToken'
 import { searchCategories } from '../lib/baseEmojis'
+import { previewKeyProps } from '../lib/gridNav'
 import {
   EXTERNAL_REASON,
   customIdOf,
   customKey,
   externalNotice,
   frequentItems,
-  itemPreview,
   serverSections,
   withItemServers,
   type ServerSection
@@ -23,7 +23,8 @@ import { rankedRecent, useRecentExpressions } from '../store/recentExpressions'
 import { useCustomEmojis } from '../hooks/useCustomEmojis'
 import { useExternalAccess, type PickerDestination } from '../hooks/useExternalAccess'
 import CustomEmoji from './CustomEmoji'
-import ExpressionPicker, { PickerSection, previewKeyProps, type PickerPreview, type PickerRailEntry } from './ExpressionPicker'
+import { emojiPreview } from './emojiPreview'
+import ExpressionPicker, { PickerSection, type PickerPreview, type PickerRailEntry } from './ExpressionPicker'
 import ServerBadge from './ServerBadge'
 
 /** No texto vai <:nome:id>; na reação, <:id>. */
@@ -103,24 +104,6 @@ function UnicodeCell({ item, onPick }: { item: EmoteItem; onPick: (value: string
       {item.emoji}
     </button>
   )
-}
-
-/** O rodapé de um emoji: o nome e, no personalizado, de que servidor vem e se pode ser usado. */
-export function emojiPreview(
-  key: string,
-  serverOf: Map<string, ServerEmojis>,
-  unicode: Map<string, EmoteItem>,
-  isDisabled: (emoji: Emoji) => boolean
-): PickerPreview | null {
-  const id = customIdOf(key)
-  if (id === null) return { media: key, title: unicode.get(key)?.label ?? key }
-  const group = serverOf.get(id)
-  const emoji = group?.emojis.find((e) => e.id === id)
-  if (!emoji) return null
-  return {
-    ...itemPreview(`:${emoji.name}:`, group?.server_name, isDisabled(emoji)),
-    media: <CustomEmoji id={id} name={emoji.name} size="picker" />
-  }
 }
 
 /** Tudo que a grade precisa saber, já calculado a partir dos stores. */

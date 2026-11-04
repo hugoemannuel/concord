@@ -43,7 +43,8 @@ vi.mock('../../servers/hooks/useServerAccess', () => ({
   })
 }))
 
-import EmojiPickerGrid, { emojiPreview } from './EmojiPickerGrid'
+import EmojiPickerGrid from './EmojiPickerGrid'
+import { emojiPreview } from './emojiPreview'
 import EmojisTab from '../../chat/components/EmojisTab'
 import EmojiUploadModal from './EmojiUploadModal'
 import { Perm } from '../../servers/lib/permissions'

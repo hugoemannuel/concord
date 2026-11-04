@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { originText } from './ExpressionOriginCard'
+import { originText } from './originText'
 
 describe('originText', () => {
   it('mostra o nome do servidor', () => {
