@@ -11,7 +11,7 @@ import (
 
 // Limite do cartão e da prévia pública: por IP, em memória, como o do convite.
 const (
-	cardPerIP   = 60
+	cardPerIP   = 120
 	cardWindow  = time.Minute
 	cardMaxKeys = 10000
 )

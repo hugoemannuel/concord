@@ -39,18 +39,11 @@ func NewImageJanitor(files imageFiles, refs imageRefs) *ImageJanitor {
 
 // Run faz uma faxina na hora e repete a cada hora até o contexto acabar.
 func (j *ImageJanitor) Run(ctx context.Context) {
-	ticker := time.NewTicker(imageJanitorEvery)
-	defer ticker.Stop()
-	for {
+	runEvery(ctx, imageJanitorEvery, true, func() {
 		if err := j.Sweep(ctx); err != nil {
 			log.Printf("[serverprofile] faxina das imagens: %v", err)
 		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
+	})
 }
 
 // Sweep apaga os arquivos sem uso, mais velhos que o prazo.

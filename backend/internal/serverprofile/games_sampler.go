@@ -63,16 +63,9 @@ func (g *GameSampler) Sample(ctx context.Context) error {
 
 // Run amostra até o contexto acabar.
 func (g *GameSampler) Run(ctx context.Context) {
-	ticker := time.NewTicker(gameSampleEvery)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err := g.Sample(ctx); err != nil {
-				log.Printf("[serverprofile] amostra de jogos: %v", err)
-			}
+	runEvery(ctx, gameSampleEvery, false, func() {
+		if err := g.Sample(ctx); err != nil {
+			log.Printf("[serverprofile] amostra de jogos: %v", err)
 		}
-	}
+	})
 }

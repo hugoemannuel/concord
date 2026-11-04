@@ -17,11 +17,11 @@ describe('seções das configurações do servidor', () => {
   })
 
   it('o dono e o administrador veem todas', () => {
-    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'level'])
+    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'roles', 'members', 'bans', 'audit', 'level'])
   })
 
   it('cada permissão abre só o que usa', () => {
-    expect(ids(Perm.MANAGE_SERVER)).toEqual(['overview', 'level'])
+    expect(ids(Perm.MANAGE_SERVER)).toEqual(['overview', 'tag', 'look', 'level'])
     expect(ids(Perm.MANAGE_ROLES)).toEqual(['roles', 'members', 'level'])
     expect(ids(Perm.KICK_MEMBERS)).toEqual(['members', 'level'])
     expect(ids(Perm.BAN_MEMBERS)).toEqual(['members', 'bans', 'level'])
@@ -34,9 +34,9 @@ describe('seções das configurações do servidor', () => {
     expect(ids(Perm.CHANGE_NICKNAME)).toEqual([])
   })
 
-  it('o moderador padrão (editar servidor + expulsar) vê visão geral e membros', () => {
+  it('o moderador padrão (editar servidor + expulsar) vê o perfil e membros', () => {
     const mod = DEFAULT_EVERYONE | Perm.MANAGE_SERVER | Perm.MANAGE_CHANNELS | Perm.KICK_MEMBERS
-    expect(ids(mod)).toEqual(['overview', 'members', 'level'])
+    expect(ids(mod)).toEqual(['overview', 'tag', 'look', 'members', 'level'])
     expect(canOpenServerSettings(mod)).toBe(true)
   })
 
@@ -65,7 +65,7 @@ describe('serverSectionLabel', () => {
 
   it('Eventos é do dono e de quem recebeu a configuração: o administrador não vê, e entra antes de Nível', () => {
     expect(ids(ALL_PERMISSIONS)).not.toContain('events')
-    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'events', 'level'])
+    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'roles', 'members', 'bans', 'audit', 'events', 'level'])
   })
 
   it('pedir Eventos sem ser o dono cai na primeira seção visível', () => {
