@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ProfileScope from '../../serverProfiles/components/ProfileScope'
 import { useServerSettingsStore } from '../store/serverSettingsStore'
 import { useServerStore } from '../store/serverStore'
 import { useChatStore } from '../../chat/store/chatStore'
@@ -44,7 +45,13 @@ const SECTION_VIEW = {
  */
 function ServerSettingsScreen(): React.JSX.Element | null {
   const open = useServerSettingsStore((s) => s.open)
-  return open ? <ServerSettingsContent /> : null
+  // Fica fora do ServerView: os membros aparecem com o perfil deste servidor aqui também.
+  const serverId = useServerStore((s) => s.currentServer?.id)
+  return open ? (
+    <ProfileScope serverId={serverId}>
+      <ServerSettingsContent />
+    </ProfileScope>
+  ) : null
 }
 
 function ServerSettingsContent(): React.JSX.Element | null {
