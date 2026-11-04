@@ -1,6 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import type { ProposalStatus } from '../api/proposals'
 import { columnDrop } from '../lib/columnDrop'
+import ArchiveColumnAction from './ArchiveColumnAction'
 
 /**
  * Coluna do quadro e também o alvo de soltar do card. Durante um arrasto ela
@@ -38,6 +39,7 @@ function BoardColumn({
           </span>
         </div>
         <p className="text-[11px] text-gray-500">{drop.hint}</p>
+        <ArchiveColumnAction status={status} count={count} />
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-3">{children}</div>
     </section>

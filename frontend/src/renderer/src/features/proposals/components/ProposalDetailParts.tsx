@@ -9,6 +9,7 @@ import {
 } from '../lib/proposals'
 import Avatar from '../../../shared/ui/Avatar'
 import Button from '../../../shared/ui/Button'
+import ArchiveButton from './ArchiveButton'
 import MoveSelect from './MoveSelect'
 
 const columnTitle = (status: ProposalStatus): string =>
@@ -132,6 +133,7 @@ export function DetailVoteButtons({
 export function DetailActions({
   proposal: p,
   isTech,
+  canArchive,
   canEdit,
   canDelete,
   busy,
@@ -141,6 +143,7 @@ export function DetailActions({
 }: {
   proposal: Proposal
   isTech: boolean
+  canArchive: boolean
   canEdit: boolean
   canDelete: boolean
   busy: boolean
@@ -163,6 +166,7 @@ export function DetailActions({
       )}
       <div className="ml-auto flex flex-wrap items-center gap-2">
         {isTech && <MoveSelect status={p.status} disabled={busy} onMove={onMove} />}
+        {canArchive && <ArchiveButton id={p.id} />}
         {canEdit && (
           <Button variant="secondary" className="px-3 py-1 text-xs" disabled={busy} onClick={onEdit}>
             Editar

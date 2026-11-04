@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Proposal, ProposalStatus } from '../api/proposals'
+import { canArchive } from '../lib/archive'
 import { canDeleteProposal, canEditProposal, canVote, closeLabel } from '../lib/proposals'
 import MediaLightbox from '../../chat/components/MediaLightbox'
 import Modal from '../../../shared/ui/Modal'
@@ -83,6 +84,7 @@ function ProposalDetailModal({
             <DetailActions
               proposal={p}
               isTech={isTech}
+              canArchive={canArchive(p, isTech)}
               canEdit={canEdit}
               canDelete={canDelete}
               busy={busy}
