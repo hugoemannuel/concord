@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { effectDef, PROFILE_EFFECTS } from './effectCatalog'
 import { pickInk, type Ink } from './profileInk'
 import { PRIDE_PALETTE, prideGradient } from './profilePride'
 import type { EffectParams } from './effects/types'
@@ -15,6 +16,8 @@ import {
 // tema de perfil do Nitro), um efeito por cima e as opções finas
 // (profileThemeExtras.ts). Os IDs são os do backend (internal/profiletheme);
 // profileTheme.test.ts confere as listas.
+
+export { effectDef, PROFILE_EFFECTS }
 
 export interface ProfileTheme extends ProfileThemeExtras {
   border: string
@@ -53,38 +56,6 @@ export const PROFILE_BACKGROUNDS = [
   { id: 'gradient', label: 'Degradê', colors: 2 },
   { id: 'pride', label: 'Arco-íris do orgulho', colors: 0 }
 ] as const
-
-/**
- * Efeitos: os três primeiros são CSS (profileParticles.ts), os outros canvas
- * (lib/effects/). `color` é a cor de sempre do efeito; null = não tem cor
- * para escolher (paleta própria).
- */
-export const PROFILE_EFFECTS: readonly {
-  id: string
-  label: string
-  kind: 'none' | 'css' | 'canvas'
-  color: string | null
-}[] = [
-  { id: 'none', label: 'Nenhum', kind: 'none', color: null },
-  { id: 'particles', label: 'Partículas', kind: 'css', color: '#c4b5fd' },
-  { id: 'sparkles', label: 'Brilhos', kind: 'css', color: '#ffd84d' },
-  { id: 'snow', label: 'Neve', kind: 'css', color: '#ffffff' },
-  { id: 'fire', label: 'Fogo', kind: 'canvas', color: '#ff7a1a' },
-  { id: 'matrix', label: 'Matrix', kind: 'canvas', color: '#22ff88' },
-  { id: 'glitch', label: 'Glitch', kind: 'canvas', color: null },
-  { id: 'storm', label: 'Tempestade', kind: 'canvas', color: '#9ecbff' },
-  { id: 'galaxy', label: 'Galáxia', kind: 'canvas', color: '#a78bfa' },
-  { id: 'aurora', label: 'Aurora', kind: 'canvas', color: '#34d399' },
-  { id: 'hearts', label: 'Corações', kind: 'canvas', color: '#ff4d8d' },
-  { id: 'confetti', label: 'Confete', kind: 'canvas', color: null },
-  { id: 'synthwave', label: 'Synthwave', kind: 'canvas', color: '#ff2bd6' },
-  { id: 'rain', label: 'Chuva', kind: 'canvas', color: '#7cc4ff' }
-]
-
-/** Definição do efeito (desconhecido = "Nenhum"). */
-export function effectDef(id: string): (typeof PROFILE_EFFECTS)[number] {
-  return PROFILE_EFFECTS.find((e) => e.id === id) ?? PROFILE_EFFECTS[0]
-}
 
 const COLOR = /^#[0-9a-f]{6}$/i
 const BORDER_FALLBACK = ['#8b5cf6', '#ec4899']

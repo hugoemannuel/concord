@@ -1,4 +1,4 @@
-import { EffectControls } from '../../../settings/components/profile/theme/ThemeControls'
+import { EffectControls } from '../../../settings/components/profile/theme/EffectControls'
 import { fromProfileEffect, toProfileEffect } from '../../lib/backdropEditor'
 import { EditorGroup } from './EditorGroup'
 import type { GroupProps } from './types'
