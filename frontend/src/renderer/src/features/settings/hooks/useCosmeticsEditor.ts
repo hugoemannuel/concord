@@ -65,8 +65,8 @@ export function useCosmeticsEditor(
   remove: (kind: CosmeticImageKind) => void
 } {
   const sessionUser = useAuthStore((s) => s.user)
-  const user = target ? target.user : sessionUser
-  const actions = target ?? GLOBAL_ACTIONS
+  const actions = target ?? { ...GLOBAL_ACTIONS, user: sessionUser }
+  const { user } = actions
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
   const [uploading, setUploading] = useState<UploadingCosmetic | null>(null)

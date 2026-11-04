@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { mergeCallPeople } from '../../call/lib/callParticipants'
 import { buildOverlaySnapshot, sameOverlaySnapshot, type OverlaySnapshot } from '../lib/overlayState'
-import { serverDisplayName, withServerNames } from '../../servers/lib/serverNames'
+import { withServerNames } from '../../servers/lib/serverNames'
 import { useCallServerProfiles } from '../../serverProfiles/hooks/useCallServerProfiles'
 import { withServerProfiles } from '../../serverProfiles/lib/serverProfile'
+import { overlayMe } from '../lib/overlayMe'
 import { useCallNicknames } from '../../servers/hooks/useServerNames'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useCallStore } from '../../call/store/callStore'
@@ -68,13 +69,10 @@ function OverlayBridge(): null {
       ),
     [backendParticipants, mediaPeers, meId, members, nicknames, serverProfiles]
   )
-  const meInOverlay = useMemo(() => {
-    const named =
-      me && meId && nicknames?.[meId]
-        ? { ...me, display_name: serverDisplayName({ nickname: nicknames[meId] }, me) }
-        : me
-    return named && withServerProfiles([named], serverProfiles)[0]
-  }, [me, meId, nicknames, serverProfiles])
+  const meInOverlay = useMemo(
+    () => overlayMe(me, nicknames, serverProfiles),
+    [me, nicknames, serverProfiles]
+  )
 
   // Posição/tamanho editados no jogo (Shift+Tab) chegam pelo main: salva aqui.
   useEffect(() => {
