@@ -1,4 +1,4 @@
-package giphy
+package gifs
 
 type GIFItem struct {
 	ID         string `json:"id"`

@@ -1,4 +1,4 @@
-package giphy
+package gifs
 
 import (
 	"net/http"
