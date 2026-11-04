@@ -63,6 +63,8 @@ function eventActions(v: unknown): string {
   return names.length ? names.join(', ') : 'Nenhuma'
 }
 
+const art = (v: unknown): string => (v ? String(v) : 'padrão')
+
 const lookup = (table: Record<string, string>) => (v: unknown) => table[String(v)] ?? text(v)
 
 /** Rótulo e formato de cada campo que o backend grava (backend/internal/<domínio>/audit.go). */
@@ -83,7 +85,16 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   duration: { label: 'Duração do link', format: lookup(LINK_DURATION) },
   can_speak: { label: 'Pode falar', format: yesNo },
   can_stream: { label: 'Câmera e tela', format: yesNo },
-  event_actions: { label: 'Ações nos eventos', format: eventActions }
+  event_actions: { label: 'Ações nos eventos', format: eventActions },
+  banner: { label: 'Banner', format: art },
+  traits: { label: 'Traços', format: text },
+  games: { label: 'Jogos', format: text },
+  profile_private: { label: 'Perfil privado', format: yesNo },
+  strip: { label: 'Faixa', format: art },
+  server_theme: { label: 'Tema de fundo', format: art },
+  tag_name: { label: 'Nome da tag', format: text },
+  tag_badge: { label: 'Emblema da tag', format: text },
+  tag_color: { label: 'Cor da tag', format: text }
 }
 
 const PERMISSION_FIELDS: Record<string, string> = { permissions: 'Permissões', allow: 'Permitido', deny: 'Negado' }

@@ -18,6 +18,7 @@ import { startCallInvites } from './features/call/lib/callInviteStart'
 import { startSavedProfilesSync } from './features/savedProfiles/lib/savedProfilesStart'
 import { startSpeechReport } from './features/call/lib/speechReportStart'
 import { startPresenceActivity } from './features/activity/lib/presenceActivityStart'
+import { startServerProfile } from './features/serverprofile/lib/serverProfileStart'
 import { startTTS } from './features/tts/lib/ttsStart'
 import { startSessionRevoked } from './features/auth/lib/sessionRevokedStart'
 import { startServerLevels } from './features/serverlevel/lib/serverLevelStart'
@@ -50,6 +51,9 @@ startSavedProfilesSync()
 
 // O jogo e a música dos outros agora (presence:activity).
 startPresenceActivity()
+
+// O perfil, a faixa e a tag dos servidores (server:profile, server:tag, user:server_tag).
+startServerProfile()
 
 // Nível do servidor: a barra anda e a subida vira um toast (server:level:*).
 startServerLevels()
