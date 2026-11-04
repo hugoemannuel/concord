@@ -1,4 +1,4 @@
-package giphy
+package gifs
 
 import (
 	"context"
@@ -122,13 +122,15 @@ func TestFavoritarDevolveListaEIdempotente(t *testing.T) {
 func TestFavoritarRejeitaDadoInvalido(t *testing.T) {
 	t.Parallel()
 	casos := map[string]string{
-		"id diferente da rota": strings.Replace(gifJSON, `"abc123","title"`, `"outro","title"`, 1),
-		"url fora do giphy":    strings.Replace(gifJSON, "https://media3.giphy.com/media/abc123/giphy.gif", "https://evil.com/x.gif", 1),
-		"url sem https":        strings.Replace(gifJSON, "https://media3.giphy.com/media/abc123/giphy.gif", "http://media3.giphy.com/x.gif", 1),
-		"host disfarçado":      strings.Replace(gifJSON, "media3.giphy.com/media/abc123/giphy.gif", "giphy.com.evil.com/x.gif", 1),
-		"prévia fora do giphy": strings.Replace(gifJSON, "https://media3.giphy.com/media/abc123/200.gif", "https://evil.com/p.gif", 1),
-		"tamanho absurdo":      strings.Replace(gifJSON, `"width":480`, `"width":999999`, 1),
-		"json quebrado":        `{`,
+		"id diferente da rota":       strings.Replace(gifJSON, `"abc123","title"`, `"outro","title"`, 1),
+		"url fora dos provedores":    strings.Replace(gifJSON, "https://media3.giphy.com/media/abc123/giphy.gif", "https://evil.com/x.gif", 1),
+		"url sem https":              strings.Replace(gifJSON, "https://media3.giphy.com/media/abc123/giphy.gif", "http://media3.giphy.com/x.gif", 1),
+		"host disfarçado":            strings.Replace(gifJSON, "media3.giphy.com/media/abc123/giphy.gif", "giphy.com.evil.com/x.gif", 1),
+		"klipy disfarçada":           strings.Replace(gifJSON, "media3.giphy.com/media/abc123/giphy.gif", "static.klipy.com.evil.com/ii/x/1/a/y.gif", 1),
+		"prévia de outro provedor":   strings.Replace(gifJSON, "https://media3.giphy.com/media/abc123/200.gif", "https://static.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/sm.gif", 1),
+		"prévia fora dos provedores": strings.Replace(gifJSON, "https://media3.giphy.com/media/abc123/200.gif", "https://evil.com/p.gif", 1),
+		"tamanho absurdo":            strings.Replace(gifJSON, `"width":480`, `"width":999999`, 1),
+		"json quebrado":              `{`,
 	}
 	for nome, body := range casos {
 		t.Run(nome, func(t *testing.T) {
@@ -172,5 +174,68 @@ func TestFavoritosErroDeBancoDa500(t *testing.T) {
 		if w := doFav(r, c.method, c.path, "u1", c.body); w.Code != http.StatusInternalServerError {
 			t.Fatalf("%s: status = %d, quer 500", c.method, w.Code)
 		}
+	}
+}
+
+const klipyGifJSON = `{"id":"935d7ab9d8c6202580a668421940ec81","title":"Hello","url":"https://static.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/md.gif","preview_url":"https://static1.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/sm.gif","width":400,"height":300}`
+
+func TestFavoritarGifDaKlipyGuardaOProvedor(t *testing.T) {
+	t.Parallel()
+	f := &fakeFavorites{byUser: map[string][]GIFItem{}}
+	r := favoritesRouter(f, 10)
+	w := doFav(r, http.MethodPut, "/users/me/gif-favorites/935d7ab9d8c6202580a668421940ec81", "u1", klipyGifJSON)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d (%s)", w.Code, w.Body.String())
+	}
+	if got := f.byUser["u1"]; len(got) != 1 || got[0].Provider != ProviderKlipy {
+		t.Fatalf("guardado = %+v", got)
+	}
+}
+
+func TestFavoritarGifAntigoDoGiphyContinuaFuncionando(t *testing.T) {
+	t.Parallel()
+	f := &fakeFavorites{byUser: map[string][]GIFItem{}}
+	r := favoritesRouter(f, 10)
+	// App antigo: sem campo provider.
+	if w := doFav(r, http.MethodPut, "/users/me/gif-favorites/abc123", "u1", gifJSON); w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if got := f.byUser["u1"]; len(got) != 1 || got[0].Provider != ProviderGiphy {
+		t.Fatalf("guardado = %+v", got)
+	}
+}
+
+func TestProvedorVemDaUrlENaoDoQueOClienteDiz(t *testing.T) {
+	t.Parallel()
+	f := &fakeFavorites{byUser: map[string][]GIFItem{}}
+	r := favoritesRouter(f, 10)
+	body := strings.Replace(klipyGifJSON, `"title"`, `"provider":"giphy","title"`, 1)
+	doFav(r, http.MethodPut, "/users/me/gif-favorites/935d7ab9d8c6202580a668421940ec81", "u1", body)
+	if got := f.byUser["u1"]; len(got) != 1 || got[0].Provider != ProviderKlipy {
+		t.Fatalf("guardado = %+v", got)
+	}
+}
+
+func TestHostsAceitos(t *testing.T) {
+	t.Parallel()
+	for _, u := range []string{
+		"https://media.giphy.com/media/a/giphy.gif", "https://giphy.com/x.gif",
+		"https://static.klipy.com/ii/a/b.gif", "https://static2.klipy.com/ii/a/b.gif", "https://klipy.com/x.gif",
+	} {
+		if providerOf(u) == "" {
+			t.Errorf("%s deveria ser aceita", u)
+		}
+	}
+	for _, u := range []string{"", "http://static.klipy.com/a.gif", "https://klipy.com.evil.com/a.gif", "https://notklipy.com/a.gif", "https://evil.com/giphy.com", "ftp://static.klipy.com/a.gif"} {
+		if providerOf(u) != "" {
+			t.Errorf("%s deveria ser recusada", u)
+		}
+	}
+}
+
+func TestFavoritoSemProvedorEhDoGiphy(t *testing.T) {
+	t.Parallel()
+	if providerOrGiphy("") != ProviderGiphy || providerOrGiphy(ProviderKlipy) != ProviderKlipy {
+		t.Fatal("provedor vazio deve virar giphy e o informado deve ser mantido")
 	}
 }

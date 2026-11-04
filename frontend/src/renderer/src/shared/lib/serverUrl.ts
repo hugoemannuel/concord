@@ -55,10 +55,16 @@ export function serverCandidates(primary: string | undefined, fallbacks: string 
   return [...new Set(origins)]
 }
 
+/**
+ * API de GIFs (KLIPY): o app a chama direto, como ela exige (docs/adr/0053).
+ * As imagens vêm de static*.klipy.com e já cabem no `img-src` (https:).
+ */
+export const GIF_API_ORIGIN = 'https://api.klipy.com'
+
 /** Valor do `connect-src` da CSP para o servidor configurado (e os alternativos). */
 export function buildConnectSrc(serverUrl: string | undefined, fallbacks: string[] = []): string {
   const urls = [normalize(serverUrl), ...fallbacks.map((f) => new URL(f))]
-  return `'self' ${urls.map((url) => `${url.origin} ${toWsOrigin(url)}`).join(' ')}`
+  return `'self' ${urls.map((url) => `${url.origin} ${toWsOrigin(url)}`).join(' ')} ${GIF_API_ORIGIN}`
 }
 
 /**
@@ -101,7 +107,7 @@ export function resolveServerUrls({ web, serverUrl, pageOrigin }: ResolveOptions
  */
 export function buildWebConnectSrc(publicUrl: string | undefined): string {
   const url = publicUrl?.trim()
-  return url ? `'self' ${toWsOrigin(new URL(url))}` : "'self'"
+  return url ? `'self' ${toWsOrigin(new URL(url))} ${GIF_API_ORIGIN}` : `'self' ${GIF_API_ORIGIN}`
 }
 
 /** `media-src` do build web: arquivos do chat na própria origem e prévias `blob:`. */

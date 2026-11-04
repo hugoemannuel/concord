@@ -83,6 +83,7 @@ func (a *app) wireCore() {
 	channelHandler := channel.ChannelHandler(a.channelService, a.permissionService)
 	channelHandler.SetAudit(a.audit)
 	categoryHandler := channelcategory.NewHandler(channelcategory.NewRepository(a.db), a.permissionService, a.hub)
+	categoryHandler.SetAudit(a.audit)
 
 	a.conversationRepository = conversation.ConversationRepository(a.db)
 	a.conversationService = conversation.ConversationService(a.conversationRepository)
