@@ -6,6 +6,7 @@ import {
   type MilestoneKind
 } from './levels'
 import { PRIDE_COLORS } from './levelBadgeStyle'
+import { JAGUAR_LEVEL, JAGUAR_TITLE_AT, jaguarScene, jaguarScreenScene } from './jaguarScene'
 import { buildScene, DRAWS_NUMBER, IMPACT_MS, type SceneInput } from './milestoneScenes'
 import { prideScene } from './prideScene'
 import { rng, type Scene } from './sceneKit'
@@ -13,7 +14,7 @@ import { rng, type Scene } from './sceneKit'
 /** Nível com a cena do arco-íris do orgulho (decisão do dono). */
 export const PRIDE_LEVEL = 24
 
-export type ScreenSceneKind = MilestoneKind | 'pride'
+export type ScreenSceneKind = MilestoneKind | 'pride' | 'jaguar'
 
 /**
  * Cena em tela cheia da SUA subida (LevelUpMilestone): a de cada marco
@@ -62,7 +63,8 @@ const TITLE_AT: Record<ScreenSceneKind, number> = {
   blackhole: 1950,
   constellation: 2100,
   legendary: 650,
-  pride: 900
+  pride: 900,
+  jaguar: JAGUAR_TITLE_AT
 }
 
 const PRIDE_MS = 3400
@@ -97,6 +99,7 @@ function prideSceneFor(level: number, previous: number): ScreenScene {
  */
 export function screenSceneFor(level: number, previous: number): ScreenScene | null {
   if (level === PRIDE_LEVEL && previous < PRIDE_LEVEL) return prideSceneFor(level, previous)
+  if (level === JAGUAR_LEVEL && previous < JAGUAR_LEVEL) return jaguarScreenScene(level, previous)
   const fx = levelUpEffects(level, previous)
   const milestone = fx.milestone
   if (!milestone) return null
@@ -131,6 +134,7 @@ export function buildScreenScene(
   ctx: CanvasRenderingContext2D
 ): Scene {
   if (kind === 'pride') return prideScene(input, rng(input.level * 7919 + 17))
+  if (kind === 'jaguar') return jaguarScene(input, rng(input.level * 7919 + 17))
   return buildScene(kind, input, ctx)
 }
 
