@@ -54,7 +54,7 @@ func openDB(t *testing.T) (*pgxpool.Pool, *queryCounter) {
 		t.Fatal(err)
 	}
 	if !exists {
-		t.Skip("banco sem a migration 000189")
+		t.Skip("banco sem a migration 000190")
 	}
 	return db, counter
 }
