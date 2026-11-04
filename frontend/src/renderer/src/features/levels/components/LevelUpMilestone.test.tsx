@@ -47,6 +47,21 @@ describe('LevelUpMilestone', () => {
     expect(html).toContain('#e40303')
   })
 
+  it('no 13 toca a estrela vermelha e no 22 a bandeira, com o título padrão', () => {
+    celebrate(13)
+    let html = renderToStaticMarkup(<LevelUpMilestone />)
+    expect(html).toContain('data-milestone="redstar"')
+    expect(html).toContain('<canvas')
+    expect(html).toContain('>13</p>')
+    expect(html).toContain('Nível 13')
+    celebrate(22)
+    html = renderToStaticMarkup(<LevelUpMilestone />)
+    expect(html).toContain('data-milestone="brazil"')
+    expect(html).toContain('<canvas')
+    expect(html).toContain('>22</p>')
+    expect(html).toContain('Nível 22')
+  })
+
   it('o marco lendário mantém coroa e "LENDÁRIO"', () => {
     celebrate(100)
     const html = renderToStaticMarkup(<LevelUpMilestone />)
