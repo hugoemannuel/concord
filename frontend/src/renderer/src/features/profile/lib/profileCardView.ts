@@ -9,6 +9,7 @@ import type { Server, ServerMember } from '../../servers/api/servers'
 import { memberColor } from '../../servers/lib/memberGroups'
 import { roleColorCss, rolesOfMember, type Role } from '../../servers/lib/permissions'
 import { serverIdFromPath } from '../../servers/lib/serverNames'
+import { overlayProfile, type ServerProfile } from '../../serverProfiles/lib/serverProfile'
 import type { PublicProfile } from '../api/users'
 import type { CardProfile } from '../components/ProfileCardBody'
 import type { ProfileCardTarget } from '../store/profileCardStore'
@@ -44,6 +45,10 @@ export interface CardViewInput {
   pathname: string
   /** Pode trocar o apelido da pessoa no servidor aberto. */
   canChangeNickname: boolean
+  /** O perfil da pessoa neste servidor (sem ele, o global). */
+  serverProfile?: ServerProfile
+  /** Quem olha pediu para ver o perfil global: sem apelido nem perfil do servidor. */
+  globalView?: boolean
   level?: number
   online: boolean
   knownStatus?: PresenceStatus
@@ -109,7 +114,7 @@ export function memberContextOf(input: CardViewInput): MemberContext {
   const isServerOwner = server?.owner_id === target.userId
   return {
     inServer,
-    nickname: nicknameContext ? (member?.nickname ?? null) : null,
+    nickname: nicknameContext && !input.globalView ? (member?.nickname ?? null) : null,
     canNickname: nicknameContext && input.canChangeNickname,
     isServerOwner,
     memberRoles: inServer ? rolesOfMember(roles, member?.role_ids) : [],
@@ -193,7 +198,8 @@ export function profileCardView(input: CardViewInput): ProfileCardView {
   const link = profile?.relationship ?? input.target.relationship
   const stranger = !isMe && isStranger(link)
   const context = memberContextOf(input)
-  const source = isMe ? me : profile
+  const global = isMe ? me : profile
+  const source = global && !input.globalView ? overlayProfile(global, input.serverProfile) : global
   const card = cardProfileOf(input, source, context.nickname, isBot, stranger)
   const info = cardInfoOf(input, source, isMe, context.inServer)
   return {

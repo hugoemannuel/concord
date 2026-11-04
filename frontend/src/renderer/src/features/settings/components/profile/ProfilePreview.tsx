@@ -16,6 +16,8 @@ export interface PreviewBase {
   user: User
   avatarUrl: string | null
   bannerUrl: string | null
+  /** Perfil de servidor sem CHANGE_NICKNAME: o nome não muda aqui. */
+  nameLocked?: boolean
 }
 
 /**

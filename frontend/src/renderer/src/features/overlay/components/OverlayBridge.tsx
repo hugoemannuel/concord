@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { mergeCallPeople } from '../../call/lib/callParticipants'
 import { buildOverlaySnapshot, sameOverlaySnapshot, type OverlaySnapshot } from '../lib/overlayState'
 import { serverDisplayName, withServerNames } from '../../servers/lib/serverNames'
+import { useCallServerProfiles } from '../../serverProfiles/hooks/useCallServerProfiles'
+import { withServerProfiles } from '../../serverProfiles/lib/serverProfile'
 import { useCallNicknames } from '../../servers/hooks/useServerNames'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useCallStore } from '../../call/store/callStore'
@@ -50,24 +52,29 @@ function OverlayBridge(): null {
   const liveWatchers = useMyLiveWatchers(meId)
   // Call num canal de voz: apelidos daquele servidor (mesmo olhando outro).
   const nicknames = useCallNicknames()
+  // A janela do overlay recebe URLs prontas: o avatar do servidor vai resolvido.
+  const serverProfiles = useCallServerProfiles()
   const participants = useMemo(
     () =>
-      withServerNames(
-        mergeCallPeople(backendParticipants, mediaPeers, meId, (id) => {
-          const m = members.find((x) => x.user_id === id)
-          return m?.display_name || m?.username
-        }),
-        nicknames
+      withServerProfiles(
+        withServerNames(
+          mergeCallPeople(backendParticipants, mediaPeers, meId, (id) => {
+            const m = members.find((x) => x.user_id === id)
+            return m?.display_name || m?.username
+          }),
+          nicknames
+        ),
+        serverProfiles
       ),
-    [backendParticipants, mediaPeers, meId, members, nicknames]
+    [backendParticipants, mediaPeers, meId, members, nicknames, serverProfiles]
   )
-  const meInOverlay = useMemo(
-    () =>
+  const meInOverlay = useMemo(() => {
+    const named =
       me && meId && nicknames?.[meId]
         ? { ...me, display_name: serverDisplayName({ nickname: nicknames[meId] }, me) }
-        : me,
-    [me, meId, nicknames]
-  )
+        : me
+    return named && withServerProfiles([named], serverProfiles)[0]
+  }, [me, meId, nicknames, serverProfiles])
 
   // Posição/tamanho editados no jogo (Shift+Tab) chegam pelo main: salva aqui.
   useEffect(() => {

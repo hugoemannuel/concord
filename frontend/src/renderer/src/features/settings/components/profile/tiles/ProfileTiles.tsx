@@ -1,3 +1,4 @@
+import { useContext } from 'react'
 import type { User } from '../../../../auth/store/authStore'
 import ProfileCardFrame from '../../../../profile/components/ProfileCardFrame'
 import StyledName from '../../../../profile/components/StyledName'
@@ -18,14 +19,21 @@ import StatusIcon from '../../../../../shared/ui/StatusIcon'
 import { STATUS_META, type PresenceStatus } from '../../../../friends/lib/presenceStatus'
 import MediaTiles from './MediaTiles'
 import CosmeticsTile from '../cosmetics/CosmeticsTile'
-import { Tile, TileRow, TileSection } from './Tile'
+import { Tile, TileAsideContext, TileRow, TileSection } from './Tile'
 
 type Open = (modal: ProfileModalId) => void
+
+/** Modo servidor: quais imagens estão sobrescritas e como voltam ao padrão. */
+export interface MediaControls {
+  avatar: boolean
+  banner: boolean
+  onReset: (kind: ImageKind) => void
+}
 
 /** Cor do banner: a barra com a cor (ou o degradê padrão) e o código dela. */
 function BannerColorTile({ color, onOpen }: { color: string | null; onOpen: Open }): React.JSX.Element {
   return (
-    <TileSection title="Cor do banner">
+    <TileSection title="Cor do banner" field="banner_color">
       <Tile label="Mudar a cor do banner" onClick={() => onOpen('banner_color')} className="h-11 w-full px-3">
         <span aria-hidden="true" className="absolute inset-0" style={{ background: color ?? DEFAULT_BANNER }} />
         <span className="relative rounded-md bg-black/45 px-1.5 py-0.5 font-mono text-ds-xs text-white">
@@ -41,7 +49,7 @@ function ThemeTile({ user, onOpen }: { user: User; onOpen: Open }): React.JSX.El
   const theme = draftFromProfile(user).profile_theme
   const banner = user.banner_color ?? DEFAULT_BANNER
   return (
-    <TileSection title="Tema do perfil">
+    <TileSection title="Tema do perfil" field="profile_theme">
       <Tile label="Mudar o tema do perfil" onClick={() => onOpen('theme')} className="w-full gap-3 p-2 pr-9">
         <ProfileCardFrame
           look={profileThemeLook(theme)}
@@ -62,7 +70,7 @@ function ThemeTile({ user, onOpen }: { user: User; onOpen: Open }): React.JSX.El
 function NameTile({ user, onOpen }: { user: User; onOpen: Open }): React.JSX.Element {
   const { display_name, name_style } = draftFromProfile(user)
   return (
-    <TileSection title="Nome de exibição">
+    <TileSection title="Nome de exibição" field="name">
       <Tile
         label="Editar nome de exibição e estilo"
         onClick={() => onOpen('name')}
@@ -100,7 +108,7 @@ function TextTiles({ user, onOpen }: { user: User; onOpen: Open }): React.JSX.El
   const draft = draftFromProfile(user)
   return (
     <>
-      <TileSection title="Pronomes">
+      <TileSection title="Pronomes" field="pronouns">
         <TileRow
           label="Editar pronomes"
           value={textSummary(draft.pronouns)}
@@ -108,7 +116,7 @@ function TextTiles({ user, onOpen }: { user: User; onOpen: Open }): React.JSX.El
           onClick={() => onOpen('pronouns')}
         />
       </TileSection>
-      <TileSection title="Nota">
+      <TileSection title="Nota" field="status_text">
         <TileRow
           label="Editar nota"
           value={textSummary(draft.status_text)}
@@ -116,7 +124,7 @@ function TextTiles({ user, onOpen }: { user: User; onOpen: Open }): React.JSX.El
           onClick={() => onOpen('note')}
         />
       </TileSection>
-      <TileSection title="Sobre mim">
+      <TileSection title="Sobre mim" field="bio">
         <TileRow
           label="Editar sobre mim"
           value={textSummary(draft.bio)}
@@ -124,7 +132,7 @@ function TextTiles({ user, onOpen }: { user: User; onOpen: Open }): React.JSX.El
           onClick={() => onOpen('bio')}
         />
       </TileSection>
-      <TileSection title="Links">
+      <TileSection title="Links" field="links">
         <TileRow
           label="Editar links"
           value={linksSummary(draft.links)}
@@ -148,7 +156,8 @@ export default function ProfileTiles({
   busy,
   onPick,
   onRemove,
-  onOpen
+  onOpen,
+  mediaControls
 }: {
   user: User
   avatarUrl: string | null
@@ -158,7 +167,10 @@ export default function ProfileTiles({
   onPick: (kind: ImageKind) => void
   onRemove: (kind: ImageKind) => void
   onOpen: Open
+  mediaControls?: MediaControls
 }): React.JSX.Element {
+  // Status e som de entrada são da pessoa, não do perfil de um servidor.
+  const globalProfile = useContext(TileAsideContext) === null
   return (
     <div
       role="group"
@@ -173,21 +185,24 @@ export default function ProfileTiles({
         busy={busy}
         onPick={onPick}
         onRemove={onRemove}
+        resettable={mediaControls}
       />
       <CosmeticsTile user={user} onOpen={() => onOpen('cosmetics')} />
       <BannerColorTile color={user.banner_color ?? null} onOpen={onOpen} />
       <ThemeTile user={user} onOpen={onOpen} />
       <NameTile user={user} onOpen={onOpen} />
-      <StatusTile user={user} onOpen={onOpen} />
+      {globalProfile && <StatusTile user={user} onOpen={onOpen} />}
       <TextTiles user={user} onOpen={onOpen} />
-      <TileSection title="Som de entrada">
-        <TileRow
-          label="Mudar o som de entrada"
-          value={soundSummary(user.entrance_sound_url ?? null)}
-          empty=""
-          onClick={() => onOpen('sound')}
-        />
-      </TileSection>
+      {globalProfile && (
+        <TileSection title="Som de entrada">
+          <TileRow
+            label="Mudar o som de entrada"
+            value={soundSummary(user.entrance_sound_url ?? null)}
+            empty=""
+            onClick={() => onOpen('sound')}
+          />
+        </TileSection>
+      )}
     </div>
   )
 }

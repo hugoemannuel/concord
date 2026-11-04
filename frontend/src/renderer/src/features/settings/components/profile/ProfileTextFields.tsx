@@ -13,7 +13,12 @@ interface TextProps {
   onChange: (value: string) => void
 }
 
-export function DisplayNameField({ value, error, onChange }: TextProps): React.JSX.Element {
+export function DisplayNameField({
+  value,
+  error,
+  disabled,
+  onChange
+}: TextProps & { disabled?: boolean }): React.JSX.Element {
   return (
     <Field
       label="Nome de exibição"
@@ -22,10 +27,16 @@ export function DisplayNameField({ value, error, onChange }: TextProps): React.J
     >
       <input
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className={inputClass}
+        className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-60`}
         aria-label="Nome de exibição"
       />
+      {disabled && (
+        <p className="mt-1 text-ds-xs text-muted">
+          Você não tem permissão para mudar seu nome neste servidor. O estilo pode mudar.
+        </p>
+      )}
     </Field>
   )
 }

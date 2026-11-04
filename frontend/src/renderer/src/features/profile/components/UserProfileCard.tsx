@@ -33,6 +33,10 @@ import { AtIcon, ChevronRightIcon, PencilIcon } from '../../../shared/ui/icons'
 import { useThemeStore } from '../../settings/store/themeStore'
 import { useProfileCardData } from '../hooks/useProfileCardData'
 import { useProfileCardPlacement } from '../hooks/useProfileCardPlacement'
+import CardServerProfileNotice from '../../serverProfiles/components/CardServerProfileNotice'
+import ProfileScope from '../../serverProfiles/components/ProfileScope'
+import { useCardServerProfile } from '../../serverProfiles/hooks/useCardServerProfile'
+import { openServerProfileEditor } from '../../serverProfiles/store/profileEditorScopeStore'
 
 /** Altura aproximada do submenu de status (4 opções, duas com descrição). */
 const STATUS_MENU_HEIGHT = 230
@@ -224,6 +228,8 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
     canJoinFromProfile(s, me?.id ?? null, target.userId) ? activityOfPlayer(s, target.userId) : null
   )
   const { mutual, profileSettled, mutualSettled } = useProfileCardData(target, relationship)
+  const pathname = router.state.location.pathname
+  const serverProfile = useCardServerProfile(target.userId, server?.id, pathname)
 
   // Transmitindo agora: selo LIVE e, se dá para assistir, a prévia com o botão.
   const live = isUserLive(target.userId, myCall, serverCalls)
@@ -243,8 +249,10 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
     roles,
     channels,
     serverCalls,
-    pathname: router.state.location.pathname,
+    pathname,
     canChangeNickname: access.canChangeNickname(target.userId),
+    serverProfile: serverProfile.profile,
+    globalView: serverProfile.showingGlobal,
     level,
     online,
     knownStatus,
@@ -263,14 +271,18 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
     stream?.kind,
     stream?.callId,
     live,
-    joinableActivity
+    joinableActivity,
+    serverProfile.showingGlobal
   ])
   const theme = resolveProfileTheme(view.card.profile_theme)
   const look = profileThemeLook(theme)
 
   const editProfile = (): void => {
     close()
-    openSettings('profiles')
+    // Vendo o próprio perfil do servidor, o atalho edita ele.
+    if (serverProfile.openServerId && serverProfile.profile) {
+      openServerProfileEditor(serverProfile.openServerId)
+    } else openSettings('profiles')
   }
 
   const editNickname = (): void => {
@@ -287,65 +299,68 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
   }
 
   return (
-    <ProfileCardFrame
-      ref={ref}
-      look={look}
-      effect={theme.effect}
-      role="dialog"
-      aria-label={`Perfil de ${view.shownName}`}
-      style={cardPlacementStyle(pos)}
-      className="z-[60] text-ds-sm text-normal shadow-2xl"
-    >
-      <ProfileCardBody
-        profile={view.card}
-        surface={look.surface}
-        status={view.status}
-        isMe={view.isMe}
-        fallbackBanner={view.fallbackBanner}
-        avatarFallbackClassName={view.role.avatar}
-        badge={
-          <LevelBadge
-            userId={target.userId}
-            size="md"
-            onClick={() => replayLevelUp(target.userId, view.card.display_name)}
-          />
-        }
-        badges={
-          <BadgeRow
-            userId={target.userId}
-            name={view.card.display_name}
-            avatarUrl={view.card.avatar_url}
-            onOpen={close}
-          />
-        }
-        onEditProfile={view.isMe ? editProfile : undefined}
-        loading={view.profileLoading}
+    <ProfileScope serverId={serverProfile.scopeId}>
+      <ProfileCardFrame
+        ref={ref}
+        look={look}
+        effect={theme.effect}
+        role="dialog"
+        aria-label={`Perfil de ${view.shownName}`}
+        style={cardPlacementStyle(pos)}
+        className="z-[60] text-ds-sm text-normal shadow-2xl"
       >
-        <LiveExtras
-          target={target}
-          stream={stream}
-          joinableActivity={joinableActivity}
-          name={view.shownName}
-          channels={channels}
-          close={close}
-        />
-        <CardInfo
-          info={view.info}
-          live={live}
-          look={{ background: theme.background_colors, ink: look.ink }}
-          inServer={view.inServer}
-          isServerOwner={view.isServerOwner}
-          memberRoles={view.memberRoles}
-        />
-        <CardFooter
-          view={view}
-          userId={target.userId}
-          close={close}
-          onEditProfile={editProfile}
-          onEditNickname={editNickname}
-        />
-      </ProfileCardBody>
-    </ProfileCardFrame>
+        <ProfileCardBody
+          profile={view.card}
+          surface={look.surface}
+          status={view.status}
+          isMe={view.isMe}
+          fallbackBanner={view.fallbackBanner}
+          avatarFallbackClassName={view.role.avatar}
+          badge={
+            <LevelBadge
+              userId={target.userId}
+              size="md"
+              onClick={() => replayLevelUp(target.userId, view.card.display_name)}
+            />
+          }
+          badges={
+            <BadgeRow
+              userId={target.userId}
+              name={view.card.display_name}
+              avatarUrl={view.card.avatar_url}
+              onOpen={close}
+            />
+          }
+          onEditProfile={view.isMe ? editProfile : undefined}
+          loading={view.profileLoading}
+        >
+          <CardServerProfileNotice card={serverProfile} />
+          <LiveExtras
+            target={target}
+            stream={stream}
+            joinableActivity={joinableActivity}
+            name={view.shownName}
+            channels={channels}
+            close={close}
+          />
+          <CardInfo
+            info={view.info}
+            live={live}
+            look={{ background: theme.background_colors, ink: look.ink }}
+            inServer={view.inServer}
+            isServerOwner={view.isServerOwner}
+            memberRoles={view.memberRoles}
+          />
+          <CardFooter
+            view={view}
+            userId={target.userId}
+            close={close}
+            onEditProfile={editProfile}
+            onEditNickname={editNickname}
+          />
+        </ProfileCardBody>
+      </ProfileCardFrame>
+    </ProfileScope>
   )
 }
 

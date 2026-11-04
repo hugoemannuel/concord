@@ -10,6 +10,7 @@ import { endSessionState } from '../../auth/store/sessionEnd'
 import { useFriendStore } from '../../friends/store/friendStore'
 import { useInviteStore } from '../../servers/store/inviteStore'
 import { useProfileCardStore } from './profileCardStore'
+import { useServerProfileStore } from '../../serverProfiles/store/serverProfileStore'
 import { useProfileStore } from './profileStore'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useSettingsStore } from '../../settings/store/settingsStore'
@@ -39,6 +40,7 @@ async function resetLocalSession(): Promise<void> {
   useServerStore.getState().reset()
   useInviteStore.getState().reset()
   useProfileStore.getState().reset()
+  useServerProfileStore.getState().reset()
   useChannelNameStore.getState().reset()
   useChatStore.getState().disconnect()
   useProfileCardStore.getState().close()

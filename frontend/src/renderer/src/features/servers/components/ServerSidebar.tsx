@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
 import type { Channel, ChannelType } from '../api/channels'
 import type { Server } from '../api/servers'
+import ProfileScope from '../../serverProfiles/components/ProfileScope'
 import { useServerStore } from '../store/serverStore'
 import { useChannelSidebarStore } from '../store/channelSidebarStore'
 import { useServerAccess } from '../hooks/useServerAccess'
@@ -216,16 +217,18 @@ export function ServerSidebar(): React.JSX.Element {
   return (
     <>
       {/* z-10: a alça de redimensionar passa um pouco da borda, sobre o conteúdo. */}
-      <aside
-        style={sidebar.panelStyle}
-        className="relative z-10 flex h-full shrink-0 flex-col border-r border-subtle bg-secondary backdrop-blur-2xl"
-      >
-        <ResizeHandle {...sidebar.handleProps} />
-        <ServerHeaderMenu server={server} access={access} />
-        <ChannelLists server={server} access={access} />
-        {/* "Voz conectada" na chamada + a barra do usuário (igual em todas as telas) */}
-        <SidebarFooter />
-      </aside>
+      <ProfileScope serverId={server?.id}>
+        <aside
+          style={sidebar.panelStyle}
+          className="relative z-10 flex h-full shrink-0 flex-col border-r border-subtle bg-secondary backdrop-blur-2xl"
+        >
+          <ResizeHandle {...sidebar.handleProps} />
+          <ServerHeaderMenu server={server} access={access} />
+          <ChannelLists server={server} access={access} />
+          {/* "Voz conectada" na chamada + a barra do usuário (igual em todas as telas) */}
+          <SidebarFooter />
+        </aside>
+      </ProfileScope>
       {server && <SidebarDialogs server={server} />}
     </>
   )

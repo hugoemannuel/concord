@@ -220,3 +220,60 @@ describe('hasCardInfo', () => {
     expect(hasCardInfo({ ...empty, mutualServers: [{ id: 's', name: 'S' }] }, false)).toBe(true)
   })
 })
+
+describe('perfil do servidor no cartão', () => {
+  const profile = {
+    id: 'u2',
+    username: 'bia',
+    display_name: 'Bia',
+    bio: 'global',
+    pronouns: 'ela',
+    links: [{ url: 'https://a.co' }],
+    status: 'online',
+    avatar_url: '/global',
+    created_at: '2026-01-01T00:00:00Z'
+  } as never
+  const server = { id: 's1', owner_id: 'dono' } as never
+  const member = { user_id: 'u2', nickname: 'Bibi', role_ids: [] } as never
+  const base = {
+    target: { userId: 'u2', name: 'Bia' },
+    me: { id: 'u1' },
+    profile,
+    member,
+    server,
+    roles: [],
+    channels: [],
+    serverCalls: {},
+    pathname: '/servers/s1/channels/c1',
+    canChangeNickname: false,
+    online: true,
+    mutual: null,
+    profileSettled: null,
+    mutualSettled: null
+  } as never as CardViewInput
+
+  it('sem perfil do servidor, o global de sempre', () => {
+    const view = profileCardView(base)
+    expect(view.card.bio).toBe('global')
+    expect(view.card.avatar_url).toBe('/global')
+    expect(view.card.nickname).toBe('Bibi')
+  })
+
+  it('sobrescreve só o que tem, inclusive texto vazio', () => {
+    const view = profileCardView({
+      ...base,
+      serverProfile: { bio: '', links: [{ url: 'https://b.co' }], avatar_url: '/s1' }
+    })
+    expect(view.card.bio).toBe('')
+    expect(view.card.links).toEqual(['https://b.co'])
+    expect(view.card.avatar_url).toBe('/s1')
+    expect(view.card.pronouns).toBe('ela')
+  })
+
+  it('ver o global tira o apelido e o perfil do servidor', () => {
+    const view = profileCardView({ ...base, serverProfile: { bio: 'daqui' }, globalView: true })
+    expect(view.card.bio).toBe('global')
+    expect(view.card.nickname).toBeNull()
+    expect(view.shownName).toBe('Bia')
+  })
+})

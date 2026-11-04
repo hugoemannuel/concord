@@ -71,7 +71,7 @@ export default function NameStyleModal({
         </>
       }
     >
-      <DisplayNameField value={name} error={error} onChange={setName} />
+      <DisplayNameField value={name} error={error} disabled={base.nameLocked} onChange={setName} />
       <NameStyleEditor value={style} onChange={setStyle} />
     </EditModalShell>
   )

@@ -1,3 +1,4 @@
+import { useScopedServerProfile } from '../../serverProfiles/hooks/useProfileScope'
 import { useProfileStore } from '../store/profileStore'
 import {
   nameEndPadding,
@@ -13,7 +14,8 @@ import '../../../assets/nameStyle.css'
  * vem do perfil conhecido (evento user:update); sem ele, vale o `style` que veio
  * junto com a mensagem/membro; sem nenhum, é o texto normal.
  * Só para o nome de exibição: apelido de servidor não leva estilo. `style={null}`
- * diz que há apelido em uso (sem estilo, nem o do perfil ao vivo).
+ * diz que há apelido em uso (sem estilo, nem o do perfil ao vivo). Dentro de um
+ * servidor, o estilo escolhido para lá ganha de tudo (vale também no apelido).
  */
 export default function StyledName({
   name,
@@ -27,7 +29,8 @@ export default function StyledName({
   className?: string
 }): React.JSX.Element {
   const live = useProfileStore((s) => (userId ? s.profiles[userId]?.name_style : undefined))
-  const resolved = resolveNameStyle(style === null ? null : (live ?? style))
+  const scoped = useScopedServerProfile(userId)?.name_style
+  const resolved = resolveNameStyle(scoped ?? (style === null ? null : (live ?? style)))
   const css = nameStyleCss(resolved)
   const boxStyle = { ...css.style, ...nameEndPadding(resolved) }
   const classes = [className, css.className].filter(Boolean).join(' ') || undefined

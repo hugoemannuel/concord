@@ -1,26 +1,37 @@
-import type { ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
+import type { ServerProfileField } from '../../../../serverProfiles/lib/serverProfile'
 import { PencilIcon } from '../../../../../shared/ui/icons'
 import SectionHeader from '../../../../../shared/ui/SectionHeader'
 
 // Peças da coluna de personalização (Configurações → Perfis), no jeito do
 // Discord: um título pequeno e um controle visual compacto que abre o editor.
 
+/**
+ * Modo servidor: o que vai à direita do título de cada bloco ("Herdado" ou
+ * "Voltar ao padrão"). Fora dele (perfil global), null.
+ */
+export const TileAsideContext = createContext<((field: ServerProfileField) => ReactNode) | null>(null)
+
 /** Título pequeno + o conteúdo do bloco. */
 export function TileSection({
   title,
+  field,
   aside,
   children
 }: {
   title: string
+  /** O campo do bloco, para o modo servidor mostrar se herda. */
+  field?: ServerProfileField
   /** À direita do título (ex.: "Remover"). */
   aside?: ReactNode
   children: ReactNode
 }): React.JSX.Element {
+  const fieldAside = useContext(TileAsideContext)
   return (
     <section className="min-w-0">
       <div className="mb-2 flex min-h-6 items-center justify-between gap-2">
         <SectionHeader>{title}</SectionHeader>
-        {aside}
+        {aside ?? (field && fieldAside?.(field))}
       </div>
       {children}
     </section>
