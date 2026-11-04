@@ -154,7 +154,7 @@ function ServerHeaderMenu({
   const strip = useServerStrip(server?.id)
   return (
     <div
-      className={`relative isolate flex shrink-0 gap-1.5 px-4 border-b border-subtle shadow-xs ${
+      className={`relative isolate z-20 flex shrink-0 gap-1.5 px-4 border-b border-subtle shadow-xs ${
         strip ? 'on-media h-24 items-start pt-3' : 'h-14 items-center'
       }`}
     >
