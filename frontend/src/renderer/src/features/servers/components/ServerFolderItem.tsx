@@ -5,6 +5,8 @@ import { serverIconSrc } from '../lib/serverIcon'
 import { badgeText, voiceBadgeLabel } from '../lib/serverRailBadge'
 import type { RailDropZone } from '../lib/serverRailDrop'
 import type { ServerRailView } from '../lib/serverRailView'
+import type { MenuPoint } from '../lib/menuPoint'
+import { useRailMenuTrigger } from '../hooks/useRailMenuTrigger'
 import ServerHoverCard from './ServerHoverCard'
 import { RailDropIndicator } from './ServerRailItem'
 
@@ -26,7 +28,7 @@ interface ServerFolderItemProps {
   dropZone?: RailDropZone | null
   dragProps?: React.HTMLAttributes<HTMLDivElement> & { draggable?: boolean }
   onToggle: () => void
-  onContextMenu: (e: React.MouseEvent<HTMLButtonElement>) => void
+  onContextMenu: (point: MenuPoint) => void
   children: React.ReactNode
 }
 
@@ -106,6 +108,7 @@ function ServerFolderItem({
 }: ServerFolderItemProps): React.JSX.Element {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const cardId = useId()
+  const menu = useRailMenuTrigger(onContextMenu)
 
   return (
     <div
@@ -126,12 +129,16 @@ function ServerFolderItem({
           <button
             type="button"
             onClick={onToggle}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              onContextMenu(e)
-            }}
+            onContextMenu={menu.onContextMenu}
+            onPointerDown={menu.onPointerDown}
+            onPointerMove={menu.onPointerMove}
+            onPointerUp={menu.onPointerUp}
+            onPointerCancel={menu.onPointerCancel}
             onPointerEnter={(e) => e.pointerType !== 'touch' && setAnchor(e.currentTarget)}
-            onPointerLeave={() => setAnchor(null)}
+            onPointerLeave={() => {
+              menu.cancel()
+              setAnchor(null)
+            }}
             onFocus={(e) => e.currentTarget.matches(':focus-visible') && setAnchor(e.currentTarget)}
             onBlur={() => setAnchor(null)}
             aria-label={name}

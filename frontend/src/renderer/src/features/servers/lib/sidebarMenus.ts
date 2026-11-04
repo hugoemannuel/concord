@@ -35,37 +35,3 @@ const CHANNEL_RULES: [ChannelMenuItem, (c: ChannelMenuContext) => boolean][] = [
 export function channelMenuItems(context: ChannelMenuContext): ChannelMenuItem[] {
   return CHANNEL_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
 }
-
-export type ServerMenuItem =
-  'invite' | 'profile' | 'nickname' | 'memberProfile' | 'events' | 'notifications' | 'settings' | 'leave' | 'delete'
-
-export interface ServerMenuContext {
-  hasServer: boolean
-  canInvite: boolean
-  canChangeOwnNickname: boolean
-  canOpenSettings: boolean
-  isOwner: boolean
-}
-
-const SERVER_RULES: [ServerMenuItem, (c: ServerMenuContext) => boolean][] = [
-  // Quem tem CREATE_INVITE convida (por padrão, todo membro).
-  ['invite', (c) => c.canInvite],
-  // O cartão do servidor, como os outros o veem.
-  ['profile', (c) => c.hasServer],
-  // O próprio apelido neste servidor ("Alterar apelido", todo mundo por padrão).
-  ['nickname', (c) => c.canChangeOwnNickname],
-  // O perfil neste servidor é de todo membro (CHANGE_NICKNAME só controla o nome).
-  ['memberProfile', (c) => c.hasServer],
-  // Todo membro vê os eventos e responde; criar exige Gerenciar eventos (dentro do painel).
-  ['events', (c) => c.hasServer],
-  ['notifications', (c) => c.hasServer],
-  ['settings', (c) => c.canOpenSettings],
-  // O dono não sai: apaga o servidor.
-  ['leave', (c) => !c.isOwner],
-  ['delete', (c) => c.isOwner]
-]
-
-/** Itens do menu do servidor (cabeçalho da barra), na ordem em que aparecem. */
-export function serverMenuItems(context: ServerMenuContext): ServerMenuItem[] {
-  return SERVER_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
-}

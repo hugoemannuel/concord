@@ -5,6 +5,8 @@ import { serverIconSrc } from '../lib/serverIcon'
 import { badgeText, voiceBadgeLabel } from '../lib/serverRailBadge'
 import type { RailDropZone } from '../lib/serverRailDrop'
 import type { ServerRailView } from '../lib/serverRailView'
+import type { MenuPoint } from '../lib/menuPoint'
+import { useRailMenuTrigger } from '../hooks/useRailMenuTrigger'
 import ServerHoverCard from './ServerHoverCard'
 
 const NO_PEOPLE: VoiceMember[] = []
@@ -43,7 +45,8 @@ interface ServerRailItemProps {
   dropZone?: RailDropZone | null
   dragProps?: React.HTMLAttributes<HTMLDivElement> & { draggable?: boolean }
   onOpen: () => void
-  onContextMenu: (e: React.MouseEvent<HTMLButtonElement>) => void
+  /** Botão direito, segurar o dedo ou tecla de menu: onde abrir o menu do servidor. */
+  onContextMenu: (point: MenuPoint) => void
 }
 
 /** Ícone de um servidor na barra lateral, com selos e o cartão de hover/foco. */
@@ -63,6 +66,7 @@ function ServerRailItem({
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const cardId = useId()
   const voiceLabel = voiceBadgeLabel(view.voice === 'mine')
+  const menu = useRailMenuTrigger(onContextMenu)
 
   return (
     <div
@@ -77,13 +81,17 @@ function ServerRailItem({
       />
       <button
         onClick={onOpen}
-        onContextMenu={(e) => {
-          e.preventDefault()
-          onContextMenu(e)
-        }}
+        onContextMenu={menu.onContextMenu}
+        onPointerDown={menu.onPointerDown}
+        onPointerMove={menu.onPointerMove}
+        onPointerUp={menu.onPointerUp}
+        onPointerCancel={menu.onPointerCancel}
         // Só mouse/caneta: no toque o cartão não abre e não atrapalha o toque no ícone.
         onPointerEnter={(e) => e.pointerType !== 'touch' && setAnchor(e.currentTarget)}
-        onPointerLeave={() => setAnchor(null)}
+        onPointerLeave={() => {
+          menu.cancel()
+          setAnchor(null)
+        }}
         // Teclado: aparece no foco; clique com mouse também foca, mas aí não é focus-visible.
         onFocus={(e) => e.currentTarget.matches(':focus-visible') && setAnchor(e.currentTarget)}
         onBlur={() => setAnchor(null)}
