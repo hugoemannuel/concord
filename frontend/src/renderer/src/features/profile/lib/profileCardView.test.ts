@@ -262,7 +262,7 @@ describe('perfil do servidor no cartão', () => {
   it('sobrescreve só o que tem, inclusive texto vazio', () => {
     const view = profileCardView({
       ...base,
-      serverProfile: { bio: '', links: [{ url: 'https://b.co' }], avatar_url: '/s1' }
+      memberProfile: { bio: '', links: [{ url: 'https://b.co' }], avatar_url: '/s1' }
     })
     expect(view.card.bio).toBe('')
     expect(view.card.links).toEqual(['https://b.co'])
@@ -271,7 +271,7 @@ describe('perfil do servidor no cartão', () => {
   })
 
   it('ver o global tira o apelido e o perfil do servidor', () => {
-    const view = profileCardView({ ...base, serverProfile: { bio: 'daqui' }, globalView: true })
+    const view = profileCardView({ ...base, memberProfile: { bio: 'daqui' }, globalView: true })
     expect(view.card.bio).toBe('global')
     expect(view.card.nickname).toBeNull()
     expect(view.shownName).toBe('Bia')

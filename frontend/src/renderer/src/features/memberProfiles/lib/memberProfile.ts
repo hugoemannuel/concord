@@ -10,8 +10,8 @@ import type { UserLook } from '../../profile/store/profileStore'
 // perfil global. Tudo aqui é regra pura: quem resolve o que aparece em um
 // servidor passa por estas funções. O nome é o apelido (serverNames).
 
-/** Os campos sobrescritos, como vêm em `server_profile` de cada membro. */
-export interface ServerProfile {
+/** Os campos sobrescritos, como vêm em `member_profile` de cada membro. */
+export interface MemberProfile {
   avatar_url?: string | null
   banner_url?: string | null
   banner_color?: string | null
@@ -31,10 +31,10 @@ export interface ServerProfile {
 }
 
 /** O perfil do servidor visto pelo editor (GET /servers/:id/profile). */
-export interface ServerProfileView {
+export interface MemberProfileView {
   server_id: string
   user_id: string
-  profile: ServerProfile
+  profile: MemberProfile
   has_profile: boolean
   nickname: string | null
   can_change_nickname: boolean
@@ -43,14 +43,14 @@ export interface ServerProfileView {
 /** A faixa num servidor: o modo sobrescrito manda; sem ele, herda. */
 export function overlayNameplate(
   globalUrl: string | null | undefined,
-  o: ServerProfile | null | undefined
+  o: MemberProfile | null | undefined
 ): string | null {
   if (!o?.nameplate_mode) return o?.nameplate_url ?? globalUrl ?? null
   return o.nameplate_mode === 'off' ? null : (o.nameplate_url ?? null)
 }
 
 /** Nome, avatar, faixa e moldura com o perfil do servidor por cima. */
-export function overlayLook(look: UserLook, o: ServerProfile | null | undefined): UserLook {
+export function overlayLook(look: UserLook, o: MemberProfile | null | undefined): UserLook {
   if (!o) return look
   return {
     name: look.name,
@@ -77,7 +77,7 @@ interface ProfileFields {
 /** Um perfil (público ou o da sessão) com os campos do servidor por cima. */
 export function overlayProfile<T extends ProfileFields>(
   source: T,
-  o: ServerProfile | null | undefined
+  o: MemberProfile | null | undefined
 ): T {
   if (!o) return source
   return {
@@ -99,7 +99,7 @@ export function overlayProfile<T extends ProfileFields>(
 /** user:update traz o global: quem tem perfil no servidor continua com o dele. */
 export function memberLookWith<T extends { avatar_url?: string | null; name_style?: NameStyle }>(
   look: T,
-  o: ServerProfile | null | undefined
+  o: MemberProfile | null | undefined
 ): T {
   if (!o) return look
   return {
@@ -113,9 +113,9 @@ export function memberLookWith<T extends { avatar_url?: string | null; name_styl
  * Pessoas de uma call de servidor com avatar e estilo de lá (a janela do
  * overlay recebe URLs prontas). Sem ninguém com perfil, a mesma lista.
  */
-export function withServerProfiles<T extends { id: string; avatar_url?: string | null }>(
+export function withMemberProfiles<T extends { id: string; avatar_url?: string | null }>(
   people: T[],
-  profiles: Record<string, ServerProfile> | undefined
+  profiles: Record<string, MemberProfile> | undefined
 ): T[] {
   if (!profiles || !people.some((p) => profiles[p.id])) return people
   return people.map((p) => {
@@ -127,15 +127,15 @@ export function withServerProfiles<T extends { id: string; avatar_url?: string |
 
 /** userId -> perfil de quem tem perfil no servidor (a lista de membros). */
 export function profilesFromMembers(
-  members: { user_id: string; server_profile?: ServerProfile | null }[]
-): Record<string, ServerProfile> {
-  const map: Record<string, ServerProfile> = {}
-  for (const m of members) if (m.server_profile) map[m.user_id] = m.server_profile
+  members: { user_id: string; member_profile?: MemberProfile | null }[]
+): Record<string, MemberProfile> {
+  const map: Record<string, MemberProfile> = {}
+  for (const m of members) if (m.member_profile) map[m.user_id] = m.member_profile
   return map
 }
 
 /** O usuário como aparece no servidor: o que o editor e a prévia mostram. */
-export function effectiveUser(user: User, view: ServerProfileView | null): User {
+export function effectiveUser(user: User, view: MemberProfileView | null): User {
   if (!view) return user
   const o = view.profile
   return {
@@ -150,7 +150,7 @@ export function effectiveUser(user: User, view: ServerProfileView | null): User 
 }
 
 /** Blocos do editor que dá para voltar ao padrão, um a um. */
-export type ServerProfileField =
+export type MemberProfileField =
   | 'name'
   | 'banner_color'
   | 'profile_theme'
@@ -161,7 +161,7 @@ export type ServerProfileField =
   | 'cosmetics'
 
 /** O bloco está sobrescrito neste servidor? */
-export function isOverridden(field: ServerProfileField, view: ServerProfileView | null): boolean {
+export function isOverridden(field: MemberProfileField, view: MemberProfileView | null): boolean {
   if (!view) return false
   const o = view.profile
   if (field === 'name') return nameOverridden(view)
@@ -172,12 +172,12 @@ export function isOverridden(field: ServerProfileField, view: ServerProfileView 
 }
 
 /** Sem CHANGE_NICKNAME o apelido não é da pessoa: "Voltar ao padrão" só cuida do estilo. */
-function nameOverridden(view: ServerProfileView): boolean {
+function nameOverridden(view: MemberProfileView): boolean {
   return Boolean(view.profile.name_style) || Boolean(view.nickname && view.can_change_nickname)
 }
 
 /** O PATCH que volta o bloco ao padrão (a faixa e a moldura têm rotas próprias). */
-export function resetPatch(field: Exclude<ServerProfileField, 'cosmetics'>): Record<string, null> {
+export function resetPatch(field: Exclude<MemberProfileField, 'cosmetics'>): Record<string, null> {
   return field === 'name' ? { name_style: null } : { [field]: null }
 }
 

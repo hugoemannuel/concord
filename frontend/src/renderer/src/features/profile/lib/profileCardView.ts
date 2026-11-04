@@ -9,7 +9,7 @@ import type { Server, ServerMember } from '../../servers/api/servers'
 import { memberColor } from '../../servers/lib/memberGroups'
 import { roleColorCss, rolesOfMember, type Role } from '../../servers/lib/permissions'
 import { serverIdFromPath } from '../../servers/lib/serverNames'
-import { overlayProfile, type ServerProfile } from '../../serverProfiles/lib/serverProfile'
+import { overlayProfile, type MemberProfile } from '../../memberProfiles/lib/memberProfile'
 import type { PublicProfile } from '../api/users'
 import type { CardProfile } from '../components/ProfileCardBody'
 import type { ProfileCardTarget } from '../store/profileCardStore'
@@ -46,7 +46,7 @@ export interface CardViewInput {
   /** Pode trocar o apelido da pessoa no servidor aberto. */
   canChangeNickname: boolean
   /** O perfil da pessoa neste servidor (sem ele, o global). */
-  serverProfile?: ServerProfile
+  memberProfile?: MemberProfile
   /** Quem olha pediu para ver o perfil global: sem apelido nem perfil do servidor. */
   globalView?: boolean
   level?: number
@@ -199,7 +199,7 @@ export function profileCardView(input: CardViewInput): ProfileCardView {
   const stranger = !isMe && isStranger(link)
   const context = memberContextOf(input)
   const global = isMe ? me : profile
-  const source = global && !input.globalView ? overlayProfile(global, input.serverProfile) : global
+  const source = global && !input.globalView ? overlayProfile(global, input.memberProfile) : global
   const card = cardProfileOf(input, source, context.nickname, isBot, stranger)
   const info = cardInfoOf(input, source, isMe, context.inServer)
   return {

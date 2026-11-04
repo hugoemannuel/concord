@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import Avatar from '../../../shared/ui/Avatar'
 import StyledName from '../../profile/components/StyledName'
 import { useProfileStore, useUserLook } from '../../profile/store/profileStore'
-import { useServerProfileStore } from '../store/serverProfileStore'
+import { useMemberProfileStore } from '../store/memberProfileStore'
 import ProfileScope from './ProfileScope'
 
 // No render de servidor o zustand devolve o estado inicial: o teste semeia o
 // estado inicial do store antes de desenhar.
 const seed = (byServer: Record<string, Record<string, object>>): void => {
-  useServerProfileStore.setState({ byServer })
-  ;(useServerProfileStore as unknown as { getInitialState: () => { byServer: unknown } }).getInitialState().byServer = byServer
+  useMemberProfileStore.setState({ byServer })
+  ;(useMemberProfileStore as unknown as { getInitialState: () => { byServer: unknown } }).getInitialState().byServer = byServer
 }
 
 const FALLBACK = { name: 'Ana', avatarUrl: '/da-mensagem', nameplateUrl: '/np', decorationUrl: null }

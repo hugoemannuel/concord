@@ -72,7 +72,7 @@ describe('applyUserUpdate', () => {
   it('o user:update é o global: quem tem perfil no servidor continua com o dele', () => {
     const before = env.servers.currentMembers
     env.servers.currentMembers = [
-      { ...before[0], server_profile: { avatar_url: '/do-servidor' } } as (typeof before)[number]
+      { ...before[0], member_profile: { avatar_url: '/do-servidor' } } as (typeof before)[number]
     ]
     applyUserUpdate(profile())
     const updated = env.servers.updateMember.mock.calls.at(-1)?.[1] as { avatar_url?: string; display_name?: string }

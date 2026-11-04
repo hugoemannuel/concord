@@ -208,20 +208,20 @@ func TestListaDeMembrosEmLote(t *testing.T) {
 	}
 
 	a := memberOf(t, servers, s1, ana)
-	if *a.AvatarURL != "/api/profile-media/ana-s1" || a.ServerProfile == nil || *a.ServerProfile.AvatarURL != "/api/profile-media/ana-s1" {
+	if *a.AvatarURL != "/api/profile-media/ana-s1" || a.MemberProfile == nil || *a.MemberProfile.AvatarURL != "/api/profile-media/ana-s1" {
 		t.Fatalf("sobrescreve: %+v", a)
 	}
 	b := memberOf(t, servers, s1, bia)
 	if *b.AvatarURL != "/api/profile-media/global-"+bia {
 		t.Fatalf("campo sem sobrescrever herda: %v", *b.AvatarURL)
 	}
-	if b.ServerProfile == nil || *b.ServerProfile.Bio != "bio da bia" {
-		t.Fatalf("%+v", b.ServerProfile)
+	if b.MemberProfile == nil || *b.MemberProfile.Bio != "bio da bia" {
+		t.Fatalf("%+v", b.MemberProfile)
 	}
-	if c := memberOf(t, servers, s1, caio); c.ServerProfile != nil || *c.AvatarURL != "/api/profile-media/global-"+caio {
+	if c := memberOf(t, servers, s1, caio); c.MemberProfile != nil || *c.AvatarURL != "/api/profile-media/global-"+caio {
 		t.Fatalf("sem perfil nada muda: %+v", c)
 	}
-	if other := memberOf(t, servers, s2, ana); other.ServerProfile != nil || *other.AvatarURL != "/api/profile-media/global-"+ana {
+	if other := memberOf(t, servers, s2, ana); other.MemberProfile != nil || *other.AvatarURL != "/api/profile-media/global-"+ana {
 		t.Fatalf("isolamento entre servidores: %+v", other)
 	}
 
@@ -229,12 +229,12 @@ func TestListaDeMembrosEmLote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if *one.AvatarURL != "/api/profile-media/ana-s1" || one.ServerProfile == nil {
+	if *one.AvatarURL != "/api/profile-media/ana-s1" || one.MemberProfile == nil {
 		t.Fatalf("um membro só: %+v", one)
 	}
 }
 
-// Sem perfil do servidor o JSON do membro continua como antes: sem server_profile.
+// Sem perfil do servidor o JSON do membro continua como antes: sem member_profile.
 func TestMembroSemPerfilNaoGanhaCampo(t *testing.T) {
 	db, _ := openDB(t)
 	servers := server.ServerRepository(db)
@@ -244,7 +244,7 @@ func TestMembroSemPerfilNaoGanhaCampo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(raw), "server_profile") {
+	if strings.Contains(string(raw), "member_profile") {
 		t.Fatalf("%s", raw)
 	}
 }
@@ -268,8 +268,8 @@ func TestFaixaEfetiva(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := memberOf(t, servers, srv, ana)
-	if *m.NameplateURL != banner || *m.ServerProfile.NameplateURL != banner {
-		t.Fatalf("banner do servidor: %+v / %+v", m.Look, m.ServerProfile)
+	if *m.NameplateURL != banner || *m.MemberProfile.NameplateURL != banner {
+		t.Fatalf("banner do servidor: %+v / %+v", m.Look, m.MemberProfile)
 	}
 
 	// "off" esconde só neste servidor.
@@ -278,7 +278,7 @@ func TestFaixaEfetiva(t *testing.T) {
 		t.Fatal(err)
 	}
 	m = memberOf(t, servers, srv, ana)
-	if m.NameplateURL != nil || m.ServerProfile.NameplateURL != nil {
+	if m.NameplateURL != nil || m.MemberProfile.NameplateURL != nil {
 		t.Fatalf("off: %+v", m.Look)
 	}
 
@@ -350,8 +350,8 @@ func TestCascataGuardaArquivos(t *testing.T) {
 
 	// Voltar ao servidor começa do zero.
 	mustExec(t, db, `INSERT INTO server_members (server_id, user_id) VALUES ($1, $2)`, srv, leaver)
-	if m := memberOf(t, servers, srv, leaver); m.ServerProfile != nil {
-		t.Fatalf("voltou com o perfil antigo: %+v", m.ServerProfile)
+	if m := memberOf(t, servers, srv, leaver); m.MemberProfile != nil {
+		t.Fatalf("voltou com o perfil antigo: %+v", m.MemberProfile)
 	}
 }
 

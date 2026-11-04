@@ -15,7 +15,7 @@ import {
   resolveServerChannel
 } from '../lib/serverChannel'
 import ServerViewLayout, { ServerViewSkeleton } from '../components/ServerViewLayout'
-import ProfileScope from '../../serverProfiles/components/ProfileScope'
+import ProfileScope from '../../memberProfiles/components/ProfileScope'
 import ServerRightPanel from '../components/ServerRightPanel'
 import ServerThemeHost from '../../serverprofile/components/ServerThemeHost'
 import VoiceChatPanel from '../../chat/components/VoiceChatPanel'

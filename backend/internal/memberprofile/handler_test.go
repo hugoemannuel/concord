@@ -57,13 +57,13 @@ func do(r http.Handler, method, path, body string) *httptest.ResponseRecorder {
 }
 
 func TestHandlerStatus(t *testing.T) {
-	base := "/api/servers/" + serverUUID + "/profile"
+	base := "/api/servers/" + serverUUID + "/my-profile"
 	cases := []struct {
 		name, as, method, path, body string
 		want                         int
 	}{
 		{"sem login", "", http.MethodGet, base, "", http.StatusUnauthorized},
-		{"id ruim", "ana", http.MethodGet, "/api/servers/nao-e-uuid/profile", "", http.StatusForbidden},
+		{"id ruim", "ana", http.MethodGet, "/api/servers/nao-e-uuid/my-profile", "", http.StatusForbidden},
 		{"não membro lê", "ze", http.MethodGet, base, "", http.StatusForbidden},
 		{"não membro edita", "ze", http.MethodPatch, base, `{"bio":"x"}`, http.StatusForbidden},
 		{"não membro apaga", "ze", http.MethodDelete, base, "", http.StatusForbidden},
@@ -90,7 +90,7 @@ func TestHandlerStatus(t *testing.T) {
 // Não membro não gasta disco: o upload nem começa.
 func TestUploadNaoComecaParaQuemNaoEMembro(t *testing.T) {
 	r, images, _ := newRouter(t, "ze")
-	do(r, http.MethodPost, "/api/servers/"+serverUUID+"/profile/avatar", "")
+	do(r, http.MethodPost, "/api/servers/"+serverUUID+"/my-profile/avatar", "")
 	if images.uploads != 0 {
 		t.Fatal("upload começou")
 	}
@@ -100,7 +100,7 @@ func TestUploadTrocaEApagaAAntiga(t *testing.T) {
 	r, images, st := newRouter(t, "ana")
 	old := "/api/profile-media/velho"
 	st.rows[key(serverUUID, "ana")] = Overrides{AvatarURL: &old}
-	w := do(r, http.MethodPost, "/api/servers/"+serverUUID+"/profile/avatar", "")
+	w := do(r, http.MethodPost, "/api/servers/"+serverUUID+"/my-profile/avatar", "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
@@ -120,7 +120,7 @@ func TestResetApagaArquivoDaImagem(t *testing.T) {
 	r, images, st := newRouter(t, "ana")
 	old := "/api/profile-media/deco"
 	st.rows[key(serverUUID, "ana")] = Overrides{AvatarDecorationURL: &old}
-	if w := do(r, http.MethodDelete, "/api/servers/"+serverUUID+"/profile/decoration", ""); w.Code != http.StatusOK {
+	if w := do(r, http.MethodDelete, "/api/servers/"+serverUUID+"/my-profile/decoration", ""); w.Code != http.StatusOK {
 		t.Fatalf("%d", w.Code)
 	}
 	if len(images.removed) != 1 || images.removed[0] != old {

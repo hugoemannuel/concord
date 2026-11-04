@@ -3,9 +3,9 @@ import { useProfileApply } from '../../hooks/useProfileApply'
 import ProfileEditorBody from '../profile/ProfileEditorBody'
 import SavedProfilesPanel from '../../../savedProfiles/components/SavedProfilesPanel'
 import MyServerTagPicker from '../../../serverprofile/components/MyServerTagPicker'
-import ProfileScopePicker from '../../../serverProfiles/components/ProfileScopePicker'
-import ServerProfileEditor from '../../../serverProfiles/components/ServerProfileEditor'
-import { useProfileEditorScopeStore } from '../../../serverProfiles/store/profileEditorScopeStore'
+import ProfileScopePicker from '../../../memberProfiles/components/ProfileScopePicker'
+import MemberProfileEditor from '../../../memberProfiles/components/MemberProfileEditor'
+import { useProfileEditorScopeStore } from '../../../memberProfiles/store/profileEditorScopeStore'
 import { useServerStore } from '../../../servers/store/serverStore'
 
 /** O perfil global: no topo, os perfis salvos para trocar o perfil inteiro de uma vez. */
@@ -33,7 +33,7 @@ function ProfilesSection(): React.JSX.Element | null {
     <div className="flex min-w-0 flex-col gap-8">
       <ProfileScopePicker />
       {server ? (
-        <ServerProfileEditor key={server.id} serverId={server.id} serverName={server.name} />
+        <MemberProfileEditor key={server.id} serverId={server.id} serverName={server.name} />
       ) : (
         <GlobalProfileEditor />
       )}

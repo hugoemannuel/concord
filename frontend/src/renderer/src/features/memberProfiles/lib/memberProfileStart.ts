@@ -1,13 +1,13 @@
 import { onWsEvent } from '../../../shared/api/ws'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useSettingsStore } from '../../settings/store/settingsStore'
-import { useServerProfileStore } from '../store/serverProfileStore'
+import { useMemberProfileStore } from '../store/memberProfileStore'
 import { useProfileEditorScopeStore } from '../store/profileEditorScopeStore'
-import { handleServerProfileEvent, type ServerProfileEventDeps } from './serverProfileEvents'
+import { handleMemberProfileEvent, type MemberProfileEventDeps } from './memberProfileEvents'
 
-const liveDeps: ServerProfileEventDeps = {
-  apply: (serverId, userId, profile) => useServerProfileStore.getState().apply(serverId, userId, profile),
-  forgetServer: (serverId) => useServerProfileStore.getState().forgetServer(serverId)
+const liveDeps: MemberProfileEventDeps = {
+  apply: (serverId, userId, profile) => useMemberProfileStore.getState().apply(serverId, userId, profile),
+  forgetServer: (serverId) => useMemberProfileStore.getState().forgetServer(serverId)
 }
 
 /**
@@ -16,11 +16,11 @@ const liveDeps: ServerProfileEventDeps = {
  * todos os servidores da pessoa. Chamado uma vez na entrada; devolve o
  * "desligar".
  */
-export function startServerProfilesSync(): () => void {
-  const offWs = onWsEvent((event) => handleServerProfileEvent(event, liveDeps))
+export function startMemberProfilesSync(): () => void {
+  const offWs = onWsEvent((event) => handleMemberProfileEvent(event, liveDeps))
   const offMembers = useServerStore.subscribe((state, prev) => {
     if (state.currentMembers === prev.currentMembers || !state.currentServer) return
-    useServerProfileStore.getState().ingestMembers(state.currentServer.id, state.currentMembers)
+    useMemberProfileStore.getState().ingestMembers(state.currentServer.id, state.currentMembers)
   })
   const offSettings = useSettingsStore.subscribe((state, prev) => {
     if (prev.open && !state.open) useProfileEditorScopeStore.getState().setServerId(null)

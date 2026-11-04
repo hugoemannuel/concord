@@ -1,10 +1,10 @@
-import type { CardServerProfile } from '../hooks/useCardServerProfile'
+import type { CardMemberProfile } from '../hooks/useCardMemberProfile'
 
 /** No cartão: avisa que há perfil neste servidor e alterna com o perfil global. */
-export default function CardServerProfileNotice({
+export default function CardMemberProfileNotice({
   card
 }: {
-  card: CardServerProfile & { toggle: () => void }
+  card: CardMemberProfile & { toggle: () => void }
 }): React.JSX.Element | null {
   if (!card.available) return null
   return (

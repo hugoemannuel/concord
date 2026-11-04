@@ -97,7 +97,7 @@ describe('serverMenuItems', () => {
       'invite',
       'profile',
       'nickname',
-      'serverProfile',
+      'memberProfile',
       'events',
       'notifications',
       'leave'
@@ -109,7 +109,7 @@ describe('serverMenuItems', () => {
       'invite',
       'profile',
       'nickname',
-      'serverProfile',
+      'memberProfile',
       'events',
       'notifications',
       'settings',

@@ -1,5 +1,5 @@
 import { serverDisplayName } from '../../servers/lib/serverNames'
-import { withServerProfiles, type ServerProfile } from '../../serverProfiles/lib/serverProfile'
+import { withMemberProfiles, type MemberProfile } from '../../memberProfiles/lib/memberProfile'
 
 interface Person {
   id: string
@@ -15,10 +15,10 @@ interface Person {
 export function overlayMe<T extends Person>(
   me: T | null,
   nicknames: Record<string, string> | undefined,
-  profiles: Record<string, ServerProfile> | undefined
+  profiles: Record<string, MemberProfile> | undefined
 ): T | null {
   if (!me) return me
   const nickname = nicknames?.[me.id]
   const named = nickname ? { ...me, display_name: serverDisplayName({ nickname }, me) } : me
-  return withServerProfiles([named], profiles)[0]
+  return withMemberProfiles([named], profiles)[0]
 }

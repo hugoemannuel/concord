@@ -38,9 +38,9 @@ type ServerMember struct {
 	RoleIDs   []string  `json:"role_ids"`
 	JoinedAt  time.Time `json:"joined_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	// ServerProfile: os campos que a pessoa sobrescreveu neste servidor (ausente
+	// MemberProfile: os campos que a pessoa sobrescreveu neste servidor (ausente
 	// = só o perfil global). AvatarURL, NameStyle e Look acima já são os efetivos.
-	ServerProfile *memberprofile.Overrides `json:"server_profile,omitempty"`
+	MemberProfile *memberprofile.Overrides `json:"member_profile,omitempty"`
 }
 
 type ServerInvite struct {

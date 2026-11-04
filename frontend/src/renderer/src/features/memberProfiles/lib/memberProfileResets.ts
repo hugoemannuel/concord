@@ -1,13 +1,13 @@
-import { resetPatch, type ServerProfileField, type ServerProfileView } from './serverProfile'
-import type { ServerMediaKind } from '../api/serverProfiles'
+import { resetPatch, type MemberProfileField, type MemberProfileView } from './memberProfile'
+import type { ServerMediaKind } from '../api/memberProfiles'
 
 // "Voltar ao padrão" de um bloco e "Apagar perfil deste servidor".
 
 export interface ServerResetDeps {
-  view: () => ServerProfileView | null
-  patch: (body: Record<string, unknown>) => Promise<ServerProfileView>
-  resetImage: (kind: ServerMediaKind) => Promise<ServerProfileView>
-  deleteProfile: () => Promise<ServerProfileView>
+  view: () => MemberProfileView | null
+  patch: (body: Record<string, unknown>) => Promise<MemberProfileView>
+  resetImage: (kind: ServerMediaKind) => Promise<MemberProfileView>
+  deleteProfile: () => Promise<MemberProfileView>
   setNickname: (nickname: string) => Promise<unknown>
 }
 
@@ -21,9 +21,9 @@ async function clearNickname(deps: ServerResetDeps): Promise<boolean> {
 
 /** O nome é o apelido mais o estilo; a faixa e a moldura têm rotas próprias. */
 export async function resetServerField(
-  field: ServerProfileField,
+  field: MemberProfileField,
   deps: ServerResetDeps
-): Promise<ServerProfileView> {
+): Promise<MemberProfileView> {
   if (field === 'cosmetics') {
     await deps.resetImage('nameplate')
     await deps.resetImage('decoration')
@@ -34,7 +34,7 @@ export async function resetServerField(
 }
 
 /** Apaga o perfil e, se a pessoa pode, o apelido: ela volta a ser só o global. */
-export async function removeServerProfile(deps: ServerResetDeps): Promise<ServerProfileView> {
+export async function removeMemberProfile(deps: ServerResetDeps): Promise<MemberProfileView> {
   await clearNickname(deps)
   return deps.deleteProfile()
 }

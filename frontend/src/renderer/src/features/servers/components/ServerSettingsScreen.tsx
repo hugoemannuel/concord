@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import ProfileScope from '../../serverProfiles/components/ProfileScope'
+import ProfileScope from '../../memberProfiles/components/ProfileScope'
 import { useServerSettingsStore } from '../store/serverSettingsStore'
 import { useServerStore } from '../store/serverStore'
 import { useChatStore } from '../../chat/store/chatStore'

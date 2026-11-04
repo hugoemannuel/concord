@@ -13,25 +13,25 @@ import {
   nicknameAction,
   patchFromFields,
   type FieldValues,
-  type ServerProfileView
-} from './serverProfile'
+  type MemberProfileView
+} from './memberProfile'
 
 // "Aplicar" no perfil de um servidor: imagens primeiro, depois apelido e
 // campos, cada um pelo caminho dele. Só vai para o servidor o que mudou.
 
 export interface ServerApplyDeps {
   user: () => User | null
-  view: () => ServerProfileView | null
+  view: () => MemberProfileView | null
   upload: (
     kind: ProfileImageKind,
     file: Blob,
     staticFrame: Blob | undefined,
     onProgress: (p: number) => void
-  ) => Promise<ServerProfileView>
-  reset: (kind: ProfileImageKind) => Promise<ServerProfileView>
-  patch: (body: Record<string, unknown>) => Promise<ServerProfileView>
+  ) => Promise<MemberProfileView>
+  reset: (kind: ProfileImageKind) => Promise<MemberProfileView>
+  patch: (body: Record<string, unknown>) => Promise<MemberProfileView>
   setNickname: (nickname: string) => Promise<string | null>
-  commit: (view: ServerProfileView) => void
+  commit: (view: MemberProfileView) => void
   setProgress: (p: number | null) => void
 }
 
@@ -41,7 +41,7 @@ function sendMedia(
   kind: ProfileImageKind,
   change: MediaChange | undefined,
   deps: ServerApplyDeps
-): Promise<ServerProfileView> | null {
+): Promise<MemberProfileView> | null {
   if (!change || change.kind === 'keep') return null
   if (change.kind === 'remove') return deps.reset(kind)
   deps.setProgress(0)
@@ -70,7 +70,7 @@ const sameStyle = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSO
 async function saveNickname(
   name: string | undefined,
   user: User,
-  view: ServerProfileView,
+  view: MemberProfileView,
   deps: ServerApplyDeps
 ): Promise<string | null> {
   const action = nicknameAction(name, view.nickname || user.display_name, user.display_name)
@@ -96,7 +96,7 @@ async function saveFields(change: ProfileChange, deps: ServerApplyDeps): Promise
 }
 
 /** Salva e avisa com um toast; devolve se deu certo (o modal fecha). */
-export async function applyServerProfileChange(
+export async function applyMemberProfileChange(
   change: ProfileChange,
   deps: ServerApplyDeps,
   notify: { success: (msg: string) => void; error: (msg: string) => void }

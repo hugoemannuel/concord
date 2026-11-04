@@ -57,7 +57,7 @@ func target(c *gin.Context) (serverID, userID string, ok bool) {
 	return serverID, raw.(string), true
 }
 
-// Get: GET /servers/:id/profile.
+// Get: GET /servers/:id/my-profile.
 func (h *Handler) Get(c *gin.Context) {
 	serverID, userID, ok := target(c)
 	if !ok {
@@ -71,7 +71,7 @@ func (h *Handler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, view)
 }
 
-// Update: PATCH /servers/:id/profile. Campo ausente não muda, null volta ao
+// Update: PATCH /servers/:id/my-profile. Campo ausente não muda, null volta ao
 // padrão e valor sobrescreve.
 func (h *Handler) Update(c *gin.Context) {
 	serverID, userID, ok := target(c)
@@ -91,7 +91,7 @@ func (h *Handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, view)
 }
 
-// Delete: DELETE /servers/:id/profile.
+// Delete: DELETE /servers/:id/my-profile.
 func (h *Handler) Delete(c *gin.Context) {
 	serverID, userID, ok := target(c)
 	if !ok {
@@ -105,7 +105,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, view)
 }
 
-// upload: POST /servers/:id/profile/<kind>. Membro confere antes de o arquivo
+// upload: POST /servers/:id/my-profile/<kind>. Membro confere antes de o arquivo
 // ir para o disco.
 func (h *Handler) upload(kind MediaKind) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -129,7 +129,7 @@ func (h *Handler) upload(kind MediaKind) gin.HandlerFunc {
 	}
 }
 
-// reset: DELETE /servers/:id/profile/<kind>: a imagem volta a herdar do global.
+// reset: DELETE /servers/:id/my-profile/<kind>: a imagem volta a herdar do global.
 func (h *Handler) reset(kind MediaKind) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		serverID, userID, ok := target(c)

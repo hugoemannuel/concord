@@ -7,10 +7,10 @@ import ConfirmModal from '../../friends/components/ConfirmModal'
 import ProfileEditorBody from '../../settings/components/profile/ProfileEditorBody'
 import { TileAction, TileAsideContext } from '../../settings/components/profile/tiles/Tile'
 import { saveErrorMessage } from '../../settings/lib/saveProfile'
-import { useServerProfileEditor } from '../hooks/useServerProfileEditor'
-import { isOverridden, type ServerProfileField, type ServerProfileView } from '../lib/serverProfile'
+import { useMemberProfileEditor } from '../hooks/useMemberProfileEditor'
+import { isOverridden, type MemberProfileField, type MemberProfileView } from '../lib/memberProfile'
 
-const FIELD_LABEL: Record<ServerProfileField, string> = {
+const FIELD_LABEL: Record<MemberProfileField, string> = {
   name: 'nome e estilo',
   banner_color: 'cor do banner',
   profile_theme: 'tema do perfil',
@@ -22,7 +22,7 @@ const FIELD_LABEL: Record<ServerProfileField, string> = {
 }
 
 /** O que há para apagar: campos sobrescritos ou um apelido que é da pessoa. */
-function hasSomethingToRemove(view: ServerProfileView): boolean {
+function hasSomethingToRemove(view: MemberProfileView): boolean {
   return view.has_profile || Boolean(view.nickname && view.can_change_nickname)
 }
 
@@ -31,18 +31,18 @@ function hasSomethingToRemove(view: ServerProfileView): boolean {
  * perfil global, com o valor herdado até ser alterado e "Voltar ao padrão" por
  * bloco. Status, som de entrada e perfis salvos continuam só no global.
  */
-export default function ServerProfileEditor({
+export default function MemberProfileEditor({
   serverId,
   serverName
 }: {
   serverId: string
   serverName: string
 }): React.JSX.Element {
-  const editor = useServerProfileEditor(serverId)
+  const editor = useMemberProfileEditor(serverId)
   const [removing, setRemoving] = useState(false)
   const { view, profile, resetField } = editor
 
-  const aside = (field: ServerProfileField): React.ReactNode =>
+  const aside = (field: MemberProfileField): React.ReactNode =>
     isOverridden(field, view) ? (
       <TileAction
         label={`Voltar ${FIELD_LABEL[field]} ao padrão`}

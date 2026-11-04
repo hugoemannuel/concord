@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { mergeCallPeople } from '../../call/lib/callParticipants'
 import { buildOverlaySnapshot, sameOverlaySnapshot, type OverlaySnapshot } from '../lib/overlayState'
 import { withServerNames } from '../../servers/lib/serverNames'
-import { useCallServerProfiles } from '../../serverProfiles/hooks/useCallServerProfiles'
-import { withServerProfiles } from '../../serverProfiles/lib/serverProfile'
+import { useCallMemberProfiles } from '../../memberProfiles/hooks/useCallMemberProfiles'
+import { withMemberProfiles } from '../../memberProfiles/lib/memberProfile'
 import { overlayMe } from '../lib/overlayMe'
 import { useCallNicknames } from '../../servers/hooks/useServerNames'
 import { useAuthStore } from '../../auth/store/authStore'
@@ -54,10 +54,10 @@ function OverlayBridge(): null {
   // Call num canal de voz: apelidos daquele servidor (mesmo olhando outro).
   const nicknames = useCallNicknames()
   // A janela do overlay recebe URLs prontas: o avatar do servidor vai resolvido.
-  const serverProfiles = useCallServerProfiles()
+  const memberProfiles = useCallMemberProfiles()
   const participants = useMemo(
     () =>
-      withServerProfiles(
+      withMemberProfiles(
         withServerNames(
           mergeCallPeople(backendParticipants, mediaPeers, meId, (id) => {
             const m = members.find((x) => x.user_id === id)
@@ -65,13 +65,13 @@ function OverlayBridge(): null {
           }),
           nicknames
         ),
-        serverProfiles
+        memberProfiles
       ),
-    [backendParticipants, mediaPeers, meId, members, nicknames, serverProfiles]
+    [backendParticipants, mediaPeers, meId, members, nicknames, memberProfiles]
   )
   const meInOverlay = useMemo(
-    () => overlayMe(me, nicknames, serverProfiles),
-    [me, nicknames, serverProfiles]
+    () => overlayMe(me, nicknames, memberProfiles),
+    [me, nicknames, memberProfiles]
   )
 
   // Posição/tamanho editados no jogo (Shift+Tab) chegam pelo main: salva aqui.

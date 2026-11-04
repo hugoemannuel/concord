@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { serverIdFromPath } from '../../servers/lib/serverNames'
-import { useServerProfileStore } from '../store/serverProfileStore'
-import type { ServerProfile } from '../lib/serverProfile'
+import { useMemberProfileStore } from '../store/memberProfileStore'
+import type { MemberProfile } from '../lib/memberProfile'
 
-export interface CardServerProfile {
+export interface CardMemberProfile {
   /** Servidor cujo perfil o cartão mostra (null = o global). */
   scopeId: string | null
   /** O servidor aberto, mesmo olhando o global (o atalho de edição usa). */
   openServerId: string | null
-  profile?: ServerProfile
+  profile?: MemberProfile
   /** A pessoa tem perfil no servidor aberto: o cartão oferece ver o global. */
   available: boolean
   showingGlobal: boolean
@@ -22,12 +22,12 @@ export function openServerOf(serverId: string | undefined, pathname: string): st
 }
 
 /** O que o cartão mostra: `globalFor` guarda de quem foi o pedido de ver o global. */
-export function cardServerProfile(input: {
+export function cardMemberProfile(input: {
   userId: string
   openServerId: string | null
-  profile: ServerProfile | undefined
+  profile: MemberProfile | undefined
   globalFor: string | null
-}): CardServerProfile {
+}): CardMemberProfile {
   const { userId, openServerId, profile, globalFor } = input
   const available = Boolean(profile)
   const showingGlobal = available && globalFor === userId
@@ -42,16 +42,16 @@ export function cardServerProfile(input: {
 }
 
 /** Cartão de perfil: o perfil do servidor aberto e o "ver o global", como no Discord. */
-export function useCardServerProfile(
+export function useCardMemberProfile(
   userId: string,
   serverId: string | undefined,
   pathname: string
-): CardServerProfile & { toggle: () => void } {
+): CardMemberProfile & { toggle: () => void } {
   const [globalFor, setGlobalFor] = useState<string | null>(null)
   const openServerId = openServerOf(serverId, pathname)
-  const profile = useServerProfileStore((s) =>
+  const profile = useMemberProfileStore((s) =>
     openServerId ? s.byServer[openServerId]?.[userId] : undefined
   )
-  const card = cardServerProfile({ userId, openServerId, profile, globalFor })
+  const card = cardMemberProfile({ userId, openServerId, profile, globalFor })
   return { ...card, toggle: () => setGlobalFor(card.nextGlobalFor) }
 }

@@ -16,7 +16,7 @@ import { startAppSounds } from './features/appsounds/lib/appSoundsStart'
 import { startArrivalBadges } from './features/call/lib/arrivalEventsStart'
 import { startCallInvites } from './features/call/lib/callInviteStart'
 import { startSavedProfilesSync } from './features/savedProfiles/lib/savedProfilesStart'
-import { startServerProfilesSync } from './features/serverProfiles/lib/serverProfileStart'
+import { startMemberProfilesSync } from './features/memberProfiles/lib/memberProfileStart'
 import { startSpeechReport } from './features/call/lib/speechReportStart'
 import { startPresenceActivity } from './features/activity/lib/presenceActivityStart'
 import { startServerProfile } from './features/serverprofile/lib/serverProfileStart'
@@ -49,7 +49,7 @@ startCallInvites()
 
 // Perfis salvos: a lista acompanha as mudanças feitas em outros aparelhos.
 startSavedProfilesSync()
-startServerProfilesSync()
+startMemberProfilesSync()
 
 // O jogo e a música dos outros agora (presence:activity).
 startPresenceActivity()

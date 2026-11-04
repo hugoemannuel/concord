@@ -34,7 +34,7 @@ import { useEventAccess } from '../../events/hooks/useEventAccess'
 import { useEventsPanelStore } from '../../events/store/eventsPanelStore'
 import ServerStripArt, { useServerStrip } from '../../serverprofile/components/ServerStripArt'
 import { useServerCardStore } from '../../serverprofile/store/serverCardStore'
-import { openServerProfileEditor } from '../../serverProfiles/store/profileEditorScopeStore'
+import { openMemberProfileEditor } from '../../memberProfiles/store/profileEditorScopeStore'
 
 const LOOK: Record<
   ServerMenuItem,
@@ -47,7 +47,7 @@ const LOOK: Record<
   },
   profile: { label: 'Perfil do servidor', icon: <ImageIcon className="h-3.5 w-3.5" /> },
   nickname: { label: 'Alterar apelido', icon: <PencilIcon className="h-3.5 w-3.5" /> },
-  serverProfile: { label: 'Editar perfil do servidor', icon: <PencilIcon className="h-3.5 w-3.5" /> },
+  memberProfile: { label: 'Editar perfil do servidor', icon: <PencilIcon className="h-3.5 w-3.5" /> },
   events: { label: 'Eventos', icon: <CalendarIcon className="h-3.5 w-3.5" /> },
   notifications: { label: 'Notificações do servidor' },
   settings: { label: 'Configurações do servidor', icon: <GearIcon className="h-3.5 w-3.5" /> },
@@ -102,7 +102,7 @@ export function ServerMenuItems({
     invite: openInviteModal,
     profile: () => server && useServerCardStore.getState().open(server.id),
     nickname: () => server && user && askOwnNickname(server, user),
-    serverProfile: () => server && openServerProfileEditor(server.id),
+    memberProfile: () => server && openMemberProfileEditor(server.id),
     events: () => server && useEventsPanelStore.getState().open(server.id),
     notifications: () => server && openNotifyModal({ serverId: server.id, name: server.name }),
     settings: () => useServerSettingsStore.getState().openSettings(),

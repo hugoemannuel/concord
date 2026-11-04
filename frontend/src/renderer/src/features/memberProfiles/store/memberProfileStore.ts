@@ -1,19 +1,19 @@
 import { create } from 'zustand'
-import { profilesFromMembers, type ServerProfile } from '../lib/serverProfile'
+import { profilesFromMembers, type MemberProfile } from '../lib/memberProfile'
 
 // Os perfis de servidor conhecidos: serverId -> userId -> campos sobrescritos.
 // Vêm junto com a lista de membros (mesma consulta) e pelo
 // server:member:update. Quem não está aqui usa o perfil global.
 
-interface ServerProfileState {
-  byServer: Record<string, Record<string, ServerProfile>>
+interface MemberProfileState {
+  byServer: Record<string, Record<string, MemberProfile>>
   /** A lista de membros de um servidor chegou (ou mudou). */
   ingestMembers: (
     serverId: string,
-    members: { user_id: string; server_profile?: ServerProfile | null }[]
+    members: { user_id: string; member_profile?: MemberProfile | null }[]
   ) => void
   /** O perfil de alguém mudou; sem perfil, a pessoa volta a ser só o global. */
-  apply: (serverId: string, userId: string, profile: ServerProfile | null | undefined) => void
+  apply: (serverId: string, userId: string, profile: MemberProfile | null | undefined) => void
   forgetServer: (serverId: string) => void
   reset: () => void
 }
@@ -22,10 +22,10 @@ const same = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) =
 
 /** Mantém os objetos que não mudaram: quem lê um perfil não redesenha à toa. */
 function mergeServer(
-  current: Record<string, ServerProfile> | undefined,
-  next: Record<string, ServerProfile>
-): Record<string, ServerProfile> {
-  const out: Record<string, ServerProfile> = {}
+  current: Record<string, MemberProfile> | undefined,
+  next: Record<string, MemberProfile>
+): Record<string, MemberProfile> {
+  const out: Record<string, MemberProfile> = {}
   let changed = Object.keys(current ?? {}).length !== Object.keys(next).length
   for (const [userId, profile] of Object.entries(next)) {
     const old = current?.[userId]
@@ -36,7 +36,7 @@ function mergeServer(
   return changed || !current ? out : current
 }
 
-export const useServerProfileStore = create<ServerProfileState>()((set, get) => ({
+export const useMemberProfileStore = create<MemberProfileState>()((set, get) => ({
   byServer: {},
 
   ingestMembers: (serverId, members) => {

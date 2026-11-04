@@ -1,4 +1,4 @@
-import { useScopedServerProfile } from '../../serverProfiles/hooks/useProfileScope'
+import { useScopedMemberProfile } from '../../memberProfiles/hooks/useProfileScope'
 import { useProfileStore } from '../store/profileStore'
 import {
   nameEndPadding,
@@ -29,7 +29,7 @@ export default function StyledName({
   className?: string
 }): React.JSX.Element {
   const live = useProfileStore((s) => (userId ? s.profiles[userId]?.name_style : undefined))
-  const scoped = useScopedServerProfile(userId)?.name_style
+  const scoped = useScopedMemberProfile(userId)?.name_style
   const resolved = resolveNameStyle(scoped ?? (style === null ? null : (live ?? style)))
   const css = nameStyleCss(resolved)
   const boxStyle = { ...css.style, ...nameEndPadding(resolved) }

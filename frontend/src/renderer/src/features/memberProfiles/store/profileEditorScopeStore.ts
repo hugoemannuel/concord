@@ -15,7 +15,7 @@ export const useProfileEditorScopeStore = create<ProfileEditorScopeState>()((set
 }))
 
 /** O atalho "Editar perfil do servidor" (menu do servidor e cartão). */
-export function openServerProfileEditor(serverId: string): void {
+export function openMemberProfileEditor(serverId: string): void {
   useProfileEditorScopeStore.getState().setServerId(serverId)
   useSettingsStore.getState().openSettings('profiles')
 }

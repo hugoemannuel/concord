@@ -2,7 +2,7 @@
 import type { PublicProfile } from '../../../profile/api/users'
 import type { WsHandler } from './context'
 import { ping } from './alerts'
-import { memberLookWith } from '../../../serverProfiles/lib/serverProfile'
+import { memberLookWith } from '../../../memberProfiles/lib/memberProfile'
 import { useProfileStore } from '../../../profile/store/profileStore'
 import { useAuthStore } from '../../../auth/store/authStore'
 import { useServerStore } from '../../../servers/store/serverStore'
@@ -46,7 +46,7 @@ function applyToMembers(userId: string, look: Look): void {
   const member = servers.currentMembers.find((m) => m.user_id === userId)
   if (serverId && member) {
     // O user:update é o perfil global: o que é do servidor continua.
-    servers.updateMember(serverId, { ...member, ...memberLookWith(look, member.server_profile) })
+    servers.updateMember(serverId, { ...member, ...memberLookWith(look, member.member_profile) })
   }
 }
 

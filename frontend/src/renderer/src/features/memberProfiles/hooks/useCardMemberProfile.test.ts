@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardServerProfile, openServerOf } from './useCardServerProfile'
+import { cardMemberProfile, openServerOf } from './useCardMemberProfile'
 
 const input = {
   userId: 'u1',
@@ -17,9 +17,9 @@ describe('openServerOf', () => {
   })
 })
 
-describe('cardServerProfile', () => {
+describe('cardMemberProfile', () => {
   it('sem perfil no servidor nada muda no cartão', () => {
-    const card = cardServerProfile({ ...input, profile: undefined })
+    const card = cardMemberProfile({ ...input, profile: undefined })
     expect(card.available).toBe(false)
     expect(card.showingGlobal).toBe(false)
     expect(card.profile).toBeUndefined()
@@ -27,14 +27,14 @@ describe('cardServerProfile', () => {
   })
 
   it('com perfil, mostra o do servidor e oferece o global', () => {
-    const card = cardServerProfile(input)
+    const card = cardMemberProfile(input)
     expect(card.available).toBe(true)
     expect(card.profile).toEqual({ bio: 'x' })
     expect(card.nextGlobalFor).toBe('u1')
   })
 
   it('pedindo o global, o escopo some e dá para voltar', () => {
-    const card = cardServerProfile({ ...input, globalFor: 'u1' })
+    const card = cardMemberProfile({ ...input, globalFor: 'u1' })
     expect(card.showingGlobal).toBe(true)
     expect(card.profile).toBeUndefined()
     expect(card.scopeId).toBeNull()
@@ -42,7 +42,7 @@ describe('cardServerProfile', () => {
   })
 
   it('o pedido era de outra pessoa: volta ao perfil do servidor', () => {
-    const card = cardServerProfile({ ...input, userId: 'u2', globalFor: 'u1' })
+    const card = cardMemberProfile({ ...input, userId: 'u2', globalFor: 'u1' })
     expect(card.showingGlobal).toBe(false)
     expect(card.scopeId).toBe('s1')
   })

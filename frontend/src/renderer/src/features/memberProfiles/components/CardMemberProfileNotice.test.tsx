@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import CardServerProfileNotice from './CardServerProfileNotice'
+import CardMemberProfileNotice from './CardMemberProfileNotice'
 
 const card = (over: { available: boolean; showingGlobal: boolean }) => ({
   ...over,
@@ -10,16 +10,16 @@ const card = (over: { available: boolean; showingGlobal: boolean }) => ({
   toggle: vi.fn()
 })
 
-describe('CardServerProfileNotice', () => {
+describe('CardMemberProfileNotice', () => {
   it('sem perfil no servidor o cartão não muda', () => {
     expect(
-      renderToStaticMarkup(<CardServerProfileNotice card={card({ available: false, showingGlobal: false })} />)
+      renderToStaticMarkup(<CardMemberProfileNotice card={card({ available: false, showingGlobal: false })} />)
     ).toBe('')
   })
 
   it('no perfil do servidor oferece o global', () => {
     const html = renderToStaticMarkup(
-      <CardServerProfileNotice card={card({ available: true, showingGlobal: false })} />
+      <CardMemberProfileNotice card={card({ available: true, showingGlobal: false })} />
     )
     expect(html).toContain('Perfil neste servidor')
     expect(html).toContain('Ver perfil global')
@@ -27,7 +27,7 @@ describe('CardServerProfileNotice', () => {
 
   it('no global oferece voltar', () => {
     const html = renderToStaticMarkup(
-      <CardServerProfileNotice card={card({ available: true, showingGlobal: true })} />
+      <CardMemberProfileNotice card={card({ available: true, showingGlobal: true })} />
     )
     expect(html).toContain('Perfil global')
     expect(html).toContain('Ver perfil do servidor')

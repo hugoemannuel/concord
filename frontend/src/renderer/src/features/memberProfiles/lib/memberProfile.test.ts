@@ -14,9 +14,9 @@ import {
   patchFromFields,
   profilesFromMembers,
   resetPatch,
-  withServerProfiles,
-  type ServerProfileView
-} from './serverProfile'
+  withMemberProfiles,
+  type MemberProfileView
+} from './memberProfile'
 
 const style = { font: 'mono', effect: 'none', colors: [] } as unknown as NameStyle
 
@@ -38,7 +38,7 @@ const user = {
   nameplate_custom_url: '/global-faixa'
 } as unknown as User
 
-const view = (over: Partial<ServerProfileView> = {}): ServerProfileView => ({
+const view = (over: Partial<MemberProfileView> = {}): MemberProfileView => ({
   server_id: 's1',
   user_id: 'u1',
   profile: {},
@@ -106,14 +106,14 @@ describe('memberLookWith', () => {
   })
 })
 
-describe('withServerProfiles', () => {
+describe('withMemberProfiles', () => {
   const people = [{ id: 'u1', avatar_url: '/a' }, { id: 'u2', avatar_url: '/b' }]
   it('sem ninguém com perfil devolve a mesma lista', () => {
-    expect(withServerProfiles(people, undefined)).toBe(people)
-    expect(withServerProfiles(people, { u9: { bio: 'x' } })).toBe(people)
+    expect(withMemberProfiles(people, undefined)).toBe(people)
+    expect(withMemberProfiles(people, { u9: { bio: 'x' } })).toBe(people)
   })
   it('só quem tem perfil muda', () => {
-    const out = withServerProfiles(people, { u1: { avatar_url: '/s' } })
+    const out = withMemberProfiles(people, { u1: { avatar_url: '/s' } })
     expect(out[0].avatar_url).toBe('/s')
     expect(out[1]).toBe(people[1])
   })
@@ -123,9 +123,9 @@ describe('profilesFromMembers', () => {
   it('só entra quem tem perfil', () => {
     expect(
       profilesFromMembers([
-        { user_id: 'a', server_profile: { bio: 'x' } },
+        { user_id: 'a', member_profile: { bio: 'x' } },
         { user_id: 'b' },
-        { user_id: 'c', server_profile: null }
+        { user_id: 'c', member_profile: null }
       ])
     ).toEqual({ a: { bio: 'x' } })
   })

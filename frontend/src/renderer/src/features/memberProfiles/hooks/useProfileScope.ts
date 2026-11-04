@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
-import { useServerProfileStore } from '../store/serverProfileStore'
-import type { ServerProfile } from '../lib/serverProfile'
+import { useMemberProfileStore } from '../store/memberProfileStore'
+import type { MemberProfile } from '../lib/memberProfile'
 
 /**
  * De que servidor são as pessoas desta parte da tela (null = fora de servidor:
@@ -14,7 +14,7 @@ export function useProfileScope(): string | null {
 }
 
 /** O perfil do servidor de alguém, no servidor desta parte da tela. */
-export function useScopedServerProfile(userId: string | null | undefined): ServerProfile | undefined {
+export function useScopedMemberProfile(userId: string | null | undefined): MemberProfile | undefined {
   const serverId = useProfileScope()
-  return useServerProfileStore((s) => (serverId && userId ? s.byServer[serverId]?.[userId] : undefined))
+  return useMemberProfileStore((s) => (serverId && userId ? s.byServer[serverId]?.[userId] : undefined))
 }

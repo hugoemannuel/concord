@@ -85,7 +85,7 @@ func (r *Repository) ListMembers(ctx context.Context, serverID string) ([]Server
 			&m.RoleIDs,
 			&m.JoinedAt,
 			&m.UpdatedAt,
-			&m.ServerProfile,
+			&m.MemberProfile,
 		); err != nil {
 			return nil, err
 		}
@@ -134,7 +134,7 @@ func (r *Repository) FindMemberByUserID(ctx context.Context, serverID string, us
 		&m.RoleIDs,
 		&m.JoinedAt,
 		&m.UpdatedAt,
-		&m.ServerProfile,
+		&m.MemberProfile,
 	)
 	if err != nil {
 		return nil, err

@@ -57,12 +57,15 @@ configurado, continua o global. As forças:
 - Domínio `internal/memberprofile`, tabela `server_member_profiles` com FK para
   `server_members` (ON DELETE CASCADE): sair do servidor leva o perfil, e voltar
   começa do zero. Sem campo sobrando, a linha é apagada.
+- Rotas em `/servers/:id/my-profile`. `/servers/:id/profile` e o nome `serverprofile`
+  são do perfil **do servidor** (ADR 0050, #528); aqui é o perfil **do membro no
+  servidor**, por isso `memberprofile` no backend e `memberProfiles` no app.
 - PATCH com três estados: campo ausente não muda, `null` volta ao padrão, valor
   sobrescreve. A mídia usa o upload do perfil global (`UploadImage`).
 - `ListMembers`, `FindMemberByUserID` e as consultas de mensagens fazem LEFT JOIN
   na mesma consulta: avatar, estilo e faixa saem já efetivos (por isso o app mobile
   e os apps antigos recebem o perfil do servidor sem mudar nada) e os membros trazem
-  `server_profile` só quando existe.
+  `member_profile` só quando existe.
 - Tempo real pelo `server:member:update` que já existe, com o membro relido.
 - Arquivos por referência (ADR 0011): `user.MediaKeepers` junta perfis salvos e
   perfis de servidor em "alguém ainda usa?". A varredura roda a cada 10 minutos e ao
@@ -80,7 +83,7 @@ perfil do servidor de outra pessoa não existe (o id vem da sessão).
   `ProfileScope` (o cartão e a barra lateral têm o próprio, por estarem fora do
   `ServerView`).
 - A janela do overlay não tem contexto: recebe as URLs resolvidas
-  (`withServerProfiles`).
+  (`withMemberProfiles`).
 - "Remover" no perfil de servidor é voltar ao padrão: não dá para ficar sem avatar,
   sem banner ou sem cor só num servidor. A faixa pode ser escondida (modo `off`), e
   pronomes, nota, Sobre mim e links podem ficar vazios.

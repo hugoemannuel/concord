@@ -33,10 +33,10 @@ import { AtIcon, ChevronRightIcon, PencilIcon } from '../../../shared/ui/icons'
 import { useThemeStore } from '../../settings/store/themeStore'
 import { useProfileCardData } from '../hooks/useProfileCardData'
 import { useProfileCardPlacement } from '../hooks/useProfileCardPlacement'
-import CardServerProfileNotice from '../../serverProfiles/components/CardServerProfileNotice'
-import ProfileScope from '../../serverProfiles/components/ProfileScope'
-import { useCardServerProfile } from '../../serverProfiles/hooks/useCardServerProfile'
-import { openServerProfileEditor } from '../../serverProfiles/store/profileEditorScopeStore'
+import CardMemberProfileNotice from '../../memberProfiles/components/CardMemberProfileNotice'
+import ProfileScope from '../../memberProfiles/components/ProfileScope'
+import { useCardMemberProfile } from '../../memberProfiles/hooks/useCardMemberProfile'
+import { openMemberProfileEditor } from '../../memberProfiles/store/profileEditorScopeStore'
 
 /** Altura aproximada do submenu de status (4 opções, duas com descrição). */
 const STATUS_MENU_HEIGHT = 230
@@ -229,7 +229,7 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
   )
   const { mutual, profileSettled, mutualSettled } = useProfileCardData(target, relationship)
   const pathname = router.state.location.pathname
-  const serverProfile = useCardServerProfile(target.userId, server?.id, pathname)
+  const memberProfile = useCardMemberProfile(target.userId, server?.id, pathname)
 
   // Transmitindo agora: selo LIVE e, se dá para assistir, a prévia com o botão.
   const live = isUserLive(target.userId, myCall, serverCalls)
@@ -251,8 +251,8 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
     serverCalls,
     pathname,
     canChangeNickname: access.canChangeNickname(target.userId),
-    serverProfile: serverProfile.profile,
-    globalView: serverProfile.showingGlobal,
+    memberProfile: memberProfile.profile,
+    globalView: memberProfile.showingGlobal,
     level,
     online,
     knownStatus,
@@ -272,7 +272,7 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
     stream?.callId,
     live,
     joinableActivity,
-    serverProfile.showingGlobal
+    memberProfile.showingGlobal
   ])
   const theme = resolveProfileTheme(view.card.profile_theme)
   const look = profileThemeLook(theme)
@@ -280,8 +280,8 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
   const editProfile = (): void => {
     close()
     // Vendo o próprio perfil do servidor, o atalho edita ele.
-    if (serverProfile.openServerId && serverProfile.profile) {
-      openServerProfileEditor(serverProfile.openServerId)
+    if (memberProfile.openServerId && memberProfile.profile) {
+      openMemberProfileEditor(memberProfile.openServerId)
     } else openSettings('profiles')
   }
 
@@ -299,7 +299,7 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
   }
 
   return (
-    <ProfileScope serverId={serverProfile.scopeId}>
+    <ProfileScope serverId={memberProfile.scopeId}>
       <ProfileCardFrame
         ref={ref}
         look={look}
@@ -334,7 +334,7 @@ function ProfileCardContent({ target }: { target: ProfileCardTarget }): React.JS
           onEditProfile={view.isMe ? editProfile : undefined}
           loading={view.profileLoading}
         >
-          <CardServerProfileNotice card={serverProfile} />
+          <CardMemberProfileNotice card={memberProfile} />
           <LiveExtras
             target={target}
             stream={stream}

@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import type { ServerProfileField } from '../../../../serverProfiles/lib/serverProfile'
+import type { MemberProfileField } from '../../../../memberProfiles/lib/memberProfile'
 import { PencilIcon } from '../../../../../shared/ui/icons'
 import SectionHeader from '../../../../../shared/ui/SectionHeader'
 
@@ -10,7 +10,7 @@ import SectionHeader from '../../../../../shared/ui/SectionHeader'
  * Modo servidor: o que vai à direita do título de cada bloco ("Herdado" ou
  * "Voltar ao padrão"). Fora dele (perfil global), null.
  */
-export const TileAsideContext = createContext<((field: ServerProfileField) => ReactNode) | null>(null)
+export const TileAsideContext = createContext<((field: MemberProfileField) => ReactNode) | null>(null)
 
 /** Título pequeno + o conteúdo do bloco. */
 export function TileSection({
@@ -21,7 +21,7 @@ export function TileSection({
 }: {
   title: string
   /** O campo do bloco, para o modo servidor mostrar se herda. */
-  field?: ServerProfileField
+  field?: MemberProfileField
   /** À direita do título (ex.: "Remover"). */
   aside?: ReactNode
   children: ReactNode
