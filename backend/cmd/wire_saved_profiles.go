@@ -12,7 +12,7 @@ import (
 // perfil salvo usa não é apagada na troca de avatar/banner (ADR 0011).
 func (a *app) wireSavedProfiles(profiles *user.ProfileService) {
 	repository := savedprofile.NewRepository(a.db)
-	a.profileHandler.SetMediaKeeper(repository)
+	a.wireMemberProfiles(repository)
 	handler := savedprofile.NewHandler(savedprofile.NewService(repository, a.userService, profiles), a.profileHandler, a.hub)
 
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) {

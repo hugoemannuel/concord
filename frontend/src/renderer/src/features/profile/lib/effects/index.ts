@@ -1,14 +1,29 @@
 // Catálogo dos efeitos desenhados em <canvas> (id do tema → cena) e o gerador
 // de números com semente que o componente e os testes usam.
 import { auroraScene } from './aurora'
+import { bubblesScene } from './bubbles'
+import { buntingScene } from './bunting'
+import { cloudsScene } from './clouds'
 import { confettiScene } from './confetti'
 import { fireScene } from './fire'
+import { firefliesScene } from './fireflies'
+import { fireworksScene } from './fireworks'
+import { fogScene } from './fog'
 import { galaxyScene } from './galaxy'
 import { glitchScene } from './glitch'
 import { heartsScene } from './hearts'
+import { hexagonsScene } from './hexagons'
+import { lavaScene } from './lava'
+import { leavesScene } from './leaves'
 import { matrixScene } from './matrix'
+import { meteorsScene } from './meteors'
+import { moneyScene } from './money'
+import { oceanScene } from './ocean'
+import { pixelsScene } from './pixels'
 import { rainScene } from './rain'
+import { sakuraScene } from './sakura'
 import { stormScene } from './storm'
+import { sunbeamsScene } from './sunbeams'
 import { synthwaveScene } from './synthwave'
 import type { Rand, Scene } from './types'
 
@@ -22,7 +37,22 @@ export const CANVAS_EFFECTS: Record<string, Scene> = {
   hearts: heartsScene,
   confetti: confettiScene,
   synthwave: synthwaveScene,
-  rain: rainScene
+  rain: rainScene,
+  fireflies: firefliesScene,
+  sakura: sakuraScene,
+  leaves: leavesScene,
+  bubbles: bubblesScene,
+  ocean: oceanScene,
+  meteors: meteorsScene,
+  fog: fogScene,
+  sunbeams: sunbeamsScene,
+  lava: lavaScene,
+  money: moneyScene,
+  clouds: cloudsScene,
+  hexagons: hexagonsScene,
+  pixels: pixelsScene,
+  bunting: buntingScene,
+  fireworks: fireworksScene
 }
 
 /** A cena do efeito, ou null se o efeito não é de canvas (ou não existe). */

@@ -198,11 +198,11 @@ export function MessageHeader({
           nameColor ? '' : 'text-strong'
         }`}
       >
-        {nickname ? (
-          name
-        ) : (
-          <StyledName name={name} userId={message.author_id} style={message.author?.name_style} />
-        )}
+        <StyledName
+          name={name}
+          userId={message.author_id}
+          style={nickname ? null : message.author?.name_style}
+        />
       </button>
       <UserServerTag userId={message.author_id} className="self-center" />
       <MessageTime

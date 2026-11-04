@@ -93,7 +93,15 @@ describe('serverMenuItems', () => {
   }
 
   it('membro: convidar, apelido, eventos, notificações e sair', () => {
-    expect(serverMenuItems(member)).toEqual(['invite', 'profile', 'nickname', 'events', 'notifications', 'leave'])
+    expect(serverMenuItems(member)).toEqual([
+      'invite',
+      'profile',
+      'nickname',
+      'memberProfile',
+      'events',
+      'notifications',
+      'leave'
+    ])
   })
 
   it('dono: configurações e apagar no lugar de sair', () => {
@@ -101,6 +109,7 @@ describe('serverMenuItems', () => {
       'invite',
       'profile',
       'nickname',
+      'memberProfile',
       'events',
       'notifications',
       'settings',

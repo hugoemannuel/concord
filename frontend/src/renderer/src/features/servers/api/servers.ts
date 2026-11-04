@@ -2,6 +2,7 @@ import { request } from '../../../shared/api/client'
 import { uploadImage } from '../../profile/api/users'
 import type { Role } from '../lib/permissions'
 import type { NameStyle } from '../../profile/lib/nameStyle'
+import type { MemberProfile } from '../../memberProfiles/lib/memberProfile'
 
 export interface Server {
   id: string
@@ -33,6 +34,8 @@ export interface ServerMember {
   is_bot?: boolean
   /** Apelido neste servidor (null = sem; vale o display_name). */
   nickname?: string | null
+  /** O que a pessoa sobrescreveu neste servidor (avatar e estilo acima já são os efetivos). */
+  member_profile?: MemberProfile | null
 }
 
 export interface GetServerResponse {

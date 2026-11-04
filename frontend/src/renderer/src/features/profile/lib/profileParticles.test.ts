@@ -36,3 +36,15 @@ describe('quantidade e velocidade', () => {
     expect(fast[0].duration).toBeLessThan(slow[0].duration)
   })
 })
+
+describe('tamanho das partículas', () => {
+  it('o fator multiplica o tamanho e não muda a posição', () => {
+    const base = effectParticles('particles', 1, 1)
+    const big = effectParticles('particles', 1, 1, 2)
+    expect(big.map((p) => p.size)).toEqual(base.map((p) => p.size * 2))
+    expect(big.map((p) => p.left)).toEqual(base.map((p) => p.left))
+  })
+  it('sem o fator, igual a antes', () => {
+    expect(effectParticles('snow', 1, 1, 1)).toEqual(effectParticles('snow'))
+  })
+})

@@ -44,6 +44,9 @@ func invalid(msg string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidProfile, msg)
 }
 
+// InvalidProfile é o mesmo erro para quem valida perfil fora daqui.
+func InvalidProfile(msg string) error { return invalid(msg) }
+
 // ValidateProfile confere os limites e devolve o perfil arrumado (sem espaços
 // nas pontas, cor em minúsculas, links nunca nil). Tamanhos contam caracteres,
 // não bytes: "ç" e emoji contam como um.
@@ -53,7 +56,6 @@ func ValidateProfile(in ProfileInput) (ProfileInput, error) {
 		Pronouns:    strings.TrimSpace(in.Pronouns),
 		Bio:         strings.TrimSpace(in.Bio),
 		StatusText:  strings.TrimSpace(in.StatusText),
-		Links:       []ProfileLink{},
 	}
 
 	if _, err := NormalizeName(out.DisplayName, MaxDisplayName); err != nil {
@@ -62,40 +64,23 @@ func ValidateProfile(in ProfileInput) (ProfileInput, error) {
 		}
 		return ProfileInput{}, invalid(fmt.Sprintf("o nome de exibição precisa ter de 1 a %d caracteres", MaxDisplayName))
 	}
-	if utf8.RuneCountInString(out.Pronouns) > MaxPronouns {
-		return ProfileInput{}, invalid(fmt.Sprintf("os pronomes podem ter até %d caracteres", MaxPronouns))
-	}
-	if utf8.RuneCountInString(out.Bio) > MaxBio {
-		return ProfileInput{}, invalid(fmt.Sprintf("o \"Sobre mim\" pode ter até %d caracteres", MaxBio))
-	}
-	if utf8.RuneCountInString(out.StatusText) > MaxStatusText {
-		return ProfileInput{}, invalid(fmt.Sprintf("a nota pode ter até %d caracteres", MaxStatusText))
+	if err := ValidateTextFields(out.Pronouns, out.Bio, out.StatusText); err != nil {
+		return ProfileInput{}, err
 	}
 
 	if in.BannerColor != nil && *in.BannerColor != "" {
-		if !bannerColorPattern.MatchString(*in.BannerColor) {
-			return ProfileInput{}, invalid("cor do banner inválida")
+		color, err := NormalizeBannerColor(*in.BannerColor)
+		if err != nil {
+			return ProfileInput{}, err
 		}
-		color := strings.ToLower(*in.BannerColor)
 		out.BannerColor = &color
 	}
 
-	if len(in.Links) > MaxLinks {
-		return ProfileInput{}, invalid(fmt.Sprintf("o perfil pode ter até %d links", MaxLinks))
+	links, err := NormalizeLinks(in.Links)
+	if err != nil {
+		return ProfileInput{}, err
 	}
-	seen := map[string]bool{}
-	for _, link := range in.Links {
-		raw := strings.TrimSpace(link.URL)
-		if !validLink(raw) {
-			return ProfileInput{}, invalid(fmt.Sprintf("link inválido: %q", raw))
-		}
-		key := strings.ToLower(raw)
-		if seen[key] {
-			return ProfileInput{}, invalid(fmt.Sprintf("link repetido: %q", raw))
-		}
-		seen[key] = true
-		out.Links = append(out.Links, ProfileLink{URL: raw})
-	}
+	out.Links = links
 
 	if in.NameStyle != nil {
 		style, err := namestyle.Validate(*in.NameStyle)
@@ -113,6 +98,51 @@ func ValidateProfile(in ProfileInput) (ProfileInput, error) {
 		out.ProfileTheme = &theme
 	}
 
+	return out, nil
+}
+
+// ValidateTextFields confere o tamanho de pronomes, "Sobre mim" e nota (já sem
+// espaços nas pontas). Vale para o perfil global e para o perfil do servidor.
+func ValidateTextFields(pronouns, bio, statusText string) error {
+	if utf8.RuneCountInString(pronouns) > MaxPronouns {
+		return invalid(fmt.Sprintf("os pronomes podem ter até %d caracteres", MaxPronouns))
+	}
+	if utf8.RuneCountInString(bio) > MaxBio {
+		return invalid(fmt.Sprintf("o \"Sobre mim\" pode ter até %d caracteres", MaxBio))
+	}
+	if utf8.RuneCountInString(statusText) > MaxStatusText {
+		return invalid(fmt.Sprintf("a nota pode ter até %d caracteres", MaxStatusText))
+	}
+	return nil
+}
+
+// NormalizeBannerColor confere a cor (#rrggbb) e devolve em minúsculas.
+func NormalizeBannerColor(color string) (string, error) {
+	if !bannerColorPattern.MatchString(color) {
+		return "", invalid("cor do banner inválida")
+	}
+	return strings.ToLower(color), nil
+}
+
+// NormalizeLinks confere limite, formato e repetição; nunca devolve nil.
+func NormalizeLinks(links []ProfileLink) ([]ProfileLink, error) {
+	if len(links) > MaxLinks {
+		return nil, invalid(fmt.Sprintf("o perfil pode ter até %d links", MaxLinks))
+	}
+	out := []ProfileLink{}
+	seen := map[string]bool{}
+	for _, link := range links {
+		raw := strings.TrimSpace(link.URL)
+		if !validLink(raw) {
+			return nil, invalid(fmt.Sprintf("link inválido: %q", raw))
+		}
+		key := strings.ToLower(raw)
+		if seen[key] {
+			return nil, invalid(fmt.Sprintf("link repetido: %q", raw))
+		}
+		seen[key] = true
+		out = append(out, ProfileLink{URL: raw})
+	}
 	return out, nil
 }
 

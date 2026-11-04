@@ -89,3 +89,5 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0052. Arrastar canais e categorias com eventos de ponteiro e gravar a organização numa rota atômica com revisão](0052-arrastar-canais-e-categorias.md)
 - [0053. KLIPY no lugar do GIPHY: os apps chamam a KLIPY direto e o servidor só entrega a configuração](0053-klipy-no-lugar-do-giphy.md)
 - [0050. Customizar o servidor num domínio próprio, com a tag buscada à parte das mensagens](0050-customizacao-do-servidor.md)
+- [0054. Mais efeitos e ajustes de efeito sem mexer em cada cena](0054-mais-efeitos-e-ajustes.md)
+- [0051. Guardar o perfil por servidor só com o que foi sobrescrito, com o apelido como nome e o escopo por contexto no app](0051-perfil-por-servidor.md)

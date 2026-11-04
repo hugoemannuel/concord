@@ -15,6 +15,7 @@ import {
 } from './profileTheme'
 import { PRIDE_PALETTE, prideGradient } from './profilePride'
 import { DEFAULT_EXTRAS, PROFILE_BORDER_ANIMATIONS, PROFILE_TEXTURES } from './profileThemeExtras'
+import { EFFECT_AREAS, EFFECT_DIRECTIONS, EFFECT_PALETTES } from './effectLook'
 
 // Lê as listas e as contagens de cor do Go: mudou só de um lado, quebra aqui.
 const goFile = (name: string): string =>
@@ -24,7 +25,7 @@ const goFile = (name: string): string =>
     ),
     'utf8'
   )
-const goSrc = goFile('profiletheme.go') + goFile('extras.go')
+const goSrc = goFile('profiletheme.go') + goFile('extras.go') + goFile('effect_look.go')
 function goList(name: string): string[] {
   const body = new RegExp(`var ${name} = \\[\\]string\\{([^}]*)\\}`).exec(goSrc)?.[1] ?? ''
   return Array.from(body.matchAll(/"([a-z0-9]+)"/g), (m) => m[1])
@@ -43,6 +44,9 @@ describe('paridade com o backend', () => {
     expect(PROFILE_EFFECTS.map((e) => e.id)).toEqual(goList('Effects'))
     expect(PROFILE_BORDER_ANIMATIONS.map((a) => a.id)).toEqual(goList('BorderAnimations'))
     expect(PROFILE_TEXTURES.map((t) => t.id)).toEqual(goList('Textures'))
+    expect(EFFECT_DIRECTIONS.map((d) => d.id)).toEqual(goList('EffectDirections'))
+    expect(EFFECT_PALETTES.map((p) => p.id)).toEqual(goList('EffectPalettes'))
+    expect(EFFECT_AREAS.map((a) => a.id)).toEqual(goList('EffectAreas'))
   })
   it('as contagens de cor são as mesmas', () => {
     expect(Object.fromEntries(PROFILE_BORDERS.map((b) => [b.id, b.colors]))).toEqual(

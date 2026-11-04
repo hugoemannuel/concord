@@ -146,11 +146,11 @@ describe('cartão sem tamanho ou com parâmetros ruins', () => {
 })
 
 describe('registro', () => {
-  it('as 13 cenas existem; none, desconhecido e nomes herdados do objeto, não', () => {
+  it('as 28 cenas existem; none, desconhecido e nomes herdados do objeto, não', () => {
     for (const id of ['fire', 'matrix', 'glitch', 'storm', 'galaxy', 'aurora', 'hearts', 'confetti', 'synthwave', 'rain', 'particles', 'sparkles', 'snow']) {
       expect(canvasScene(id)).not.toBeNull()
     }
-    expect(Object.keys(CANVAS_EFFECTS)).toHaveLength(13)
+    expect(Object.keys(CANVAS_EFFECTS)).toHaveLength(28)
     for (const id of ['none', 'fogos', '', 'toString', '__proto__']) expect(canvasScene(id)).toBeNull()
   })
 })

@@ -30,7 +30,7 @@ const pinnedMessageFrom = `
 	LEFT JOIN users ru ON ru.id = rm.author_id
 	LEFT JOIN server_stickers stk ON stk.id = m.sticker_id
 	LEFT JOIN users pu ON pu.id = cpm.pinned_by
-`
+` + messageProfileJoins
 
 func (r *Repository) CountChannelPins(ctx context.Context, channelID string) (int, error) {
 	var count int

@@ -16,7 +16,7 @@ function NameLine({
   return (
     <p className="truncate text-ds-lg font-bold text-strong">
       {profile.nickname ? (
-        profile.nickname
+        <StyledName name={profile.nickname} userId={profile.id} style={null} />
       ) : (
         <StyledName
           name={profile.display_name || ' '}

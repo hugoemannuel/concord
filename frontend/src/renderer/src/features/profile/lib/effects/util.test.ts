@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { between, clamp, countFor, hexRgb, hsl, mix, mod, rgba } from './util'
+import { between, clamp, countFor, countForArea, hexRgb, hsl, mix, mod, rgba } from './util'
 
 describe('util dos efeitos', () => {
   it('hexRgb lê #rrggbb e cai no branco com cor inválida', () => {
@@ -30,5 +30,16 @@ describe('util dos efeitos', () => {
     expect(mix([0, 0, 0], [255, 255, 255], 0.5)).toEqual([127.5, 127.5, 127.5])
     expect(rgba([10, 20, 30.4], 0.5)).toBe('rgba(10,20,30,0.5)')
     expect(between(() => 0.5, 2, 4)).toBe(3)
+  })
+})
+
+describe('countForArea', () => {
+  it('no cartão, igual a countFor', () => {
+    expect(countForArea(20, 1, 100, 300, 450)).toBe(20)
+    expect(countForArea(20, 1, 100, 120, 80)).toBe(20)
+  })
+  it('área maior ganha mais, sem passar do teto', () => {
+    expect(countForArea(20, 1, 100, 1920, 1080)).toBe(50)
+    expect(countForArea(60, 2.7, 100, 1920, 1080)).toBe(100)
   })
 })

@@ -1,6 +1,7 @@
 import type { ChosenStatus } from '../../../../friends/lib/presenceStatus'
 import { draftFromProfile } from '../../../../profile/lib/profileValidation'
 import { changeMyStatus } from '../../../../profile/store/meActions'
+import type { CosmeticsTarget } from '../../../hooks/useCosmeticsEditor'
 import type { DraftPatch } from '../../../lib/draftPatch'
 import type { PreviewBase } from '../ProfilePreview'
 import CosmeticsEditor from '../cosmetics/CosmeticsEditor'
@@ -22,18 +23,21 @@ export default function ProfileEditModal({
   modal,
   base,
   busy,
+  cosmetics,
   onClose,
   onApply
 }: {
   modal: ProfileModalId | null
   base: PreviewBase
   busy: boolean
+  /** Perfil de servidor: faixa e moldura salvam nele. */
+  cosmetics?: CosmeticsTarget
   onClose: () => void
   onApply: (patch: DraftPatch) => Promise<boolean>
 }): React.JSX.Element | null {
   if (!modal) return null
   if (modal === 'sound') return <EntranceSoundModal onClose={onClose} />
-  if (modal === 'cosmetics') return <CosmeticsEditor onClose={onClose} />
+  if (modal === 'cosmetics') return <CosmeticsEditor target={cosmetics} onClose={onClose} />
   if (modal === 'status') {
     return (
       <StatusModal

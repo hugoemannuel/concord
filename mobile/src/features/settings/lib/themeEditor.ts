@@ -16,7 +16,7 @@ export const BACKGROUND_COLOR_LABELS: Record<string, string[]> = {
 
 /** Troca o efeito; a cor escolhida volta ao automático (cada efeito tem a sua). */
 export function withEffect(theme: ProfileTheme, effect: string): ProfileTheme {
-  return { ...theme, effect, effect_color: '' }
+  return { ...theme, effect, effect_color: '', effect_color2: '', effect_direction: 'default' }
 }
 
 /** O que mostrar no painel do efeito escolhido. */
