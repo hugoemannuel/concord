@@ -175,3 +175,22 @@ func TestArchiveEndpoints(t *testing.T) {
 		t.Fatalf("lista arquivadas: %s %v", rec.Body, err)
 	}
 }
+
+// Mover card arquivado: 409 "archived" (desarquive primeiro); depois de desarquivar, move.
+func TestSetStatusEndpointDeCardArquivado(t *testing.T) {
+	r, st := newTestRouter(t)
+	seed(st, idA, StatusDone)
+	archiveReq(r, "PUT", "/api/proposals/"+idA+"/archive", "tech", nil)
+
+	rec := archiveReq(r, "PATCH", "/api/proposals/"+idA+"/status", "tech", map[string]string{"status": "proposed"})
+	if rec.Code != 409 || !strings.Contains(rec.Body.String(), `"archived"`) {
+		t.Fatalf("mover arquivada: %d %s", rec.Code, rec.Body)
+	}
+	archiveReq(r, "DELETE", "/api/proposals/"+idA+"/archive", "tech", nil)
+	if rec := archiveReq(r, "PATCH", "/api/proposals/"+idA+"/status", "tech", map[string]string{"status": "proposed"}); rec.Code != 200 {
+		t.Fatalf("mover depois de desarquivar: %d %s", rec.Code, rec.Body)
+	}
+	if rec := archiveReq(r, "PATCH", "/api/proposals/"+idA+"/status", "u1", map[string]string{"status": "done"}); rec.Code != 403 {
+		t.Fatalf("não-tech: %d", rec.Code)
+	}
+}
