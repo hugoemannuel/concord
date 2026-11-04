@@ -1,14 +1,16 @@
 import { useEffect } from 'react'
 import { useServerStore } from '../store/serverStore'
+import { useServerLayoutStore } from '../store/serverLayoutStore'
 import { useInviteStore } from '../store/inviteStore'
 import { useProposalStore } from '../../proposals/store/proposalStore'
 import { useChatStore } from '../../chat/store/chatStore'
 
-// Carrega o que a barra lateral mostra (servidores, convites, propostas, canais)
+// Carrega o que a barra lateral mostra (servidores, layout, convites, propostas, canais)
 // e mantém a escuta em tempo real de cada servidor enquanto ela está montada.
 export function useServerRailSync(): void {
   const servers = useServerStore((s) => s.servers)
   const fetchServers = useServerStore((s) => s.fetchServers)
+  const fetchLayout = useServerLayoutStore((s) => s.fetchLayout)
   const fetchInvites = useInviteStore((s) => s.fetchInvites)
   const fetchProposals = useProposalStore((s) => s.fetchProposals)
   const fetchProposalMentions = useProposalStore((s) => s.fetchMentions)
@@ -16,7 +18,8 @@ export function useServerRailSync(): void {
 
   useEffect(() => {
     fetchServers()
-  }, [fetchServers])
+    void fetchLayout()
+  }, [fetchServers, fetchLayout])
 
   useEffect(() => {
     fetchInvites()
