@@ -13,6 +13,7 @@ import type { ServerMenuData } from '../lib/serverAccessLoad'
 import { readServerPatch } from '../lib/markServerRead'
 import { buildServerMenuActions, type ServerMenuActions, type ServerMenuDeps } from '../lib/serverMenuActions'
 import { useChannelSidebarStore } from '../store/channelSidebarStore'
+import { useHideMutedStore } from '../store/hideMutedStore'
 import { useServerMenuStore } from '../store/serverMenuStore'
 import { useServerSettingsStore } from '../store/serverSettingsStore'
 import { useServerStore } from '../store/serverStore'
@@ -28,7 +29,8 @@ const STORE_DEPS = {
   markRead: (id: string) => useChatStore.setState((state) => readServerPatch(state, id)),
   openInvite: useUIStore.getState().openServerInviteModal,
   openSettings: useServerSettingsStore.getState().openSettings,
-  openCreateChannel: useChannelSidebarStore.getState().openCreate
+  openCreateChannel: useChannelSidebarStore.getState().openCreate,
+  toggleHideMuted: useHideMutedStore.getState().toggle
 }
 
 /**

@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/message"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/role"
@@ -473,22 +472,6 @@ func (h *Hub) PublishReactionRemove(event message.ReactionEvent) {
 }
 
 // Canal novo ou alterado só aparece para quem o vê.
-func (h *Hub) PublishChannelCreate(event channel.CreateEvent) {
-	h.BroadcastToServerChannel(event.ServerID, event.Channel.ID, writeEvent("channel:create", event))
-}
-
-func (h *Hub) PublishChannelUpdate(event channel.CreateEvent) {
-	h.BroadcastToServerChannel(event.ServerID, event.Channel.ID, writeEvent("channel:update", event))
-}
-
-func (h *Hub) PublishChannelDelete(event channel.DeleteEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("channel:delete", event))
-}
-
-func (h *Hub) PublishChannelReorder(event channel.ReorderEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("channel:reorder", event))
-}
-
 func (h *Hub) PublishServerUpdate(event server.UpdateEvent) {
 	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:update", event))
 }

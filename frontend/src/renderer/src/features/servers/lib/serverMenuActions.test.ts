@@ -20,6 +20,7 @@ function deps(over: Partial<ServerMenuDeps> = {}): ServerMenuDeps {
     openInvite: vi.fn(),
     openSettings: vi.fn(),
     openCreateChannel: vi.fn(),
+    toggleHideMuted: vi.fn(),
     ...over
   }
 }
@@ -106,5 +107,11 @@ describe('buildServerMenuActions: age no servidor clicado', () => {
     const d = deps({ user: undefined })
     buildServerMenuActions(d).nickname()
     expect(d.askNickname).not.toHaveBeenCalled()
+  })
+
+  it('ocultar silenciados liga no servidor clicado, para a pessoa do menu', () => {
+    const d = deps()
+    buildServerMenuActions(d).hideMuted()
+    expect(d.toggleHideMuted).toHaveBeenCalledWith(d.user?.id, d.server.id)
   })
 })

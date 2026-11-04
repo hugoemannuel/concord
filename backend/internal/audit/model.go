@@ -28,6 +28,11 @@ const (
 	ChannelReorder         Action = "channel.reorder"
 	ChannelOverwriteUpdate Action = "channel.overwrite.update"
 	ChannelOverwriteDelete Action = "channel.overwrite.delete"
+	ChannelSync            Action = "channel.sync"
+
+	CategoryCreate Action = "category.create"
+	CategoryUpdate Action = "category.update"
+	CategoryDelete Action = "category.delete"
 
 	RoleCreate       Action = "role.create"
 	RoleUpdate       Action = "role.update"
@@ -69,7 +74,8 @@ const (
 var Actions = []Action{
 	ServerUpdate, BotAdd, BotRemove,
 	InviteCreate, InviteReset, GuestInviteCreate, GuestInviteDelete, GuestRemove,
-	ChannelCreate, ChannelUpdate, ChannelDelete, ChannelReorder, ChannelOverwriteUpdate, ChannelOverwriteDelete,
+	ChannelCreate, ChannelUpdate, ChannelDelete, ChannelReorder, ChannelOverwriteUpdate, ChannelOverwriteDelete, ChannelSync,
+	CategoryCreate, CategoryUpdate, CategoryDelete,
 	RoleCreate, RoleUpdate, RoleDelete, RoleReorder, MemberRoleAdd, MemberRoleRemove,
 	MemberJoin, MemberLeave, MemberKick, MemberBan, MemberUnban, MemberNickname,
 	VoiceMute, VoiceDeafen, VoiceMove, VoiceDisconnect,
@@ -81,15 +87,16 @@ var Actions = []Action{
 // Tipos de alvo. Membro, canal e cargo sem nome têm o nome resolvido na
 // gravação; o de membro é relido na consulta (fica o nome atual).
 const (
-	TargetServer  = "server"
-	TargetMember  = "member"
-	TargetChannel = "channel"
-	TargetRole    = "role"
-	TargetInvite  = "invite"
-	TargetEmoji   = "emoji"
-	TargetSticker = "sticker"
-	TargetSound   = "sound"
-	TargetEvent   = "event"
+	TargetServer   = "server"
+	TargetMember   = "member"
+	TargetChannel  = "channel"
+	TargetCategory = "category"
+	TargetRole     = "role"
+	TargetInvite   = "invite"
+	TargetEmoji    = "emoji"
+	TargetSticker  = "sticker"
+	TargetSound    = "sound"
+	TargetEvent    = "event"
 )
 
 // Change é um campo que mudou: antes e depois (nil onde não se aplica).

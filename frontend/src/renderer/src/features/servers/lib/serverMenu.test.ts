@@ -25,9 +25,10 @@ const owner: ServerMenuContext = {
 }
 
 describe('serverMenuItems (menu de dentro)', () => {
-  it('membro: convidar, apelido, eventos, notificações e sair', () => {
+  it('membro: convidar, ocultar silenciados, apelido, eventos, notificações e sair', () => {
     expect(serverMenuItems(member)).toEqual([
       'invite',
+      'hideMuted',
       'profile',
       'nickname',
       'memberProfile',
@@ -40,6 +41,9 @@ describe('serverMenuItems (menu de dentro)', () => {
   it('dono: configurações e apagar no lugar de sair', () => {
     expect(serverMenuItems(owner)).toEqual([
       'invite',
+      'createChannel',
+      'createCategory',
+      'hideMuted',
       'profile',
       'nickname',
       'memberProfile',
@@ -65,7 +69,7 @@ describe('serverMenuItems (menu de dentro)', () => {
 
   it('os itens só do menu do ícone nunca entram no menu de dentro', () => {
     const inside = serverMenuItems(owner)
-    for (const item of ['markRead', 'mute', 'createChannel', 'createCategory', 'moveTo', 'level']) {
+    for (const item of ['markRead', 'mute', 'moveTo', 'level']) {
       expect(inside).not.toContain(item)
     }
   })
@@ -76,7 +80,7 @@ describe('railMenuGroups (menu do ícone)', () => {
     expect(railMenuGroups(member)).toEqual([
       ['markRead'],
       ['invite'],
-      ['mute', 'notifications'],
+      ['mute', 'notifications', 'hideMuted'],
       ['level', 'profile', 'nickname', 'memberProfile'],
       ['events'],
       ['moveTo'],
@@ -88,7 +92,7 @@ describe('railMenuGroups (menu do ícone)', () => {
     expect(railMenuGroups(owner)).toEqual([
       ['markRead'],
       ['invite'],
-      ['mute', 'notifications'],
+      ['mute', 'notifications', 'hideMuted'],
       ['settings', 'level', 'profile', 'nickname', 'memberProfile'],
       ['createChannel', 'createCategory', 'events'],
       ['moveTo'],
@@ -105,7 +109,7 @@ describe('railMenuGroups (menu do ícone)', () => {
   it('grupo que ficou vazio some (sem divisória solta)', () => {
     const groups = railMenuGroups({ ...member, canInvite: false })
     expect(groups.every((g) => g.length > 0)).toBe(true)
-    expect(groups[1]).toEqual(['mute', 'notifications'])
+    expect(groups[1]).toEqual(['mute', 'notifications', 'hideMuted'])
   })
 })
 

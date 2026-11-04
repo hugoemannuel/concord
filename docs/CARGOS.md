@@ -23,6 +23,8 @@ O **dono** (quem criou o servidor, `owner_id`) **não é um cargo**: é um níve
    3. a do próprio membro (vence tudo).
 5. Sem **Ver canais** o resultado é zero: o canal nem aparece. Sem *Enviar mensagens* caem *Enviar arquivos*, *Mencionar @all* e *Enviar mensagens TTS* (no canal de texto e no chat do canal de voz). Em voz, sem *Conectar* caem falar, transmitir, mesa de áudio e moderação.
 
+6. Canal dentro de uma categoria só existe para quem **vê a categoria**: a conta da categoria é a mesma de um canal, e sem *Ver canais* nela o resultado no canal é zero, mesmo com permissão própria. O dono e o Administrador sempre veem. Ver "Categorias privadas" abaixo.
+
 O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`frontend/src/renderer/src/features/servers/lib/permissions.ts`). Os dois rodam os mesmos casos de `backend/internal/permission/testdata/vectors.json`: mudou uma regra, mude os casos e os dois lados.
 
 ## Permissões
@@ -65,6 +67,18 @@ A posição do cargo define quem manda em quem (maior = mais alto).
 - Ninguém dá ou tira uma permissão que **não tem** (Administrador pode tudo).
 - **Administrador** tem todas as permissões, mas a hierarquia vale para ele também: age sobre quem tem o cargo mais alto menor que o seu. Quem não tem cargo nenhum (só o @everyone, posição 0) está abaixo de qualquer cargo, então qualquer administrador com um cargo age sobre ele. Administrador dado só pelo @everyone não age sobre outros membros sem cargo (mesma posição); para isso, precisa de um cargo.
 
+## Categorias privadas
+
+*Categoria privada* é a categoria em que o @everyone não tem **Ver canais**. Quem vê é quem foi escolhido (cargos e membros) em "Categoria privada" ao criar ou editar, ou em **Permissões da categoria**. Ver [ADR 0055](adr/0055-categorias-normais-e-privadas.md).
+
+- **Canal vinculado** tem as mesmas regras da categoria, copiadas nele. Mudar a categoria muda os vinculados. Canal novo sem regras próprias nasce vinculado.
+- **Canal com permissão própria** não acompanha a categoria: aparece com um aviso, e **Sincronizar com a categoria** faz voltar a seguir. A categoria continua valendo: ele pode fechar mais, nunca abrir para quem não a vê.
+- **Mover** não abre canal: canal público ou vinculado que entra numa categoria herda dela, mas privado que vai para categoria aberta (ou fica solto) continua privado. Abrir é explícito, com Sincronizar.
+- **Excluir a categoria** deixa os canais soltos no topo. Nenhum canal é apagado e nenhum abre: quem tinha permissão própria recebe as restrições da categoria.
+- Canais de sistema e de evento não recebem regras da categoria: ela só os esconde, enquanto estiverem dentro. Fora dela, voltam a valer para todos (canal de sistema não tem regras próprias).
+- Criar categoria privada exige *Gerenciar canais*. Mudar quem vê uma categoria que já existe, e sincronizar um canal, exige também *Gerenciar cargos* (mexe nas permissões dos canais), e só se mexe nos bits que o próprio ator tem.
+- Quem não vê a categoria recebe 404 em toda rota dela, mesmo com *Gerenciar canais*, e não a recebe em nenhuma lista nem evento.
+
 ## Canais privados
 
 *Canal privado* é o canal em que o @everyone não tem **Ver canais**. Quem vê é quem tem um cargo (ou o próprio nome) liberado na aba **Permissões** do canal. O servidor não manda o canal, as mensagens nem os eventos de tempo real para quem não vê, e tira da sala quem perde o acesso na hora (cargo tirado, canal virou privado, expulsão).
@@ -95,6 +109,8 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 | `PUT/DELETE /servers/:id/members/:userId/roles/:roleId` | Gerenciar cargos (cargo abaixo do seu; nos cargos do dono, só o dono) |
 | `PUT/DELETE /servers/:id/channels/:channelId/overwrites/:role\|member/:targetId` | Gerenciar cargos no canal |
 | `POST /servers/:id/channels` com `private` e `role_ids` | Gerenciar canais |
+| `POST /servers/:id/categories` (com `private`, `role_ids` e `member_ids`), `PUT /categories/:id` (só o nome), `DELETE`, ordem e `PUT /categories/channels/:id` | Gerenciar canais e ver a categoria |
+| `PUT /servers/:id/categories/:id` com `private`, `PUT` e `DELETE /categories/:id/overwrites/:type/:targetId`, `POST /categories/channels/:id/sync` | Gerenciar canais + Gerenciar cargos e ver a categoria; só bits que o ator tem |
 | `DELETE /servers/:id/members/:userId`, `POST /servers/:id/leave` | Expulsar / o próprio membro |
 | `GET/POST /servers/:id/bans`, `DELETE …/bans/:userId` | Banir |
 | `GET /servers/:id/audit-log?actor_id=&action=&before=&limit=` | Ver registro de auditoria |

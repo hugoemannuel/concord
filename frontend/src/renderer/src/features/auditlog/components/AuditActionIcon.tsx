@@ -13,6 +13,7 @@ import {
   MusicNoteIcon,
   PencilIcon,
   PinIcon,
+  RefreshIcon,
   SlidersIcon,
   SmileyIcon,
   SoundboardIcon,
@@ -30,6 +31,7 @@ import { actionInfo, type ActionTone } from '../lib/auditActions'
 const BY_ACTION: Record<string, ComponentType<IconProps>> = {
   'channel.overwrite.update': LockIcon,
   'channel.overwrite.delete': LockIcon,
+  'channel.sync': RefreshIcon,
   'member.role.add': UserIcon,
   'member.role.remove': UserIcon,
   'member.join': UserPlusIcon,
@@ -52,6 +54,7 @@ const BY_DOMAIN: Record<string, ComponentType<IconProps>> = {
   invite: EnvelopeIcon,
   guest_invite: EnvelopeIcon,
   channel: HashIcon,
+  category: HashIcon,
   role: SlidersIcon,
   message: PinIcon,
   emoji: SmileyIcon,

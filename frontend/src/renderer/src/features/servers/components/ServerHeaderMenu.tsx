@@ -8,6 +8,7 @@ import type { ServerAccess } from '../lib/serverAccess'
 import { serverMenuContext, serverMenuItems, type ServerMenuItem } from '../lib/serverMenu'
 import { SERVER_MENU_LOOK } from '../lib/serverMenuLook'
 import { WRAP_NAME } from '../lib/voiceChannelRow'
+import { useHideMutedLook } from '../hooks/useHideMutedLook'
 import { useServerMenuActions } from '../hooks/useServerMenuActions'
 import SidebarMenuItem from './SidebarMenuItem'
 import ServerLevelCard from '../../serverlevel/components/ServerLevelCard'
@@ -27,6 +28,7 @@ export function ServerMenuItems({
   onPicked: () => void
 }): React.JSX.Element {
   const userId = useAuthStore((s) => s.user?.id)
+  const hideMuted = useHideMutedLook(server?.id)
   const members = useServerStore((s) => s.currentMembers)
   // O dono pode liberar a configuração dos eventos para um cargo sem dar nenhuma outra permissão.
   const canConfigureEvents = Boolean(useEventAccess(server?.id)?.configure)
@@ -54,6 +56,7 @@ export function ServerMenuItems({
           key={item}
           role="menuitem"
           {...SERVER_MENU_LOOK[item]}
+          {...(item === 'hideMuted' ? hideMuted : {})}
           onClick={() => {
             onPicked()
             // Item que só existe no menu do ícone (mute, moveTo) nunca chega aqui.

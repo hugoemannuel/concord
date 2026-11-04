@@ -1,7 +1,7 @@
 import type { ServerMember } from '../api/servers'
 import { serverDisplayName } from './serverNames'
-import { findOverwrite, type OverwriteRow, type OverwriteTargetRef } from './channelPermissions'
-import type { ChannelKind, ChannelOverwrite } from './permissions'
+import { findOverwrite, privateOverwrite, withTriState, type OverwriteRow, type OverwriteTargetRef } from './channelPermissions'
+import { Perm, type ChannelKind, type ChannelOverwrite } from './permissions'
 
 // Estado derivado do editor de permissões do canal (ChannelPermissionsModal):
 // quem está selecionado, o que está salvo e o rascunho em edição.
@@ -99,4 +99,23 @@ export function channelPermissionsCopy(channel: { type: string; name: string }):
     title: `Permissões de ${voice ? '' : '#'}${channel.name}`,
     privateHint: `Só os cargos e membros que você liberar abaixo conseguem ver ${voice ? 'e entrar n' : ''}este canal.`
   }
+}
+
+/** Ligar ou desligar o privado: a regra do @everyone e, se precisar, a de quem está mexendo. */
+export function privateToggleWrites(input: {
+  overwrites: ChannelOverwrite[] | undefined
+  everyoneId: string
+  makePrivate: boolean
+  /** Dono e Administrador não precisam: veem sempre. */
+  alwaysSees: boolean
+  meId: string
+  kind: ChannelKind | 'category'
+}): ChannelOverwrite[] {
+  const { overwrites, everyoneId, makePrivate, alwaysSees, meId, kind } = input
+  const writes = [privateOverwrite(overwrites, everyoneId, makePrivate)]
+  if (!makePrivate || alwaysSees) return writes
+  // Quem torna privado sem ter acesso garantido por cargo não se tranca fora.
+  const me: OverwriteTargetRef = { type: 'member', id: meId }
+  const access = kind === 'text' ? Perm.VIEW_CHANNEL : Perm.VIEW_CHANNEL | Perm.CONNECT
+  return [...writes, withTriState(findOverwrite(overwrites, me), me, access, 'allow')]
 }

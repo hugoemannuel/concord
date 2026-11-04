@@ -76,4 +76,14 @@ describe('channelSidebarStore', () => {
     s.closeConfirm()
     expect(useChannelSidebarStore.getState().confirm).toBeNull()
   })
+
+  it('o diálogo de categoria fecha o menu do canal e fecha sozinho', () => {
+    const s = useChannelSidebarStore.getState()
+    s.openMenu('c1')
+    s.openCategoryDialog({ kind: 'create' })
+    expect(useChannelSidebarStore.getState().menuFor).toBeNull()
+    expect(useChannelSidebarStore.getState().categoryDialog).toEqual({ kind: 'create' })
+    s.closeCategoryDialog()
+    expect(useChannelSidebarStore.getState().categoryDialog).toBeNull()
+  })
 })

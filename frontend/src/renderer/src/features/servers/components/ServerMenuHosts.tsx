@@ -28,6 +28,8 @@ function CategoryHost(): React.JSX.Element | null {
       key={serverId}
       serverId={serverId}
       dialog={{ kind: 'create' }}
+      // Só vale ao editar: criar categoria privada exige apenas Gerenciar canais.
+      canManageRoles={false}
       close={close}
       run={runCategoryOperation}
     />

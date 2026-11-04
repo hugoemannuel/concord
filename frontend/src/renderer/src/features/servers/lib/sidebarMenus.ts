@@ -35,3 +35,34 @@ const CHANNEL_RULES: [ChannelMenuItem, (c: ChannelMenuContext) => boolean][] = [
 export function channelMenuItems(context: ChannelMenuContext): ChannelMenuItem[] {
   return CHANNEL_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
 }
+
+export type ChannelAreaMenuItem = 'hideMuted' | 'createChannel' | 'createCategory' | 'invite'
+
+export interface ChannelAreaMenuContext {
+  canManageChannels: boolean
+  canInvite: boolean
+}
+
+const AREA_RULES: [ChannelAreaMenuItem, (c: ChannelAreaMenuContext) => boolean][] = [
+  ['hideMuted', () => true],
+  ['createChannel', (c) => c.canManageChannels],
+  ['createCategory', (c) => c.canManageChannels],
+  ['invite', (c) => c.canInvite]
+]
+
+/** Itens do menu do botão direito na parte vazia da lista de canais, na ordem do menu. */
+export function channelAreaMenuItems(context: ChannelAreaMenuContext): ChannelAreaMenuItem[] {
+  return AREA_RULES.filter(([, shown]) => shown(context)).map(([item]) => item)
+}
+
+/** Linhas e cabeçalhos têm o próprio menu: o da área vale só para o espaço vazio. */
+export function isEmptyChannelArea(target: Element): boolean {
+  return !target.closest('[data-sidebar-item]')
+}
+
+/** Para onde as setas levam o foco no menu (dá a volta nas pontas); sem seta, null. */
+export function nextMenuFocus(key: string, current: number, total: number): number | null {
+  if (key !== 'ArrowDown' && key !== 'ArrowUp') return null
+  const next = key === 'ArrowDown' ? current + 1 : current - 1
+  return (next + total) % total
+}

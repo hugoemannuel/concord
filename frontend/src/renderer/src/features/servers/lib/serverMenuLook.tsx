@@ -28,6 +28,7 @@ export const SERVER_MENU_LOOK: Record<ServerMenuItem, ServerMenuLook> = {
   invite: { label: 'Convidar pessoas', icon: <UserPlusIcon className="h-4 w-4" />, tone: 'brand' },
   mute: { label: 'Silenciar servidor', icon: <CircleSlashIcon className={SMALL} /> },
   notifications: { label: 'Notificações do servidor' },
+  hideMuted: { label: 'Ocultar canais silenciados' },
   settings: { label: 'Configurações do servidor', icon: <GearIcon className={SMALL} /> },
   level: { label: 'Nível do servidor', icon: <StarIcon className={SMALL} /> },
   profile: { label: 'Perfil do servidor', icon: <ImageIcon className={SMALL} /> },

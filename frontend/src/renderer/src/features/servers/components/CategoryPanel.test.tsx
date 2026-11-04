@@ -1,75 +1,105 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
 import type { Channel } from '../api/channels'
+import { useNotifySettingsStore } from '../../notifications/store/notifySettingsStore'
+import { useHideMutedStore } from '../store/hideMutedStore'
+import { useChannelSidebarStore } from '../store/channelSidebarStore'
 import { CategoryPanel } from './CategoryPanel'
 
+const chat = vi.hoisted(() => ({ state: { unreadByRoom: {}, mentionsByRoom: {} } as Record<string, unknown> }))
+vi.mock('../../chat/store/chatStore', () => ({
+  useChatStore: Object.assign((sel: (s: unknown) => unknown) => sel(chat.state), { getState: () => chat.state })
+}))
 vi.mock('../hooks/useCollapsedCategories', () => ({ useCollapsedCategories: () => [[], vi.fn()] }))
+vi.mock('../../../shared/ui/Modal', () => ({ default: ({ title, children }: { title: string; children: React.ReactNode }) => <div><h2>{title}</h2>{children}</div> }))
+vi.spyOn(React, 'useSyncExternalStore').mockImplementation((_subscribe, getSnapshot) => getSnapshot())
 
 const channels = [
   { id: 'a', name: 'geral', type: 'text' },
   { id: 'b', name: 'voz', type: 'voice' },
-  { id: 'c', name: 'livre', type: 'text' }
+  { id: 'c', name: 'livre', type: 'text' },
+  { id: 'd', name: 'sala', type: 'voice' }
 ] as Channel[]
 const layout = {
   categories: [{ id: 'cat', name: 'Jogos', position: 0 }],
-  channels: [{ channel_id: 'a', category_id: 'cat', position: 0 }, { channel_id: 'b', category_id: 'cat', position: 1 }]
+  channels: [
+    { channel_id: 'd', category_id: null, position: 0 },
+    { channel_id: 'c', category_id: null, position: 1 },
+    { channel_id: 'a', category_id: 'cat', position: 0, synced: true },
+    { channel_id: 'b', category_id: 'cat', position: 1, synced: false }
+  ]
 }
 
+type PanelProps = Partial<React.ComponentProps<typeof CategoryPanel>>
+const render = (props: PanelProps = {}): string => renderToStaticMarkup(
+  <MemoryRouter>
+    <CategoryPanel serverId="s" userId="u" layout={layout} channels={channels} ready canManage canManageRoles
+      run={async () => true} saveLayout={vi.fn()} onCreateChannel={vi.fn()}
+      renderChannel={(channel, _group, controls) => <div>{channel.name}{controls}</div>} {...props} />
+  </MemoryRouter>
+)
+
 describe('CategoryPanel', () => {
-  it('mostra canais de texto e voz na categoria e mantém os demais visíveis', () => {
-    const html = renderToStaticMarkup(<CategoryPanel serverId="s" userId="u" layout={layout} channels={channels} canManage
-      run={async () => true} saveLayout={vi.fn()} onCreateChannel={vi.fn()} fallback={(_create, ungrouped) => <div>seções anteriores{ungrouped?.map((channel) => <p key={channel.id}>{channel.name}</p>)}</div>}
-      renderChannel={(channel, _group, controls) => <div>{channel.name}{controls}</div>} />)
-    expect(html).toContain('Jogos')
-    expect(html).toContain('geral')
-    expect(html).toContain('voz')
-    expect(html).toContain('livre')
-    expect(html).not.toContain('>Criar categoria</button>')
-    expect(html).toContain('Mover geral para categoria')
-    expect(html).toContain('seções anteriores')
-    expect(html).not.toContain('>Sem categoria</p>')
+  beforeEach(() => {
+    useHideMutedStore.setState({ byKey: {} })
+    useChannelSidebarStore.setState({ categoryDialog: null })
+    useNotifySettingsStore.setState({ channels: {} })
+  })
+
+  it('canais soltos no topo, texto e voz misturados na ordem da lista', () => {
+    const html = render()
+    expect(html.indexOf('sala')).toBeLessThan(html.indexOf('livre'))
+    expect(html.indexOf('livre')).toBeLessThan(html.indexOf('Opções da categoria Jogos'))
+    expect(html.indexOf('Opções da categoria Jogos')).toBeLessThan(html.indexOf('geral'))
+    expect(html).not.toContain('Canais de texto')
+    expect(html).not.toContain('Canais de voz')
   })
   it('quem gerencia canais pode arrastar; quem não gerencia, não', () => {
-    const render = (canManage: boolean): string => renderToStaticMarkup(<CategoryPanel serverId="s" userId="u" layout={layout} channels={channels} canManage={canManage}
-      run={async () => true} saveLayout={vi.fn()} onCreateChannel={vi.fn()} fallback={() => null}
-      renderChannel={(channel) => <div>{channel.name}</div>} />)
-    expect(render(true)).toContain('data-dnd="channel"')
-    expect(render(true)).toContain('data-dnd="category-header"')
-    expect(render(true)).toContain('data-dnd="category-block"')
-    expect(render(false)).not.toContain('data-dnd')
+    expect(render()).toContain('data-dnd="channel"')
+    expect(render()).toContain('data-dnd="category-header"')
+    expect(render()).toContain('data-dnd="category-block"')
+    expect(render()).toContain('data-dnd="loose"')
+    expect(render({ canManage: false })).not.toContain('data-dnd')
   })
-  it('sem categorias não oferece mover para categoria', () => {
-    const html = renderToStaticMarkup(<CategoryPanel serverId="s" userId="u" layout={{ categories: [], channels: [] }} channels={channels} canManage
-      run={async () => true} saveLayout={vi.fn()} onCreateChannel={vi.fn()} renderChannel={(channel, _group, controls) => <div>{channel.name}{controls}</div>}
-      fallback={(_create, ungrouped, renderRows) => <>{renderRows(ungrouped)}</>} />)
+  it('sem categorias a lista funciona, sem oferecer mover para categoria', () => {
+    const html = render({ layout: { categories: [], channels: [] } })
     expect(html).toContain('geral')
     expect(html).not.toContain('Mover geral para categoria')
     expect(html).toContain('data-dnd="channel"')
   })
-  it('mantém a apresentação anterior quando não há categorias', () => {
-    const html = renderToStaticMarkup(<CategoryPanel serverId="s" userId="u" layout={{ categories: [], channels: [] }} channels={channels} canManage={false}
-      run={async () => true} saveLayout={vi.fn()} onCreateChannel={vi.fn()} fallback={() => <p>seções anteriores</p>} renderChannel={() => null} />)
-    expect(html).toContain('seções anteriores')
-    expect(html).not.toContain('Criar categoria')
+  it('com categorias, o menu do canal oferece mover', () => {
+    expect(render()).toContain('Mover geral para categoria')
   })
-  it('criar uma categoria vazia mantém todos os canais nas seções anteriores', () => {
-    const previousSections = vi.fn((_create: () => void, ungrouped: Channel[]) => <div>Canais de texto e voz{ungrouped.map((channel) => <p key={channel.id}>{channel.name}</p>)}</div>)
-    const html = renderToStaticMarkup(<CategoryPanel serverId="s" userId="u" layout={{ categories: layout.categories, channels: [] }} channels={channels} canManage
-      run={async () => true} saveLayout={vi.fn()} onCreateChannel={vi.fn()} fallback={previousSections} renderChannel={() => <p>movido indevidamente</p>} />)
-    expect(previousSections).toHaveBeenCalledWith(expect.any(Function), expect.arrayContaining(channels.map((channel) => expect.objectContaining({ id: channel.id }))), expect.any(Function), expect.any(Function))
-    expect(html).toContain('Canais de texto e voz')
-    expect(html).toContain('geral')
-    expect(html).toContain('voz')
-    expect(html).not.toContain('movido indevidamente')
-    expect(html).not.toContain('Sem categoria')
+  it('linhas e cabeçalhos ficam fora do menu da área vazia', () => {
+    const html = render({ canManage: false })
+    expect(html.match(/data-sidebar-item/g)?.length).toBe(5)
   })
-  it('sem categorias respeita a ordem dos canais, mesmo com posições antigas no layout', () => {
-    const reordered = [channels[1], channels[0], channels[2]]
-    const previousSections = vi.fn(() => <div />)
-    renderToStaticMarkup(<CategoryPanel serverId="s" userId="u" layout={{ categories: [], channels: layout.channels }} channels={reordered} canManage
-      run={async () => true} saveLayout={vi.fn()} onCreateChannel={vi.fn()} fallback={previousSections} renderChannel={() => null} />)
-    expect(previousSections).toHaveBeenCalledWith(expect.any(Function), [
-      { ...channels[1], category_id: null }, { ...channels[0], category_id: null }, { ...channels[2], category_id: null }
-    ], expect.any(Function), expect.any(Function))
+  it('canal dessincronizado: aviso e, para quem pode, sincronizar', () => {
+    const html = render()
+    expect(html).toContain('role="img" aria-label="Permissões próprias: este canal não segue a categoria"')
+    expect(html).toContain('Sincronizar com a categoria')
+    expect(render({ canManageRoles: false })).not.toContain('Sincronizar com a categoria')
+    expect(render({ canManage: false })).not.toContain('Permissões próprias')
+  })
+  it('sem nada para mostrar', () => {
+    expect(render({ channels: [], layout: { categories: [], channels: [] } })).toContain('Nenhum canal ainda.')
+  })
+  it('ainda carregando: esqueleto, sem dizer que está vazio', () => {
+    const html = render({ ready: false, channels: [], layout: null })
+    expect(html).not.toContain('Nenhum canal ainda.')
+  })
+  it('ocultar silenciados some com o canal silenciado sem nada novo', () => {
+    useNotifySettingsStore.setState({ channels: { c: { muted: true, muted_until: null, level: 'all', suppress_everyone: false } } })
+    expect(render()).toContain('livre')
+    useHideMutedStore.getState().toggle('u', 's')
+    const html = render()
+    expect(html).not.toContain('livre')
+    expect(html).toContain('sala')
+  })
+  it('abre os diálogos pedidos no menu do servidor ou da área vazia', () => {
+    useChannelSidebarStore.setState({ categoryDialog: { kind: 'create' } })
+    expect(render()).toContain('Criar categoria')
   })
 })

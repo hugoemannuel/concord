@@ -52,10 +52,10 @@ func TestRepositoryLayout(t *testing.T) {
 		}
 	}
 	repo := NewRepository(db)
-	if err = repo.Create(ctx, server, "Jogos"); err != nil {
+	if _, err = repo.Create(ctx, server, "Jogos", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err = repo.Create(ctx, other, "Outro"); err != nil {
+	if _, err = repo.Create(ctx, other, "Outro", nil); err != nil {
 		t.Fatal(err)
 	}
 	layout, err := repo.List(ctx, server)
@@ -119,7 +119,7 @@ func TestRepositoryLayout(t *testing.T) {
 	if len(grouped) != 2 || grouped[0] != ids[1] || grouped[1] != ids[0] {
 		t.Fatalf("ordem: %v", grouped)
 	}
-	if err := repo.Delete(ctx, server, cat); err != nil {
+	if _, err := repo.Delete(ctx, server, cat); err != nil {
 		t.Fatal(err)
 	}
 	layout, err = repo.List(ctx, server)
@@ -168,11 +168,11 @@ func newLayoutScene(t *testing.T) *layoutScene {
 	}
 	exec(`INSERT INTO channels(id,server_id,name,type,position,created_by) VALUES($1,$2,'fora','voice',0,$3)`, scene.foreignCh, other, owner)
 	for _, name := range []string{"a", "b"} {
-		if err := scene.repo.Create(ctx, server, name); err != nil {
+		if _, err := scene.repo.Create(ctx, server, name, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := scene.repo.Create(ctx, other, "fora"); err != nil {
+	if _, err := scene.repo.Create(ctx, other, "fora", nil); err != nil {
 		t.Fatal(err)
 	}
 	layout := scene.layout(t)
@@ -202,11 +202,16 @@ func (s *layoutScene) layout(t *testing.T) Layout {
 	return layout
 }
 
-func (s *layoutScene) canView(channel string) bool { return channel != s.hidden }
+func (s *layoutScene) viewer() Viewer {
+	return Viewer{
+		Channel:  func(channel string) bool { return channel != s.hidden },
+		Category: func(string) bool { return true },
+	}
+}
 
 func (s *layoutScene) revision(t *testing.T) string {
 	t.Helper()
-	return layoutRevision(visibleLayout(s.layout(t), s.canView))
+	return layoutRevision(visibleLayout(s.layout(t), s.viewer()))
 }
 
 func (s *layoutScene) group(t *testing.T, category *string) []string {
@@ -230,7 +235,7 @@ func TestSaveLayoutWritesFinalOrder(t *testing.T) {
 			{ChannelID: s.free, CategoryID: &s.b, Position: 0},
 			{ChannelID: s.inA, CategoryID: &s.b, Position: 1},
 		},
-	}, s.canView)
+	}, s.viewer())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +262,7 @@ func TestSaveLayoutWithoutChangesReportsUnchanged(t *testing.T) {
 		Revision:   s.revision(t),
 		Categories: []string{s.a, s.b},
 		Channels:   []Placement{{ChannelID: s.free}, {ChannelID: s.inA, CategoryID: &s.a}, {ChannelID: s.inB, CategoryID: &s.b}},
-	}, s.canView)
+	}, s.viewer())
 	if err != nil || result.Changed {
 		t.Fatalf("resultado %+v erro %v", result, err)
 	}
@@ -274,7 +279,7 @@ func TestSaveLayoutRefusesOtherServerAndKeepsEverything(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			write.Revision = s.revision(t)
-			if _, err := s.repo.SaveLayout(s.ctx, s.server, write, s.canView); !errors.Is(err, ErrInvalidLayout) {
+			if _, err := s.repo.SaveLayout(s.ctx, s.server, write, s.viewer()); !errors.Is(err, ErrInvalidLayout) {
 				t.Fatalf("erro = %v", err)
 			}
 			if after := s.layout(t); !reflect.DeepEqual(before, after) {
@@ -297,7 +302,7 @@ func TestSaveLayoutOnlyOneOfTwoConcurrentWins(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, errs[i] = s.repo.SaveLayout(s.ctx, s.server, write, s.canView)
+			_, errs[i] = s.repo.SaveLayout(s.ctx, s.server, write, s.viewer())
 		}()
 	}
 	wg.Wait()

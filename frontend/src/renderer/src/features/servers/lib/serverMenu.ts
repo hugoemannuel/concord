@@ -12,6 +12,7 @@ export type ServerMenuItem =
   | 'invite'
   | 'mute'
   | 'notifications'
+  | 'hideMuted'
   | 'settings'
   | 'level'
   | 'profile'
@@ -40,6 +41,7 @@ const SERVER_RULES: Record<ServerMenuItem, (c: ServerMenuContext) => boolean> = 
   invite: (c) => c.canInvite,
   mute: (c) => c.hasServer,
   notifications: (c) => c.hasServer,
+  hideMuted: (c) => c.hasServer,
   settings: (c) => c.canOpenSettings,
   // O detalhamento do nível do servidor, aberto a todo membro.
   level: (c) => c.hasServer,
@@ -62,6 +64,10 @@ const SERVER_RULES: Record<ServerMenuItem, (c: ServerMenuContext) => boolean> = 
 /** O arranjo do menu de dentro: uma lista só, nesta ordem. */
 const INSIDE_ITEMS: ServerMenuItem[] = [
   'invite',
+  // Os mesmos do botão direito na área de canais, para quem usa só o teclado.
+  'createChannel',
+  'createCategory',
+  'hideMuted',
   'profile',
   'nickname',
   'memberProfile',
@@ -74,14 +80,14 @@ const INSIDE_ITEMS: ServerMenuItem[] = [
 
 /**
  * O arranjo do menu do ícone: grupos separados por divisória, como no Discord.
- * Para acrescentar uma linha (ex.: "Ocultar canais silenciados"), ponha o id em
- * `ServerMenuItem`, a regra em SERVER_RULES, o visual/ação em `useServerMenu` e
- * o id no grupo certo aqui (ele entra no grupo de silenciar/notificações).
+ * Para acrescentar uma linha, ponha o id em `ServerMenuItem`, a regra em
+ * SERVER_RULES, o visual em `serverMenuLook`, a ação em `serverMenuActions` e o
+ * id no grupo certo aqui.
  */
 const RAIL_GROUPS: ServerMenuItem[][] = [
   ['markRead'],
   ['invite'],
-  ['mute', 'notifications'],
+  ['mute', 'notifications', 'hideMuted'],
   ['settings', 'level', 'profile', 'nickname', 'memberProfile'],
   ['createChannel', 'createCategory', 'events'],
   ['moveTo'],

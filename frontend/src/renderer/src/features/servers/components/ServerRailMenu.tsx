@@ -11,6 +11,7 @@ import SidebarMenuItem, { SIDEBAR_MENU_ITEM_CLASS } from './SidebarMenuItem'
 import { commitRailLayout } from '../hooks/useServerRailDrag'
 import { useServerMenuActions } from '../hooks/useServerMenuActions'
 import { useServerMenuData } from '../hooks/useServerMenuData'
+import { useHideMutedLook } from '../hooks/useHideMutedLook'
 import { applyRailMove, railMoveEntries, type RailMoveEntry } from '../lib/railMoveMenu'
 import type { ServerMenuActions } from '../lib/serverMenuActions'
 import { railMenuGroups, serverMenuContext, settingsSectionsFor, type ServerMenuItem } from '../lib/serverMenu'
@@ -124,8 +125,24 @@ function MoveEntry({ serverId, items, onClose }: EntryProps): React.JSX.Element 
   )
 }
 
+/** "Ocultar canais silenciados": item de ligar e desligar deste servidor. */
+function HideMutedEntry({ serverId, actions, onClose }: EntryProps): React.JSX.Element {
+  const look = useHideMutedLook(serverId)
+  return (
+    <SidebarMenuItem
+      {...SERVER_MENU_LOOK.hideMuted}
+      {...look}
+      onClick={() => {
+        onClose()
+        actions.hideMuted()
+      }}
+    />
+  )
+}
+
 function Entry(props: EntryProps & { item: ServerMenuItem }): React.JSX.Element {
   const { item, actions, onClose } = props
+  if (item === 'hideMuted') return <HideMutedEntry {...props} />
   if (item === 'mute') return <MuteEntry {...props} />
   if (item === 'moveTo') return <MoveEntry {...props} />
   if (item === 'settings') return <SettingsEntry {...props} />

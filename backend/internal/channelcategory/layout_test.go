@@ -22,7 +22,10 @@ func layoutFixture() Layout {
 	}
 }
 
-func allButHidden(id string) bool { return id != "oculto" }
+var allButHidden = Viewer{
+	Channel:  func(id string) bool { return id != "oculto" },
+	Category: func(string) bool { return true },
+}
 
 func groupOf(placements []Placement, category *string) []string {
 	ids := []string{}
@@ -188,4 +191,46 @@ func TestPlanSave(t *testing.T) {
 			t.Fatalf("plano = %+v", plan)
 		}
 	})
+}
+
+func TestHiddenCategoryStaysOutOfTheRequest(t *testing.T) {
+	current := Layout{
+		Categories: []Category{{ID: "a"}, {ID: "secreta"}, {ID: "b"}},
+		Channels: []Placement{
+			{ChannelID: "a1", CategoryID: cat("a")},
+			{ChannelID: "s1", CategoryID: cat("secreta")},
+			{ChannelID: "b1", CategoryID: cat("b")},
+		},
+	}
+	viewer := Viewer{
+		Channel:  func(id string) bool { return id != "s1" },
+		Category: func(id string) bool { return id != "secreta" },
+	}
+	visible := visibleLayout(current, viewer)
+	if len(visible.Categories) != 2 || len(visible.Channels) != 2 {
+		t.Fatalf("o membro enxergou o que não devia: %+v", visible)
+	}
+	channels := []Placement{{ChannelID: "a1", CategoryID: cat("a")}, {ChannelID: "b1", CategoryID: cat("b")}}
+	t.Run("a categoria oculta fica no índice que tinha", func(t *testing.T) {
+		categories, placements, err := planLayout(current, viewer, LayoutWrite{Categories: []string{"b", "a"}, Channels: channels})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(categories, []string{"b", "secreta", "a"}) {
+			t.Fatalf("categorias: %v", categories)
+		}
+		if got := groupOf(placements, cat("secreta")); !reflect.DeepEqual(got, []string{"s1"}) {
+			t.Fatalf("canal oculto: %v", got)
+		}
+	})
+	for name, write := range map[string]LayoutWrite{
+		"citar a categoria oculta na ordem":    {Categories: []string{"a", "secreta", "b"}, Channels: channels},
+		"mandar canal para a categoria oculta": {Categories: []string{"a", "b"}, Channels: []Placement{{ChannelID: "a1", CategoryID: cat("secreta")}, {ChannelID: "b1", CategoryID: cat("b")}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, _, err := planLayout(current, viewer, write); !errors.Is(err, ErrInvalidLayout) {
+				t.Fatalf("erro: %v", err)
+			}
+		})
+	}
 }

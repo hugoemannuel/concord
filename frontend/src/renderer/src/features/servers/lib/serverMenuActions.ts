@@ -37,6 +37,7 @@ export interface ServerMenuDeps {
   openInvite: () => void
   openSettings: (section?: ServerSettingsSectionId) => void
   openCreateChannel: (type: ChannelType) => void
+  toggleHideMuted: (userId: string, serverId: string) => void
 }
 
 export type ServerMenuActions = Record<
@@ -70,6 +71,9 @@ export function buildServerMenuActions(d: ServerMenuDeps): ServerMenuActions {
     markRead: () => d.markRead(id),
     invite: () => d.onServer(d.openInvite),
     notifications: () => d.openNotify({ serverId: id, name: d.server.name }),
+    hideMuted: () => {
+      if (d.user) d.toggleHideMuted(d.user.id, id)
+    },
     settings: () => openSettingsSection(),
     openSettingsSection,
     level: () => d.openLevel(id),

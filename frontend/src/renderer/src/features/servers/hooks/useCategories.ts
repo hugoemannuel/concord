@@ -7,18 +7,25 @@ import { onWsEvent } from '../../../shared/api/ws'
 import { showToast } from '../../../shared/store/toastStore'
 import { useConnectionStore } from '../../../shared/store/connectionStore'
 
+// Mudança de permissão também muda a lista: categoria que some ou aparece, canal
+// que deixa de estar vinculado.
+const RELOAD_EVENTS = new Set(['category:changed', 'server:permissions:invalidate'])
+
 function normalize(data: CategoryLayout): CategoryLayout {
   return { ...data, categories: data.categories ?? [], channels: data.channels ?? [] }
 }
 
 export function useCategories(serverId: string, channelIds: string): {
   layout: CategoryLayout | null
+  /** A organização não veio: a barra mostra os canais soltos, em vez de carregar para sempre. */
+  failed: boolean
   refresh: () => Promise<void>
   run: (operation: () => Promise<void>) => Promise<boolean>
   /** Mostra a nova organização na hora e grava; recusada, volta e avisa. */
   saveLayout: (tree: LayoutTree) => void
 } {
   const [loaded, setLoaded] = useState<{ serverId: string; layout: CategoryLayout } | null>(null)
+  const [failedFor, setFailedFor] = useState<string | null>(null)
   const latest = useRef(0)
   const phase = useConnectionStore((state) => state.ws.phase)
   const saver = useMemo(() => createCategoryLayoutSaver(serverId), [serverId])
@@ -31,8 +38,13 @@ export function useCategories(serverId: string, channelIds: string): {
         const layout = normalize(data)
         saver.confirm(layout)
         setLoaded({ serverId, layout })
+        setFailedFor(null)
       },
-      () => { if (sequence === latest.current) showToast.error('Não foi possível carregar as categorias.') }
+      () => {
+        if (sequence !== latest.current) return
+        setFailedFor(serverId)
+        showToast.error('Não foi possível carregar as categorias.')
+      }
     )
   }, [serverId, saver])
   // Com gravação no ar, ler agora traria a lista de antes e desfaria o que está
@@ -46,7 +58,7 @@ export function useCategories(serverId: string, channelIds: string): {
   }, [sync, channelIds])
   useEffect(() => { if (phase === 'open') sync() }, [phase, sync])
   useEffect(() => onWsEvent((event) => {
-    if (event.type === 'category:changed' && (event.payload as { server_id?: string })?.server_id === serverId) sync()
+    if (RELOAD_EVENTS.has(event.type) && (event.payload as { server_id?: string })?.server_id === serverId) sync()
   }), [sync, serverId])
   const run = useCallback(async (operation: () => Promise<void>): Promise<boolean> => {
     try { await operation(); await refresh(); return true }
@@ -67,5 +79,5 @@ export function useCategories(serverId: string, channelIds: string): {
       }
     })
   }
-  return { layout: current, refresh, run, saveLayout }
+  return { layout: current, failed: failedFor === serverId, refresh, run, saveLayout }
 }

@@ -27,7 +27,14 @@ func moveChannelInTx(ctx context.Context, tx pgx.Tx, server, channel string, cat
 	if err := validateDestination(ctx, tx, server, channel, category); err != nil {
 		return err
 	}
-	return writeChannelOrder(ctx, tx, server, channel, category, before)
+	move, err := pendingMove(ctx, tx, channel, category)
+	if err != nil {
+		return err
+	}
+	if err := writeChannelOrder(ctx, tx, server, channel, category, before); err != nil {
+		return err
+	}
+	return applyMoves(ctx, tx, server, move)
 }
 
 func insertChannel(ids []string, channel string, before *string) ([]string, error) {

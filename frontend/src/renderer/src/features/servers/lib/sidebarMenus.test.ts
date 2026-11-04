@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { channelMenuItems, type ChannelMenuContext } from './sidebarMenus'
+import {
+  channelAreaMenuItems,
+  channelMenuItems,
+  isEmptyChannelArea,
+  nextMenuFocus,
+  type ChannelMenuContext
+} from './sidebarMenus'
 
 describe('channelMenuItems', () => {
   const member: ChannelMenuContext = {
@@ -75,5 +81,31 @@ describe('canal de sala de evento (gerenciado)', () => {
 
   it('o canal gerenciado só pode ser silenciado e movido: nada de editar, apagar, permissões ou canal principal', () => {
     expect(channelMenuItems({ ...mod, isManaged: true })).toEqual(['notifications', 'move-up', 'move-down'])
+  })
+})
+
+describe('channelAreaMenuItems', () => {
+  it('cada item só com a permissão certa, na ordem do menu', () => {
+    expect(channelAreaMenuItems({ canManageChannels: true, canInvite: true })).toEqual(['hideMuted', 'createChannel', 'createCategory', 'invite'])
+    expect(channelAreaMenuItems({ canManageChannels: false, canInvite: true })).toEqual(['hideMuted', 'invite'])
+    expect(channelAreaMenuItems({ canManageChannels: false, canInvite: false })).toEqual(['hideMuted'])
+  })
+})
+
+describe('isEmptyChannelArea', () => {
+  const target = (inside: boolean): Element => ({ closest: () => (inside ? {} : null) }) as unknown as Element
+  it('linha e cabeçalho têm menu próprio', () => {
+    expect(isEmptyChannelArea(target(true))).toBe(false)
+    expect(isEmptyChannelArea(target(false))).toBe(true)
+  })
+})
+
+describe('nextMenuFocus', () => {
+  it('setas andam e dão a volta; o resto não mexe', () => {
+    expect(nextMenuFocus('ArrowDown', -1, 4)).toBe(0)
+    expect(nextMenuFocus('ArrowDown', 3, 4)).toBe(0)
+    expect(nextMenuFocus('ArrowUp', 0, 4)).toBe(3)
+    expect(nextMenuFocus('ArrowUp', 2, 4)).toBe(1)
+    expect(nextMenuFocus('Enter', 2, 4)).toBeNull()
   })
 })

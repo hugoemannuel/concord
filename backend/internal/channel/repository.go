@@ -273,6 +273,30 @@ func (r *Repository) Reorder(ctx context.Context, serverID string, chType string
 	); err != nil {
 		return err
 	}
+	if err := keepLooseOrder(ctx, tx, serverID, chType); err != nil {
+		return err
+	}
 
 	return tx.Commit(ctx)
+}
+
+// keepLooseOrder leva a ordem nova (dos apps antigos, por tipo) para a lista de soltos,
+// que é uma só: os canais do tipo trocam de lugar entre si, sem invadir os do outro tipo.
+func keepLooseOrder(ctx context.Context, tx pgx.Tx, serverID, chType string) error {
+	_, err := tx.Exec(ctx, `
+		WITH soltos AS (
+			SELECT l.channel_id, l.position, c.position AS channel_position, c.created_at, c.id
+			FROM channel_category_layout l JOIN channels c ON c.id = l.channel_id
+			WHERE l.server_id = $1 AND l.category_id IS NULL AND c.type = $2
+		), vagas AS (
+			SELECT position, ROW_NUMBER() OVER (ORDER BY position) AS n FROM soltos
+		), ordem AS (
+			SELECT channel_id, ROW_NUMBER() OVER (ORDER BY channel_position, created_at, id) AS n FROM soltos
+		)
+		UPDATE channel_category_layout l SET position = vagas.position
+		FROM ordem JOIN vagas ON vagas.n = ordem.n
+		WHERE l.channel_id = ordem.channel_id`,
+		serverID, chType,
+	)
+	return err
 }
