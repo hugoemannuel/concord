@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import { ApiError } from '../../../shared/api/client'
 
 const api = vi.hoisted(() => ({ server: [] as string[], failWith: null as Error | null }))
 
 vi.mock('../api/gifFavorites', () => {
-  const item = (id: string): GiphyItem => ({
+  const item = (id: string): GifItem => ({
     id,
     title: id,
     url: `https://media.giphy.com/media/${id}/giphy.gif`,
@@ -13,10 +13,10 @@ vi.mock('../api/gifFavorites', () => {
     width: 1,
     height: 1
   })
-  const list = (): GiphyItem[] => api.server.map(item)
+  const list = (): GifItem[] => api.server.map(item)
   return {
     listFavoriteGifs: vi.fn(async () => list()),
-    addFavoriteGif: vi.fn(async (g: GiphyItem) => {
+    addFavoriteGif: vi.fn(async (g: GifItem) => {
       if (api.failWith) throw api.failWith
       if (!api.server.includes(g.id)) api.server.unshift(g.id)
       return list()
@@ -34,7 +34,7 @@ vi.mock('../../../shared/store/toastStore', () => ({ showToast: { error: toastEr
 
 import { useGifFavoritesStore } from './gifFavoritesStore'
 
-const gif = (id: string): GiphyItem => ({
+const gif = (id: string): GifItem => ({
   id,
   title: id,
   url: `https://media.giphy.com/media/${id}/giphy.gif`,

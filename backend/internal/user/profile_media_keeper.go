@@ -17,6 +17,21 @@ func (h *ProfileHandler) SetMediaKeeper(keeper MediaKeeper) {
 	h.keeper = keeper
 }
 
+// MediaKeepers junta vários donos de referência: em uso para um, em uso. Erro
+// em qualquer um vale como "na dúvida" (quem chama mantém o arquivo).
+type MediaKeepers []MediaKeeper
+
+// MediaInUse pergunta a cada um até achar quem usa.
+func (ks MediaKeepers) MediaInUse(ctx context.Context, url string) (bool, error) {
+	for _, k := range ks {
+		used, err := k.MediaInUse(ctx, url)
+		if err != nil || used {
+			return used, err
+		}
+	}
+	return false, nil
+}
+
 const keeperTimeout = 5 * time.Second
 
 // inUse: na dúvida (erro no banco) o arquivo fica; sobra um arquivo, mas

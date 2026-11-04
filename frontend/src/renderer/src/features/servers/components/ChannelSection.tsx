@@ -1,8 +1,8 @@
-import type { DropLineSide } from '../lib/channelDrop'
+import type { DropLineSide } from '../lib/sidebarDrop'
 import { ChannelListSkeleton } from '../../../shared/ui/skeleton/layouts'
 import ChannelCreateMenu from './ChannelCreateMenu'
 
-/** Linha de soltar (reordenar canais) acima ou abaixo do bloco do canal. */
+/** Linha de soltar acima ou abaixo do canal ou da categoria. */
 export function ChannelDropLine({ side }: { side: DropLineSide }): React.JSX.Element | null {
   if (!side) return null
   return (
@@ -26,7 +26,9 @@ interface ChannelSectionProps {
   count: number
   emptyText: string
   skeleton: { count: number; offset?: number }
-  onDragLeave: (e: React.DragEvent<HTMLElement>) => void
+  /** Arrastando um canal: a seção é alvo de soltar (e acende quando vai recebê-lo). */
+  dropProps: React.HTMLAttributes<HTMLDivElement>
+  highlighted: boolean
   children: React.ReactNode
 }
 
@@ -40,23 +42,26 @@ function ChannelSection({
   count,
   emptyText,
   skeleton,
-  onDragLeave,
+  dropProps,
+  highlighted,
   children
 }: ChannelSectionProps): React.JSX.Element {
   return (
-    <div>
-      <div className="flex items-center justify-between px-2">
-        <p className="text-ds-sm font-medium text-muted">{title}</p>
-        {onAdd && (
-          <ChannelCreateMenu channelLabel={addLabel} onChannel={onAdd} onCategory={onAddCategory} />
-        )}
-      </div>
-      <div className="mt-1 flex flex-col gap-0.5" onDragLeave={onDragLeave}>
-        {!ready && <ChannelListSkeleton count={skeleton.count} offset={skeleton.offset} />}
-        {ready && count === 0 && (
-          <p className="px-2 text-ds-sm text-faint italic">{emptyText}</p>
-        )}
-        {children}
+    <div {...dropProps} className="pb-4">
+      <div className={`rounded-lg transition-colors ${highlighted ? 'bg-brand/10 ring-1 ring-brand/40' : ''}`}>
+        <div className="flex items-center justify-between px-2">
+          <p className="text-ds-sm font-medium text-muted">{title}</p>
+          {onAdd && (
+            <ChannelCreateMenu channelLabel={addLabel} onChannel={onAdd} onCategory={onAddCategory} />
+          )}
+        </div>
+        <div className="mt-1 flex flex-col gap-0.5">
+          {!ready && <ChannelListSkeleton count={skeleton.count} offset={skeleton.offset} />}
+          {ready && count === 0 && (
+            <p className="px-2 text-ds-sm text-faint italic">{emptyText}</p>
+          )}
+          {children}
+        </div>
       </div>
     </div>
   )

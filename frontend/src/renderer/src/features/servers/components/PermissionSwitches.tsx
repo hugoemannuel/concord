@@ -51,9 +51,10 @@ export function nextPermissionsValue(
   nextChecked: boolean
 ): number {
   if (isCurrentAdmin) {
-    return nextChecked ? value | Perm.ADMINISTRATOR | ALL_PERMISSIONS : value & ~Perm.ADMINISTRATOR
+    const next = nextChecked ? value | Perm.ADMINISTRATOR | ALL_PERMISSIONS : value & ~Perm.ADMINISTRATOR
+    return next >>> 0
   }
-  return nextChecked ? value | bit : value & ~bit
+  return (nextChecked ? value | bit : value & ~bit) >>> 0
 }
 
 /** Um interruptor por permissão, agrupados (Administrador, Geral, Membros, Texto, Voz). */

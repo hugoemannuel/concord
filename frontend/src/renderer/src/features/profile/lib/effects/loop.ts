@@ -20,6 +20,8 @@ export interface EffectLoopOptions {
   raf: (cb: (time: number) => void) => number
   caf: (id: number) => void
   fps?: number
+  /** Passo depois do desenho, em tela (mistura de cor e brilho: postFx.ts). */
+  post?: ((w: number, h: number, t: number) => void) | null
 }
 
 export interface EffectLoop {
@@ -42,18 +44,23 @@ export function createEffectLoop(o: EffectLoopOptions): EffectLoop {
   let state = o.scene.init(w, h, o.params, o.rand)
   let id: number | null = null
   let last = -1
+  // Tempo de efeito (com a velocidade): o arco-íris anda junto.
+  let clock = 0
 
   const paint = (): void => {
     o.ctx.clearRect(0, 0, w, h)
     o.ctx.save()
     o.scene.draw(o.ctx, state)
     o.ctx.restore()
+    o.post?.(w, h, clock)
   }
 
   const advance = (time: number): void => {
     const elapsed = last < 0 ? 0 : time - last
     last = time
-    o.scene.step(state, stepDt(elapsed, o.params.speed), o.rand)
+    const dt = stepDt(elapsed, o.params.speed)
+    clock = (clock + dt) % 3600
+    o.scene.step(state, dt, o.rand)
     paint()
   }
 

@@ -183,3 +183,24 @@ describe('targetRows', () => {
     ])
   })
 })
+
+describe('o bit mais alto (usar emojis de outros servidores)', () => {
+  const target = { type: 'role' as const, id: 'vip' }
+
+  it('sai sem sinal ao permitir e ao negar, como o servidor devolve', () => {
+    const allowed = withTriState(undefined, target, Perm.USE_EXTERNAL_EMOJIS, 'allow')
+    expect(allowed.allow).toBe(Perm.USE_EXTERNAL_EMOJIS)
+    const denied = withTriState(allowed, target, Perm.USE_EXTERNAL_EMOJIS, 'deny')
+    expect(denied).toMatchObject({ allow: 0, deny: Perm.USE_EXTERNAL_EMOJIS })
+  })
+
+  it('o estado reconhece o bit vindo do servidor', () => {
+    const allowed = { target_type: 'role' as const, target_id: 'vip', allow: 2 ** 31, deny: 0 }
+    expect(triState(allowed, Perm.USE_EXTERNAL_EMOJIS)).toBe('allow')
+  })
+
+  it('tirar o bit deixa a sobrescrita vazia', () => {
+    const allowed = withTriState(undefined, target, Perm.USE_EXTERNAL_EMOJIS, 'allow')
+    expect(isEmptyOverwrite(withTriState(allowed, target, Perm.USE_EXTERNAL_EMOJIS, 'inherit'))).toBe(true)
+  })
+})

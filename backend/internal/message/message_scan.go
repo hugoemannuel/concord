@@ -90,6 +90,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 		&stickerServerID,
 		&stickerName,
 		&stickerContentType,
+		&msg.DeletedStickerName,
 		&msg.GifURL,
 		&rawGifMeta,
 		&msg.TTS,

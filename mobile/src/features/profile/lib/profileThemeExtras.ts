@@ -18,6 +18,15 @@ export interface ProfileThemeExtras {
   /** 1–360 graus (360 = para cima; 180 = em pé, o de antes). */
   background_angle: number
   texture: string
+  // Ajustes do efeito (backend effect_look.go): o app ainda não os desenha nem edita, mas
+  // guarda e devolve, para salvar o perfil aqui não apagar o que foi escolhido no desktop.
+  effect_size: number
+  effect_direction: string
+  effect_opacity: number
+  effect_palette: string
+  effect_color2: string
+  effect_area: string
+  effect_glow: number
 }
 
 export const DEFAULT_LEVEL = 50
@@ -59,7 +68,14 @@ export const DEFAULT_EXTRAS: ProfileThemeExtras = {
   border_animation: 'default',
   border_width: DEFAULT_BORDER_WIDTH,
   background_angle: DEFAULT_ANGLE,
-  texture: 'none'
+  texture: 'none',
+  effect_size: DEFAULT_LEVEL,
+  effect_direction: 'default',
+  effect_opacity: 100,
+  effect_palette: 'single',
+  effect_color2: '',
+  effect_area: 'full',
+  effect_glow: 0
 }
 
 const COLOR = /^#[0-9a-f]{6}$/i
@@ -75,6 +91,15 @@ function pick(raw: unknown, list: readonly { id: string }[]): string {
   return list.find((o) => o.id === raw)?.id ?? list[0].id
 }
 
+const EFFECT_DIRECTIONS = [{ id: 'default' }, { id: 'up' }, { id: 'down' }, { id: 'left' }, { id: 'right' }]
+const EFFECT_PALETTES = [{ id: 'single' }, { id: 'duo' }, { id: 'rainbow' }]
+const EFFECT_AREAS = [{ id: 'full' }, { id: 'banner' }]
+
+/** O brilho vale de 0 a 100 (0 = padrão); `level` só conhece de 1 em diante. */
+function glowLevel(raw: unknown): number {
+  return Number.isInteger(raw) && (raw as number) >= 0 && (raw as number) <= 100 ? (raw as number) : 0
+}
+
 /** Extras seguros para desenhar: cada um inválido volta ao padrão sozinho. */
 export function resolveExtras(raw?: Partial<ProfileThemeExtras> | null): ProfileThemeExtras {
   const color = raw?.effect_color
@@ -85,7 +110,14 @@ export function resolveExtras(raw?: Partial<ProfileThemeExtras> | null): Profile
     border_animation: pick(raw?.border_animation, PROFILE_BORDER_ANIMATIONS),
     border_width: level(raw?.border_width, MAX_BORDER_WIDTH, DEFAULT_BORDER_WIDTH),
     background_angle: level(raw?.background_angle, 360, DEFAULT_ANGLE),
-    texture: pick(raw?.texture, PROFILE_TEXTURES)
+    texture: pick(raw?.texture, PROFILE_TEXTURES),
+    effect_size: level(raw?.effect_size, 100, DEFAULT_LEVEL),
+    effect_direction: pick(raw?.effect_direction, EFFECT_DIRECTIONS),
+    effect_opacity: level(raw?.effect_opacity, 100, 100),
+    effect_palette: pick(raw?.effect_palette, EFFECT_PALETTES),
+    effect_color2: typeof raw?.effect_color2 === 'string' && COLOR.test(raw.effect_color2) ? raw.effect_color2.toLowerCase() : '',
+    effect_area: pick(raw?.effect_area, EFFECT_AREAS),
+    effect_glow: glowLevel(raw?.effect_glow)
   }
 }
 

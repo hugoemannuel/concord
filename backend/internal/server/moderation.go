@@ -57,8 +57,9 @@ type Moderation struct {
 	store     moderationStore
 	perms     snapshots
 	publisher ModerationPublisher
-	// onRemoved: derruba o usuário da chamada de voz do servidor (main liga no call.Service).
-	onRemoved func(ctx context.Context, serverID, userID string)
+	// onRemoved: o que mais acontece quando alguém sai (cada área liga o seu no boot:
+	// derrubar da chamada de voz, avisar que a tag do servidor saiu).
+	onRemoved []func(ctx context.Context, serverID, userID string)
 	audit     AuditRecorder
 }
 
@@ -70,9 +71,9 @@ func newModeration(store moderationStore, perms snapshots, publisher ModerationP
 	return &Moderation{store: store, perms: perms, publisher: publisher}
 }
 
-// SetOnRemoved registra o que fazer quando alguém sai do servidor (ex.: sair da call).
-func (m *Moderation) SetOnRemoved(fn func(ctx context.Context, serverID, userID string)) {
-	m.onRemoved = fn
+// OnRemoved registra o que fazer quando alguém sai do servidor (ex.: sair da call).
+func (m *Moderation) OnRemoved(fn func(ctx context.Context, serverID, userID string)) {
+	m.onRemoved = append(m.onRemoved, fn)
 }
 
 // check: o ator tem want no servidor e está acima do alvo.
@@ -196,8 +197,8 @@ func (m *Moderation) Leave(ctx context.Context, serverID, userID string) error {
 }
 
 func (m *Moderation) removed(ctx context.Context, serverID, userID, reason string) {
-	if m.onRemoved != nil {
-		m.onRemoved(ctx, serverID, userID)
+	for _, fn := range m.onRemoved {
+		fn(ctx, serverID, userID)
 	}
 	if m.publisher != nil {
 		m.publisher.PublishMemberRemoved(MemberRemovedEvent{ServerID: serverID, UserID: userID, Reason: reason})

@@ -147,8 +147,10 @@ func (h *Handler) broadcast(serverID, typ string, payload any) {
 	}
 }
 
-// ServeFile entrega a imagem só a membros do servidor do emoji. O arquivo de
-// um id nunca muda, então o navegador guarda para sempre (immutable).
+// ServeFile entrega a imagem a membros do servidor do emoji e, se ele já foi
+// usado fora do servidor, a quem tem conta: quem recebeu a mensagem precisa ver.
+// O id é um UUID aleatório e o token é obrigatório, então não dá para listar os
+// arquivos. O arquivo de um id nunca muda, então o navegador guarda para sempre (immutable).
 func (h *Handler) ServeFile(c *gin.Context) {
 	userID, err := h.tokens.VerifyMediaToken(c.Query("token"))
 	if err != nil {
@@ -176,8 +178,8 @@ func (h *Handler) ServeFile(c *gin.Context) {
 	http.ServeContent(c.Writer, c.Request, "", e.CreatedAt, file)
 }
 
-// visibleEmoji: o emoji, se quem pede é membro do servidor dele; senão nil e
-// o status (404 também para quem não é membro, para não revelar que existe).
+// visibleEmoji: o emoji, se já foi publicado ou quem pede é membro do servidor
+// dele; senão nil e o status (404 também para quem não é membro, para não revelar que existe).
 func (h *Handler) visibleEmoji(ctx context.Context, emojiID, userID string) (*Emoji, int) {
 	e, err := h.repo.FindByID(ctx, emojiID)
 	if errors.Is(err, ErrEmojiNotFound) {
@@ -185,6 +187,9 @@ func (h *Handler) visibleEmoji(ctx context.Context, emojiID, userID string) (*Em
 	}
 	if err != nil {
 		return nil, http.StatusInternalServerError
+	}
+	if e.PublishedAt != nil {
+		return e, 0
 	}
 	isMember, err := h.servers.IsMember(ctx, e.ServerID, userID)
 	if err != nil {

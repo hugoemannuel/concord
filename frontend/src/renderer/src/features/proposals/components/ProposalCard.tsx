@@ -1,4 +1,5 @@
 import type { Proposal, ProposalStatus } from '../api/proposals'
+import { canArchive } from '../lib/archive'
 import { canDeleteProposal, canVote } from '../lib/proposals'
 import AssigneeBadge from './AssigneeBadge'
 import {
@@ -87,8 +88,10 @@ function ProposalCard({
         <>
           <ProposalIssueLink proposal={p} />
           <ProposalCardActions
+            proposalId={p.id}
             status={p.status}
             isTech={isTech}
+            canArchive={canArchive(p, isTech)}
             canDelete={canDelete}
             busy={busy}
             onMove={onMove}

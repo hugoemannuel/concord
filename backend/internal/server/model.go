@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/cosmetics"
+	"gin-quickstart/backend/internal/memberprofile"
 	"gin-quickstart/backend/internal/namestyle"
 )
 
@@ -20,11 +21,11 @@ type Server struct {
 }
 
 type ServerMember struct {
-	ServerID    string  `json:"server_id"`
-	UserID      string  `json:"user_id"`
-	Username    string  `json:"username"`
-	DisplayName string  `json:"display_name"`
-	AvatarURL   *string `json:"avatar_url,omitempty"`
+	ServerID    string          `json:"server_id"`
+	UserID      string          `json:"user_id"`
+	Username    string          `json:"username"`
+	DisplayName string          `json:"display_name"`
+	AvatarURL   *string         `json:"avatar_url,omitempty"`
 	NameStyle   namestyle.Style `json:"name_style"`
 	// Look: a faixa e a moldura (#482).
 	cosmetics.Look
@@ -37,6 +38,9 @@ type ServerMember struct {
 	RoleIDs   []string  `json:"role_ids"`
 	JoinedAt  time.Time `json:"joined_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	// MemberProfile: os campos que a pessoa sobrescreveu neste servidor (ausente
+	// = só o perfil global). AvatarURL, NameStyle e Look acima já são os efetivos.
+	MemberProfile *memberprofile.Overrides `json:"member_profile,omitempty"`
 }
 
 type ServerInvite struct {

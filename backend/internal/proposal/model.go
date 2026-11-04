@@ -161,6 +161,8 @@ type Proposal struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	VotingEndsAt    time.Time  `json:"voting_ends_at"`
 	ClosedAt        *time.Time `json:"closed_at,omitempty"`
+	// ArchivedAt: quando o time tech arquivou o card (some do quadro, nada é apagado).
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
 	// MovedAt: quando o card entrou na coluna atual (ordena as colunas).
 	MovedAt time.Time `json:"moved_at"`
 	// CloseReason e ClosedByName: como a votação acabou e, se foi o time tech, quem.

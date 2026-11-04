@@ -4,7 +4,8 @@ import { Avatar } from '../../../shared/ui/Avatar'
 import { MessageAttachments } from './MessageAttachments'
 import { MessageGif } from './MessageGif'
 import { MessageSticker } from './MessageSticker'
-import { dayLabelText, timeText } from '../lib/dayLabel'
+import { MessageText } from './MessageText'
+import { dayLabelText, timeLabel } from '../lib/dayLabel'
 import type { GroupedMessage } from '../lib/messageGroups'
 import { isMaestroMessageKind } from '../../music/lib/music'
 import { MusicMessage } from '../../music/components/MusicMessage'
@@ -46,16 +47,16 @@ export function MessageItem({ item, timeZone, onOpenProfile }: MessageItemProps)
               <ProfileTap userId={message.author_id} label={name} onOpen={onOpenProfile}>
                 <Text style={styles.author}>{name}</Text>
               </ProfileTap>
-              <Text style={styles.time}>{timeText(message.created_at, timeZone)}</Text>
+              <Text style={styles.time}>{timeLabel(message.created_at, new Date(), timeZone)}</Text>
             </View>
           ) : null}
           {message.content.trim() ? (
-            <Text style={styles.content}>
-              {message.content}
+            <MessageText content={message.content}>
               {message.edited_at ? <Text style={styles.edited}> (editada)</Text> : null}
-            </Text>
+            </MessageText>
           ) : null}
           {message.sticker ? <MessageSticker sticker={message.sticker} /> : null}
+          {message.deleted_sticker_name ? <Text style={styles.deletedSticker}>:{message.deleted_sticker_name}:</Text> : null}
           {message.gif_url ? <MessageGif gifUrl={message.gif_url} metadata={message.gif_metadata} /> : null}
           {message.attachments?.length ? <MessageAttachments attachments={message.attachments} /> : null}
         </View>
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
   author: { color: colors.textStrong, fontSize: fontSize.md, fontWeight: '700' },
   time: { color: colors.textFaint, fontSize: fontSize.xs },
-  content: { color: colors.textNormal, fontSize: fontSize.md, lineHeight: 22 },
+  deletedSticker: { color: colors.textMuted, fontSize: fontSize.md, lineHeight: 22 },
   edited: { color: colors.textFaint, fontSize: fontSize.xs },
   day: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, marginTop: spacing.lg },
   line: { flex: 1, height: 1, backgroundColor: colors.borderSubtle },

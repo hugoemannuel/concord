@@ -36,6 +36,18 @@ type Sticker struct {
 	ContentType  string    `json:"content_type"`
 	SizeBytes    int64     `json:"size_bytes"`
 	CreatedAt    time.Time `json:"created_at"`
+	// PublishedAt: já foi usada fora do servidor; o arquivo passa a ser
+	// entregue a quem não é membro (ADR 0054).
+	PublishedAt *time.Time `json:"-"`
+}
+
+// ServerStickers: as figurinhas de um servidor, com o que o seletor mostra no
+// cabeçalho da seção (nome e ícone do servidor).
+type ServerStickers struct {
+	ServerID      string    `json:"server_id"`
+	ServerName    string    `json:"server_name"`
+	ServerIconURL *string   `json:"server_icon_url,omitempty"`
+	Stickers      []Sticker `json:"stickers"`
 }
 
 type CreatedEvent struct {

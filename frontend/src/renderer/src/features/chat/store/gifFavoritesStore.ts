@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { ApiError } from '../../../shared/api/client'
 import { showToast } from '../../../shared/store/toastStore'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import { addFavoriteGif, listFavoriteGifs, removeFavoriteGif } from '../api/gifFavorites'
 import { MAX_GIF_FAVORITES } from '../lib/gifFavorites'
 
@@ -10,12 +10,12 @@ import { MAX_GIF_FAVORITES } from '../lib/gifFavorites'
  * no servidor e valem em qualquer aparelho; o mais recente vem primeiro.
  */
 interface GifFavoritesState {
-  favorites: GiphyItem[]
+  favorites: GifItem[]
   /** De quem é a lista carregada (trocar de conta recarrega); null = ainda não carregou. */
   ownerId: string | null
   load: (userId: string) => Promise<void>
   /** Liga ou desliga a estrela na hora; se o servidor recusar, desfaz e avisa. */
-  toggle: (gif: GiphyItem) => Promise<void>
+  toggle: (gif: GifItem) => Promise<void>
 }
 
 function failureMessage(err: unknown, adding: boolean): string {

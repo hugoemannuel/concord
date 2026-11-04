@@ -52,6 +52,14 @@ type Theme struct {
 	Image         string `json:"image"`
 	ImageDim      *int   `json:"imageDim"`
 	ImageBlur     *int   `json:"imageBlur"`
+	// Ajustes do efeito (effect_look.go).
+	EffectSize      *int   `json:"effectSize"`
+	EffectDirection string `json:"effectDirection"`
+	EffectOpacity   *int   `json:"effectOpacity"`
+	EffectPalette   string `json:"effectPalette"`
+	EffectColor2    string `json:"effectColor2"`
+	EffectArea      string `json:"effectArea"`
+	EffectGlow      *int   `json:"effectGlow"`
 }
 
 func validName(name string) bool {

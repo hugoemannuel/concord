@@ -2,10 +2,7 @@ import type { Message } from '../api/messages'
 import { splitMentions } from '../lib/mentions'
 import { useServerStore } from '../../servers/store/serverStore'
 import MentionChip from './MentionChip'
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-}
+import { MessageTime } from './MessageTime'
 
 /**
  * Mensagem enviada pelo próprio servidor (ex.: feliz aniversário): aparece
@@ -44,9 +41,7 @@ function SystemMessage({ message }: { message: Message }): React.JSX.Element {
           <span className="rounded bg-warning/20 px-1 py-px text-ds-xxs font-bold uppercase tracking-wide text-warning">
             Servidor
           </span>
-          <span className="text-ds-xs font-medium text-faint">
-            {formatTime(message.created_at)}
-          </span>
+          <MessageTime iso={message.created_at} className="text-ds-xs font-medium text-faint" />
         </div>
         <p className="whitespace-pre-wrap break-words text-ds-chat text-strong">
           {at >= 0 ? (

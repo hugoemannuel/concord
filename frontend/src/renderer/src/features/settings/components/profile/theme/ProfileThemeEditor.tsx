@@ -1,6 +1,7 @@
 import type { ProfileTheme } from '../../../../profile/lib/profileTheme'
 import { EditorSection } from '../controls'
-import { BackgroundControls, BorderControls, EffectControls } from './ThemeControls'
+import { EffectControls } from './EffectControls'
+import { BackgroundControls, BorderControls } from './ThemeControls'
 import ThemePresets from './ThemePresets'
 
 /**

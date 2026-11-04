@@ -167,3 +167,173 @@ export function ConfettiIcon(props: IconProps): React.JSX.Element {
     </Icon>
   )
 }
+
+/** Vaga-lume: o corpo, o rastro de luz e as asinhas. */
+export function FireflyIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="16" r="4" />
+      <g {...STROKE}>
+        <path d="M12 12V8M8.5 9.5 5 6M15.5 9.5 19 6M4 16H2M22 16h-2M6 21l-1.5 1.5M18 21l1.5 1.5" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Pétala de sakura, com o chanfro na ponta. */
+export function PetalIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M12 22c-5-2.5-8-7-7-12.5C5.6 6 8 3.6 10.2 2l1.8 3.4L13.8 2C16 3.6 18.4 6 19 9.5 20 15 17 19.5 12 22z" />
+    </Icon>
+  )
+}
+
+/** Folha com a nervura vazada. */
+export function LeafIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path
+        fillRule="evenodd"
+        d="M20.5 3C12 3 5.5 6.5 4.5 13c-.3 2 .1 3.8 1 5.3L3 20.8 4.2 22l2.5-2.5c1.5.9 3.3 1.3 5.3 1C18.5 19.5 21 12 20.5 3zM8 17.5l7.5-8.5 1 1L9.2 18.5z"
+      />
+    </Icon>
+  )
+}
+
+/** Bolhas de três tamanhos. */
+export function BubblesIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <g {...STROKE}>
+        <circle cx="9.5" cy="14.5" r="6" />
+        <circle cx="18" cy="7" r="3.5" />
+        <circle cx="19" cy="17.5" r="1.8" />
+        <path d="M6.8 13.5a3 3 0 0 1 2-2" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Crista de onda quebrando. */
+export function OceanIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <g {...STROKE}>
+        <path d="M2 15c2 0 3-2 4.5-5C8 7 10.5 5 14 5c3 0 5 2 5 4.5 0 1.8-1.3 3-3 3-1.3 0-2.3-.8-2.5-2" />
+        <path d="M2 20c1.7 0 2.5-1.3 4-1.3S8.3 20 10 20s2.5-1.3 4-1.3 2.3 1.3 4 1.3 2.5-1.3 4-1.3" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Estrela cadente: a estrela e os riscos do rastro. */
+export function MeteorIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M8 13l1.5 3.5L13 18l-3.5 1.5L8 23l-1.5-3.5L3 18l3.5-1.5z" />
+      <g {...STROKE}>
+        <path d="M21 3 12 12M21 9l-5 5M15 3l-5 5" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Névoa: linhas onduladas e soltas. */
+export function FogIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <g {...STROKE}>
+        <path d="M3 7h13M19.5 7H21M3 12h3M9.5 12H21M3 17h10M16.5 17H21" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Raios de luz descendo do canto. */
+export function SunbeamIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M3 3h5.5L3 8.5z" />
+      <g {...STROKE}>
+        <path d="M9 9l12 3M9 9l9 9M9 9l3 12" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Lava: lago na base e uma bolha subindo. */
+export function LavaIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M2 16c2-1.5 3.5-1.5 5 0s3.5 1.5 5 0 3.5-1.5 5 0 3.5 1.5 5 0v6H2z" />
+      <ellipse cx="9" cy="8" rx="3" ry="4" />
+      <circle cx="17" cy="5" r="2" />
+    </Icon>
+  )
+}
+
+/** Nota de dinheiro com o cifrão vazado. */
+export function MoneyIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path
+        fillRule="evenodd"
+        d="M2 6h20v12H2zm10 2.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM5 9v1.5h1.5V9zm12.5 4.5V15H19v-1.5z"
+      />
+    </Icon>
+  )
+}
+
+export function CloudIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M6.5 19a4.5 4.5 0 0 1-.8-8.9 6 6 0 0 1 11.6-1.3A5.2 5.2 0 0 1 17 19z" />
+    </Icon>
+  )
+}
+
+/** Hexágono neon: o contorno e o miolo aceso. */
+export function HexagonIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M12 7.5l3.9 2.25v4.5L12 16.5l-3.9-2.25v-4.5z" />
+      <g {...STROKE}>
+        <path d="M12 2l8.7 5v10L12 22l-8.7-5V7z" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Invasor de fliperama em blocos. */
+export function PixelIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M6 3h2v2h2v2h4V5h2V3h2v2h-2v2h2v2h2v2h2v6h-2v-4h-2v4h-2v2h-4v-2h2v-2H8v2h2v2H6v-2H4v-4H2v4H0v-6h2V9h2V7h2V5h0zM8 10v2h2v-2zm6 0v2h2v-2z" />
+    </Icon>
+  )
+}
+
+/** Cordão com bandeirinhas. */
+export function BuntingIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M3.5 7.5 9 9l-3.5 6zM10.5 9.3h5L13 16zM17 9l5-1.5L20 15z" />
+      <g {...STROKE}>
+        <path d="M2 6c6 4.5 14 4.5 20 0" />
+      </g>
+    </Icon>
+  )
+}
+
+/** Fogos: o estouro em raios, em volta de um miolo. */
+export function FireworksIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="10" r="1.8" />
+      <g {...STROKE}>
+        <path d="M12 2.5v3M12 14.5v3M4.5 10h3M16.5 10h3M6.7 4.7l2.1 2.1M15.2 13.2l2.1 2.1M17.3 4.7l-2.1 2.1M8.8 13.2l-2.1 2.1M12 20v2" />
+      </g>
+    </Icon>
+  )
+}

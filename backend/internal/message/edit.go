@@ -3,6 +3,8 @@ package message
 import (
 	"context"
 	"errors"
+
+	"gin-quickstart/backend/internal/expression"
 )
 
 var (
@@ -38,23 +40,12 @@ func editedMentionEveryone(original *string, content string) *string {
 // outra sala é ErrMessageNotFound; de outra pessoa, ErrNotEditAuthor.
 // Devolve changed=false (sem gravar) quando o texto é o mesmo.
 func (s *Service) editMessage(ctx context.Context, channelID string, conversationID string, messageID string, userID string, content string) (msg *Message, changed bool, err error) {
-	current, err := s.edits.FindByID(ctx, messageID)
-	if err != nil || !SameRoomTarget(current, channelID, conversationID) {
-		return nil, false, ErrMessageNotFound
-	}
-	if current.AuthorID != userID {
-		return nil, false, ErrNotEditAuthor
-	}
-	if err := s.checkEditable(ctx, current); err != nil {
-		return nil, false, err
-	}
-
-	attachmentIDs, err := s.edits.MessageAttachmentIDs(ctx, messageID)
+	current, err := s.editTarget(ctx, channelID, conversationID, messageID, userID)
 	if err != nil {
 		return nil, false, err
 	}
-	hasMedia := len(attachmentIDs) > 0 || current.StickerID != nil || current.GifURL != nil
-	if err := validateContent(content, hasMedia); err != nil {
+	content, err = s.editedContent(ctx, current, channelID, userID, content)
+	if err != nil {
 		return nil, false, err
 	}
 
@@ -75,6 +66,43 @@ func (s *Service) editMessage(ctx context.Context, channelID string, conversatio
 		return nil, false, err
 	}
 	return &page[0], changed, nil
+}
+
+// editTarget: a mensagem que está na sala, é da pessoa e pode ser editada.
+func (s *Service) editTarget(ctx context.Context, channelID, conversationID, messageID, userID string) (*Message, error) {
+	current, err := s.edits.FindByID(ctx, messageID)
+	if err != nil || !SameRoomTarget(current, channelID, conversationID) {
+		return nil, ErrMessageNotFound
+	}
+	if current.AuthorID != userID {
+		return nil, ErrNotEditAuthor
+	}
+	if err := s.checkEditable(ctx, current); err != nil {
+		return nil, err
+	}
+	return current, nil
+}
+
+// editedContent confere o texto novo e o devolve como pode sair: editar passa
+// pela mesma regra de emojis de enviar.
+func (s *Service) editedContent(ctx context.Context, current *Message, channelID, userID, content string) (string, error) {
+	attachmentIDs, err := s.edits.MessageAttachmentIDs(ctx, current.ID)
+	if err != nil {
+		return "", err
+	}
+	hasMedia := len(attachmentIDs) > 0 || current.StickerID != nil || current.GifURL != nil
+	if err := validateContent(content, hasMedia); err != nil {
+		return "", err
+	}
+	return s.expressions.message(ctx, s.editDestination(ctx, channelID), userID, content, nil)
+}
+
+// editDestination: o destino da mensagem editada (sem canal, é DM ou grupo).
+func (s *Service) editDestination(ctx context.Context, channelID string) expression.Destination {
+	if channelID == "" {
+		return expression.Destination{}
+	}
+	return s.channelDestination(ctx, channelID)
 }
 
 // checkEditable: só texto comum (nada de mensagem do sistema, convite para a

@@ -18,3 +18,12 @@ describe('themeImage', () => {
     expect(themeImageSrc('javascript:x', '')).toBe('')
   })
 })
+
+describe('imagem do fundo do servidor', () => {
+  const SERVER_IMAGE = '/api/server-profile-images/0b6d1c9e-6c1a-4f53-9f7d-1a2b3c4d5e6f'
+  it('vale como a do tema; outro caminho, não', () => {
+    expect(isThemeImage(SERVER_IMAGE)).toBe(true)
+    expect(themeImageSrc(SERVER_IMAGE, 'http://host')).toBe(`http://host${SERVER_IMAGE}`)
+    expect(isThemeImage('/api/profile-media/0b6d1c9e-6c1a-4f53-9f7d-1a2b3c4d5e6f')).toBe(false)
+  })
+})

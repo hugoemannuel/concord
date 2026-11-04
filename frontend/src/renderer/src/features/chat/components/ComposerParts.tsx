@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Message } from '../api/messages'
 import type { ServerSticker } from '../api/stickers'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import { PaperclipIcon, PollIcon, SmileyIcon } from '../../../shared/ui/icons'
 import SlashSuggestions from '../../music/components/SlashSuggestions'
 import { composerCommands } from '../lib/chatPaneView'
@@ -72,7 +72,7 @@ export function MediaPicker({
   open: boolean
   serverId?: string
   onSelectEmoji: (emoji: string) => void
-  onSelectGif: (gif: GiphyItem) => void
+  onSelectGif: (gif: GifItem) => void
   onSelectSticker: (sticker: ServerSticker) => void
   onClose: () => void
 }): React.JSX.Element | null {

@@ -1,4 +1,4 @@
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import GifFavoriteButton from './GifFavoriteButton'
 
 /** Grade de GIFs do seletor: clicar envia, a estrela favorita (sempre visível, sem depender de hover). */
@@ -8,10 +8,10 @@ export default function GifGrid({
   onSelect,
   onToggleFavorite
 }: {
-  gifs: GiphyItem[]
+  gifs: GifItem[]
   favoriteIds: ReadonlySet<string>
-  onSelect: (gif: GiphyItem) => void
-  onToggleFavorite: (gif: GiphyItem) => void
+  onSelect: (gif: GifItem) => void
+  onToggleFavorite: (gif: GifItem) => void
 }): React.JSX.Element {
   return (
     <div className="grid grid-cols-2 gap-2">

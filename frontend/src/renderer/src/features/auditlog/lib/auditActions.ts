@@ -21,6 +21,11 @@ const changeOf = (e: AuditEntry, field: string): { before?: unknown; after?: unk
 
 const turnedOn = (e: AuditEntry, field: string): boolean => changeOf(e, field)?.after === true
 
+const CHANNEL_REORDER_SENTENCE: Record<string, string> = {
+  voice: '{a} reordenou os canais de voz',
+  layout: '{a} reorganizou as categorias e os canais'
+}
+
 const ACTIONS: Record<AuditAction, ActionInfo> = {
   'server.update': {
     label: 'Servidor atualizado',
@@ -49,10 +54,7 @@ const ACTIONS: Record<AuditAction, ActionInfo> = {
   'channel.reorder': {
     label: 'Canais reordenados',
     tone: 'update',
-    sentence: (e) =>
-      changeOf(e, 'type')?.after === 'voice'
-        ? '{a} reordenou os canais de voz'
-        : '{a} reordenou os canais de texto'
+    sentence: (e) => CHANNEL_REORDER_SENTENCE[String(changeOf(e, 'type')?.after)] ?? '{a} reordenou os canais de texto'
   },
   'channel.overwrite.update': {
     label: 'Permissões de canal alteradas',

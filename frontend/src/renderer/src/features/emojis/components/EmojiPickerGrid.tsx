@@ -1,84 +1,79 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { EMOTE_CATEGORIES, type EmoteCategory } from '../../chat/lib/emotes'
-import { serverIconSrc } from '../../servers/lib/serverIcon'
-import { TrashIcon } from '../../../shared/ui/icons'
-import SectionHeader from '../../../shared/ui/SectionHeader'
+import { useEffect, useMemo, type ReactNode } from 'react'
+import { EMOTE_CATEGORIES, type EmoteCategory, type EmoteItem } from '../../chat/lib/emotes'
+import { useAuthStore } from '../../auth/store/authStore'
+import { useServerStore } from '../../servers/store/serverStore'
+import { ClockIcon, SmileyIcon, TrashIcon } from '../../../shared/ui/icons'
 import { showToast } from '../../../shared/store/toastStore'
 import type { CustomEmoji as Emoji, ServerEmojis } from '../api/emojis'
 import { messageToken, reactionToken } from '../lib/emojiToken'
-import { normalizeSearch, searchCategories } from '../lib/baseEmojis'
-import { observeOnce } from '../lib/observeOnce'
+import { searchCategories } from '../lib/baseEmojis'
+import { previewKeyProps } from '../lib/gridNav'
+import {
+  EXTERNAL_REASON,
+  customIdOf,
+  customKey,
+  externalNotice,
+  frequentItems,
+  serverSections,
+  withItemServers,
+  type ServerSection
+} from '../lib/pickerSections'
 import { useEmojiStore } from '../store/emojiStore'
+import { rankedRecent, useRecentExpressions } from '../store/recentExpressions'
 import { useCustomEmojis } from '../hooks/useCustomEmojis'
+import { useExternalAccess, type PickerDestination } from '../hooks/useExternalAccess'
 import CustomEmoji from './CustomEmoji'
+import { emojiPreview } from './emojiPreview'
+import ExpressionPicker, { PickerSection, type PickerPreview, type PickerRailEntry } from './ExpressionPicker'
+import ServerBadge from './ServerBadge'
 
 /** No texto vai <:nome:id>; na reação, <:id>. */
 export type EmojiPickMode = 'message' | 'reaction'
 
-const GRID = 'grid grid-cols-6 gap-1 max-md:grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))]'
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-1 max-md:grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))]'
 const CELL =
-  'flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-ds-lg transition-transform hover:scale-110 hover:bg-fg/10 focus-ring max-md:size-11 max-md:text-ds-xl'
-/** Altura de uma linha da grade (botão + espaço), para reservar o lugar das categorias fechadas. */
+  'flex h-9 w-full items-center justify-center rounded-md text-ds-lg transition-colors focus-ring max-md:h-11 max-md:text-ds-xl'
+const CELL_ENABLED = 'cursor-pointer hover:bg-fg/10'
+const CELL_DISABLED = 'cursor-not-allowed opacity-40'
+/** Altura de uma linha da grade (botão + espaço), para reservar o lugar do que não montou. */
 const ROW_PX = 36
-/** As primeiras categorias montam na hora; as outras quando chegam perto da tela. */
-const EAGER_SECTIONS = 2
+const HEADER_PX = 28
+const ROW_ITEMS = 6
+/** As primeiras seções montam na hora; as outras quando chegam perto da tela. */
+const EAGER_SERVERS = 3
+const EAGER_CATEGORIES = 2
+const FREQUENT_LIMIT = 18
+const FREQUENT_ID = 'emoji:frequent'
+const BASE_PREFIX = 'emoji:base:'
 
-/** Monta o conteúdo só quando chega perto da área visível (o pack tem ~1.900 emojis). */
-function LazySection({
-  eager,
-  estimatedHeight,
-  children
-}: {
-  eager: boolean
-  estimatedHeight: number
-  children: ReactNode
-}): React.JSX.Element {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(eager)
-  useEffect(() => (visible ? undefined : observeOnce(ref.current, () => setVisible(true))), [visible])
-  return (
-    <div ref={ref} style={visible ? undefined : { height: estimatedHeight }}>
-      {visible && children}
-    </div>
-  )
-}
+const sectionHeight = (count: number): number => HEADER_PX + Math.ceil(count / ROW_ITEMS) * ROW_PX
 
-function SectionTitle({ children }: { children: ReactNode }): React.JSX.Element {
-  return (
-    <SectionHeader as="p" className="mb-1 flex items-center gap-1.5">
-      {children}
-    </SectionHeader>
-  )
-}
-
-function ServerTitle({ group }: { group: ServerEmojis }): React.JSX.Element {
-  const icon = serverIconSrc(group.server_icon_url)
-  return (
-    <SectionTitle>
-      {icon ? (
-        <img src={icon} alt="" width={14} height={14} className="h-3.5 w-3.5 rounded object-cover" />
-      ) : (
-        <span aria-hidden className="flex h-3.5 w-3.5 items-center justify-center rounded bg-fg/10 text-ds-xxs">
-          {group.server_name.slice(0, 1)}
-        </span>
-      )}
-      <span className="min-w-0 truncate normal-case">{group.server_name}</span>
-    </SectionTitle>
-  )
-}
+type FrequentItem = { custom: Emoji } | { unicode: EmoteItem }
 
 function CustomEmojiCell({
   emoji,
+  disabled,
   onPick,
   onDelete
 }: {
   emoji: Emoji
+  disabled: boolean
   onPick: (emoji: Emoji) => void
   onDelete?: (emoji: Emoji) => void
 }): React.JSX.Element {
   return (
     <div className="group relative">
-      <button type="button" title={`:${emoji.name}:`} aria-label={`:${emoji.name}:`} onClick={() => onPick(emoji)} className={CELL}>
+      <button
+        type="button"
+        title={disabled ? EXTERNAL_REASON : `:${emoji.name}:`}
+        aria-label={`:${emoji.name}:`}
+        aria-disabled={disabled || undefined}
+        onClick={() => {
+          if (!disabled) onPick(emoji)
+        }}
+        className={`${CELL} ${disabled ? CELL_DISABLED : CELL_ENABLED}`}
+        {...previewKeyProps(customKey(emoji.id))}
+      >
         <CustomEmoji id={emoji.id} name={emoji.name} size="picker" />
       </button>
       {onDelete && (
@@ -96,94 +91,206 @@ function CustomEmojiCell({
   )
 }
 
-function BaseCategory({
-  category,
-  eager,
-  onPick
-}: {
-  category: EmoteCategory
-  eager: boolean
-  onPick: (value: string) => void
-}): React.JSX.Element {
+function UnicodeCell({ item, onPick }: { item: EmoteItem; onPick: (value: string) => void }): React.JSX.Element {
   return (
-    <LazySection eager={eager} estimatedHeight={20 + Math.ceil(category.items.length / 6) * ROW_PX}>
-      <div className="mb-2">
-        <SectionTitle>{category.name}</SectionTitle>
-        <div className={GRID}>
-          {category.items.map((item) => (
-            <button
-              key={item.emoji}
-              type="button"
-              title={item.label}
-              aria-label={item.label}
-              onClick={() => onPick(item.emoji)}
-              className={CELL}
-            >
-              {item.emoji}
-            </button>
-          ))}
-        </div>
-      </div>
-    </LazySection>
+    <button
+      type="button"
+      title={item.label}
+      aria-label={item.label}
+      onClick={() => onPick(item.emoji)}
+      className={`${CELL} ${CELL_ENABLED}`}
+      {...previewKeyProps(item.emoji)}
+    >
+      {item.emoji}
+    </button>
   )
 }
 
-/** Os grupos de emojis personalizados que batem com a busca (pelo nome). */
-export function filterGroups(groups: ServerEmojis[], search: string): ServerEmojis[] {
-  const q = normalizeSearch(search.trim())
-  if (!q) return groups
-  return groups
-    .map((g) => ({ ...g, emojis: g.emojis.filter((e) => normalizeSearch(e.name).includes(q)) }))
-    .filter((g) => g.emojis.length > 0)
+/** Tudo que a grade precisa saber, já calculado a partir dos stores. */
+function usePickerData(
+  search: string,
+  customs: boolean,
+  destination: PickerDestination
+): {
+  sections: ServerSection<Emoji>[]
+  categories: EmoteCategory[]
+  frequent: FrequentItem[]
+  serverOf: Map<string, ServerEmojis>
+  unicode: Map<string, EmoteItem>
+  allowed: boolean
+} {
+  useCustomEmojis()
+  const groups = useEmojiStore((s) => s.groups)
+  const byId = useEmojiStore((s) => s.byId)
+  const base = useEmojiStore((s) => s.base)
+  const servers = useServerStore((s) => s.servers)
+  const meId = useAuthStore((s) => s.user?.id)
+  const recent = useRecentExpressions((s) => s.emoji)
+  const allowed = useExternalAccess(destination)
+  useEffect(() => void useEmojiStore.getState().ensureBase(), [])
+  useEffect(() => useRecentExpressions.getState().load(meId), [meId])
+
+  const sections = useMemo(() => {
+    if (!customs) return []
+    const itemServers = groups.map((g) => ({ id: g.server_id, name: g.server_name, icon_url: g.server_icon_url }))
+    const items = new Map(groups.map((g) => [g.server_id, g.emojis]))
+    return serverSections({
+      servers: withItemServers(servers ?? [], itemServers),
+      itemsOf: (id) => items.get(id) ?? [],
+      nameOf: (e: Emoji) => e.name,
+      currentId: destination.serverId,
+      search
+    })
+  }, [customs, groups, servers, destination.serverId, search])
+
+  const allCategories = base ?? EMOTE_CATEGORIES
+  const categories = useMemo(() => searchCategories(allCategories, search), [allCategories, search])
+  const unicode = useMemo(
+    () => new Map(allCategories.flatMap((c) => c.items.map((i): [string, EmoteItem] => [i.emoji, i]))),
+    [allCategories]
+  )
+  const frequent = useMemo(() => {
+    const lookup = (key: string): FrequentItem | undefined => {
+      const id = customIdOf(key)
+      if (id !== null) {
+        const emoji = customs ? byId[id] : undefined
+        return emoji && { custom: emoji }
+      }
+      const item = unicode.get(key)
+      return item && { unicode: item }
+    }
+    const defaults = EMOTE_CATEGORIES[0].items.map((i) => i.emoji)
+    return frequentItems(rankedRecent(recent), lookup, defaults, FREQUENT_LIMIT)
+  }, [recent, byId, unicode, customs])
+
+  const serverOf = useMemo(() => new Map(groups.flatMap((g) => g.emojis.map((e): [string, ServerEmojis] => [e.id, g]))), [groups])
+  return { sections, categories, frequent, serverOf, unicode, allowed }
 }
 
 /**
- * Grade do seletor de emoji: primeiro os emojis personalizados dos servidores
- * da pessoa (uma seção por servidor, com o ícone dele), depois o pack base.
+ * Seletor de emoji: trilho e seções dos servidores da pessoa (o atual primeiro),
+ * os usados com frequência e o pack base. Item de outro servidor fica
+ * desabilitado, com o motivo, sem a permissão de usá-los aqui.
  */
 export default function EmojiPickerGrid({
   search,
   mode,
   onPick,
-  canDelete
+  canDelete,
+  destination = {},
+  customs = true,
+  header
 }: {
   search: string
   mode: EmojiPickMode
   onPick: (value: string) => void
   /** Pode apagar este emoji daqui? (sem: nenhuma lixeira) */
   canDelete?: (emoji: Emoji) => boolean
+  /** Para onde vai: decide o que é de fora e a permissão. Vazio = DM ou grupo. */
+  destination?: PickerDestination
+  /** Sem os personalizados (onde eles não são aceitos, como nas propostas). */
+  customs?: boolean
+  header?: ReactNode
 }): React.JSX.Element {
-  useCustomEmojis()
-  const groups = useEmojiStore((s) => s.groups)
-  const base = useEmojiStore((s) => s.base)
   const remove = useEmojiStore((s) => s.remove)
-  useEffect(() => void useEmojiStore.getState().ensureBase(), [])
-
-  const customs = useMemo(() => filterGroups(groups, search), [groups, search])
-  const categories = useMemo(() => searchCategories(base ?? EMOTE_CATEGORIES, search), [base, search])
+  const record = useRecentExpressions((s) => s.record)
+  const { sections, categories, frequent, serverOf, unicode, allowed } = usePickerData(search, customs, destination)
   const searching = search.trim() !== ''
-  const pickCustom = (e: Emoji): void => onPick(mode === 'message' ? messageToken(e) : reactionToken(e.id))
+
+  const pickUnicode = (value: string): void => {
+    record('emoji', value)
+    onPick(value)
+  }
+  const pickCustom = (e: Emoji): void => {
+    record('emoji', customKey(e.id))
+    onPick(mode === 'message' ? messageToken(e) : reactionToken(e.id))
+  }
   const deleteCustom = (e: Emoji): void =>
     void remove(e.server_id, e.id).catch(() => showToast.error('Não foi possível excluir o emoji.'))
+  const isDisabled = (e: Emoji): boolean => !allowed && e.server_id !== destination.serverId
+  const deletable = (e: Emoji): ((emoji: Emoji) => void) | undefined => (canDelete?.(e) ? deleteCustom : undefined)
+
+  const shownCategories = searching ? categories : categories.filter((c) => c.id !== EMOTE_CATEGORIES[0].id)
+  const rail: PickerRailEntry[] = [
+    ...(searching ? [] : [{ sectionId: FREQUENT_ID, label: 'Usados com frequência', icon: <ClockIcon size={20} /> }]),
+    ...sections.map((s) => ({
+      sectionId: `emoji:${s.server.id}`,
+      label: s.server.name,
+      icon: <ServerBadge name={s.server.name} iconUrl={s.server.icon_url} />
+    })),
+    ...(shownCategories.length
+      ? [
+          {
+            sectionId: `${BASE_PREFIX}${shownCategories[0].id}`,
+            label: 'Emojis padrão',
+            icon: <SmileyIcon size={20} />,
+            matches: (id: string) => id.startsWith(BASE_PREFIX)
+          }
+        ]
+      : [])
+  ]
+
+  const describe = (key: string): PickerPreview | null => emojiPreview(key, serverOf, unicode, isDisabled)
+
+  const nothing = sections.length === 0 && categories.length === 0
 
   return (
-    <div>
-      {customs.map((group) => (
-        <div key={group.server_id} className="mb-2">
-          <ServerTitle group={group} />
+    <ExpressionPicker
+      rail={rail}
+      header={header}
+      notice={externalNotice(allowed, sections)}
+      describe={describe}
+      idleHint="Passe o mouse ou toque em um emoji para ver de onde ele vem."
+    >
+      {!searching && frequent.length > 0 && (
+        <PickerSection id={FREQUENT_ID} title="Usados com frequência" icon={<ClockIcon size={12} />} eager estimatedHeight={sectionHeight(frequent.length)}>
           <div className={GRID}>
-            {group.emojis.map((e) => (
-              <CustomEmojiCell key={e.id} emoji={e} onPick={pickCustom} onDelete={canDelete?.(e) ? deleteCustom : undefined} />
+            {frequent.map((item) =>
+              'custom' in item ? (
+                <CustomEmojiCell key={item.custom.id} emoji={item.custom} disabled={isDisabled(item.custom)} onPick={pickCustom} />
+              ) : (
+                <UnicodeCell key={item.unicode.emoji} item={item.unicode} onPick={pickUnicode} />
+              )
+            )}
+          </div>
+        </PickerSection>
+      )}
+      {sections.map((section, i) => (
+        <PickerSection
+          key={section.server.id}
+          id={`emoji:${section.server.id}`}
+          title={section.server.name}
+          icon={<ServerBadge name={section.server.name} iconUrl={section.server.icon_url} size="xs" />}
+          eager={searching || i < EAGER_SERVERS}
+          estimatedHeight={sectionHeight(section.items.length)}
+        >
+          {section.items.length === 0 ? (
+            <p className="py-1 text-ds-xs text-faint">Este servidor ainda não tem emojis.</p>
+          ) : (
+            <div className={GRID}>
+              {section.items.map((e) => (
+                <CustomEmojiCell key={e.id} emoji={e} disabled={isDisabled(e)} onPick={pickCustom} onDelete={deletable(e)} />
+              ))}
+            </div>
+          )}
+        </PickerSection>
+      ))}
+      {shownCategories.map((category, i) => (
+        <PickerSection
+          key={category.id}
+          id={`${BASE_PREFIX}${category.id}`}
+          title={category.name}
+          eager={searching || i < EAGER_CATEGORIES}
+          estimatedHeight={sectionHeight(category.items.length)}
+        >
+          <div className={GRID}>
+            {category.items.map((item) => (
+              <UnicodeCell key={item.emoji} item={item} onPick={pickUnicode} />
             ))}
           </div>
-        </div>
+        </PickerSection>
       ))}
-      {categories.map((category, i) => (
-        <BaseCategory key={category.id} category={category} eager={searching || i < EAGER_SECTIONS} onPick={onPick} />
-      ))}
-      {customs.length === 0 && categories.length === 0 && (
-        <div className="py-4 text-center text-ds-xs text-faint">Nenhum emote encontrado</div>
-      )}
-    </div>
+      {nothing && <div className="py-4 text-center text-ds-xs text-faint">Nenhum emote encontrado</div>}
+    </ExpressionPicker>
   )
 }

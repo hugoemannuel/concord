@@ -31,10 +31,11 @@
     "ADD_EMOJIS": 32768,
     "ADD_STICKERS": 536870912,
     "SEND_TTS_MESSAGES": 1073741824,
-    "VIEW_AUDIT_LOG": 16384
+    "VIEW_AUDIT_LOG": 16384,
+    "USE_EXTERNAL_EMOJIS": 2147483648
   },
   "defaults": {
-    "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES", "ATTACH_FILES", "ADD_REACTIONS", "READ_MESSAGE_HISTORY", "CREATE_INVITE", "CONNECT", "SPEAK", "STREAM", "USE_SOUNDBOARD", "CHANGE_NICKNAME", "ADD_SOUNDS", "ADD_STICKERS", "SEND_TTS_MESSAGES", "ADD_EMOJIS"]
+    "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES", "ATTACH_FILES", "ADD_REACTIONS", "READ_MESSAGE_HISTORY", "CREATE_INVITE", "CONNECT", "SPEAK", "STREAM", "USE_SOUNDBOARD", "CHANGE_NICKNAME", "ADD_SOUNDS", "ADD_STICKERS", "SEND_TTS_MESSAGES", "ADD_EMOJIS", "USE_EXTERNAL_EMOJIS"]
   },
   "compute": [
     {
@@ -244,6 +245,62 @@
       "channel": {"type": "text", "overwrites": []},
       "expect_base": ["SEND_MESSAGES", "READ_MESSAGE_HISTORY", "MANAGE_MESSAGES"],
       "expect_channel": []
+    },
+    {
+      "name": "usar emojis de outros servidores: ligado no @everyone vale no canal",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"], "roles": [], "member_roles": [],
+      "channel": {"type": "text", "overwrites": []},
+      "expect_base": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"],
+      "expect_channel": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"]
+    },
+    {
+      "name": "usar emojis de outros servidores: negado no canal para o @everyone",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"], "roles": [], "member_roles": [],
+      "channel": {"type": "text", "overwrites": [{"target_type": "role", "target_id": "everyone", "allow": [], "deny": ["USE_EXTERNAL_EMOJIS"]}]},
+      "expect_base": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"],
+      "expect_channel": ["VIEW_CHANNEL", "SEND_MESSAGES"]
+    },
+    {
+      "name": "usar emojis de outros servidores: cargo libera no canal o que o @everyone nega",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"], "roles": [{"id": "vip", "position": 2, "permissions": []}], "member_roles": ["vip"],
+      "channel": {"type": "text", "overwrites": [{"target_type": "role", "target_id": "everyone", "allow": [], "deny": ["USE_EXTERNAL_EMOJIS"]}, {"target_type": "role", "target_id": "vip", "allow": ["USE_EXTERNAL_EMOJIS"], "deny": []}]},
+      "expect_base": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"],
+      "expect_channel": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"]
+    },
+    {
+      "name": "usar emojis de outros servidores: desligado no servidor, a pessoa ganha só no canal",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["VIEW_CHANNEL", "SEND_MESSAGES"], "roles": [], "member_roles": [],
+      "channel": {"type": "text", "overwrites": [{"target_type": "member", "target_id": "ana", "allow": ["USE_EXTERNAL_EMOJIS"], "deny": []}]},
+      "expect_base": ["VIEW_CHANNEL", "SEND_MESSAGES"],
+      "expect_channel": ["VIEW_CHANNEL", "SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"]
+    },
+    {
+      "name": "usar emojis de outros servidores: sem ver o canal, nada",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"], "roles": [], "member_roles": [],
+      "channel": {"type": "text", "overwrites": []},
+      "expect_base": ["SEND_MESSAGES", "USE_EXTERNAL_EMOJIS"],
+      "expect_channel": []
+    },
+    {
+      "name": "usar emojis de outros servidores: não depende de enviar mensagens (reagir também usa)",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["VIEW_CHANNEL", "USE_EXTERNAL_EMOJIS"], "roles": [], "member_roles": [],
+      "channel": {"type": "text", "overwrites": []},
+      "expect_base": ["VIEW_CHANNEL", "USE_EXTERNAL_EMOJIS"],
+      "expect_channel": ["VIEW_CHANNEL", "USE_EXTERNAL_EMOJIS"]
+    },
+    {
+      "name": "usar emojis de outros servidores: Administrador tem e ignora a negação",
+      "owner_id": "dono", "user_id": "ana",
+      "everyone": ["VIEW_CHANNEL", "ADMINISTRATOR"], "roles": [], "member_roles": [],
+      "channel": {"type": "text", "overwrites": [{"target_type": "role", "target_id": "everyone", "allow": [], "deny": ["USE_EXTERNAL_EMOJIS"]}]},
+      "expect_base": ["ALL"],
+      "expect_channel": ["ALL"]
     }
   ],
   "can_act_on": [
@@ -275,6 +332,8 @@
     {"name": "dá o que tem", "actor": ["VIEW_CHANNEL", "SEND_MESSAGES", "MANAGE_ROLES"], "changed": ["SEND_MESSAGES"], "expect": true},
     {"name": "não dá o que não tem", "actor": ["VIEW_CHANNEL", "MANAGE_ROLES"], "changed": ["SEND_MESSAGES", "VIEW_CHANNEL"], "expect": false},
     {"name": "administrador dá qualquer coisa", "actor": ["ADMINISTRATOR"], "changed": ["BAN_MEMBERS", "KICK_MEMBERS"], "expect": true},
-    {"name": "não mexer em nada sempre pode", "actor": [], "changed": [], "expect": true}
+    {"name": "não mexer em nada sempre pode", "actor": [], "changed": [], "expect": true},
+    {"name": "quem não usa emojis de outros servidores não dá essa permissão", "actor": ["VIEW_CHANNEL", "SEND_MESSAGES"], "changed": ["USE_EXTERNAL_EMOJIS"], "expect": false},
+    {"name": "quem usa emojis de outros servidores dá essa permissão", "actor": ["VIEW_CHANNEL", "USE_EXTERNAL_EMOJIS"], "changed": ["USE_EXTERNAL_EMOJIS"], "expect": true}
   ]
 }

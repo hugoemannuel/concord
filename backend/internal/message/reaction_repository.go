@@ -68,6 +68,16 @@ func insertReaction(ctx context.Context, tx pgx.Tx, messageID string, userID str
 	return tag.RowsAffected() > 0, nil
 }
 
+// HasReaction: alguém já reagiu com este emoji nesta mensagem?
+func (r *Repository) HasReaction(ctx context.Context, messageID string, emoji string) (bool, error) {
+	var present bool
+	err := r.db.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM message_reactions WHERE message_id = $1 AND emoji = $2)`,
+		messageID, emoji,
+	).Scan(&present)
+	return present, err
+}
+
 func (r *Repository) RemoveReaction(ctx context.Context, messageID string, userID string, emoji string) (bool, error) {
 	tag, err := r.db.Exec(
 		ctx,

@@ -20,6 +20,7 @@ type Handler struct {
 	store     Store
 	perms     Permissions
 	publisher Publisher
+	audit     AuditRecorder
 }
 
 func NewHandler(store Store, perms Permissions, publisher Publisher) *Handler {
@@ -30,6 +31,7 @@ func Routes(api *gin.RouterGroup, h *Handler, auth gin.HandlerFunc) {
 	g := api.Group("/servers/:id/categories", auth)
 	g.GET("", h.list)
 	g.POST("", h.create)
+	g.PUT("/layout", h.saveLayout)
 	g.PUT("/:categoryId", h.rename)
 	g.DELETE("/:categoryId", h.delete)
 	g.PUT("/:categoryId/order", h.moveCategory)
@@ -65,13 +67,8 @@ func (h *Handler) list(c *gin.Context) {
 		c.AbortWithStatus(500)
 		return
 	}
-	visible := make([]Placement, 0, len(layout.Channels))
-	for _, ch := range layout.Channels {
-		if snap.CanView(ch.ChannelID, user) {
-			visible = append(visible, ch)
-		}
-	}
-	layout.Channels = visible
+	layout = visibleLayout(layout, func(channel string) bool { return snap.CanView(channel, user) })
+	layout.Revision = layoutRevision(layout)
 	c.JSON(http.StatusOK, layout)
 }
 

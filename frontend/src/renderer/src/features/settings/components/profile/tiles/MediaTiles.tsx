@@ -4,29 +4,33 @@ import { DEFAULT_BANNER, profileMediaSrc } from '../../../../profile/lib/profile
 import type { ProfileImageKind as ImageKind } from '../../../../profile/api/users'
 import { Tile, TileAction, TileSection } from './Tile'
 
-/** Os "Remover" que aparecem só quando há imagem. */
+/** Os "Remover" que aparecem só quando há imagem (no modo servidor, "voltar ao padrão"). */
 function RemoveLinks({
   avatar,
   banner,
   busy,
+  reset,
   onRemove
 }: {
   avatar: boolean
   banner: boolean
   busy: boolean
+  reset: boolean
   onRemove: (kind: ImageKind) => void
 }): React.JSX.Element | null {
   if (!avatar && !banner) return null
+  const avatarText = reset ? 'Avatar: voltar ao padrão' : 'Remover avatar'
+  const bannerText = reset ? 'Banner: voltar ao padrão' : 'Remover banner'
   return (
     <div className="mt-1.5 flex flex-wrap gap-x-2">
       {avatar && (
-        <TileAction label="Remover avatar" disabled={busy} onClick={() => onRemove('avatar')}>
-          Remover avatar
+        <TileAction label={avatarText} disabled={busy} onClick={() => onRemove('avatar')}>
+          {avatarText}
         </TileAction>
       )}
       {banner && (
-        <TileAction label="Remover banner" disabled={busy} onClick={() => onRemove('banner')}>
-          Remover banner
+        <TileAction label={bannerText} disabled={busy} onClick={() => onRemove('banner')}>
+          {bannerText}
         </TileAction>
       )}
     </div>
@@ -44,7 +48,8 @@ export default function MediaTiles({
   bannerColor,
   busy,
   onPick,
-  onRemove
+  onRemove,
+  resettable
 }: {
   name: string
   avatarUrl: string | null
@@ -53,6 +58,8 @@ export default function MediaTiles({
   busy: boolean
   onPick: (kind: ImageKind) => void
   onRemove: (kind: ImageKind) => void
+  /** Modo servidor: só a imagem sobrescrita pode voltar ao padrão. */
+  resettable?: { avatar: boolean; banner: boolean }
 }): React.JSX.Element {
   const banner = profileMediaSrc(bannerUrl, API_BASE_URL)
   return (
@@ -81,7 +88,13 @@ export default function MediaTiles({
           </span>
         </Tile>
       </div>
-      <RemoveLinks avatar={Boolean(avatarUrl)} banner={Boolean(bannerUrl)} busy={busy} onRemove={onRemove} />
+      <RemoveLinks
+        avatar={resettable ? resettable.avatar : Boolean(avatarUrl)}
+        banner={resettable ? resettable.banner : Boolean(bannerUrl)}
+        reset={Boolean(resettable)}
+        busy={busy}
+        onRemove={onRemove}
+      />
     </TileSection>
   )
 }

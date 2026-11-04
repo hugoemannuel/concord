@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"gin-quickstart/backend/internal/namestyle"
+	"gin-quickstart/backend/internal/memberprofile"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,9 +25,9 @@ var messageColumns = `
 	m.author_id,
 	u.username,
 	u.display_name,
-	u.avatar_url,
-	` + namestyle.Expr("u") + `,
-	u.avatar_decoration_url,
+	` + memberprofile.AvatarExpr("smp", "u") + `,
+	` + memberprofile.NameStyleExpr("smp", "u") + `,
+	` + memberprofile.DecorationExpr("smp", "u") + `,
 	m.channel_id,
 	m.conversation_id,
 	m.reply_to_id,
@@ -40,19 +40,29 @@ var messageColumns = `
 	rm.author_id,
 	ru.username,
 	ru.display_name,
-	ru.avatar_url,
-	` + namestyle.Expr("ru") + `,
-	ru.avatar_decoration_url,
+	` + memberprofile.AvatarExpr("rsmp", "ru") + `,
+	` + memberprofile.NameStyleExpr("rsmp", "ru") + `,
+	` + memberprofile.DecorationExpr("rsmp", "ru") + `,
 	rm.content,
 	m.sticker_id,
 	stk.server_id,
 	stk.name,
 	stk.content_type,
+	m.deleted_sticker_name,
 	m.gif_url,
 	m.gif_metadata,
 	m.tts,
 	m.tts_voice_channel_id,
 	m.call_invite
+`
+
+// messageProfileJoins: o perfil do servidor do autor e de quem foi respondido
+// (só em canal de servidor; em DM não acha nada e vale o global). A resposta
+// fica no mesmo canal, então o servidor é o mesmo.
+const messageProfileJoins = `
+	LEFT JOIN channels mch ON mch.id = m.channel_id
+	LEFT JOIN server_member_profiles smp ON smp.server_id = mch.server_id AND smp.user_id = m.author_id
+	LEFT JOIN server_member_profiles rsmp ON rsmp.server_id = mch.server_id AND rsmp.user_id = rm.author_id
 `
 
 const messageFrom = `
@@ -61,7 +71,7 @@ const messageFrom = `
 	LEFT JOIN messages rm ON rm.id = m.reply_to_id
 	LEFT JOIN users ru ON ru.id = rm.author_id
 	LEFT JOIN server_stickers stk ON stk.id = m.sticker_id
-`
+` + messageProfileJoins
 
 func (r *Repository) Create(ctx context.Context, msg *Message) error {
 	var gifMetaBytes []byte

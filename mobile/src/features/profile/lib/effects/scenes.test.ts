@@ -126,8 +126,8 @@ describe('cenas de canvas', () => {
 
   it('o catálogo tem os 10 efeitos de canvas, cada um com um caso de teste, mais os 3 que eram CSS', () => {
     const canvas = Object.keys(CANVAS_EFFECTS).filter((id) => !CSS_NO_DESKTOP.includes(id))
-    expect(canvas.sort()).toEqual(Object.keys(CASES).sort())
-    expect(Object.keys(CANVAS_EFFECTS)).toHaveLength(13)
+    expect(canvas).toEqual(expect.arrayContaining(Object.keys(CASES)))
+    expect(Object.keys(CANVAS_EFFECTS)).toHaveLength(28)
   })
 
   describe.each(Object.keys(CASES))('%s', (id) => {

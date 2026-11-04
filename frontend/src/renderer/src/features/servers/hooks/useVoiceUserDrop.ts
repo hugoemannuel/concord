@@ -4,12 +4,6 @@ import { VOICE_USER_DRAG } from '../../call/lib/voiceMove'
 import { showToast } from '../../../shared/store/toastStore'
 import { actionErrorMessage } from '../lib/permissionErrors'
 
-/** Alvo de soltar de um canal na seção (reordenar canais arrastando). */
-export interface ChannelDropTarget {
-  onDragOver: (e: React.DragEvent<HTMLElement>) => void
-  onDrop: (e: React.DragEvent<HTMLElement>) => void
-}
-
 /** Move alguém para o canal de voz (moderadores); recusou, avisa. */
 export async function moveVoiceUser(userId: string, channelId: string): Promise<void> {
   try {
@@ -20,22 +14,23 @@ export async function moveVoiceUser(userId: string, channelId: string): Promise<
 }
 
 /**
- * O bloco do canal de voz aceita, além de outro canal (reordenar), uma pessoa
- * arrastada de outro canal de voz (mover). `active` acende o canal enquanto
- * alguém é arrastado por cima.
+ * O bloco do canal de voz aceita uma pessoa arrastada de outro canal de voz
+ * (mover). `active` acende o canal enquanto alguém é arrastado por cima.
  */
 export function useVoiceUserDrop(
   channelId: string,
-  participants: CallParticipant[],
-  channelTarget: ChannelDropTarget
+  participants: CallParticipant[]
 ): {
   active: boolean
   clear: () => void
-  handlers: ChannelDropTarget & { onDragLeave: (e: React.DragEvent<HTMLElement>) => void }
+  handlers: {
+    onDragOver: (e: React.DragEvent<HTMLElement>) => void
+    onDragLeave: (e: React.DragEvent<HTMLElement>) => void
+    onDrop: (e: React.DragEvent<HTMLElement>) => void
+  }
 } {
   const [active, setActive] = useState(false)
   const onDragOver = (e: React.DragEvent<HTMLElement>): void => {
-    channelTarget.onDragOver(e)
     if (!e.dataTransfer.types.includes(VOICE_USER_DRAG)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
@@ -45,7 +40,6 @@ export function useVoiceUserDrop(
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActive(false)
   }
   const onDrop = (e: React.DragEvent<HTMLElement>): void => {
-    channelTarget.onDrop(e)
     const userId = e.dataTransfer.getData(VOICE_USER_DRAG)
     setActive(false)
     if (!userId || participants.some((p) => p.user_id === userId)) return

@@ -1,4 +1,4 @@
-// Comprehensive E2E test for Chat, Reactions, Giphy/GIFs, Server Stickers, DMs, Edits, Pins & WebSockets
+// Comprehensive E2E test for Chat, Reactions, GIFs, Server Stickers, DMs, Edits, Pins & WebSockets
 import { strict as assert } from 'assert'
 import { execSync } from 'child_process'
 
@@ -503,18 +503,25 @@ async function runTests() {
   )
   console.log('   DM testada com sucesso (texto, GIF, reações e prévia last_message = "👾 GIF")!')
 
-  // 12. Teste dos endpoints proxy do Giphy (Trending e Search)
-  console.log('12. Testando endpoints de proxy do Giphy...')
-  const trendingRes = await api('/gifs/trending', { token: bia.token })
-  assert.equal(trendingRes.status, 200)
-  assert.ok(Array.isArray(trendingRes.body))
-
-  const searchRes = await api('/gifs/search?q=cats', { token: bia.token })
-  assert.equal(searchRes.status, 200)
-  assert.ok(Array.isArray(searchRes.body))
-  console.log(
-    `   Giphy Trending (${trendingRes.body.length}) e Search (${searchRes.body.length}) OK!`
-  )
+  // 12. GIFs pela KLIPY: o app chama a KLIPY direto; o servidor só entrega a
+  // configuração (503 sem KLIPY_API_KEY). As rotas antigas /gifs/trending e
+  // /search só funcionam com KLIPY_PROXY_SERVIDOR=1 (senão 503). Docs: ADR 0053.
+  console.log('12. Testando a configuração de GIFs (KLIPY) e as rotas antigas...')
+  const cfgRes = await api('/gifs/config', { token: bia.token })
+  assert.ok([200, 503].includes(cfgRes.status), `config de GIFs: status ${cfgRes.status}`)
+  if (cfgRes.status === 200) {
+    assert.equal(cfgRes.body.provider, 'klipy')
+    assert.ok(cfgRes.body.app_key && cfgRes.body.customer_id)
+    assert.ok(!JSON.stringify(cfgRes.body).includes(bia.id ?? '\u0000'), 'o id real não pode ir na config')
+  } else {
+    assert.equal(cfgRes.body.error, 'gifs_unavailable')
+  }
+  for (const path of ['/gifs/trending', '/gifs/search?q=cats']) {
+    const res = await api(path, { token: bia.token })
+    assert.ok([200, 503].includes(res.status), `${path}: status ${res.status}`)
+    if (res.status === 200) assert.ok(Array.isArray(res.body))
+  }
+  console.log(`   Config de GIFs: ${cfgRes.status} (200 = chave da KLIPY no servidor; 503 = sem chave)`)
 
   // 13. Permissões e Exclusão de Figurinha + Evento WS sticker:deleted
   console.log('13. Testando permissões de exclusão de figurinha e evento WS sticker:deleted...')
