@@ -10,12 +10,14 @@ const render = (
   gifs: GifItem[],
   loading: boolean,
   favorites: GifItem[] = [],
-  searching = false
+  searching = false,
+  unavailable = false
 ): string =>
   renderToStaticMarkup(
     <GifsTab
       gifs={gifs}
       loading={loading}
+      unavailable={unavailable}
       favorites={favorites}
       searching={searching}
       onSelect={() => {}}
@@ -30,6 +32,17 @@ describe('GifsTab', () => {
     const html = render([gif], false)
     expect(html).toContain('title="Gato"')
     expect(html).toContain('src="https://g/1.gif"')
+  })
+
+  it('sem GIFs por falha da busca ou do servidor mostra "GIFs indisponíveis", não "Nenhum GIF"', () => {
+    const html = render([], false, [], false, true)
+    expect(html).toContain('GIFs indisponíveis.')
+    expect(html).not.toContain('Nenhum GIF encontrado.')
+    // Carregando tem prioridade; os favoritos continuam aparecendo.
+    expect(render([], true, [], false, true)).toContain('Carregando GIFs…')
+    const withFav = render([], false, [fav], false, true)
+    expect(withFav).toContain('title="Cão"')
+    expect(withFav).toContain('GIFs indisponíveis.')
   })
 
   it('cada GIF tem a estrela de favoritar, visível sem hover', () => {

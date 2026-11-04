@@ -15,7 +15,7 @@ type TabId = 'emojis' | 'gifs' | 'stickers'
 // Mesmas abas, ícones e textos do seletor do desktop.
 const TABS: { id: TabId; icon: string; label: string; placeholder: string }[] = [
   { id: 'emojis', icon: '😊', label: 'Emojis', placeholder: 'Buscar emoji…' },
-  { id: 'gifs', icon: '👾', label: 'GIFs', placeholder: 'Buscar GIFs no GIPHY…' },
+  { id: 'gifs', icon: '👾', label: 'GIFs', placeholder: 'Search KLIPY' },
   { id: 'stickers', icon: '💟', label: 'Figurinhas', placeholder: 'Filtrar figurinhas…' }
 ]
 
@@ -33,7 +33,7 @@ export function MediaPickerSheet({ serverId, onSelectEmoji, onSelectGif, onSelec
   const [tab, setTab] = useState<TabId>('emojis')
   const [search, setSearch] = useState('')
   const { bottom } = useSafeAreaInsets()
-  const { gifs, loading: loadingGifs } = useGifSearch(tab === 'gifs', search)
+  const { gifs, loading: loadingGifs, unavailable: gifsUnavailable } = useGifSearch(tab === 'gifs', search)
   const { stickers, loading: loadingStickers } = useServerStickers(serverId, tab === 'stickers')
   const active = TABS.find((t) => t.id === tab)!
 
@@ -74,12 +74,12 @@ export function MediaPickerSheet({ serverId, onSelectEmoji, onSelectGif, onSelec
         />
         <View style={styles.content}>
           {tab === 'emojis' ? <EmojisTab search={search} onSelect={pick(onSelectEmoji)} /> : null}
-          {tab === 'gifs' ? <GifsTab gifs={gifs} loading={loadingGifs} onSelect={pick(onSelectGif)} /> : null}
+          {tab === 'gifs' ? <GifsTab gifs={gifs} loading={loadingGifs} unavailable={gifsUnavailable} onSelect={pick(onSelectGif)} /> : null}
           {tab === 'stickers' ? (
             <StickersTab serverId={serverId} stickers={stickers} loading={loadingStickers} search={search} onSelect={pick(onSelectSticker)} />
           ) : null}
         </View>
-        {tab === 'gifs' ? <Text style={styles.giphy}>Powered by GIPHY</Text> : null}
+        {tab === 'gifs' ? <Text style={styles.attribution}>Powered by KLIPY</Text> : null}
       </View>
     </Modal>
   )
@@ -95,5 +95,5 @@ const styles = StyleSheet.create({
   tabTextOn: { color: colors.white, fontWeight: '600' },
   search: { minHeight: MIN_TOUCH, borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.4)', color: colors.white, fontSize: fontSize.sm, paddingHorizontal: spacing.md },
   content: { flex: 1 },
-  giphy: { color: colors.textFaint, fontSize: 10, textAlign: 'center', letterSpacing: 1 }
+  attribution: { color: colors.textFaint, fontSize: 10, textAlign: 'center', letterSpacing: 1 }
 })

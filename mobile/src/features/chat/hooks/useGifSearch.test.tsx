@@ -28,14 +28,16 @@ describe('useGifSearch', () => {
     expect(result.current.loading).toBe(false)
   })
 
-  it('com busca usa a busca do Giphy; erro vira lista vazia', async () => {
+  it('com busca usa a busca da KLIPY; erro vira lista vazia e "indisponível"', async () => {
     const { result, rerender } = await renderHook(({ q }: { q: string }) => useGifSearch(true, q), { initialProps: { q: 'gato' } })
     await act(async () => void jest.advanceTimersByTime(250))
     expect(searchGifs).toHaveBeenCalledWith('gato')
     expect(result.current.gifs.map((g) => g.id)).toEqual(['g2'])
+    expect(result.current.unavailable).toBe(false)
     jest.mocked(searchGifs).mockRejectedValue(new Error('x'))
     await rerender({ q: 'cão' })
     await act(async () => void jest.advanceTimersByTime(250))
     expect(result.current.gifs).toEqual([])
+    expect(result.current.unavailable).toBe(true)
   })
 })

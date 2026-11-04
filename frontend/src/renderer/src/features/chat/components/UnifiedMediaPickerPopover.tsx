@@ -21,7 +21,7 @@ const TABS: {
   placeholder: string
 }[] = [
   { id: 'emojis', icon: SmileyIcon, label: 'Emojis', placeholder: 'Buscar emoji…' },
-  { id: 'gifs', icon: GifIcon, label: 'GIFs', placeholder: 'Buscar GIFs no GIPHY…' },
+  { id: 'gifs', icon: GifIcon, label: 'GIFs', placeholder: 'Search KLIPY' },
   { id: 'stickers', icon: StickerIcon, label: 'Figurinhas', placeholder: 'Filtrar figurinhas…' }
 ]
 
@@ -45,7 +45,7 @@ export default function UnifiedMediaPickerPopover({
   // Modal de envio aberto por cima (figurinha ou emoji do servidor).
   const [upload, setUpload] = useState<'stickers' | 'emojis' | null>(null)
 
-  const { gifs, loading: loadingGifs } = useGifSearch(tab === 'gifs', search)
+  const { gifs, loading: loadingGifs, unavailable: gifsUnavailable } = useGifSearch(tab === 'gifs', search)
   const { favorites: favoriteGifs, toggle: toggleFavoriteGif } = useGifFavorites(tab === 'gifs')
 
   // Stickers
@@ -120,6 +120,7 @@ export default function UnifiedMediaPickerPopover({
             <GifsTab
               gifs={gifs}
               loading={loadingGifs}
+              unavailable={gifsUnavailable}
               favorites={favoriteGifs}
               searching={search.trim() !== ''}
               onToggleFavorite={toggleFavoriteGif}
@@ -145,10 +146,10 @@ export default function UnifiedMediaPickerPopover({
           )}
         </div>
 
-        {/* Rodapé Giphy se na aba de GIFs */}
+        {/* Atribuição da KLIPY na aba de GIFs (docs.klipy.com/attribution) */}
         {tab === 'gifs' && (
           <div className="mt-2 flex items-center justify-center border-t border-white/5 pt-1.5 text-ds-xxs text-faint tracking-wider">
-            Powered by GIPHY
+            Powered by KLIPY
           </div>
         )}
       </div>
