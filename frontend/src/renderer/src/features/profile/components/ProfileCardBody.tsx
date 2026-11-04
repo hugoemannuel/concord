@@ -27,6 +27,7 @@ export interface CardProfile {
   nickname?: string | null
   username?: string
   avatar_url?: string | null
+  avatar_decoration_url?: string | null
   banner_url?: string | null
   banner_color?: string | null
   pronouns?: string
@@ -131,6 +132,7 @@ function ProfileCardBody({
               userId={preview ? undefined : profile.id}
               name={profile.nickname || profile.display_name}
               avatarUrl={profile.avatar_url}
+              decorationUrl={profile.avatar_decoration_url}
               status={status}
               surface={surface}
               fallbackClassName={avatarFallbackClassName}

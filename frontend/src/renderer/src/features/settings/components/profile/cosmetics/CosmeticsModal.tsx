@@ -15,6 +15,8 @@ import NameplatePreview from './NameplatePreview'
 export default function CosmeticsModal({
   user,
   busy,
+  status,
+  animatedPreview = false,
   onChoose,
   onPickDecoration,
   onRemove,
@@ -22,6 +24,8 @@ export default function CosmeticsModal({
 }: {
   user: User
   busy: boolean
+  status?: string | null
+  animatedPreview?: boolean
   onChoose: (mode: NameplateMode) => void
   onPickDecoration: () => void
   onRemove: (kind: CosmeticImageKind) => void
@@ -30,7 +34,12 @@ export default function CosmeticsModal({
   return (
     <Modal open title="Faixa e moldura" onClose={busy ? undefined : onClose} wide>
       <div className="flex flex-col gap-6">
-        <NameplatePreview user={user} />
+        <NameplatePreview user={user} forceAnimated={animatedPreview} />
+        {status && (
+          <p role="status" aria-live="polite" className="text-ds-xs font-medium text-link">
+            {status}
+          </p>
+        )}
         <section className="flex flex-col gap-2">
           <SectionHeader>Faixa</SectionHeader>
           <NameplateOptions mode={user.nameplate_mode} busy={busy} onChoose={onChoose} />
@@ -50,7 +59,13 @@ export default function CosmeticsModal({
         <section className="flex flex-col gap-2">
           <SectionHeader>Moldura</SectionHeader>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" disabled={busy} onClick={onPickDecoration}>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={busy}
+              disabled={busy}
+              onClick={onPickDecoration}
+            >
               Alterar moldura
             </Button>
             {user.avatar_decoration_url && (

@@ -31,10 +31,16 @@ function PreviewRow({ user, animate }: { user: User; animate: boolean }): React.
  * A prévia da faixa e da moldura: "Parada" (como fica na lista) e, se algo é
  * GIF, "Animando" (como fica no hover). Lado a lado a partir de 480 px.
  */
-export default function NameplatePreview({ user }: { user: User }): React.JSX.Element {
+export default function NameplatePreview({
+  user,
+  forceAnimated = false
+}: {
+  user: User
+  forceAnimated?: boolean
+}): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3 min-[480px]:flex-row">
-      {previewRows(user).map((row) => (
+      {previewRows(user, forceAnimated).map((row) => (
         <figure key={row.label} className="flex min-w-0 flex-1 flex-col gap-1">
           <figcaption className="text-ds-xs font-semibold uppercase text-muted">
             {row.label}

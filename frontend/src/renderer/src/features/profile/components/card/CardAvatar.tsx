@@ -10,6 +10,7 @@ export default function CardAvatar({
   userId,
   name,
   avatarUrl,
+  decorationUrl,
   status,
   surface,
   fallbackClassName,
@@ -20,6 +21,7 @@ export default function CardAvatar({
   userId?: string
   name: string
   avatarUrl?: string | null
+  decorationUrl?: string | null
   status?: PresenceStatus | null
   surface: string
   fallbackClassName?: string
@@ -35,6 +37,7 @@ export default function CardAvatar({
         userId={userId}
         name={name}
         avatarUrl={avatarUrl}
+        decorationUrl={decorationUrl}
         size={80}
         animate="always"
         status={status}
