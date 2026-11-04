@@ -3,6 +3,7 @@ import {
   channelAreaMenuItems,
   channelMenuItems,
   isEmptyChannelArea,
+  nextMenuFocus,
   serverMenuItems,
   type ChannelMenuContext,
   type ServerMenuContext
@@ -151,5 +152,15 @@ describe('isEmptyChannelArea', () => {
   it('linha e cabeçalho têm menu próprio', () => {
     expect(isEmptyChannelArea(target(true))).toBe(false)
     expect(isEmptyChannelArea(target(false))).toBe(true)
+  })
+})
+
+describe('nextMenuFocus', () => {
+  it('setas andam e dão a volta; o resto não mexe', () => {
+    expect(nextMenuFocus('ArrowDown', -1, 4)).toBe(0)
+    expect(nextMenuFocus('ArrowDown', 3, 4)).toBe(0)
+    expect(nextMenuFocus('ArrowUp', 0, 4)).toBe(3)
+    expect(nextMenuFocus('ArrowUp', 2, 4)).toBe(1)
+    expect(nextMenuFocus('Enter', 2, 4)).toBeNull()
   })
 })

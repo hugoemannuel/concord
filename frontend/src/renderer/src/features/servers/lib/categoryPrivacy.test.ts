@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const request = vi.hoisted(() => vi.fn())
+vi.mock('../../../shared/api/client', () => ({ request }))
+
 import type { Category } from '../api/categories'
-import { isPrivateCategory, privacyChanged, privacyOf } from './categoryPrivacy'
+import { isPrivateCategory, privacyChanged, privacyOf, saveCategoryForm } from './categoryPrivacy'
 import { Perm } from './permissions'
 
 const category = (overwrites: Category['overwrites']): Category => ({ id: 'c', name: 'c', position: 0, overwrites })
@@ -40,5 +44,32 @@ describe('privacyChanged', () => {
   })
   it('categoria aberta: a lista não importa', () => {
     expect(privacyChanged({ private: false, role_ids: ['a'], member_ids: [] }, { private: false, role_ids: [], member_ids: [] })).toBe(false)
+  })
+})
+
+describe('saveCategoryForm', () => {
+  const open = { private: false, role_ids: [], member_ids: [] }
+  const closed = { private: true, role_ids: ['vip'], member_ids: [] }
+  const jogos: Category = { id: 'c', name: 'Jogos', position: 0 }
+  beforeEach(() => request.mockReset())
+  const sent = (): unknown => JSON.parse(request.mock.calls[0][1].body)
+
+  it('categoria nova aberta só manda o nome', async () => {
+    await saveCategoryForm('s', undefined, 'Nova', open, open)
+    expect(request.mock.calls[0][0]).toBe('/servers/s/categories')
+    expect(sent()).toEqual({ name: 'Nova' })
+  })
+  it('categoria nova privada manda quem vê', async () => {
+    await saveCategoryForm('s', undefined, 'Nova', open, closed)
+    expect(sent()).toEqual({ name: 'Nova', ...closed })
+  })
+  it('renomear não manda a privacidade: não exige gerenciar cargos', async () => {
+    await saveCategoryForm('s', jogos, 'Outro', closed, closed)
+    expect(request.mock.calls[0][0]).toBe('/servers/s/categories/c')
+    expect(sent()).toEqual({ name: 'Outro' })
+  })
+  it('mudar quem vê manda a privacidade', async () => {
+    await saveCategoryForm('s', jogos, 'Jogos', open, closed)
+    expect(sent()).toEqual({ name: 'Jogos', ...closed })
   })
 })

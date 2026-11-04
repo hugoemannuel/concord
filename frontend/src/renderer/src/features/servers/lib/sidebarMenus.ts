@@ -109,3 +109,10 @@ export function channelAreaMenuItems(context: ChannelAreaMenuContext): ChannelAr
 export function isEmptyChannelArea(target: Element): boolean {
   return !target.closest('[data-sidebar-item]')
 }
+
+/** Para onde as setas levam o foco no menu (dá a volta nas pontas); sem seta, null. */
+export function nextMenuFocus(key: string, current: number, total: number): number | null {
+  if (key !== 'ArrowDown' && key !== 'ArrowUp') return null
+  const next = key === 'ArrowDown' ? current + 1 : current - 1
+  return (next + total) % total
+}

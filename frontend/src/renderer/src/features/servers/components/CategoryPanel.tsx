@@ -55,34 +55,62 @@ function useMutedFilter(userId: string, serverId: string): (channel: { id: strin
   return (channel) => !hidesChannel(channel.id, { settings, unreadByRoom, mentionsByRoom, activeChannelId: channelId, now })
 }
 
+/** Os diálogos de categoria, abertos pelo menu do servidor, da área vazia ou da categoria. */
+function PanelDialogs({ serverId, categories, canManageRoles, run }: Pick<Props, 'serverId' | 'canManageRoles' | 'run'> & { categories: Category[] }): React.JSX.Element | null {
+  const dialog = useChannelSidebarStore((s) => s.categoryDialog)
+  const close = useChannelSidebarStore((s) => s.closeCategoryDialog)
+  if (!dialog) return null
+  if (dialog.kind === 'permissions') {
+    return <CategoryPermissionsModal serverId={serverId} category={categories.find((item) => item.id === dialog.category.id) ?? dialog.category} run={run} onClose={close} />
+  }
+  return <CategoryDialogs key={dialog.kind + (dialog.kind === 'create' ? '' : dialog.category.id)} serverId={serverId} dialog={dialog} canManageRoles={canManageRoles} close={close} run={run} />
+}
+
+/** Bola de aviso na linha do canal que não segue a categoria dele. */
+function UnsyncedDot(): React.JSX.Element {
+  const label = 'Permissões próprias: este canal não segue a categoria'
+  return <span title={label} role="img" aria-label={label} className="absolute left-0.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-warning" />
+}
+
+/** A lista sem categoria: os soltos e, arrastando sem nenhum solto, onde soltar. */
+function LooseList({ dropProps, highlighted, dropHint, empty, children }: {
+  dropProps: React.HTMLAttributes<HTMLDivElement>
+  highlighted: boolean
+  dropHint: boolean
+  empty: boolean
+  children: React.ReactNode
+}): React.JSX.Element {
+  const spaced = !empty || dropHint
+  return (
+    <div {...dropProps} className={`flex flex-col gap-0.5 rounded-lg transition-colors ${spaced ? 'pb-4' : ''} ${highlighted ? HIGHLIGHT : ''}`}>
+      {children}
+      {dropHint && <p className="rounded-lg border border-dashed border-subtle px-2 py-2 text-center text-ds-xs text-faint">Solte aqui para ficar sem categoria</p>}
+    </div>
+  )
+}
+
 /** Os canais soltos no topo e as categorias, com arrastar, menus e diálogos. */
 export function CategoryPanel({ serverId, userId, layout, channels, ready, canManage, canManageRoles, run, saveLayout, renderChannel, onCreateChannel }: Props): React.JSX.Element {
-  const dialog = useChannelSidebarStore((s) => s.categoryDialog)
   const openDialog = useChannelSidebarStore((s) => s.openCategoryDialog)
-  const closeDialog = useChannelSidebarStore((s) => s.closeCategoryDialog)
   const everyoneId = everyoneRole(useServerStore((s) => s.roles))?.id
   const [collapsed, setCollapsed] = useCollapsedCategories(userId, serverId)
   const sidebar = useSidebarLayout(layout, channels, saveLayout)
   const { categories, grouped, tree } = sidebar
   const shown = useMutedFilter(userId, serverId)
-  // Soltou numa categoria recolhida: abre, para mostrar onde o canal foi parar.
-  const openDestination = (categoryId: string | null): void => {
-    if (categoryId && collapsed.includes(categoryId)) setCollapsed(collapsed.filter((id) => id !== categoryId))
-  }
   const onDrop = (source: SidebarDrag, landed: DropTarget): void => applyDrop(source, landed, {
     moveCategory: sidebar.moveCategory,
     moveChannel: (id, categoryId, beforeId) => {
       sidebar.moveChannel(id, categoryId, beforeId)
-      openDestination(categoryId)
+      // Soltou numa categoria recolhida: abre, para mostrar onde o canal foi parar.
+      setCollapsed(collapsed.filter((item) => item !== categoryId))
     }
   })
   // Antes de a organização chegar não dá para gravar: ainda não arrasta.
   const dnd = useSidebarDrag({ serverId, canManage: canManage && layout !== null, tree, onDrop })
   const menuMove: MoveChannel = ({ channel, category, before }) => sidebar.moveChannel(channel, category, before)
   const controls = (channel: PlacedChannel, category: string | null): React.ReactNode => {
-    if (!canManage) return undefined
     const unsynced = category !== null && !channel.synced
-    if (categories.length === 0 && !unsynced) return undefined
+    if (!canManage || (categories.length === 0 && !unsynced)) return undefined
     return (
       <CategoryChannelControls channelName={channel.name} categories={categories} categoryId={category} unsynced={unsynced}
         onCategory={(id) => sidebar.moveChannel(channel.id, id, null)}
@@ -95,10 +123,7 @@ export function CategoryPanel({ serverId, userId, layout, channels, ready, canMa
       <div key={channel.id} data-sidebar-item {...dnd.channelRow(channel.id, channel.type ?? 'text', category)}
         className={`relative transition-opacity ${canManage ? 'select-none [-webkit-touch-callout:none]' : ''} ${dnd.drag?.id === channel.id ? 'opacity-40' : ''}`}>
         <ChannelDropLine side={channelLine(dnd.target, channel.id, category, index === group.length - 1)} />
-        {canManage && category !== null && !channel.synced && (
-          <span title="Permissões próprias: este canal não segue a categoria" role="img" aria-label="Permissões próprias: este canal não segue a categoria"
-            className="absolute left-0.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-warning" />
-        )}
+        {canManage && category !== null && !channel.synced && <UnsyncedDot />}
         {renderChannel(channel, group, controls(channel, category), menuMove)}
       </div>
     ))
@@ -135,18 +160,15 @@ export function CategoryPanel({ serverId, userId, layout, channels, ready, canMa
     )
   }
   const draggedCategory = grouped.groups.find((group) => group.category.id === dnd.drag?.id)
-  const draggingChannel = dnd.drag?.kind === 'channel'
   const noLoose = grouped.uncategorized.length === 0
   return <>
     {!ready && <ChannelListSkeleton count={6} />}
     {ready && channels.length === 0 && categories.length === 0 && <p className="px-2 text-ds-sm text-faint italic">Nenhum canal ainda.</p>}
-    <div {...dnd.loose()} className={`flex flex-col gap-0.5 rounded-lg transition-colors ${noLoose && !draggingChannel ? '' : 'pb-4'} ${groupHighlighted(dnd.target, null) ? HIGHLIGHT : ''}`}>
+    <LooseList dropProps={dnd.loose()} highlighted={groupHighlighted(dnd.target, null)} empty={noLoose} dropHint={noLoose && dnd.drag?.kind === 'channel'}>
       {rows(grouped.uncategorized, null)}
-      {noLoose && draggingChannel && <p className="rounded-lg border border-dashed border-subtle px-2 py-2 text-center text-ds-xs text-faint">Solte aqui para ficar sem categoria</p>}
-    </div>
+    </LooseList>
     {grouped.groups.map(({ category, channels: group }, index) => categoryGroup(category, group, index))}
-    {dialog?.kind === 'permissions' && <CategoryPermissionsModal serverId={serverId} category={categories.find((item) => item.id === dialog.category.id) ?? dialog.category} run={run} onClose={closeDialog} />}
-    {dialog && dialog.kind !== 'permissions' && <CategoryDialogs key={dialog.kind + (dialog.kind === 'create' ? '' : dialog.category.id)} serverId={serverId} dialog={dialog} canManageRoles={canManageRoles} close={closeDialog} run={run} />}
+    <PanelDialogs serverId={serverId} categories={categories} canManageRoles={canManageRoles} run={run} />
     <p role="status" className="sr-only">{sidebar.announcement}</p>
     {dnd.drag && (
       <SidebarDragGhost drag={dnd.drag} attach={dnd.attachGhost}

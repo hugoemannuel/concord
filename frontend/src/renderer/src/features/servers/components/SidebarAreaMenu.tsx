@@ -5,7 +5,7 @@ import { useUIStore } from '../../../shared/store/uiStore'
 import { CheckIcon } from '../../../shared/ui/icons'
 import { Perm } from '../lib/permissions'
 import type { ServerAccess } from '../lib/serverAccess'
-import { channelAreaMenuItems, type ChannelAreaMenuItem } from '../lib/sidebarMenus'
+import { channelAreaMenuItems, nextMenuFocus, type ChannelAreaMenuItem } from '../lib/sidebarMenus'
 import { useChannelSidebarStore } from '../store/channelSidebarStore'
 import { useHideMutedStore } from '../store/hideMutedStore'
 import SidebarMenuItem from './SidebarMenuItem'
@@ -28,12 +28,11 @@ export function HideMutedMark({ on }: { on: boolean }): React.JSX.Element {
 
 /** Setas andam pelos itens (o foco começa no menu: abrir com o mouse não acende nada). */
 function moveFocus(event: React.KeyboardEvent<HTMLDivElement>): void {
-  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-  event.preventDefault()
   const items = Array.from(event.currentTarget.querySelectorAll('button'))
-  const at = items.indexOf(document.activeElement as HTMLButtonElement)
-  const next = event.key === 'ArrowDown' ? at + 1 : at - 1
-  items[(next + items.length) % items.length]?.focus()
+  const next = nextMenuFocus(event.key, items.indexOf(document.activeElement as HTMLButtonElement), items.length)
+  if (next === null) return
+  event.preventDefault()
+  items[next]?.focus()
 }
 
 /** Fecha com Escape, rolagem e ao redimensionar; devolve o foco para quem abriu. */

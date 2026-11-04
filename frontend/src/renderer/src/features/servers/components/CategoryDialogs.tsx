@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import type { CategoryPrivacy } from '../api/categories'
-import { createCategory, deleteCategory, updateCategory } from '../api/categories'
-import { privacyChanged, privacyOf } from '../lib/categoryPrivacy'
+import { deleteCategory } from '../api/categories'
+import { privacyOf, saveCategoryForm } from '../lib/categoryPrivacy'
 import { everyoneRole } from '../lib/permissions'
 import { useServerStore } from '../store/serverStore'
 import type { CategoryDialog } from '../store/channelSidebarStore'
@@ -11,11 +10,6 @@ import Input from '../../../shared/ui/Input'
 import { CategoryPrivacyFields } from './CategoryPrivacyFields'
 
 type FormDialog = Extract<CategoryDialog, { kind: 'create' | 'edit' }>
-
-function saveForm(serverId: string, dialog: FormDialog, name: string, before: CategoryPrivacy, after: CategoryPrivacy): Promise<void> {
-  if (dialog.kind === 'create') return createCategory(serverId, name, after.private ? after : undefined)
-  return updateCategory(serverId, dialog.category.id, name, privacyChanged(before, after) ? after : undefined)
-}
 
 interface DialogProps {
   serverId: string
@@ -36,7 +30,7 @@ function CategoryFormDialog({ serverId, dialog, close, run, canManageRoles }: Di
   const submit = async (): Promise<void> => {
     if (busy || !name.trim()) return
     setBusy(true)
-    const ok = await run(() => saveForm(serverId, dialog, name.trim(), before, privacy))
+    const ok = await run(() => saveCategoryForm(serverId, category, name.trim(), before, privacy))
     setBusy(false)
     if (ok) close()
   }

@@ -6,16 +6,14 @@ import { showToast } from '../../../shared/store/toastStore'
 import { actionErrorMessage } from '../lib/permissionErrors'
 import { serverDisplayName } from '../lib/serverNames'
 import {
-  findOverwrite,
   isEmptyOverwrite,
   isPrivateChannel,
-  privateOverwrite,
   targetRows,
   withTriState,
   type OverwriteTargetRef,
   type TriState
 } from '../lib/channelPermissions'
-import { editorSelection, memberCandidates } from '../lib/overwriteEditor'
+import { editorSelection, memberCandidates, privateToggleWrites } from '../lib/overwriteEditor'
 import { Perm, everyoneRole, type ChannelKind, type ChannelOverwrite, type OverwriteTarget } from '../lib/permissions'
 import { channelPermissionGroups } from '../lib/permissionCatalog'
 import Modal from '../../../shared/ui/Modal'
@@ -110,19 +108,16 @@ function OverwriteEditor({
 
   const togglePrivate = async (makePrivate: boolean): Promise<void> => {
     if (!everyone) return
+    const writes = privateToggleWrites({
+      overwrites,
+      everyoneId: everyone.id,
+      makePrivate,
+      alwaysSees: access.isOwner || (access.perms & Perm.ADMINISTRATOR) !== 0,
+      meId,
+      kind
+    })
     await run(async () => {
-      await put(privateOverwrite(overwrites, everyone.id, makePrivate))
-      // Quem torna privado sem ter acesso garantido por cargo não se tranca fora.
-      if (makePrivate && !access.isOwner && !(access.perms & Perm.ADMINISTRATOR)) {
-        await put(
-          withTriState(
-            findOverwrite(overwrites, { type: 'member', id: meId }),
-            { type: 'member', id: meId },
-            kind === 'text' ? Perm.VIEW_CHANNEL : Perm.VIEW_CHANNEL | Perm.CONNECT,
-            'allow'
-          )
-        )
-      }
+      for (const write of writes) await put(write)
     })
   }
 
