@@ -58,3 +58,11 @@ export async function runExclusive(
     notify(new Set(held))
   }
 }
+
+/** O interruptor do menu da barra: liga/desliga sem repetir o pedido em andamento. */
+export const menuToggle = (
+  exclusive: (id: string, fn: () => Promise<void>) => Promise<void>,
+  serverId: string,
+  pluginId: string,
+  enabled: boolean
+): Promise<void> => exclusive(pluginId, () => toggleAction(serverId, pluginId, enabled))

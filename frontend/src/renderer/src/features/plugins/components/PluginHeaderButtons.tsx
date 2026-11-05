@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useServerStore } from '../../servers/store/serverStore'
 import { usePluginsStore } from '../store/pluginsStore'
-import { headerPlugins, shouldGroup } from '../lib/headerPlugins'
+import { headerPlugins } from '../lib/headerPlugins'
 import { findOpenPlugin, pruneOpen, type OpenPlugin } from '../lib/openPlugin'
 import { attachDismiss, focusOnEscape } from '../lib/dismiss'
 import type { ServerPlugin } from '../api/plugins'
@@ -13,7 +13,10 @@ import PluginMenu from './PluginMenu'
 
 const NONE: ServerPlugin[] = []
 
-/** Botões dos plugins ligados na barra do canal: um por plugin, ou um menu a partir de 3. */
+/**
+ * Barra do canal: o quebra-cabeça (com plugin instalado) abre o menu de liga/desliga,
+ * e os plugins ligados ganham o próprio ícone ao lado (até MAX_HEADER_ICONS).
+ */
 export default function PluginHeaderButtons(): React.JSX.Element | null {
   const serverId = useServerStore((s) => s.currentServer?.id)
   const list = usePluginsStore((s) => (serverId ? s.byServer[serverId] : undefined)) ?? NONE
@@ -39,7 +42,13 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
     )
   }, [menuOpen])
 
-  const enabled = headerPlugins(list)
+  // Último plugin desinstalado com o menu aberto: o menu não volta sozinho depois.
+  const installed = list.length > 0
+  useEffect(() => {
+    if (!installed) setMenuOpen(false)
+  }, [installed])
+
+  const icons = headerPlugins(list)
   const current = findOpenPlugin(open, serverId, list)
   const kept = pruneOpen(open, serverId, list)
 
@@ -59,39 +68,35 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
     setOpen({ serverId, pluginId: p.id })
   }
 
-  if (enabled.length === 0) return null
-  const grouped = shouldGroup(enabled.length)
+  if (!serverId || list.length === 0) return null
 
   return (
     <div ref={wrap} className="flex items-center gap-2">
-      {grouped ? (
+      <IconButton
+        icon={PuzzleIcon}
+        label="Plugins"
+        variant="filled"
+        className="max-md:size-10"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={(e) => {
+          anchor.current = e.currentTarget
+          setMenuOpen((v) => !v)
+        }}
+      />
+      {icons.map((p) => (
         <IconButton
-          icon={PuzzleIcon}
-          label="Plugins"
+          key={p.id}
+          icon={pluginIcon(p.icon)}
+          label={p.name}
           variant="filled"
           className="max-md:size-10"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          onClick={(e) => {
-            anchor.current = e.currentTarget
-            setMenuOpen((v) => !v)
-          }}
+          aria-expanded={current?.id === p.id}
+          onClick={(e) => (current?.id === p.id ? close() : openPlugin(p, e.currentTarget))}
         />
-      ) : (
-        enabled.map((p) => (
-          <IconButton
-            key={p.id}
-            icon={pluginIcon(p.icon)}
-            label={p.name}
-            variant="filled"
-            className="max-md:size-10"
-            aria-expanded={current?.id === p.id}
-            onClick={(e) => (current?.id === p.id ? close() : openPlugin(p, e.currentTarget))}
-          />
-        ))
-      )}
-      {grouped && menuOpen && (
-        <PluginMenu plugins={enabled} onPick={(p) => openPlugin(p, anchor.current)} />
+      ))}
+      {menuOpen && (
+        <PluginMenu serverId={serverId} plugins={list} onOpen={(p) => openPlugin(p, anchor.current)} />
       )}
       {current && <PluginPanel plugin={current} onClose={close} anchorRef={anchor} />}
     </div>
