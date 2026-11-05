@@ -11,11 +11,10 @@ const ids = (perms: number): string[] => visibleServerSections(perms).map((s) =>
 const ownerIds = (perms: number): string[] => visibleServerSections(perms, true).map((s) => s.id)
 
 describe('seções das configurações do servidor', () => {
-  it('membro comum vê só a aba Plugins (é de todos)', () => {
-    expect(ids(DEFAULT_EVERYONE)).toEqual(['plugins'])
-    expect(canOpenServerSettings(DEFAULT_EVERYONE)).toBe(true)
-    expect(ids(0)).toContain('plugins')
-    expect(canOpenServerSettings(0)).toBe(true)
+  it('membro comum não vê nenhuma (liga os plugins pela barra do canal)', () => {
+    expect(ids(DEFAULT_EVERYONE)).toEqual([])
+    expect(canOpenServerSettings(DEFAULT_EVERYONE)).toBe(false)
+    expect(canOpenServerSettings(0)).toBe(false)
   })
 
   it('com Gerenciar servidor, Plugins vem antes de Nível', () => {
@@ -28,16 +27,16 @@ describe('seções das configurações do servidor', () => {
 
   it('cada permissão abre só o que usa', () => {
     expect(ids(Perm.MANAGE_SERVER)).toEqual(['overview', 'tag', 'look', 'plugins', 'level'])
-    expect(ids(Perm.MANAGE_ROLES)).toEqual(['roles', 'members', 'plugins', 'level'])
-    expect(ids(Perm.KICK_MEMBERS)).toEqual(['members', 'plugins', 'level'])
-    expect(ids(Perm.BAN_MEMBERS)).toEqual(['members', 'bans', 'plugins', 'level'])
-    expect(ids(Perm.MANAGE_NICKNAMES)).toEqual(['members', 'plugins', 'level'])
+    expect(ids(Perm.MANAGE_ROLES)).toEqual(['roles', 'members', 'level'])
+    expect(ids(Perm.KICK_MEMBERS)).toEqual(['members', 'level'])
+    expect(ids(Perm.BAN_MEMBERS)).toEqual(['members', 'bans', 'level'])
+    expect(ids(Perm.MANAGE_NICKNAMES)).toEqual(['members', 'level'])
     // O registro de auditoria só para quem tem a permissão (ou o dono/administrador).
-    expect(ids(Perm.VIEW_AUDIT_LOG)).toEqual(['audit', 'plugins'])
+    expect(ids(Perm.VIEW_AUDIT_LOG)).toEqual(['audit'])
   })
 
-  it('só "Alterar apelido" (o próprio): nenhuma seção de gestão, só a aba Plugins', () => {
-    expect(ids(Perm.CHANGE_NICKNAME)).toEqual(['plugins'])
+  it('só "Alterar apelido" (o próprio): nenhuma seção', () => {
+    expect(ids(Perm.CHANGE_NICKNAME)).toEqual([])
   })
 
   it('o moderador padrão (editar servidor + expulsar) vê o perfil e membros', () => {
@@ -50,7 +49,7 @@ describe('seções das configurações do servidor', () => {
     expect(resolveServerSection(Perm.KICK_MEMBERS, 'bans')).toBe('members')
     expect(resolveServerSection(Perm.BAN_MEMBERS, 'bans')).toBe('bans')
     expect(resolveServerSection(ALL_PERMISSIONS, 'roles')).toBe('roles')
-    expect(resolveServerSection(0, 'overview')).toBe('plugins')
+    expect(resolveServerSection(0, 'overview')).toBeNull()
   })
 })
 
@@ -63,9 +62,9 @@ describe('serverSectionLabel', () => {
   })
 
   it('Eventos aparece para quem recebeu a configuração dos eventos, mesmo sem nenhuma permissão', () => {
-    expect(visibleServerSections(0, false, true).map((s) => s.id)).toEqual(['events', 'plugins'])
+    expect(visibleServerSections(0, false, true).map((s) => s.id)).toEqual(['events'])
     expect(canOpenServerSettings(0, false, true)).toBe(true)
-    expect(canOpenServerSettings(0, false, false)).toBe(true)
+    expect(canOpenServerSettings(0, false, false)).toBe(false)
     expect(resolveServerSection(0, 'overview', false, true)).toBe('events')
   })
 
