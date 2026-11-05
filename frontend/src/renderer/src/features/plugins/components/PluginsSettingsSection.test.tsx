@@ -51,24 +51,19 @@ describe('PluginsSettingsSection', () => {
     })
     expect(html).toContain('Instalados neste servidor')
     expect(html).toContain('Disponíveis')
-    expect(html).toContain('Instalar só deixa o plugin disponível. Cada membro escolhe se quer usar.')
+    expect(html).toContain('Instalar só deixa o plugin disponível. Cada membro liga o que quiser pelo quebra-cabeça na barra do canal.')
     expect(html).toContain('Desinstalar')
+    expect(html).not.toContain('role="switch"')
     expect(html.match(/>Instalar</g)).toHaveLength(1)
     expect(html).toContain('Plugin b')
   })
 
-  it('membro: sem Instalar/Desinstalar, com a dica e o Switch', () => {
-    const html = setup({ list: [installed('a')], catalog: [plugin('b')] })
-    expect(html).not.toContain('Instalar<')
-    expect(html).not.toContain('Desinstalar')
-    expect(html).not.toContain('Disponíveis')
-    expect(html).toContain('Plugins deste servidor')
-    expect(html).toContain('Ligue os que quiser ver na barra dos canais. Só muda para você.')
-    expect(html).toContain('role="switch"')
+  it('membro sem Gerenciar servidor: nada (liga os plugins pela barra do canal)', () => {
+    expect(setup({ list: [installed('a')], catalog: [plugin('b')] })).toBe('')
   })
 
   it('vazio: mostra o texto do vazio', () => {
-    expect(setup({})).toContain('Nenhum plugin instalado neste servidor ainda.')
+    expect(setup({ perms: Perm.MANAGE_SERVER })).toContain('Nenhum plugin instalado neste servidor ainda.')
   })
 })
 
@@ -89,7 +84,7 @@ describe('ações', () => {
     toast.error.mockReset()
   })
 
-  it('Instalar chama install(serverId, id); Desinstalar e Switch idem', async () => {
+  it('Instalar chama install(serverId, id); Desinstalar e toggle idem', async () => {
     const install = vi.fn().mockResolvedValue(undefined)
     const uninstall = vi.fn().mockResolvedValue(undefined)
     const toggle = vi.fn().mockResolvedValue(undefined)

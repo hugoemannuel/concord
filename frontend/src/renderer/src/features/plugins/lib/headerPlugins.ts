@@ -1,13 +1,9 @@
 import type { ServerPlugin } from '../api/plugins'
 
-/** A partir de quantos plugins ligados o cabeçalho junta tudo num só botão. */
-export const GROUP_AT = 3
+/** Quantos ícones de plugins ligados cabem na barra, ao lado do quebra-cabeça. */
+export const MAX_HEADER_ICONS = 2
 
-/** Só os plugins que a pessoa ligou, na ordem recebida. */
+/** Os plugins ligados, na ordem recebida, cortados nos que cabem na barra. */
 export function headerPlugins(list: ServerPlugin[]): ServerPlugin[] {
-  return list.filter((p) => p.enabled)
-}
-
-export function shouldGroup(count: number): boolean {
-  return count >= GROUP_AT
+  return list.filter((p) => p.enabled).slice(0, MAX_HEADER_ICONS)
 }
