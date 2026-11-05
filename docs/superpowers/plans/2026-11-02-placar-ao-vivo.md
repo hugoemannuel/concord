@@ -14,7 +14,7 @@ Testes com `node --test` e fixtures reais da ESPN. O `affected-tests` passa a ro
 
 **Tech Stack:** JavaScript (ES2022, módulos), HTML/CSS, `node --test` (Node 24). Sem dependência nova.
 
-**Spec:** `docs/superpowers/specs/2026-11-02-placar-ao-vivo-design.md` (e ADR `docs/adr/0050-placar-com-a-api-publica-da-espn.md`).
+**Spec:** `docs/superpowers/specs/2026-11-02-placar-ao-vivo-design.md` (e ADR `docs/adr/0057-placar-com-a-api-publica-da-espn.md`).
 
 ## Global Constraints
 
@@ -213,7 +213,7 @@ Testes com `node --test` e fixtures reais da ESPN. O `affected-tests` passa a ro
   - a página sai no deploy em `https://<domínio do site>/plugins/placar/`;
   - como cadastrar pela API: `POST /api/plugins` com nome e descrição dos textos aprovados e esse `panel_url`, depois `PATCH /api/plugins/:id/review` `{"status":"approved"}` por alguém de `TECH_TEAM_USER_IDS`;
   - depende da base de plugins (PR #514).
-- Modify: `docs/adr/README.md` (índice com a 0050) e o ADR 0050 para `Status: aceito` no fim.
+- Modify: `docs/adr/README.md` (índice com a 0057) e o ADR 0057 para `Status: aceito` no fim.
 
 - [ ] **Step 1:** Servir o `site/` localmente (`npx --yes http-server site -p 5300`, ou `python -m http.server 5300 -d site`). Num Playwright (o `frontend/node_modules/playwright` já existe), abrir uma página host com `<iframe sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox" src="http://localhost:5300/plugins/placar/">` em 300, 360 e 400 px.
   - **Conferir:** os dados reais carregam, o console não tem erro de CSP e o "Atualizado há" conta.
@@ -221,4 +221,4 @@ Testes com `node --test` e fixtures reais da ESPN. O `affected-tests` passa a ro
   - **Ao vivo:** sem jogo real no dia, servir os fixtures ao vivo via `page.route` e ver o estado A.
   - Salvar capturas em `.superpowers/e2e/placar/`.
 - [ ] **Step 2:** `node scripts/affected-tests.mjs pr` → verde, a menos das falhas que já existem na `develop` e não dependem desta branch. Liste-as.
-- [ ] **Step 3:** Commit dos docs: `git commit -m "docs(placar): cadastro do plugin oficial e ADR 0050"`.
+- [ ] **Step 3:** Commit dos docs: `git commit -m "docs(placar): cadastro do plugin oficial e ADR 0057"`.

@@ -4,7 +4,7 @@
 - Origem: issue #480 (proposta da comunidade, 78% a favor). Fecha a issue.
 - Depende de: PR #514 (base de plugins, spec `2026-11-02-plugins-base-design.md`, ADR 0049) **só para o
   cadastro em produção**. O código desta spec não usa nada do #514 e pode ser feito em paralelo.
-- ADR: [0050. Placar com a API pública da ESPN, direto do navegador](../../adr/0050-placar-com-a-api-publica-da-espn.md)
+- ADR: [0057. Placar com a API pública da ESPN, direto do navegador](../../adr/0057-placar-com-a-api-publica-da-espn.md)
 
 ## Objetivo
 
