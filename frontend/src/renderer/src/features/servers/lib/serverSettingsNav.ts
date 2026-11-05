@@ -25,8 +25,6 @@ export interface ServerSettingsSection {
    * (nem o Administrador, só por ser Administrador).
    */
   eventsConfig?: boolean
-  /** Aparece para todo membro (cada um liga os plugins para si). */
-  everyone?: boolean
 }
 
 const MEMBER_PERMS = Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS | Perm.MANAGE_NICKNAMES
@@ -41,8 +39,8 @@ export const SERVER_SETTINGS_SECTIONS: ServerSettingsSection[] = [
   { id: 'audit', label: 'Registro de auditoria', anyOf: Perm.VIEW_AUDIT_LOG },
   // O dono escolhe quais cargos criam, editam e excluem eventos (vale para todos os eventos).
   { id: 'events', label: 'Eventos', anyOf: 0, eventsConfig: true },
-  // Os plugins do servidor: todo membro escolhe os seus; instalar é de quem gerencia o servidor.
-  { id: 'plugins', label: 'Plugins', anyOf: 0, everyone: true },
+  // Instalar e desinstalar plugins; cada membro liga os seus pela barra do canal.
+  { id: 'plugins', label: 'Plugins', anyOf: Perm.MANAGE_SERVER },
   // Só leitura, por último (não vira a seção padrão): aparece para quem abre
   // qualquer outra; os membros veem o mesmo detalhamento pelo menu do servidor.
   { id: 'level', label: 'Nível', anyOf: Perm.MANAGE_SERVER | MEMBER_PERMS }
@@ -58,7 +56,6 @@ export function visibleServerSections(
   canConfigureEvents = false
 ): ServerSettingsSection[] {
   return SERVER_SETTINGS_SECTIONS.filter((s) => {
-    if (s.everyone) return true
     return s.eventsConfig ? isOwner || canConfigureEvents : (perms & s.anyOf) !== 0
   })
 }

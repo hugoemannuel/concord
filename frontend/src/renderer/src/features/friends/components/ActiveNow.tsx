@@ -10,11 +10,12 @@ import { friendsInVoice } from '../lib/onlineFriends'
 function ActiveVoiceFriendCard({ friend }: { friend: PublicUser }): React.JSX.Element {
   const look = useUserLook(friend.id, {
     name: friend.display_name || friend.username,
-    avatarUrl: friend.avatar_url
+    avatarUrl: friend.avatar_url,
+    decorationUrl: friend.avatar_decoration_url
   })
   return (
     <div className="flex items-center gap-3 rounded-lg bg-floating p-3">
-      <Avatar userId={friend.id} name={look.name} avatarUrl={look.avatarUrl} size={32} />
+      <Avatar userId={friend.id} name={look.name} avatarUrl={look.avatarUrl} decorationUrl={look.decorationUrl} size={32} />
       <div className="min-w-0">
         <p className="truncate text-ds-md font-medium text-strong">
           <StyledName name={look.name} userId={friend.id} style={friend.name_style} />

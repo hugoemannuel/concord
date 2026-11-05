@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GROUP_AT, headerPlugins, shouldGroup } from './headerPlugins'
+import { MAX_HEADER_ICONS, headerPlugins } from './headerPlugins'
 import type { ServerPlugin } from '../api/plugins'
 
 const p = (id: string, enabled: boolean): ServerPlugin => ({
@@ -14,14 +14,16 @@ const p = (id: string, enabled: boolean): ServerPlugin => ({
 })
 
 describe('headerPlugins', () => {
-  it('filtra os ligados e mantém a ordem', () => {
-    const r = headerPlugins([p('a', true), p('b', false), p('c', true)])
+  it('no máximo 2 ícones na barra', () => {
+    expect(MAX_HEADER_ICONS).toBe(2)
+  })
+
+  it('os ligados, na ordem, cortados nos 2 primeiros', () => {
+    const r = headerPlugins([p('a', true), p('b', false), p('c', true), p('d', true)])
     expect(r.map((x) => x.id)).toEqual(['a', 'c'])
   })
 
-  it('agrupa a partir de GROUP_AT', () => {
-    expect(GROUP_AT).toBe(3)
-    expect(shouldGroup(2)).toBe(false)
-    expect(shouldGroup(3)).toBe(true)
+  it('nenhum ligado: nenhum ícone', () => {
+    expect(headerPlugins([p('a', false)])).toEqual([])
   })
 })

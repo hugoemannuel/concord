@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
 
 	"github.com/jackc/pgx/v5"
@@ -20,7 +21,7 @@ func (r *Repository) TopRanking(ctx context.Context, limit int) ([]RankingEntry,
 	rows, err := r.db.Query(
 		ctx,
 		`
-		SELECT l.user_id, u.username, u.display_name, u.avatar_url, `+namestyle.Expr("u")+`, l.xp
+		SELECT l.user_id, u.username, u.display_name, u.avatar_url, `+namestyle.Expr("u")+`, `+cosmetics.Expr("u")+`, l.xp
 		FROM user_levels l
 		JOIN users u ON u.id = l.user_id
 		WHERE `+rankingFilter+`

@@ -36,6 +36,7 @@ function InviteFriendRow({
           userId={friend.id}
           name={name}
           avatarUrl={friend.avatar_url}
+          decorationUrl={friend.avatar_decoration_url}
           size={36}
           status={status}
         />

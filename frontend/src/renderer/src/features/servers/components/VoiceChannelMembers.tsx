@@ -127,7 +127,9 @@ function VoiceParticipantItem({
         userId={p.user_id}
         name={name}
         avatarUrl={p.avatar_url}
+        decorationUrl={p.avatar_decoration_url}
         size={24}
+        speaking={talking}
         className={`rounded-full transition-shadow ${talking ? 'ring-2 ring-success' : ''}`}
       />
       <span

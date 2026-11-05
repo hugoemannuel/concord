@@ -67,6 +67,7 @@ function PeerAvatarButton({
         userId={userId}
         name={avatarName}
         avatarUrl={other?.avatar_url}
+        decorationUrl={other?.avatar_decoration_url}
         size={32}
         animate="always"
         status={status}

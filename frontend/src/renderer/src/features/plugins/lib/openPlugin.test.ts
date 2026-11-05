@@ -20,6 +20,11 @@ describe('findOpenPlugin', () => {
     expect(findOpenPlugin(open, 's1', [p('a'), p('b')])?.id).toBe('a')
   })
 
+  it('3º ligado (sem ícone na barra, aberto pelo menu): acha', () => {
+    const third = { serverId: 's1', pluginId: 'c' }
+    expect(findOpenPlugin(third, 's1', [p('a'), p('b'), p('c')])?.id).toBe('c')
+  })
+
   it('nada aberto: undefined', () => {
     expect(findOpenPlugin(null, 's1', [p('a')])).toBeUndefined()
   })

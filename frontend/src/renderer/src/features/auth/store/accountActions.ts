@@ -1,4 +1,6 @@
 import { changeEmail, changeUsername } from '../api/account'
+import { useProfileStore } from '../../profile/store/profileStore'
+import type { PublicProfile } from '../../profile/api/users'
 import { useAuthStore, type User } from './authStore'
 
 // Ações da própria conta que gravam o usuário que o servidor devolveu.
@@ -7,6 +9,7 @@ import { useAuthStore, type User } from './authStore'
 export function commitMe(latest: User): void {
   const { user: current, setUser } = useAuthStore.getState()
   setUser({ ...latest, status: current?.status ?? latest.status })
+  useProfileStore.getState().apply(latest as unknown as PublicProfile)
 }
 
 export async function changeMyUsername(username: string, password: string): Promise<void> {

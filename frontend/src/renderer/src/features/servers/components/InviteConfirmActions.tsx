@@ -57,7 +57,7 @@ function AcceptActions({ me, join, onClose }: { me: Me; join: InviteJoin; onClos
         onClick={() => void join.accept()}
         disabled={join.joining}
       >
-        {me && <Avatar userId={me.id} name={myName} avatarUrl={me.avatar_url} size={20} animate="never" />}
+        {me && <Avatar userId={me.id} name={myName} avatarUrl={me.avatar_url} decorationUrl={me.avatar_decoration_url} size={20} animate="never" />}
         <span className="truncate">{join.joining ? 'Entrando...' : `Aceitar como ${myName}`}</span>
       </Button>
       <button type="button" className={`mt-3 disabled:opacity-50 ${LINK}`} onClick={onClose} disabled={join.joining}>

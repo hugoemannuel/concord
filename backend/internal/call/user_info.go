@@ -24,6 +24,7 @@ func userInfoOf(u *user.User) UserInfo {
 		DisplayName:      u.DisplayName,
 		AvatarURL:        u.AvatarURL,
 		NameStyle:        u.NameStyle,
+		Look:             u.Look,
 		EntranceSoundURL: u.EntranceSoundURL,
 	}
 }

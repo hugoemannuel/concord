@@ -26,3 +26,25 @@ func TestUserInfoOfSemSomDeEntradaOmiteOCampo(t *testing.T) {
 		t.Fatalf("sem som de entrada o campo não vai: %s", data)
 	}
 }
+
+func TestUserInfoOfLevaMolduraEFaixa(t *testing.T) {
+	dec := "/api/profile-media/dec"
+	plate := "/api/profile-media/plate"
+	u := &user.User{
+		ID:          "u1",
+		DisplayName: "Ana",
+	}
+	u.Look.AvatarDecorationURL = &dec
+	u.Look.NameplateURL = &plate
+	info := userInfoOf(u)
+	if info.AvatarDecorationURL == nil || *info.AvatarDecorationURL != dec {
+		t.Fatalf("moldura não foi: %+v", info)
+	}
+	if info.NameplateURL == nil || *info.NameplateURL != plate {
+		t.Fatalf("faixa não foi: %+v", info)
+	}
+	data, _ := json.Marshal(StateEvent{CallID: "c1", User: info})
+	if !strings.Contains(string(data), `"avatar_decoration_url":"/api/profile-media/dec"`) {
+		t.Fatalf("call:state sem a moldura: %s", data)
+	}
+}

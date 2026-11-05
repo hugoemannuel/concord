@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
 )
 
@@ -55,6 +56,7 @@ type UserInfo struct {
 	DisplayName string          `json:"display_name"`
 	AvatarURL   *string         `json:"avatar_url,omitempty"`
 	NameStyle   namestyle.Style `json:"name_style"`
+	cosmetics.Look
 	// EntranceSoundURL: o som que toca quando a pessoa entra (nil = padrão).
 	EntranceSoundURL *string `json:"entrance_sound_url,omitempty"`
 	// GuestOf: servidor de que a pessoa é visitante (selo "Visitante"; ver guest.go).

@@ -1,35 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useServerAccess } from '../../servers/hooks/useServerAccess'
 import { Perm } from '../../servers/lib/permissions'
 import Button from '../../../shared/ui/Button'
 import SectionHeader from '../../../shared/ui/SectionHeader'
-import Switch from '../../../shared/ui/Switch'
 import type { Plugin, ServerPlugin } from '../api/plugins'
 import {
   availablePlugins,
   installAction,
-  runExclusive,
-  toggleAction,
   uninstallAction
 } from '../lib/pluginSettingsActions'
 import { usePluginsStore } from '../store/pluginsStore'
+import { usePluginBusy, type PluginBusy } from '../hooks/usePluginBusy'
 
 const NO_PLUGINS: ServerPlugin[] = []
-
-/** Ids com pedido em andamento, e `exclusive` para rodar uma ação sem repetir. */
-interface Busy {
-  ids: ReadonlySet<string>
-  exclusive: (id: string, fn: () => Promise<void>) => Promise<void>
-}
-
-function useBusy(): Busy {
-  const held = useRef(new Set<string>())
-  const [ids, setIds] = useState<ReadonlySet<string>>(new Set())
-  const exclusive = (id: string, fn: () => Promise<void>): Promise<void> =>
-    runExclusive(held.current, id, setIds, fn)
-  return { ids, exclusive }
-}
 
 function Row({ plugin, children }: { plugin: Plugin; children: React.ReactNode }): React.JSX.Element {
   return (
@@ -46,33 +30,23 @@ function Row({ plugin, children }: { plugin: Plugin; children: React.ReactNode }
 function InstalledRow({
   serverId,
   plugin,
-  canManage,
   busy
 }: {
   serverId: string
   plugin: ServerPlugin
-  canManage: boolean
-  busy: Busy
+  busy: PluginBusy
 }): React.JSX.Element {
   return (
     <Row plugin={plugin}>
-      <Switch
-        checked={plugin.enabled}
-        label={plugin.name}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="shrink-0 whitespace-nowrap"
         disabled={busy.ids.has(plugin.id)}
-        onChange={(on) => void busy.exclusive(plugin.id, () => toggleAction(serverId, plugin.id, on))}
-      />
-      {canManage && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="shrink-0 whitespace-nowrap"
-          disabled={busy.ids.has(plugin.id)}
-          onClick={() => void busy.exclusive(plugin.id, () => uninstallAction(serverId, plugin.id))}
-        >
-          Desinstalar
-        </Button>
-      )}
+        onClick={() => void busy.exclusive(plugin.id, () => uninstallAction(serverId, plugin.id))}
+      >
+        Desinstalar
+      </Button>
     </Row>
   )
 }
@@ -80,13 +54,11 @@ function InstalledRow({
 function InstalledList({
   serverId,
   list,
-  canManage,
   busy
 }: {
   serverId: string
   list: ServerPlugin[]
-  canManage: boolean
-  busy: Busy
+  busy: PluginBusy
 }): React.JSX.Element {
   if (list.length === 0) {
     return (
@@ -98,7 +70,7 @@ function InstalledList({
   return (
     <ul className="flex flex-col gap-2">
       {list.map((p) => (
-        <InstalledRow key={p.id} serverId={serverId} plugin={p} canManage={canManage} busy={busy} />
+        <InstalledRow key={p.id} serverId={serverId} plugin={p} busy={busy} />
       ))}
     </ul>
   )
@@ -111,7 +83,7 @@ function AvailableList({
 }: {
   serverId: string
   list: Plugin[]
-  busy: Busy
+  busy: PluginBusy
 }): React.JSX.Element {
   return (
     <section className="flex flex-col gap-2">
@@ -135,8 +107,9 @@ function AvailableList({
 }
 
 /**
- * Configurações do servidor > Plugins. Todo membro liga os plugins para si; quem
- * gerencia o servidor também instala e desinstala. Uma coluna em qualquer largura.
+ * Configurações do servidor > Plugins, para quem gerencia o servidor: instalar e
+ * desinstalar. Cada membro liga os seus pelo quebra-cabeça na barra do canal.
+ * Uma coluna em qualquer largura.
  */
 export default function PluginsSettingsSection(): React.JSX.Element | null {
   const serverId = useServerStore((s) => s.currentServer?.id)
@@ -145,30 +118,27 @@ export default function PluginsSettingsSection(): React.JSX.Element | null {
   const canManage = isOwner || (perms & Perm.MANAGE_SERVER) !== 0
   const list = usePluginsStore((s) => (serverId ? s.byServer[serverId] : undefined)) ?? NO_PLUGINS
   const catalog = usePluginsStore((s) => s.catalog)
-  const busy = useBusy()
+  const busy = usePluginBusy()
 
   useEffect(() => {
-    if (!serverId) return
+    if (!serverId || !canManage) return
     void usePluginsStore.getState().load(serverId).catch(() => undefined)
-    if (canManage) void usePluginsStore.getState().loadCatalog().catch(() => undefined)
+    void usePluginsStore.getState().loadCatalog().catch(() => undefined)
   }, [serverId, canManage])
 
-  if (!serverId) return null
+  if (!serverId || !canManage) return null
 
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <SectionHeader as="h2">
-          {canManage ? 'Instalados neste servidor' : 'Plugins deste servidor'}
-        </SectionHeader>
-        <InstalledList serverId={serverId} list={list} canManage={canManage} busy={busy} />
+        <SectionHeader as="h2">Instalados neste servidor</SectionHeader>
+        <InstalledList serverId={serverId} list={list} busy={busy} />
         <p className="text-ds-xs text-muted">
-          {canManage
-            ? 'Instalar só deixa o plugin disponível. Cada membro escolhe se quer usar.'
-            : 'Ligue os que quiser ver na barra dos canais. Só muda para você.'}
+          Instalar só deixa o plugin disponível. Cada membro liga o que quiser pelo quebra-cabeça na
+          barra do canal.
         </p>
       </section>
-      {canManage && <AvailableList serverId={serverId} list={availablePlugins(catalog, list)} busy={busy} />}
+      <AvailableList serverId={serverId} list={availablePlugins(catalog, list)} busy={busy} />
     </div>
   )
 }

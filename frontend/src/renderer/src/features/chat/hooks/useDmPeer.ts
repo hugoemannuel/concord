@@ -10,7 +10,7 @@ import { useChatStore, usePresenceStatus } from '../store/chatStore'
 export interface DmPeerView {
   peer: DmPeer
   /** Nome e avatar como a pessoa configurou (perfil ao vivo). */
-  look: { name: string; avatarUrl: string | null }
+  look: { name: string; avatarUrl: string | null; decorationUrl?: string | null }
   status: PresenceStatus
   online: boolean
   blocked: boolean
@@ -29,7 +29,11 @@ export function useDmPeer(userId: string | undefined): DmPeerView {
   const blocked = useRelationship(userId) === 'blocked'
   const withBot = isBotUser(userId)
   const peer = dmPeer(userId, me, friends, conversations)
-  const look = useUserLook(userId, { name: peer.name, avatarUrl: peer.other?.avatar_url })
+  const look = useUserLook(userId, {
+    name: peer.name,
+    avatarUrl: peer.other?.avatar_url,
+    decorationUrl: peer.other?.avatar_decoration_url
+  })
   return {
     peer,
     look,
