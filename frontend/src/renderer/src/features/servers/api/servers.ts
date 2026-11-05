@@ -65,13 +65,6 @@ export async function getServer(id: string): Promise<GetServerResponse> {
   return request<GetServerResponse>(`/servers/${id}`)
 }
 
-export async function inviteMember(serverId: string, userId: string): Promise<void> {
-  return request<void>(`/servers/${serverId}/invite`, {
-    method: 'POST',
-    body: JSON.stringify({ user_id: userId })
-  })
-}
-
 /** Só o nome: sem icon_url o backend mantém o ícone atual. */
 export async function updateServer(serverId: string, input: { name: string }): Promise<Server> {
   return request<Server>(`/servers/${serverId}`, {

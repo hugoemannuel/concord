@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import InviteCodeBox from './InviteCodeBox'
 import { useServerStore } from '../store/serverStore'
+import { sendServerInvite } from '../lib/sendServerInvite'
 import { useFriendStore } from '../../friends/store/friendStore'
 import { useUIStore } from '../../../shared/store/uiStore'
 import { showToast } from '../../../shared/store/toastStore'
@@ -14,27 +15,25 @@ import type { Server } from '../api/servers'
 /** "Convidar amigos para {servidor}": o código de convite e a lista de amigos. */
 function ServerInviteModal({ server }: { server: Server }): React.JSX.Element {
   const currentMembers = useServerStore((s) => s.currentMembers)
-  const serverInvites = useServerStore((s) => s.serverInvites)
-  const inviteUser = useServerStore((s) => s.inviteUser)
-  const fetchServerInvites = useServerStore((s) => s.fetchServerInvites)
   const friends = useFriendStore((s) => s.friends)
   const inviteModalOpen = useUIStore((s) => s.serverInviteModalOpen)
   const closeInviteModal = useUIStore((s) => s.closeServerInviteModal)
 
   const [inviteFilter, setInviteFilter] = useState('')
   const [invitingId, setInvitingId] = useState<string | null>(null)
+  // Quem já recebeu o link na DM enquanto o modal está aberto (como o "Enviado" do Discord).
+  const [sentIds, setSentIds] = useState<ReadonlySet<string>>(() => new Set())
   const id = server.id
 
   useEffect(() => {
-    if (inviteModalOpen && id) {
-      fetchServerInvites(id)
-    }
-  }, [inviteModalOpen, id, fetchServerInvites])
+    if (!inviteModalOpen) setSentIds(new Set())
+  }, [inviteModalOpen, id])
 
   const handleInvite = async (friendUserId: string, friendUsername: string): Promise<void> => {
     setInvitingId(friendUserId)
     try {
-      await inviteUser(id, friendUserId)
+      await sendServerInvite(id, friendUserId)
+      setSentIds((prev) => new Set(prev).add(friendUserId))
       showToast.success(`Convite enviado para @${friendUsername}!`)
     } catch (err) {
       showToast.error(err instanceof Error ? err.message : 'Falha ao convidar amigo.')
@@ -44,7 +43,6 @@ function ServerInviteModal({ server }: { server: Server }): React.JSX.Element {
   }
 
   const memberUserIds = new Set(currentMembers.map((m) => m.user_id))
-  const pendingInviteUserIds = new Set(serverInvites.map((i) => i.invitee_id))
 
   const inviteTerm = inviteFilter.trim().toLowerCase()
   const filteredFriends = friends.filter((f) => {
@@ -64,7 +62,7 @@ function ServerInviteModal({ server }: { server: Server }): React.JSX.Element {
       <div className="space-y-4">
         <InviteCodeBox serverId={server.id} />
         <p className="text-ds-sm text-muted">
-          Ou selecione um amigo para enviar um convite. Ele poderá aceitar ou recusar.
+          Ou mande o convite na conversa com um amigo.
         </p>
 
         <div className="relative">
@@ -87,7 +85,7 @@ function ServerInviteModal({ server }: { server: Server }): React.JSX.Element {
           <div className="flex flex-col gap-2 max-h-60 overflow-y-auto no-scrollbar pr-1">
             {filteredFriends.map((f) => {
               const alreadyInServer = memberUserIds.has(f.id)
-              const alreadyInvited = pendingInviteUserIds.has(f.id)
+              const alreadySent = sentIds.has(f.id)
               const isInviting = invitingId === f.id
 
               return (
@@ -110,8 +108,8 @@ function ServerInviteModal({ server }: { server: Server }): React.JSX.Element {
 
                   {alreadyInServer ? (
                     <span className="text-ds-xs text-faint">Já é membro</span>
-                  ) : alreadyInvited ? (
-                    <span className="text-ds-xs text-brand">Convite pendente</span>
+                  ) : alreadySent ? (
+                    <span className="text-ds-xs text-success">Enviado</span>
                   ) : (
                     <Button
                       variant="success"

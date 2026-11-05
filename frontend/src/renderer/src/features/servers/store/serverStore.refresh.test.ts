@@ -1,19 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Server, ServerMember } from '../api/servers'
 
-// Recarregar o servidor que já está na tela (convite enviado, server:update…)
-// não pode trocar a tela pelo "Carregando servidor...": era a "piscada" a cada
-// amigo convidado.
+// Recarregar o servidor que já está na tela (server:update…) não pode trocar a
+// tela pelo "Carregando servidor...".
 
 const getServer = vi.fn()
-const inviteMember = vi.fn()
-const listServerInvites = vi.fn()
 vi.mock('../api/servers', () => ({
-  getServer: (...args: unknown[]) => getServer(...args),
-  inviteMember: (...args: unknown[]) => inviteMember(...args)
-}))
-vi.mock('../api/invites', () => ({
-  listServerInvites: (...args: unknown[]) => listServerInvites(...args)
+  getServer: (...args: unknown[]) => getServer(...args)
 }))
 vi.mock('../api/channels', () => ({}))
 vi.mock('../api/roles', () => ({}))
@@ -58,45 +51,12 @@ function recordStates(): { loading: boolean[]; blank: boolean[]; stop: () => voi
 
 beforeEach(() => {
   getServer.mockReset()
-  inviteMember.mockReset()
-  listServerInvites.mockReset()
-  inviteMember.mockResolvedValue({ message: 'invite sent' })
-  listServerInvites.mockResolvedValue([])
   getServer.mockResolvedValue({ server: server('s1'), members: [member('ana')], roles: [] })
   useServerStore.setState({
     currentServer: server('s1'),
     currentMembers: [member('ana')],
     roles: [],
-    serverInvites: [],
     loading: false
-  })
-})
-
-describe('inviteUser', () => {
-  it('convidar não deixa o servidor "carregando" nem esvazia a tela', async () => {
-    listServerInvites.mockResolvedValue([
-      { id: 'i1', server_id: 's1', inviter_id: 'ana', invitee_id: 'bia' }
-    ])
-    const rec = recordStates()
-    await useServerStore.getState().inviteUser('s1', 'bia')
-    rec.stop()
-
-    expect(inviteMember).toHaveBeenCalledWith('s1', 'bia')
-    expect(rec.loading).not.toContain(true)
-    expect(rec.blank).not.toContain(true)
-    expect(useServerStore.getState().serverInvites.map((i) => i.invitee_id)).toEqual(['bia'])
-    expect(useServerStore.getState().currentServer?.id).toBe('s1')
-  })
-
-  it('três convites seguidos: nunca fica carregando', async () => {
-    const rec = recordStates()
-    for (const friend of ['bia', 'caio', 'duda']) {
-      await useServerStore.getState().inviteUser('s1', friend)
-    }
-    rec.stop()
-    expect(inviteMember).toHaveBeenCalledTimes(3)
-    expect(rec.loading).not.toContain(true)
-    expect(rec.blank).not.toContain(true)
   })
 })
 

@@ -31,8 +31,7 @@ describe('ServerInviteModal', () => {
     vi.stubGlobal('document', { body: {} })
     useUIStore.setState({ serverInviteModalOpen: true })
     useServerStore.setState({
-      currentMembers: [{ user_id: 'ana' }] as never,
-      serverInvites: [{ invitee_id: 'bia' }] as never
+      currentMembers: [{ user_id: 'ana' }] as never
     })
     useFriendStore.setState({
       friends: [
@@ -48,14 +47,15 @@ describe('ServerInviteModal', () => {
     expect(render()).toBe('')
   })
 
-  it('aberto: código, e cada amigo com o estado do convite', () => {
+  it('aberto: código, e cada amigo que não é membro com Convidar (vai pela DM)', () => {
     const html = render()
     expect(html).toContain('Convidar amigos para Salinha')
     expect(html).toContain('data-codigo')
+    expect(html).toContain('Ou mande o convite na conversa com um amigo.')
     expect(html).toContain('Já é membro')
-    expect(html).toContain('Convite pendente')
+    expect(html).not.toContain('Convite pendente')
     expect(html).toContain('@cris')
-    expect(html).toContain('>Convidar</button>')
+    expect(html.split('>Convidar</button>')).toHaveLength(3)
   })
 
   it('sem amigos: explica onde adicionar', () => {

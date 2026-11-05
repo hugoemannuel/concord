@@ -8,7 +8,6 @@ import { useChannelNameStore } from '../../servers/store/channelNameStore'
 import { useChatStore } from '../../chat/store/chatStore'
 import { endSessionState } from '../../auth/store/sessionEnd'
 import { useFriendStore } from '../../friends/store/friendStore'
-import { useInviteStore } from '../../servers/store/inviteStore'
 import { useProfileCardStore } from './profileCardStore'
 import { useMemberProfileStore } from '../../memberProfiles/store/memberProfileStore'
 import { useProfileStore } from './profileStore'
@@ -38,7 +37,6 @@ export async function logoutAndReset(): Promise<void> {
 async function resetLocalSession(): Promise<void> {
   useFriendStore.getState().reset()
   useServerStore.getState().reset()
-  useInviteStore.getState().reset()
   useProfileStore.getState().reset()
   useMemberProfileStore.getState().reset()
   useChannelNameStore.getState().reset()

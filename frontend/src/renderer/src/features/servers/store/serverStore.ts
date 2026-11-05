@@ -1,13 +1,11 @@
 import { create } from 'zustand'
 import type { Server, ServerMember } from '../api/servers'
-import type { ServerInvite } from '../api/invites'
 import type { Channel, ChannelType, CreateChannelOptions } from '../api/channels'
 import type { Role } from '../lib/permissions'
 import { useAuthStore } from '../../auth/store/authStore'
 import {
   listServers,
   createServer as apiCreateServer,
-  inviteMember as apiInviteMember,
   updateServer as apiUpdateServer,
   uploadServerIcon,
   removeServerIcon,
@@ -26,7 +24,6 @@ import {
   removeMemberRole as apiRemoveMemberRole,
   type RoleInput
 } from '../api/roles'
-import { listServerInvites } from '../api/invites'
 import {
   createChannel as apiCreateChannel,
   updateChannel as apiUpdateChannel,
@@ -51,7 +48,6 @@ export interface ServerState {
   currentMembers: ServerMember[]
   /** Cargos do servidor aberto, do mais alto para o mais baixo (@everyone por último). */
   roles: Role[]
-  serverInvites: ServerInvite[]
   channels: Channel[]
   /**
    * serverId -> userId -> apelido. Fica guardado ao trocar de servidor: a
@@ -73,10 +69,8 @@ export interface ServerState {
    * (permissões mudaram: cargo novo, canal virou privado…).
    */
   refreshServer: (serverId: string) => Promise<void>
-  fetchServerInvites: (serverId: string) => Promise<void>
   fetchChannels: (serverId: string) => Promise<void>
   addServer: (name: string, icon_url?: string) => Promise<Server>
-  inviteUser: (serverId: string, userId: string) => Promise<void>
   createChannel: (
     serverId: string,
     name: string,
@@ -138,8 +132,6 @@ export interface ServerState {
   reset: () => void
 }
 
-/** Conta as buscas de convites: só a mais recente grava o resultado. */
-let invitesSeq = 0
 
 const refetchOnFocus = (): void => {
   if (!useAuthStore.getState().accessToken) return
@@ -164,7 +156,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
   currentServer: null,
   currentMembers: [],
   roles: [],
-  serverInvites: [],
   channels: [],
   nicknames: {},
   loading: false,
@@ -181,17 +172,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
     }
   },
   ...serverViewActions(set, get),
-  fetchServerInvites: async (serverId: string) => {
-    const token = useAuthStore.getState().accessToken
-    const seq = ++invitesSeq
-    try {
-      const invites = await listServerInvites(serverId)
-      if (!isSameSession(token) || seq !== invitesSeq) return
-      set({ serverInvites: Array.isArray(invites) ? invites : [] })
-    } catch {
-      if (isSameSession(token) && seq === invitesSeq) set({ serverInvites: [] })
-    }
-  },
   addServer: async (name: string, icon_url?: string) => {
     const newServer = await apiCreateServer({ name, icon_url })
     set({ servers: [...get().servers, newServer] })
@@ -288,7 +268,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
       currentMembers: get().currentServer?.id === serverId ? [] : get().currentMembers,
       roles: get().currentServer?.id === serverId ? [] : get().roles,
       channels: get().currentServer?.id === serverId ? [] : get().channels,
-      serverInvites: get().currentServer?.id === serverId ? [] : get().serverInvites,
       nicknames
     })
   },
@@ -394,12 +373,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
     await apiLeaveServer(serverId)
     get().removeLocalServer(serverId)
   },
-  inviteUser: async (serverId: string, userId: string) => {
-    await apiInviteMember(serverId, userId)
-    // Convite não muda membros (o amigo só entra ao aceitar, e aí chega o
-    // server:member_join): basta a lista de convites pendentes.
-    await get().fetchServerInvites(serverId)
-  },
   clearCurrentServer: () => {
     stashCurrentView(get)
     set({
@@ -417,7 +390,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
       currentServer: null,
       currentMembers: [],
       roles: [],
-      serverInvites: [],
       channels: [],
       nicknames: {},
       loading: false,
