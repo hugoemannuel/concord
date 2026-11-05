@@ -53,7 +53,7 @@ export function useStickToBottom({
     lastCount.current = total
     // Imagem e mídia que acabam de carregar empurram o fim: acompanha por
     // um instante, só se a pessoa ainda estiver no fim.
-    const settle = applyBottomScroll(plan.scroll, scrollRef.current, bottomRef.current, Date.now())
+    const settle = applyBottomScroll(plan.scroll, scrollRef.current, Date.now())
     if (settle !== null) settleUntil.current = settle
   }, [room, loading, total, stickRef])
 
