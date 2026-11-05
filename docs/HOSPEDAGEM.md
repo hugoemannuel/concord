@@ -1218,7 +1218,9 @@ Jogos do Atlético-MG e do Cruzeiro, ao vivo, numa página estática do `site/`.
   chamada) e confira com `curl -sI https://salinha.bhrx.com.br/plugins/placar/app.js | grep -i access-control-allow-origin`.
   Se a página já tiver sido aberta sem o cabeçalho, limpe o cache do Cloudflare para `/plugins/*`.
 - Para cadastrar, pela API: `POST /api/plugins` com o nome e a descrição dos textos aprovados (`Placar ao
-  vivo` e `Jogos do Atlético-MG e do Cruzeiro, ao vivo`) e `panel_url` apontando para essa página.
+  vivo` e `Jogos do Atlético-MG e do Cruzeiro, ao vivo`), `panel_url` apontando para essa página e
+  `"icon": "bola"` (o botão na barra vira a bola de futebol; sem o campo, fica o quebra-cabeça). Exemplo:
+  `{"name":"Placar ao vivo","description":"Jogos do Atlético-MG e do Cruzeiro, ao vivo","panel_url":"https://salinha.bhrx.com.br/plugins/placar/","icon":"bola"}`.
 - Depois, alguém de `TECH_TEAM_USER_IDS` aprova: `PATCH /api/plugins/:id/review` com
   `{"status":"approved"}`.
 - Os dados vêm da API pública da ESPN, chamada pelo navegador ([ADR 0057](adr/0057-placar-com-a-api-publica-da-espn.md)).
