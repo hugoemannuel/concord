@@ -1,4 +1,4 @@
-# 0049. Mostrar os plugins da comunidade como página do autor num iframe isolado
+# 0056. Mostrar os plugins da comunidade como página do autor num iframe isolado
 
 - Status: aceito
 - Data: 2026-11-02

@@ -3,7 +3,7 @@
 - Data: 2026-11-02
 - Origem: issue #480 (placar ao vivo de Atlético-MG e Cruzeiro), ampliada para um
   sistema de plugins.
-- ADR: [0049. Plugins em iframe isolado](../../adr/0049-plugins-em-iframe-isolado.md)
+- ADR: [0056. Plugins em iframe isolado](../../adr/0056-plugins-em-iframe-isolado.md)
 
 ## Objetivo
 
@@ -25,7 +25,7 @@ O projeto tem três specs, nesta ordem:
 
 | Decisão | Por quê |
 |---|---|
-| O plugin é uma página `https://` do autor num iframe com `sandbox` (ADR 0049) | Não roda código de terceiros junto da sessão. Mesmo código na web e no desktop, e cabe no popover da #480 |
+| O plugin é uma página `https://` do autor num iframe com `sandbox` (ADR 0056) | Não roda código de terceiros junto da sessão. Mesmo código na web e no desktop, e cabe no popover da #480 |
 | Sem bot e sem API de bot (moderação etc.) | Fora de escopo por decisão do usuário. Fica para um projeto futuro |
 | Só desktop (Electron) e web. **O app Android (`mobile/`) não muda** | Decisão do usuário. O WebView nativo tem as próprias regras e fica para depois |
 | Toda ficha nova passa por aprovação do time, quem está em `TECH_TEAM_USER_IDS` (a mesma lista das Propostas) | Mesmo isolada, uma página pode *parecer* a Salinha (phishing). A aprovação é a defesa |
@@ -39,7 +39,7 @@ O projeto tem três specs, nesta ordem:
 
 ## Abordagens consideradas para o painel
 
-1. **Iframe isolado num popover (escolhida).** Ver o ADR 0049.
+1. **Iframe isolado num popover (escolhida).** Ver o ADR 0056.
 2. **Janela própria, como as Atividades no desktop.** Descartada: não existe na
    web e não é o painelzinho que a #480 pede.
 3. **Proxy por subdomínio próprio (`discordsays.com`).** Descartada por agora:

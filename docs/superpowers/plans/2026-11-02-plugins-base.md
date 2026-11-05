@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go 1.26, Gin, pgx/Postgres, Hub WebSocket; React, Zustand, Tailwind v4, Vitest + Testing Library.
 
-**Spec:** `docs/superpowers/specs/2026-11-02-plugins-base-design.md` (e o ADR `docs/adr/0049-plugins-em-iframe-isolado.md`).
+**Spec:** `docs/superpowers/specs/2026-11-02-plugins-base-design.md` (e o ADR `docs/adr/0056-plugins-em-iframe-isolado.md`).
 
 ## Global Constraints
 
@@ -64,7 +64,7 @@
 ### Task 2: Migration e repository (backend)
 
 **Files:**
-- Create: `backend/migrations/000187_create_plugins.up.sql`, `backend/migrations/000187_create_plugins.down.sql`
+- Create: `backend/migrations/000195_create_plugins.up.sql`, `backend/migrations/000195_create_plugins.down.sql`
 - Create: `backend/internal/plugin/repository.go`, `backend/internal/plugin/repository_db_test.go`
 
 **Interfaces:**
@@ -274,4 +274,4 @@
 - [ ] **Step 1:** Seguir a "Verificação de ponta a ponta" da spec (passos 1 a 9) com o backend local e duas contas. Anotar o resultado de cada passo. Prints em 360, 768 e 1280 px do painel e da aba.
 - [ ] **Step 2:** Rodar a skill `web-design-guidelines` nos componentes de `features/plugins/components` e corrigir o que for erro.
 - [ ] **Step 3:** `node scripts/crap.mjs` e `node scripts/affected-tests.mjs pr`. Esperado: verde. Guardar a saída para o PR, junto do `.superpowers/crap-antes.txt`.
-- [ ] **Step 4:** Mudar o ADR 0049 para `Status: aceito` e commitar o fix que a verificação pedir: `git commit -m "docs(adr): 0049 plugins em iframe isolado"`.
+- [ ] **Step 4:** Mudar o ADR 0056 para `Status: aceito` e commitar o fix que a verificação pedir: `git commit -m "docs(adr): 0049 plugins em iframe isolado"`.
