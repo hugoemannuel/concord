@@ -116,7 +116,7 @@ describe('railMenuGroups (menu do ícone)', () => {
 describe('settingsSectionsFor', () => {
   it('só as seções que a permissão deixa abrir', () => {
     const ids = settingsSectionsFor(Perm.MANAGE_ROLES, false, false).map((s) => s.id)
-    expect(ids).toEqual(['roles', 'members', 'level'])
+    expect(ids).toEqual(['roles', 'members', 'plugins', 'level'])
   })
 
   it('o dono vê também a configuração de eventos', () => {
@@ -137,11 +137,11 @@ describe('serverMenuContext', () => {
       channels: []
     })
 
-  it('membro comum: convida e muda o apelido, mas não gerencia nada', () => {
+  it('membro comum: convida, muda o apelido e abre as configurações (aba Plugins), sem gerenciar nada', () => {
     const ctx = serverMenuContext({ access: accessOf('outro'), userId: 'eu', canConfigureEvents: false })
     expect(ctx).toMatchObject({
       hasServer: true, canInvite: true, canChangeOwnNickname: true,
-      canOpenSettings: false, canManageChannels: false, isOwner: false
+      canOpenSettings: true, canManageChannels: false, isOwner: false
     })
   })
 

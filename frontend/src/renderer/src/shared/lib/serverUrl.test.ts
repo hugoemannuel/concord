@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buildConnectSrc,
@@ -164,9 +166,19 @@ describe('fillCsp', () => {
     )
   })
 
-  it('web: acrescenta as diretivas extras (base-uri e frame-src só dos jogos do catálogo)', () => {
-    expect(
-      fillCsp(html, { connectSrc: "'self'", mediaSrc: "'self' blob:", extra: WEB_EXTRA_CSP })
-    ).toContain("connect-src 'self'; base-uri 'self'; frame-src https://krunker.io\"")
+  it('web: no index real, acrescenta base-uri e fica com um único frame-src', () => {
+    const index = readFileSync(resolve(__dirname, '../../../index.html'), 'utf8')
+    const out = fillCsp(index, {
+      connectSrc: "'self' wss://salinha.example",
+      mediaSrc: "'self' blob:",
+      extra: WEB_EXTRA_CSP
+    })
+    expect(out.match(/frame-src/g)?.length).toBe(1)
+    expect(out).toContain("base-uri 'self'")
+  })
+
+  it('a CSP do index aceita frame https (plugins e atividades)', () => {
+    const index = readFileSync(resolve(__dirname, '../../../index.html'), 'utf8')
+    expect(index).toMatch(/frame-src https:[;"]/)
   })
 })

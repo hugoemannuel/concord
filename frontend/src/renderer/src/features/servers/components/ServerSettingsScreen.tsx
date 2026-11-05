@@ -24,6 +24,7 @@ import BansSection from './BansSection'
 import ServerLevelSection from '../../serverlevel/components/ServerLevelSection'
 import EventsSettingsSection from '../../events/components/EventsSettingsSection'
 import AuditLogSection from '../../auditlog/components/AuditLogSection'
+import PluginsSettingsSection from '../../plugins/components/PluginsSettingsSection'
 import { useEventAccess } from '../../events/hooks/useEventAccess'
 
 const SECTION_VIEW = {
@@ -35,7 +36,8 @@ const SECTION_VIEW = {
   members: MembersSection,
   bans: BansSection,
   audit: AuditLogSection,
-  events: EventsSettingsSection
+  events: EventsSettingsSection,
+  plugins: PluginsSettingsSection
 } as const
 
 /**
