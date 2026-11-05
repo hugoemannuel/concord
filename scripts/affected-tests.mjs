@@ -66,7 +66,7 @@ function full() {
     run('npm', ['run', 'typecheck'], frontend),
     run('npx', ['vitest', 'run'], frontend),
     ...(existsSync(path.join(mobile, 'package.json')) ? [run('npm', ['run', 'typecheck'], mobile), run('npx', ['jest'], mobile)] : []),
-    run('node', ['--test', 'scripts/**/*.test.mjs'])
+    run('node', ['--test', 'scripts/**/*.test.mjs', 'site/**/*.test.mjs'])
   ]
 }
 

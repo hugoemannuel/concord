@@ -9,7 +9,7 @@ import (
 	"gin-quickstart/backend/internal/call"
 )
 
-// afkCalls: ana e bia entraram em t0; o XP lê pelo call.AFK de verdade.
+// afkCalls: ana, bia e caio entraram em t0; o XP lê pelo call.AFK de verdade.
 type afkCalls struct{ active []call.VoiceActivity }
 
 func (f *afkCalls) IsParticipant(callID, _ string) bool    { return callID == "call-1" }
@@ -19,7 +19,7 @@ func (f *afkCalls) CallSnapshots() []call.CallSnapshot     { return nil }
 func xpWithAFK(clock *time.Time) (*Service, *fakeStore, *call.AFK) {
 	s, store, _, _ := newTestService()
 	src := &afkCalls{}
-	for _, id := range []string{"ana", "bia"} {
+	for _, id := range []string{"ana", "bia", "caio"} {
 		src.active = append(src.active, call.VoiceActivity{UserID: id, CallID: "call-1", JoinedAt: t0})
 	}
 	afk := call.NewAFK(src, func() time.Time { return *clock })
@@ -31,17 +31,18 @@ func TestVoiceXPStopsAfterTenMinutesWithoutSpeaking(t *testing.T) {
 	clock := t0
 	s, store, afk := xpWithAFK(&clock)
 
-	// 20 min de call; a ana fala a cada 5 min, a bia nunca.
+	// 20 min de call; a ana e o caio falam a cada 5 min, a bia nunca.
 	for i := 0; i < 120; i++ {
 		if i%30 == 0 {
 			afk.HandleSpeaking("ana", json.RawMessage(`{"call_id":"call-1"}`))
+			afk.HandleSpeaking("caio", json.RawMessage(`{"call_id":"call-1"}`))
 		}
 		clock = clock.Add(tickInterval)
 		s.tick(context.Background(), clock)
 	}
 
-	// Enquanto a bia conta, a call tem duas pessoas elegíveis (rank D, x1,25);
-	// quando ela cai por AFK, a ana fica sozinha e volta ao XP normal.
+	// Enquanto a bia conta, a call tem três pessoas elegíveis (rank D, x1,25);
+	// quando ela cai por AFK, sobram duas (call normal) e volta ao XP normal.
 	if got, want := store.xp["ana"], int64((9*XPPerMinute*125+11*XPPerMinute*100)/100); got != want {
 		t.Fatalf("ana (falando) = %d XP, want %d", got, want)
 	}

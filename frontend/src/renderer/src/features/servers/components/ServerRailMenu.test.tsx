@@ -58,17 +58,17 @@ beforeEach(() => {
 })
 
 describe('menu do ícone: itens por permissão (servidor aberto)', () => {
-  it('membro comum: convida, muda apelido e sai; sem criar canal nem configurações', () => {
+  it('membro comum: convida, muda apelido, abre as configurações (aba Plugins) e sai; sem criar canal', () => {
     openServer(everyone.permissions)
     const html = render('aberto')
     for (const label of [
       'Marcar como lido', 'Convidar pessoas', 'Silenciar servidor', 'Notificações do servidor',
       'Nível do servidor', 'Perfil do servidor', 'Alterar apelido', 'Editar perfil do servidor',
-      'Eventos', 'Mover para…', 'Sair do servidor'
+      'Eventos', 'Mover para…', 'Sair do servidor', 'Configurações do servidor'
     ]) {
       expect(html).toContain(label)
     }
-    for (const label of ['Criar canal', 'Criar categoria', 'Configurações do servidor', 'Deletar servidor']) {
+    for (const label of ['Criar canal', 'Criar categoria', 'Deletar servidor']) {
       expect(html).not.toContain(label)
     }
   })
@@ -109,7 +109,8 @@ describe('menu do ícone: servidor clicado diferente do aberto', () => {
     expect(html).toContain('Marcar como lido')
     expect(html).toContain('Sair do servidor')
     expect(html).not.toContain('Criar canal')
-    expect(html).not.toContain('Configurações do servidor')
+    // Configurações abrem para todo membro (aba Plugins, PR #514).
+    expect(html).toContain('Configurações do servidor')
     expect(html).not.toContain('Convidar pessoas')
   })
 })

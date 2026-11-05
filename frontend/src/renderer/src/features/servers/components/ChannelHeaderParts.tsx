@@ -2,6 +2,7 @@ import { useServerStore } from '../store/serverStore'
 import Button from '../../../shared/ui/Button'
 import { UserPlusIcon, VolumeIcon, PinIcon } from '../../../shared/ui/icons'
 import PinnedMessagesPopover from '../../chat/components/PinnedMessagesPopover'
+import PluginHeaderButtons from '../../plugins/components/PluginHeaderButtons'
 import MessageSearchBar from '../../chat/components/MessageSearchBar'
 import type { Channel } from '../api/channels'
 import type { Server } from '../api/servers'
@@ -72,6 +73,7 @@ export function ChannelActions({
             <PinIcon className="h-4 w-4" />
           </button>
         )}
+        {showPins && <PluginHeaderButtons />}
         {canInvite && (
           <Button
             variant="secondary"

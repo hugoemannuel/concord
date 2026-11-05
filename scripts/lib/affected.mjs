@@ -20,7 +20,7 @@ const isTs = (f) => f.startsWith('frontend/src/') && /\.(ts|tsx)$/.test(f)
 export const MOBILE_SHARED = ['mobile/package.json', 'mobile/src/shared/']
 
 const isMobile = (f) => /^mobile\/(src|app)\/.*\.(ts|tsx)$/.test(f)
-const isScript = (f) => f.startsWith('scripts/') && f.endsWith('.mjs')
+const isScript = (f) => (f.startsWith('scripts/') && f.endsWith('.mjs')) || (f.startsWith('site/') && /\.m?js$/.test(f))
 // O DSP em Rust e o .wasm gerado dele: o scripts/dsp-wasm.test.mjs confere que andam juntos.
 const isDsp = (f) => f.startsWith('native/concord-dsp/') || f.startsWith('frontend/src/renderer/src/features/call/lib/concordDsp.wasm')
 const DSP_CHECK = 'scripts/dsp-wasm.mjs'
@@ -69,9 +69,9 @@ export function dependents(graph, changed) {
   return [...result].sort()
 }
 
-// scriptTests: x.mjs → x.test.mjs ao lado (se existir); testes alterados entram direto.
+// scriptTests: x.mjs/x.js → x.test.mjs ao lado (se existir); testes alterados entram direto.
 export function scriptTests(scriptFiles, exists = existsSync) {
-  const tests = scriptFiles.map((f) => (f.endsWith('.test.mjs') ? f : f.replace(/\.mjs$/, '.test.mjs')))
+  const tests = scriptFiles.map((f) => (f.endsWith('.test.mjs') ? f : f.replace(/\.m?js$/, '.test.mjs')))
   return [...new Set(tests.filter((f) => exists(f)))].sort()
 }
 

@@ -1,0 +1,409 @@
+{
+  "team": {
+    "id": "7632"
+  },
+  "events": [
+    {
+      "id": "401841305",
+      "date": "2026-11-05T00:30Z",
+      "name": "Atlético-MG at Botafogo",
+      "shortName": "CAM @ BOT",
+      "season": {
+        "year": 2026,
+        "displayName": "2026 Futebol Brasileiro"
+      },
+      "seasonType": {
+        "id": "1",
+        "type": 13907,
+        "name": "2026 Brasileiro Serie A ",
+        "abbreviation": "2026 Serie A"
+      },
+      "timeValid": true,
+      "competitions": [
+        {
+          "id": "401841305",
+          "date": "2026-11-05T00:30Z",
+          "timeValid": true,
+          "neutralSite": false,
+          "boxscoreAvailable": true,
+          "ticketsAvailable": false,
+          "competitors": [
+            {
+              "id": "6086",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": false,
+              "team": {
+                "id": "6086",
+                "location": "Botafogo",
+                "abbreviation": "BOT",
+                "displayName": "Botafogo",
+                "shortDisplayName": "Botafogo",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/6086.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2023-03-24T19:32Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/6086.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2023-03-24T19:33Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "7632",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "team": {
+                "id": "7632",
+                "location": "Atlético-MG",
+                "abbreviation": "CAM",
+                "displayName": "Atlético-MG",
+                "shortDisplayName": "Atlético-MG",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/7632.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/7632.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            }
+          ],
+          "notes": [],
+          "status": {
+            "clock": 0,
+            "addedClock": 0,
+            "displayClock": "0'",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Wed, November 4th at 7:30 PM EST",
+              "shortDetail": "11/4 - 7:30 PM EST"
+            }
+          }
+        }
+      ],
+      "league": {
+        "id": "630",
+        "alternateId": "85",
+        "name": "Brazilian Serie A",
+        "abbreviation": "Brazil Serie A",
+        "shortName": "Brazil Serie A",
+        "midsizeName": "BRA.1",
+        "slug": "bra.1",
+        "isTournament": false
+      }
+    },
+    {
+      "id": "401913108",
+      "date": "2026-11-07T21:00Z",
+      "name": "Grêmio at Atlético-MG",
+      "shortName": "GRE @ CAM",
+      "season": {
+        "year": 2026,
+        "displayName": "2026 Copa do Brasil"
+      },
+      "seasonType": {
+        "id": "8",
+        "type": 14066,
+        "name": "Semifinals",
+        "abbreviation": "Semifinals"
+      },
+      "timeValid": true,
+      "competitions": [
+        {
+          "id": "401913108",
+          "date": "2026-11-07T21:00Z",
+          "timeValid": true,
+          "neutralSite": false,
+          "boxscoreAvailable": true,
+          "ticketsAvailable": false,
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "competitors": [
+            {
+              "id": "7632",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": false,
+              "team": {
+                "id": "7632",
+                "location": "Atlético-MG",
+                "abbreviation": "CAM",
+                "displayName": "Atlético-MG",
+                "shortDisplayName": "Atlético-MG",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/7632.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/7632.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "6273",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "team": {
+                "id": "6273",
+                "location": "Grêmio",
+                "abbreviation": "GRE",
+                "displayName": "Grêmio",
+                "shortDisplayName": "Grêmio",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/6273.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/6273.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            }
+          ],
+          "notes": [
+            {
+              "type": "event",
+              "headline": "2nd Leg - Grêmio lead 2-0 on aggregate"
+            }
+          ],
+          "status": {
+            "clock": 0,
+            "addedClock": 0,
+            "displayClock": "0'",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Sat, November 7th at 4:00 PM EST",
+              "shortDetail": "11/7 - 4:00 PM EST"
+            }
+          }
+        }
+      ],
+      "league": {
+        "id": "8306",
+        "alternateId": "528",
+        "name": "Copa do Brasil",
+        "abbreviation": "Copa do Brazil",
+        "shortName": "Copa Do Brazil",
+        "midsizeName": "BRA.COPA_DO_BRAZIL",
+        "slug": "bra.copa_do_brazil",
+        "isTournament": true
+      }
+    },
+    {
+      "id": "401841311",
+      "date": "2026-11-14T21:30Z",
+      "name": "Atlético-MG at Mirassol",
+      "shortName": "CAM @ MIR",
+      "season": {
+        "year": 2026,
+        "displayName": "2026 Futebol Brasileiro"
+      },
+      "seasonType": {
+        "id": "1",
+        "type": 13907,
+        "name": "2026 Brasileiro Serie A ",
+        "abbreviation": "2026 Serie A"
+      },
+      "timeValid": true,
+      "competitions": [
+        {
+          "id": "401841311",
+          "date": "2026-11-14T21:30Z",
+          "timeValid": true,
+          "neutralSite": false,
+          "boxscoreAvailable": true,
+          "ticketsAvailable": false,
+          "competitors": [
+            {
+              "id": "9169",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": false,
+              "team": {
+                "id": "9169",
+                "location": "Mirassol",
+                "abbreviation": "MIR",
+                "displayName": "Mirassol",
+                "shortDisplayName": "Mirassol",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/9169.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2025-01-17T16:54Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/9169.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "7632",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "team": {
+                "id": "7632",
+                "location": "Atlético-MG",
+                "abbreviation": "CAM",
+                "displayName": "Atlético-MG",
+                "shortDisplayName": "Atlético-MG",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/7632.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/7632.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            }
+          ],
+          "notes": [],
+          "status": {
+            "clock": 0,
+            "addedClock": 0,
+            "displayClock": "0'",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Sat, November 14th at 4:30 PM EST",
+              "shortDetail": "11/14 - 4:30 PM EST"
+            }
+          }
+        }
+      ],
+      "league": {
+        "id": "630",
+        "alternateId": "85",
+        "name": "Brazilian Serie A",
+        "abbreviation": "Brazil Serie A",
+        "shortName": "Brazil Serie A",
+        "midsizeName": "BRA.1",
+        "slug": "bra.1",
+        "isTournament": false
+      }
+    }
+  ]
+}
