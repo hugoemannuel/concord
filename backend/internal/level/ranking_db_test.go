@@ -48,6 +48,9 @@ func TestRankingRepositoryDB(t *testing.T) {
 	empateAntigo := mk("antigo", 500, 2*time.Hour, false, true)
 	empateNovo := mk("novo", 500, time.Hour, false, true)
 	ultimo := mk("ult", 10, time.Hour, false, true)
+	if _, err := db.Exec(ctx, `UPDATE users SET nameplate_mode = 'custom', nameplate_url = 'https://ex.com/faixa.png', avatar_decoration_url = 'https://ex.com/moldura.png' WHERE id = $1`, top); err != nil {
+		t.Fatal(err)
+	}
 	mk("bot", 99999, time.Hour, true, true)
 	mk("inativo", 99999, time.Hour, false, false)
 	mk("zero", 0, time.Hour, false, true)
@@ -68,6 +71,17 @@ func TestRankingRepositoryDB(t *testing.T) {
 	}
 	if got[0].NameStyle.Font != "default" || got[0].NameStyle.Effect != "solid" {
 		t.Errorf("estilo do nome = %+v", got[0].NameStyle)
+	}
+	// Faixa e moldura vêm no SELECT; o scan tem de recebê-las (sem isso o
+	// TopRanking falha e a tela do ranking mostra erro).
+	if got[0].NameplateURL == nil || *got[0].NameplateURL != "https://ex.com/faixa.png" {
+		t.Errorf("faixa = %v", got[0].NameplateURL)
+	}
+	if got[0].AvatarDecorationURL == nil || *got[0].AvatarDecorationURL != "https://ex.com/moldura.png" {
+		t.Errorf("moldura = %v", got[0].AvatarDecorationURL)
+	}
+	if got[1].NameplateURL != nil || got[1].AvatarDecorationURL != nil {
+		t.Errorf("sem faixa nem moldura, veio %+v", got[1].Look)
 	}
 
 	if top2, _ := repo.TopRanking(ctx, 2); len(top2) != 2 {
