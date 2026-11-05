@@ -1,15 +1,7 @@
 import { useEffect } from 'react'
-import { IS_WEB } from '../../../shared/lib/config'
+import { serverOrigins } from '../lib/appInviteLink'
 import { inviteCodeFromClick } from '../lib/inviteClick'
 import { useInviteLinkStore } from '../store/inviteLinkStore'
-
-/**
- * Origens que valem como "nossas" além dos domínios fixos: no navegador, a
- * própria origem do app; no desktop, o servidor embutido no build (PUBLIC_URL).
- */
-function serverOrigins(): (string | undefined)[] {
-  return [IS_WEB ? location.origin : import.meta.env.VITE_SERVER_URL]
-}
 
 /**
  * Clicar num link de convite (chat, bio de perfil, qualquer <a>) com o app já
