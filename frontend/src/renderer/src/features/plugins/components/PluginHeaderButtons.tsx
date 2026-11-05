@@ -9,35 +9,9 @@ import IconButton from '../../../shared/ui/IconButton'
 import { PuzzleIcon } from '../../../shared/ui/icons'
 import { pluginIcon } from '../lib/pluginIcon'
 import PluginPanel from './PluginPanel'
+import PluginMenu from './PluginMenu'
 
 const NONE: ServerPlugin[] = []
-
-export function PluginMenu({
-  plugins,
-  onPick
-}: {
-  plugins: ServerPlugin[]
-  onPick: (p: ServerPlugin) => void
-}): React.JSX.Element {
-  return (
-    <div
-      role="menu"
-      className="absolute right-4 top-14 z-50 flex max-h-[calc(100dvh-6rem)] w-56 flex-col overflow-y-auto rounded-xl border border-subtle bg-accent p-1 shadow-2xl"
-    >
-      {plugins.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          role="menuitem"
-          onClick={() => onPick(p)}
-          className="focus-ring min-h-10 truncate rounded-md px-3 text-left text-ds-sm text-normal hover:bg-fg/10"
-        >
-          {p.name}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 /** Botões dos plugins ligados na barra do canal: um por plugin, ou um menu a partir de 3. */
 export default function PluginHeaderButtons(): React.JSX.Element | null {

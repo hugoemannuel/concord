@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useServerAccess } from '../../servers/hooks/useServerAccess'
 import { Perm } from '../../servers/lib/permissions'
@@ -9,27 +9,13 @@ import type { Plugin, ServerPlugin } from '../api/plugins'
 import {
   availablePlugins,
   installAction,
-  runExclusive,
   toggleAction,
   uninstallAction
 } from '../lib/pluginSettingsActions'
 import { usePluginsStore } from '../store/pluginsStore'
+import { usePluginBusy, type PluginBusy } from '../hooks/usePluginBusy'
 
 const NO_PLUGINS: ServerPlugin[] = []
-
-/** Ids com pedido em andamento, e `exclusive` para rodar uma ação sem repetir. */
-interface Busy {
-  ids: ReadonlySet<string>
-  exclusive: (id: string, fn: () => Promise<void>) => Promise<void>
-}
-
-function useBusy(): Busy {
-  const held = useRef(new Set<string>())
-  const [ids, setIds] = useState<ReadonlySet<string>>(new Set())
-  const exclusive = (id: string, fn: () => Promise<void>): Promise<void> =>
-    runExclusive(held.current, id, setIds, fn)
-  return { ids, exclusive }
-}
 
 function Row({ plugin, children }: { plugin: Plugin; children: React.ReactNode }): React.JSX.Element {
   return (
@@ -52,7 +38,7 @@ function InstalledRow({
   serverId: string
   plugin: ServerPlugin
   canManage: boolean
-  busy: Busy
+  busy: PluginBusy
 }): React.JSX.Element {
   return (
     <Row plugin={plugin}>
@@ -86,7 +72,7 @@ function InstalledList({
   serverId: string
   list: ServerPlugin[]
   canManage: boolean
-  busy: Busy
+  busy: PluginBusy
 }): React.JSX.Element {
   if (list.length === 0) {
     return (
@@ -111,7 +97,7 @@ function AvailableList({
 }: {
   serverId: string
   list: Plugin[]
-  busy: Busy
+  busy: PluginBusy
 }): React.JSX.Element {
   return (
     <section className="flex flex-col gap-2">
@@ -145,7 +131,7 @@ export default function PluginsSettingsSection(): React.JSX.Element | null {
   const canManage = isOwner || (perms & Perm.MANAGE_SERVER) !== 0
   const list = usePluginsStore((s) => (serverId ? s.byServer[serverId] : undefined)) ?? NO_PLUGINS
   const catalog = usePluginsStore((s) => s.catalog)
-  const busy = useBusy()
+  const busy = usePluginBusy()
 
   useEffect(() => {
     if (!serverId) return

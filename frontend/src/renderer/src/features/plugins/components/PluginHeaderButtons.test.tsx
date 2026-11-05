@@ -9,7 +9,7 @@ vi.spyOn(React, 'useSyncExternalStore').mockImplementation((_subscribe, getSnaps
 import { useServerStore } from '../../servers/store/serverStore'
 import { usePluginsStore } from '../store/pluginsStore'
 import type { ServerPlugin } from '../api/plugins'
-import PluginHeaderButtons, { PluginMenu } from './PluginHeaderButtons'
+import PluginHeaderButtons from './PluginHeaderButtons'
 
 const p = (id: string, enabled = true): ServerPlugin => ({
   id,
@@ -75,16 +75,5 @@ describe('PluginHeaderButtons', () => {
     expect(html.match(/<button/g)).toHaveLength(1)
     expect(html).toContain('aria-label="Plugins"')
     expect(html).toContain('aria-haspopup="menu"')
-  })
-})
-
-describe('PluginMenu', () => {
-  it('lista os três como menuitem', () => {
-    const html = renderToStaticMarkup(
-      <PluginMenu plugins={[p('a'), p('b'), p('c')]} onPick={() => {}} />
-    )
-    expect(html).toContain('role="menu"')
-    expect(html.match(/role="menuitem"/g)).toHaveLength(3)
-    expect(html).toContain('Plugin b')
   })
 })
