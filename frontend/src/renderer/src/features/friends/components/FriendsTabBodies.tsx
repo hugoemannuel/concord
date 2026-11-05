@@ -7,7 +7,6 @@ import { useFriendStore } from '../store/friendStore'
 import { useFriendsFirstLoad } from '../hooks/useFriendsFirstLoad'
 import { useFriendsForTab } from '../hooks/useFriendsForTab'
 import { filterPeople } from '../lib/personFilter'
-import ServerInviteList from '../../servers/components/ServerInviteList'
 import AddFriend from './AddFriend'
 import EmptyState from './EmptyState'
 import { BlockedRow, FriendRow, PendingRow } from './FriendRows'
@@ -141,16 +140,11 @@ function AllTab(p: TabBodyProps): React.JSX.Element {
   return <FriendsListTab kind="all" {...p} />
 }
 
-function InvitesTab(): React.JSX.Element {
-  return <ServerInviteList />
-}
-
 /** Conteúdo de cada aba da tela de Amigos. */
 const TAB_BODIES: Record<FriendsTab, ComponentType<TabBodyProps>> = {
   online: OnlineTab,
   all: AllTab,
   pending: PendingTab,
-  invites: InvitesTab,
   blocked: BlockedTab,
   add: AddTab
 }

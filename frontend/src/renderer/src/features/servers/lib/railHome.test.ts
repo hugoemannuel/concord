@@ -20,16 +20,16 @@ describe('isHomePath', () => {
 })
 
 describe('dmUnreadTotal', () => {
-  it('soma as não lidas das conversas, os pedidos de amizade e os convites de servidor', () => {
+  it('soma as não lidas das conversas e os pedidos de amizade', () => {
     const unread = { 'conversation:a': 2, 'conversation:b': 1, 'channel:x': 9 }
-    expect(dmUnreadTotal([{ id: 'a' }, { id: 'b' }, { id: 'c' }], unread, 3, 4)).toBe(10)
+    expect(dmUnreadTotal([{ id: 'a' }, { id: 'b' }, { id: 'c' }], unread, 3)).toBe(6)
   })
 
-  it('só convites já acendem o selo', () => {
-    expect(dmUnreadTotal([], {}, 0, 2)).toBe(2)
+  it('só pedidos já acendem o selo', () => {
+    expect(dmUnreadTotal([], {}, 2)).toBe(2)
   })
 
   it('sem nada vale zero', () => {
-    expect(dmUnreadTotal([], {}, 0, 0)).toBe(0)
+    expect(dmUnreadTotal([], {}, 0)).toBe(0)
   })
 })

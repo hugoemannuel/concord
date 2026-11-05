@@ -7,7 +7,6 @@ const TABS: { id: Exclude<FriendsTab, 'add'>; label: string }[] = [
   { id: 'online', label: 'Online' },
   { id: 'all', label: 'Todos' },
   { id: 'pending', label: 'Pendente' },
-  { id: 'invites', label: 'Convites' },
   { id: 'blocked', label: 'Bloqueado' }
 ]
 

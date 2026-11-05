@@ -37,9 +37,6 @@ vi.mock('../../call/store/callStore', () => ({
 vi.mock('../../friends/store/friendStore', () => ({
   useFriendStore: { getState: () => ({ reset: track('friends') }) }
 }))
-vi.mock('../../servers/store/inviteStore', () => ({
-  useInviteStore: { getState: () => ({ reset: track('invites') }) }
-}))
 vi.mock('./profileCardStore', () => ({
   useProfileCardStore: { getState: () => ({ close: track('profileCard') }) }
 }))
