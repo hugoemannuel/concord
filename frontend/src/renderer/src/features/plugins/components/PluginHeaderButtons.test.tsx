@@ -59,15 +59,15 @@ describe('PluginHeaderButtons', () => {
 
   it('usa o ícone da ficha: bola no placar, quebra-cabeça nos outros', () => {
     const bola = { ...p('a'), icon: 'bola' as const }
-    expect(setup([bola])).toContain('stroke="currentColor"')
-    expect(setup([p('a')])).not.toContain('stroke="currentColor"')
+    expect(setup([bola])).toContain('M12 8.3L15.52')
+    expect(setup([p('a')])).not.toContain('M12 8.3L15.52')
     const dois = setup([bola, p('b')])
-    expect(dois.match(/stroke="currentColor"/g)).toHaveLength(1)
+    expect(dois.match(/M12 8\.3L15\.52/g)).toHaveLength(1)
   })
 
   it('o botão agrupado "Plugins" mantém o quebra-cabeça', () => {
     const bola = { ...p('a'), icon: 'bola' as const }
-    expect(setup([bola, p('b'), p('c')])).not.toContain('stroke="currentColor"')
+    expect(setup([bola, p('b'), p('c')])).not.toContain('M12 8.3L15.52')
   })
 
   it('3 ligados: um botão Plugins só', () => {
