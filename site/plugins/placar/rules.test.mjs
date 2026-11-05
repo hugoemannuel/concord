@@ -124,6 +124,11 @@ test('whenLabel usa o fuso de Brasília (Review Focus 5)', () => {
   assert.equal(whenLabel('2026-11-07T21:30:00Z'), 'sáb 18:30');
 });
 
+test('whenLabel com data inválida devolve vazio sem lançar', () => {
+  assert.equal(whenLabel('lixo'), '');
+  assert.equal(whenLabel(undefined), '');
+});
+
 test('agoLabel', () => {
   assert.equal(agoLabel(NOW - 20000, NOW), 'Atualizado há 20 s');
   assert.equal(agoLabel(NOW - 190000, NOW), 'Atualizado há 3 min');

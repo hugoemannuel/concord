@@ -6,11 +6,12 @@ import { readFileSync } from 'node:fs';
 
 const linha = /^\s*(#\s*)?header\s+\/plugins\/\*\s+Access-Control-Allow-Origin\s+\*\s*$/m;
 
-test('deploy/Caddyfile manda CORS em /plugins/* no site', () => {
+test('deploy/Caddyfile manda CORS em /plugins/* dentro do bloco do site', () => {
   const texto = readFileSync(new URL('../deploy/Caddyfile', import.meta.url), 'utf8');
-  const m = texto.match(/^\s*header\s+\/plugins\/\*\s+Access-Control-Allow-Origin\s+\*\s*$/m);
-  assert.ok(m, 'faltou "header /plugins/* Access-Control-Allow-Origin *"');
-  assert.ok(texto.indexOf(m[0]) > texto.indexOf('salinha.bhrx.com.br {'));
+  // do "salinha.bhrx.com.br {" até o primeiro "}" na coluna 0 (tolera CRLF)
+  const bloco = texto.replace(/\r\n/g, '\n').match(/^salinha\.bhrx\.com\.br \{\n[\s\S]*?\n\}/m);
+  assert.ok(bloco, 'faltou o bloco salinha.bhrx.com.br { ... }');
+  assert.match(bloco[0], /^\s*header\s+\/plugins\/\*\s+Access-Control-Allow-Origin\s+\*\s*$/m);
 });
 
 test('deploy/Caddyfile.modelo traz o mesmo cabeçalho (comentado)', () => {

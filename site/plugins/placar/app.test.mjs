@@ -125,7 +125,7 @@ test('o tick de 1 s repinta o rodapé sem pedir nada nem tocar no anúncio', asy
   s.api.stop();
 });
 
-test('Review Focus 4: 1ª carga falha mostra só o aviso; o ciclo seguinte o remove', async () => {
+test('1ª carga falha mostra só o aviso; o ciclo seguinte o remove', async () => {
   let quebrar = true;
   const s = setup({ falhar: () => quebrar });
   await flush();

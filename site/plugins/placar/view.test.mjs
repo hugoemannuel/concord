@@ -27,7 +27,7 @@ function nos(lista) {
 }
 const textos = (lista) => nos(lista).map((n) => n.text).filter((t) => typeof t === 'string');
 
-test('estado A: selo, placar, gol de pênalti e aria-live', () => {
+test('estado A: selo, placar, gol de pênalti e sem aria-live nos cartões', () => {
   const live = match('1', 'live', {
     minute: "67'", leagueSlug: 'bra.copa_do_brazil', stage: 'Semifinal', leg: 'volta',
     aggregate: { home: 3, away: 2 },
@@ -89,8 +89,8 @@ test('estado B: sem jogo, próximo e último', () => {
   assert.ok(t.includes('Nenhuma partida em andamento.'));
   assert.ok(t.includes('Próximo: x Grêmio (casa) · sáb 18:30 · Brasileirão'));
   assert.ok(t.includes('Próximo: x Botafogo (fora) · sáb 18:30 · Brasileirão'));
-  assert.ok(t.includes('Último: 2 × 0 Vasco'));
-  assert.ok(t.includes('Último: 1 × 1 Bahia (pên. 4 × 3)'));
+  assert.ok(t.includes('Último: 2 × 0 Vasco · '));
+  assert.ok(t.includes('Último: 1 × 1 Bahia (pên. 4 × 3) · '));
   assert.deepEqual(t.filter((x) => ['V', 'E', 'D'].includes(x)), ['V', 'V']);
   assert.ok(t.includes('Atualizado há 20 s · dados ESPN'));
 });
@@ -120,6 +120,25 @@ test('logo null não gera img; logo fora da ESPN também não', () => {
   const imgs = nos(describe(buildScreen([galo([], [ok])], new Map(), NOW), ctx)).filter((n) => n.tag === 'img');
   assert.equal(imgs.length, 1);
   assert.equal(imgs[0].attrs.alt, 'Atlético-MG');
+});
+
+test('logo de host parecido com o da ESPN não vira img', () => {
+  const live = match('1', 'live', {
+    home: side('7632', 'Atlético-MG', 0, 'https://a.espncdn.com.evil.com/x.png'),
+  });
+  const arvore = describe(buildScreen([galo([], [live])], new Map(), NOW), ctx);
+  assert.equal(nos(arvore).filter((n) => n.tag === 'img').length, 0);
+});
+
+test('o ponto do selo é decorativo: o CSS dá texto alternativo vazio', () => {
+  assert.match(ler('placar.css'), /\.selo::before\s*\{\s*content:\s*'●'\s*\/\s*'';/);
+});
+
+test('"Último" traz o separador antes da letra, que fica num span próprio', () => {
+  const ult = match('5', 'finished', { home: side('2022', 'Cruzeiro', 2), away: side('8', 'Vasco', 0) });
+  const t = textos(describe(buildScreen([cruz([ult], [])], new Map(), NOW), ctx));
+  assert.ok(t.includes('Último: 2 × 0 Vasco · '));
+  assert.ok(t.includes('V'));
 });
 
 function fakeDoc() {

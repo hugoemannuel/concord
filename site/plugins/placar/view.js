@@ -97,7 +97,7 @@ function lastRow(match, teamId) {
     ? ` (pên. ${pair(match.shootout.home, match.shootout.away)})`
     : match.shootout ? ` (pên. ${pair(match.shootout.away, match.shootout.home)})` : '';
   const letra = result(match, teamId);
-  const texto = `Último: ${pair(meu.score, outro.score)} ${outro.name}${pen}`;
+  const texto = `Último: ${pair(meu.score, outro.score)} ${outro.name}${pen} · `;
   return div('mini', [
     ...logo(meu, 'logo-mini'), span('linha', texto), span(`res res-${letra}`, letra),
   ]);

@@ -96,6 +96,7 @@ export function stageLabel(match) {
 }
 
 export function whenLabel(iso) {
+  if (Number.isNaN(new Date(iso).getTime())) return '';
   const partes = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).formatToParts(new Date(iso));

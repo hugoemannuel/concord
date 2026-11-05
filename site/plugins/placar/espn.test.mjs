@@ -151,6 +151,19 @@ test('Review Focus 2: evento sem competidores não lança', () => {
   assert.deepEqual(normalizeEvent({}).goals, []);
 });
 
+test('o Mineiro real da agenda (Regular Season) não tem fase', () => {
+  const ev = fx('schedule-7632').events.find((e) => e.seasonType.name === 'Regular Season');
+  assert.ok(ev, 'o fixture precisa ter um evento Regular Season');
+  assert.equal(normalizeEvent(ev).stage, null);
+});
+
+test('logo de host parecido com o da ESPN é descartado', () => {
+  const sb = fx('scoreboard-encerrado');
+  const ev = clone(sb.events[0]);
+  ev.competitions[0].competitors[0].team.logo = 'https://a.espncdn.com.evil.com/x.png';
+  assert.equal(normalizeEvent(ev, sb.leagues[0]).home.logo, null);
+});
+
 test('status adiado e cancelado', () => {
   const ev = clone(primeiro('fixture-7632'));
   ev.competitions[0].status.type = { name: 'STATUS_POSTPONED', state: 'post' };
@@ -159,7 +172,7 @@ test('status adiado e cancelado', () => {
   assert.equal(normalizeEvent(ev).status, 'canceled');
 });
 
-test('traduz fases do inglês e deixa o resto como veio', () => {
+test('traduz fases do inglês e fase desconhecida fica sem texto', () => {
   const ev = clone(primeiro('fixture-7632'));
   const com = (nome) => {
     ev.seasonType = { name: nome };
@@ -169,7 +182,8 @@ test('traduz fases do inglês e deixa o resto como veio', () => {
   assert.equal(com('Round of 16'), 'Oitavas de final');
   assert.equal(com('Group Stage'), 'Fase de grupos');
   assert.equal(com('Fifth Round'), 'Quinta fase');
-  assert.equal(com('Qualifying Whatever'), 'Qualifying Whatever');
+  assert.equal(com('Qualifying Whatever'), null);
+  assert.equal(com('Regular Season'), null);
   assert.equal(com('2026 Brasileiro Serie A '), null);
 });
 

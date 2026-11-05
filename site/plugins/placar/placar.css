@@ -46,7 +46,7 @@ main {
 .topo { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--apagado); margin-bottom: 6px; }
 .campeonato { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .selo { color: var(--vermelho); font-weight: 700; white-space: nowrap; }
-.selo::before { content: '●'; margin-right: 4px; animation: pulso 1.2s infinite; }
+.selo::before { content: '●' / ''; margin-right: 4px; animation: pulso 1.2s infinite; }
 @keyframes pulso { 50% { opacity: 0.3; } }
 
 .confronto { display: flex; align-items: center; justify-content: space-between; gap: 6px; }

@@ -129,7 +129,7 @@ function mapLeg(comp) {
 function translateStage(texto) {
   const t = String(texto || '').trim();
   if (!t || /^\d{4}\b/.test(t)) return null; // "2026 Brasileiro Serie A": pontos corridos, sem fase
-  return STAGES[t.toLowerCase()] || t;
+  return STAGES[t.toLowerCase()] || null; // sem tradução aprovada: melhor sem texto que em inglês
 }
 
 // scoreboard: series.title; agenda: seasonType.name.
