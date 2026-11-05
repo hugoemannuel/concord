@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStickerStore } from './stickerStore'
 import * as stickersApi from '../api/stickers'
+import * as editApi from '../../expressions/api/expressions'
+
+const risada: stickersApi.ServerSticker = {
+  id: 'stk-1',
+  server_id: 'srv-1',
+  uploader_id: 'user-1',
+  uploader_name: 'Ana',
+  name: 'risada',
+  content_type: 'image/webp',
+  size_bytes: 5000,
+  created_at: '2026-11-01T00:00:00Z'
+}
 
 describe('stickerStore', () => {
   beforeEach(() => {
@@ -40,8 +52,34 @@ describe('stickerStore', () => {
     useStickerStore.setState({ stickersByServer: { 'srv-1': [] } })
     vi.spyOn(stickersApi, 'fetchMyStickers').mockRejectedValue(new Error('offline'))
 
-    await useStickerStore.getState().loadMine()
+    await expect(useStickerStore.getState().loadMine()).resolves.toBe(false)
     expect(useStickerStore.getState().stickersByServer).toEqual({ 'srv-1': [] })
+  })
+
+  it('loadMine diz se carregou', async () => {
+    vi.spyOn(stickersApi, 'fetchMyStickers').mockResolvedValue([])
+    await expect(useStickerStore.getState().loadMine()).resolves.toBe(true)
+  })
+
+  it('renameSticker troca o nome na lista do servidor', async () => {
+    useStickerStore.setState({ stickersByServer: { 'srv-1': [risada] } })
+    const renamed = { ...risada, name: 'gargalhada' }
+    const update = vi.spyOn(editApi, 'updateServerSticker').mockResolvedValue(renamed)
+    await expect(useStickerStore.getState().renameSticker('srv-1', 'stk-1', 'gargalhada')).resolves.toEqual(renamed)
+    expect(update).toHaveBeenCalledWith('srv-1', 'stk-1', 'gargalhada')
+    expect(useStickerStore.getState().stickersByServer['srv-1']).toEqual([renamed])
+  })
+
+  it('sticker:updated troca a figurinha; sem dados, não trata', () => {
+    useStickerStore.setState({ stickersByServer: { 'srv-1': [risada] } })
+    const { handleWsEvent } = useStickerStore.getState()
+    const renamed = { ...risada, name: 'kkk' }
+    expect(handleWsEvent({ type: 'sticker:updated', payload: { server_id: 'srv-1', sticker: renamed } })).toBe(true)
+    expect(useStickerStore.getState().stickersByServer['srv-1']).toEqual([renamed])
+    expect(handleWsEvent({ type: 'sticker:updated', payload: { server_id: 'srv-1' } })).toBe(false)
+    expect(handleWsEvent({ type: 'sticker:created', payload: {} })).toBe(false)
+    expect(handleWsEvent({ type: 'sticker:deleted', payload: { server_id: 'srv-1' } })).toBe(false)
+    expect(handleWsEvent({ type: 'outra:coisa', payload: {} })).toBe(false)
   })
 
   it('adiciona figurinha no upload', async () => {

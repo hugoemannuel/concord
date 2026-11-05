@@ -110,6 +110,25 @@ describe('frase de cada registro', () => {
   })
 })
 
+describe('edição de emojis, figurinhas e sons', () => {
+  it('cada edição tem frase própria, tom de mudança e fica no grupo das expressões', () => {
+    expect(text({ action: 'emoji.update', target_type: 'emoji', target_name: 'festa' })).toBe(
+      '@Fulano editou o emoji festa'
+    )
+    expect(text({ action: 'sticker.update', target_type: 'sticker', target_name: 'risada' })).toBe(
+      '@Fulano editou a figurinha risada'
+    )
+    expect(text({ action: 'sound.update', target_type: 'sound', target_name: 'Corneta' })).toBe(
+      '@Fulano editou o som Corneta'
+    )
+    expect(actionInfo('emoji.update')).toMatchObject({ label: 'Emoji editado', tone: 'update' })
+    expect(actionInfo('sticker.update').label).toBe('Figurinha editada')
+    expect(actionInfo('sound.update').label).toBe('Som editado')
+    const group = ACTION_GROUPS.find((g) => g.label === 'Emojis, figurinhas e sons')
+    expect(group?.actions).toEqual(expect.arrayContaining(['emoji.update', 'sticker.update', 'sound.update']))
+  })
+})
+
 describe('catálogo de ações', () => {
   it('toda ação tem frase, rótulo, grupo e tom, e está em um grupo do filtro', () => {
     const grouped = ACTION_GROUPS.flatMap((g) => g.actions)

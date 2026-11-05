@@ -102,10 +102,13 @@ const ACTIONS: Record<AuditAction, ActionInfo> = {
   'message.pin': { label: 'Mensagem fixada', tone: 'create', sentence: '{a} fixou uma mensagem de {t} em {c}' },
   'message.unpin': { label: 'Mensagem desafixada', tone: 'delete', sentence: '{a} desafixou uma mensagem de {t} em {c}' },
   'emoji.create': { label: 'Emoji adicionado', tone: 'create', sentence: '{a} adicionou o emoji {t}' },
+  'emoji.update': { label: 'Emoji editado', tone: 'update', sentence: '{a} editou o emoji {t}' },
   'emoji.delete': { label: 'Emoji removido', tone: 'delete', sentence: '{a} removeu o emoji {t}' },
   'sticker.create': { label: 'Figurinha adicionada', tone: 'create', sentence: '{a} adicionou a figurinha {t}' },
+  'sticker.update': { label: 'Figurinha editada', tone: 'update', sentence: '{a} editou a figurinha {t}' },
   'sticker.delete': { label: 'Figurinha removida', tone: 'delete', sentence: '{a} removeu a figurinha {t}' },
   'sound.create': { label: 'Som adicionado', tone: 'create', sentence: '{a} adicionou o som {t}' },
+  'sound.update': { label: 'Som editado', tone: 'update', sentence: '{a} editou o som {t}' },
   'sound.delete': { label: 'Som removido', tone: 'delete', sentence: '{a} removeu o som {t}' },
   'event.create': { label: 'Evento criado', tone: 'create', sentence: '{a} criou o evento {t}' },
   'event.update': { label: 'Evento editado', tone: 'update', sentence: '{a} editou o evento {t}' },
@@ -155,7 +158,17 @@ export const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
   { label: 'Mensagens', actions: ['message.delete', 'message.pin', 'message.unpin'] },
   {
     label: 'Emojis, figurinhas e sons',
-    actions: ['emoji.create', 'emoji.delete', 'sticker.create', 'sticker.delete', 'sound.create', 'sound.delete']
+    actions: [
+      'emoji.create',
+      'emoji.update',
+      'emoji.delete',
+      'sticker.create',
+      'sticker.update',
+      'sticker.delete',
+      'sound.create',
+      'sound.update',
+      'sound.delete'
+    ]
   },
   { label: 'Eventos', actions: ['event.create', 'event.update', 'event.delete', 'event.access'] }
 ]

@@ -23,6 +23,7 @@ var nameRe = regexp.MustCompile(`^[A-Za-z0-9_]{2,32}$`)
 var (
 	ErrEmojiNotFound     = errors.New("emoji not found")
 	ErrNotServerMember   = errors.New("you are not a member of this server")
+	ErrCannotEditEmoji   = errors.New("Só quem enviou ou quem gerencia expressões pode editar este emoji.")
 	ErrCannotDeleteEmoji = errors.New("only the uploader, moderators or server owner can delete this emoji")
 	ErrInvalidName       = errors.New("O nome precisa ter de 2 a 32 letras, números ou _.")
 	ErrNameTaken         = errors.New("Já existe um emoji com esse nome neste servidor.")
@@ -55,6 +56,11 @@ type ServerEmojis struct {
 }
 
 type CreatedEvent struct {
+	ServerID string `json:"server_id"`
+	Emoji    Emoji  `json:"emoji"`
+}
+
+type UpdatedEvent struct {
 	ServerID string `json:"server_id"`
 	Emoji    Emoji  `json:"emoji"`
 }

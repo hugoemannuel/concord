@@ -11,10 +11,18 @@ const ids = (perms: number): string[] => visibleServerSections(perms).map((s) =>
 const ownerIds = (perms: number): string[] => visibleServerSections(perms, true).map((s) => s.id)
 
 describe('seções das configurações do servidor', () => {
-  it('membro comum não vê nenhuma (liga os plugins pela barra do canal)', () => {
-    expect(ids(DEFAULT_EVERYONE)).toEqual([])
-    expect(canOpenServerSettings(DEFAULT_EVERYONE)).toBe(false)
+  it('membro comum só vê emojis, figurinhas e sons (liga os plugins pela barra do canal)', () => {
+    expect(ids(DEFAULT_EVERYONE)).toEqual(['emojis', 'stickers', 'sounds'])
+    expect(canOpenServerSettings(DEFAULT_EVERYONE)).toBe(true)
     expect(canOpenServerSettings(0)).toBe(false)
+  })
+
+  it('cada expressão abre com a permissão de adicionar ou com Gerenciar expressões', () => {
+    expect(ids(Perm.ADD_EMOJIS)).toEqual(['emojis'])
+    expect(ids(Perm.ADD_STICKERS)).toEqual(['stickers'])
+    expect(ids(Perm.ADD_SOUNDS)).toEqual(['sounds'])
+    expect(ids(Perm.MANAGE_EXPRESSIONS)).toEqual(['emojis', 'stickers', 'sounds'])
+    expect(serverSectionLabel(visibleServerSections(Perm.MANAGE_EXPRESSIONS), 'stickers')).toBe('Figurinhas')
   })
 
   it('com Gerenciar servidor, Plugins vem antes de Nível', () => {
@@ -22,7 +30,7 @@ describe('seções das configurações do servidor', () => {
   })
 
   it('o dono e o administrador veem todas', () => {
-    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'roles', 'members', 'bans', 'audit', 'plugins', 'level'])
+    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'emojis', 'stickers', 'sounds', 'roles', 'members', 'bans', 'audit', 'plugins', 'level'])
   })
 
   it('cada permissão abre só o que usa', () => {
@@ -41,7 +49,7 @@ describe('seções das configurações do servidor', () => {
 
   it('o moderador padrão (editar servidor + expulsar) vê o perfil e membros', () => {
     const mod = DEFAULT_EVERYONE | Perm.MANAGE_SERVER | Perm.MANAGE_CHANNELS | Perm.KICK_MEMBERS
-    expect(ids(mod)).toEqual(['overview', 'tag', 'look', 'members', 'plugins', 'level'])
+    expect(ids(mod)).toEqual(['overview', 'tag', 'look', 'emojis', 'stickers', 'sounds', 'members', 'plugins', 'level'])
     expect(canOpenServerSettings(mod)).toBe(true)
   })
 
@@ -70,7 +78,7 @@ describe('serverSectionLabel', () => {
 
   it('Eventos é do dono e de quem recebeu a configuração: o administrador não vê, e entra antes de Nível', () => {
     expect(ids(ALL_PERMISSIONS)).not.toContain('events')
-    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'roles', 'members', 'bans', 'audit', 'events', 'plugins', 'level'])
+    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'emojis', 'stickers', 'sounds', 'roles', 'members', 'bans', 'audit', 'events', 'plugins', 'level'])
   })
 
   it('pedir Eventos sem ser o dono cai na primeira seção visível', () => {

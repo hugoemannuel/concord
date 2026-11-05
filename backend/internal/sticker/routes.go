@@ -10,6 +10,7 @@ func Routes(router *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFunc)
 		servers.GET("/", h.List)
 		servers.POST("", h.Upload)
 		servers.POST("/", h.Upload)
+		servers.PATCH("/:stickerId", h.Update)
 		servers.DELETE("/:stickerId", h.Delete)
 	}
 

@@ -50,4 +50,18 @@ describe('ServerRail', () => {
     const labels = JSON.stringify(toJSON()).match(/"accessibilityLabel":"(Mensagens diretas|Melhorias|BH RX|Stations)"/g)
     expect(labels?.map((l) => l.split('"')[3])).toEqual(['Mensagens diretas', 'Melhorias', 'BH RX', 'Stations'])
   })
+
+  it('logo abaixo das DMs, quem te mandou mensagem não lida: foto e quantidade', async () => {
+    const onOpenDm = jest.fn()
+    const dms = [{ id: 'c1', title: 'Ana', type: 'dm' as const, avatarUrl: null, unread: 3 }]
+    const { toJSON } = await render(
+      <ServerRail servers={servers} selectedId="s1" onSelect={() => {}} unreadDms={dms} onOpenDm={onOpenDm} />
+    )
+    const dm = screen.getByRole('button', { name: 'Ana, 3 mensagens não lidas' })
+    expect(screen.getByLabelText('3 mensagens não lidas')).toBeOnTheScreen()
+    const labels = JSON.stringify(toJSON()).match(/"accessibilityLabel":"(Mensagens diretas|Ana, 3 mensagens não lidas|BH RX)"/g)
+    expect(labels?.map((l) => l.split('"')[3])).toEqual(['Mensagens diretas', 'Ana, 3 mensagens não lidas', 'BH RX'])
+    await fireEvent.press(dm)
+    expect(onOpenDm).toHaveBeenCalledWith(dms[0])
+  })
 })

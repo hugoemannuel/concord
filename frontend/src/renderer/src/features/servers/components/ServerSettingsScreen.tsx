@@ -26,11 +26,17 @@ import EventsSettingsSection from '../../events/components/EventsSettingsSection
 import AuditLogSection from '../../auditlog/components/AuditLogSection'
 import PluginsSettingsSection from '../../plugins/components/PluginsSettingsSection'
 import { useEventAccess } from '../../events/hooks/useEventAccess'
+import EmojisSection from '../../expressions/components/EmojisSection'
+import StickersSection from '../../expressions/components/StickersSection'
+import SoundsSection from '../../expressions/components/SoundsSection'
 
 const SECTION_VIEW = {
   overview: ProfileSection,
   tag: TagSection,
   look: LookSection,
+  emojis: EmojisSection,
+  stickers: StickersSection,
+  sounds: SoundsSection,
   level: ServerLevelSection,
   roles: RolesSection,
   members: MembersSection,
@@ -42,7 +48,7 @@ const SECTION_VIEW = {
 
 /**
  * Configurações do servidor em tela cheia, como as de usuário: perfil, tag,
- * faixa e fundo, nível, cargos, membros, banimentos e registro de auditoria. Cada seção só aparece para quem tem a
+ * faixa e fundo, emojis, figurinhas e sons, nível, cargos, membros, banimentos e registro de auditoria. Cada seção só aparece para quem tem a
  * permissão (o servidor confere de novo a cada ação).
  */
 function ServerSettingsScreen(): React.JSX.Element | null {

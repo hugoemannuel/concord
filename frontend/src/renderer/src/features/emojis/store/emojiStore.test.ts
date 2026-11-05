@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/emojis'
+import * as editApi from '../../expressions/api/expressions'
 import { EMOTE_CATEGORIES } from '../../chat/lib/emotes'
 import { resetEmojiStore, useEmojiStore } from './emojiStore'
 
@@ -98,6 +99,30 @@ describe('emojiStore', () => {
     expect(useEmojiStore.getState().groups[0].emojis).toHaveLength(2)
     handleWsEvent({ type: 'emoji:deleted', payload: { server_id: 's1', emoji_id: 'e1' } })
     expect(Object.keys(useEmojiStore.getState().byId)).toEqual(['e2'])
+  })
+
+  it('rename troca o nome no grupo e no índice', async () => {
+    vi.spyOn(api, 'fetchMyEmojis').mockResolvedValue(groups)
+    await useEmojiStore.getState().ensureLoaded()
+    const renamed = { ...festa, name: 'festao' }
+    const update = vi.spyOn(editApi, 'updateServerEmoji').mockResolvedValue(renamed)
+    await expect(useEmojiStore.getState().rename('s1', 'e1', 'festao')).resolves.toEqual(renamed)
+    expect(update).toHaveBeenCalledWith('s1', 'e1', 'festao')
+    expect(useEmojiStore.getState().byId.e1.name).toBe('festao')
+    expect(useEmojiStore.getState().groups[0].emojis).toEqual([renamed])
+  })
+
+  it('emoji:updated troca o emoji; de um que não está na lista, nada muda', async () => {
+    vi.spyOn(api, 'fetchMyEmojis').mockResolvedValue(groups)
+    await useEmojiStore.getState().ensureLoaded()
+    const { handleWsEvent } = useEmojiStore.getState()
+    expect(handleWsEvent({ type: 'emoji:updated', payload: { server_id: 's1', emoji: { ...festa, name: 'novo' } } })).toBe(
+      true
+    )
+    expect(useEmojiStore.getState().byId.e1.name).toBe('novo')
+    const before = useEmojiStore.getState().groups
+    handleWsEvent({ type: 'emoji:updated', payload: { server_id: 's1', emoji: { ...festa, id: 'e9' } } })
+    expect(useEmojiStore.getState().groups).toBe(before)
   })
 
   it('emoji de servidor que ainda não tinha grupo recarrega a lista', async () => {

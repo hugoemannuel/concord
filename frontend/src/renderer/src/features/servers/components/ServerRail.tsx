@@ -8,6 +8,7 @@ import { isHomePath } from '../lib/railHome'
 import { HUB_PATH, isHubPath } from '../../improvements/lib/hub'
 import { RailHomeButton, RailNavButton } from './ServerRailButtons'
 import ServerRailList from './ServerRailList'
+import RailDms from './RailDms'
 import GuestVisitsRail from '../../guests/components/GuestVisitsRail'
 import CreateServerModal from './CreateServerModal'
 
@@ -36,6 +37,9 @@ function ServerRail(): React.JSX.Element {
           unread={dmUnread}
           onClick={clearCurrentServer}
         />
+
+        {/* Quem te mandou mensagem no privado e ainda não foi lida */}
+        <RailDms onOpen={clearCurrentServer} />
 
         <div className="my-1 h-0.5 w-8 rounded-full bg-fg/10" />
 

@@ -23,6 +23,7 @@ var (
 	ErrServerFull          = errors.New("server sticker limit reached")
 	ErrInvalidName         = errors.New("sticker name is required (max 32 characters)")
 	ErrNotServerMember     = errors.New("you are not a member of this server")
+	ErrCannotEditSticker   = errors.New("Só quem enviou ou quem gerencia expressões pode editar esta figurinha.")
 	ErrCannotDeleteSticker = errors.New("only the uploader, moderators or server owner can delete this sticker")
 	ErrCannotAddSticker    = errors.New("você não tem permissão para adicionar figurinhas neste servidor")
 )
@@ -51,6 +52,11 @@ type ServerStickers struct {
 }
 
 type CreatedEvent struct {
+	ServerID string  `json:"server_id"`
+	Sticker  Sticker `json:"sticker"`
+}
+
+type UpdatedEvent struct {
 	ServerID string  `json:"server_id"`
 	Sticker  Sticker `json:"sticker"`
 }
