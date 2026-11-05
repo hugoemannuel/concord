@@ -24,6 +24,7 @@ const (
 var (
 	ErrInvalidName        = errors.New("nome do plugin deve ter de 1 a 40 caracteres")
 	ErrInvalidDescription = errors.New("descrição do plugin deve ter de 1 a 120 caracteres")
+	ErrInvalidIcon        = errors.New("ícone do plugin fora da lista permitida")
 	ErrInvalidURL         = errors.New("a URL do painel deve usar https e ter até 2048 caracteres")
 	ErrInvalidTransition  = errors.New("transição de status inválida")
 	ErrNotFound           = errors.New("plugin não encontrado")
@@ -31,6 +32,13 @@ var (
 	ErrForbidden          = errors.New("sem permissão para esta ação com o plugin")
 	ErrNoteRequired       = errors.New("retirar um plugin aprovado exige um motivo")
 	ErrInvalidNote        = errors.New("o motivo deve ter até 500 caracteres")
+)
+
+// Ícones permitidos na ficha: lista fixa de SVGs do app (nunca uma URL do autor,
+// que vazaria o IP de quem vê o botão; docs/adr/0056).
+const (
+	IconPuzzle = "quebra-cabeca"
+	IconBall   = "bola"
 )
 
 type Status string
@@ -46,6 +54,7 @@ type Plugin struct {
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
 	PanelURL       string    `json:"panel_url"`
+	Icon           string    `json:"icon"`
 	AuthorID       string    `json:"author_id"`
 	AuthorUsername string    `json:"author_username"`
 	Status         Status    `json:"status"`
@@ -66,6 +75,7 @@ type Draft struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	PanelURL    string `json:"panel_url"`
+	Icon        string `json:"icon"` // vazio = padrão (quebra-cabeça)
 }
 
 var transitions = map[Status][]Status{
@@ -112,7 +122,22 @@ func ValidateDraft(d Draft) (Draft, error) {
 		return Draft{}, err
 	}
 	d.PanelURL = panel
+	icon, err := normalizeIcon(d.Icon)
+	if err != nil {
+		return Draft{}, err
+	}
+	d.Icon = icon
 	return d, nil
+}
+
+func normalizeIcon(icon string) (string, error) {
+	switch icon {
+	case "":
+		return IconPuzzle, nil
+	case IconPuzzle, IconBall:
+		return icon, nil
+	}
+	return "", ErrInvalidIcon
 }
 
 func runesBetween(s string, max int) bool {

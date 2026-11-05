@@ -42,13 +42,13 @@ func TestValidateDraftNameAndDescription(t *testing.T) {
 		erro      error
 		nomeSaida string
 	}{
-		{"nome com espacos", Draft{"  Placar  ", "d", "https://x.com"}, nil, "Placar"},
-		{"nome vazio", Draft{"  ", "d", "https://x.com"}, ErrInvalidName, ""},
-		{"nome 41 runas", Draft{strings.Repeat("é", 41), "d", "https://x.com"}, ErrInvalidName, ""},
-		{"nome 40 runas", Draft{strings.Repeat("é", 40), "d", "https://x.com"}, nil, strings.Repeat("é", 40)},
-		{"descricao 121 runas", Draft{"P", strings.Repeat("é", 121), "https://x.com"}, ErrInvalidDescription, ""},
-		{"descricao 120 runas", Draft{"P", strings.Repeat("é", 120), "https://x.com"}, nil, "P"},
-		{"descricao vazia", Draft{"P", " ", "https://x.com"}, ErrInvalidDescription, ""},
+		{"nome com espacos", Draft{"  Placar  ", "d", "https://x.com", ""}, nil, "Placar"},
+		{"nome vazio", Draft{"  ", "d", "https://x.com", ""}, ErrInvalidName, ""},
+		{"nome 41 runas", Draft{strings.Repeat("é", 41), "d", "https://x.com", ""}, ErrInvalidName, ""},
+		{"nome 40 runas", Draft{strings.Repeat("é", 40), "d", "https://x.com", ""}, nil, strings.Repeat("é", 40)},
+		{"descricao 121 runas", Draft{"P", strings.Repeat("é", 121), "https://x.com", ""}, ErrInvalidDescription, ""},
+		{"descricao 120 runas", Draft{"P", strings.Repeat("é", 120), "https://x.com", ""}, nil, "P"},
+		{"descricao vazia", Draft{"P", " ", "https://x.com", ""}, ErrInvalidDescription, ""},
 	}
 	for _, c := range casos {
 		t.Run(c.nome, func(t *testing.T) {
@@ -81,5 +81,31 @@ func TestCanTransition(t *testing.T) {
 		if got := CanTransition(c.de, c.para); got != c.ok {
 			t.Errorf("%s->%s = %v, esperado %v", c.de, c.para, got, c.ok)
 		}
+	}
+}
+
+func TestValidateDraftIcon(t *testing.T) {
+	casos := []struct {
+		nome  string
+		icon  string
+		saida string
+		erro  error
+	}{
+		{"vazio vira o padrao", "", IconPuzzle, nil},
+		{"quebra-cabeca", "quebra-cabeca", IconPuzzle, nil},
+		{"bola", "bola", IconBall, nil},
+		{"desconhecido", "xyz", "", ErrInvalidIcon},
+		{"url externa", "https://x.com/i.png", "", ErrInvalidIcon},
+	}
+	for _, c := range casos {
+		t.Run(c.nome, func(t *testing.T) {
+			got, err := ValidateDraft(Draft{Name: "P", Description: "d", PanelURL: "https://x.com", Icon: c.icon})
+			if !errors.Is(err, c.erro) {
+				t.Fatalf("erro = %v, esperado %v", err, c.erro)
+			}
+			if c.erro == nil && got.Icon != c.saida {
+				t.Fatalf("icon = %q, esperado %q", got.Icon, c.saida)
+			}
+		})
 	}
 }

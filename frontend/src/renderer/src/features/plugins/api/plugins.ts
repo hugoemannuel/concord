@@ -2,11 +2,14 @@ import { request } from '../../../shared/api/client'
 
 export type PluginStatus = 'pending' | 'approved' | 'rejected'
 
+export type PluginIconName = 'quebra-cabeca' | 'bola'
+
 export interface Plugin {
   id: string
   name: string
   description: string
   panel_url: string
+  icon: PluginIconName
   author_username: string
   status: PluginStatus
 }

@@ -5,6 +5,7 @@ CREATE TABLE plugins (
     name TEXT NOT NULL,
     description TEXT NOT NULL,
     panel_url TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT 'quebra-cabeca' CHECK (icon IN ('quebra-cabeca', 'bola')),
     author_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     review_note TEXT,

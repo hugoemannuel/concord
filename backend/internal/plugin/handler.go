@@ -105,6 +105,7 @@ var errCodes = []struct {
 	{ErrInvalidName, http.StatusBadRequest, "invalid_name"},
 	{ErrInvalidDescription, http.StatusBadRequest, "invalid_description"},
 	{ErrInvalidURL, http.StatusBadRequest, "invalid_url"},
+	{ErrInvalidIcon, http.StatusBadRequest, "invalid_icon"},
 	{ErrInvalidTransition, http.StatusBadRequest, "invalid_transition"},
 	{ErrNotApproved, http.StatusBadRequest, "not_approved"},
 	{ErrNotFound, http.StatusNotFound, "not_found"},

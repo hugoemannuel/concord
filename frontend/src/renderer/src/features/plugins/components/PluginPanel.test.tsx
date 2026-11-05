@@ -8,6 +8,7 @@ const plugin: ServerPlugin = {
   name: 'Placar',
   description: 'd',
   panel_url: 'https://placar.test/painel',
+  icon: 'quebra-cabeca',
   author_username: 'mugis',
   status: 'approved',
   enabled: true

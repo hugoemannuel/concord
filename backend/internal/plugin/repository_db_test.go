@@ -245,3 +245,33 @@ func TestRepositoryServersWith(t *testing.T) {
 		t.Fatalf("ids=%v err=%v", ids, err)
 	}
 }
+
+func TestIconRoundTrip(t *testing.T) {
+	p := newPluginDB(t)
+	author := p.user(t)
+	srv := p.server(t, author)
+	p.member(t, srv, author)
+
+	padrao := p.plugin(t, author, "Padrao", true)
+	if padrao.Icon != IconPuzzle {
+		t.Fatalf("icon padrão = %q", padrao.Icon)
+	}
+	bola, err := p.repo.Create(p.ctx, author, Draft{Name: "Bola", Description: "d", PanelURL: "https://ex.com/b", Icon: IconBall})
+	if err != nil || bola.Icon != IconBall {
+		t.Fatalf("create: %v %q", err, bola.Icon)
+	}
+	t.Cleanup(func() { _, _ = p.db.Exec(p.ctx, `DELETE FROM plugins WHERE id = $1`, bola.ID) })
+	if bola, err = p.repo.SetReview(p.ctx, bola.ID, StatusApproved, nil, author); err != nil || bola.Icon != IconBall {
+		t.Fatalf("review: %v %q", err, bola.Icon)
+	}
+	if err := p.repo.Install(p.ctx, srv, bola.ID, author); err != nil {
+		t.Fatal(err)
+	}
+	got, err := p.repo.ListServer(p.ctx, srv, author)
+	if err != nil || len(got) != 1 || got[0].Icon != IconBall {
+		t.Fatalf("list server: %v %+v", err, got)
+	}
+	if one, err := p.repo.Get(p.ctx, bola.ID); err != nil || one.Icon != IconBall {
+		t.Fatalf("get: %v %q", err, one.Icon)
+	}
+}

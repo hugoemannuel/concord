@@ -68,3 +68,20 @@ export function PuzzleIcon(props: IconProps): React.JSX.Element {
     </Icon>
   )
 }
+
+/** Bola de futebol: plugin do placar ao vivo. */
+export function SoccerBallIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path fillRule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17z" />
+      <path d="M12 8.6l3.23 2.35-1.23 3.8h-4l-1.23-3.8z" />
+      <path
+        d="M12 8.6V3M15.23 10.95l5.33-1.73M14 14.75l3.29 4.53M10 14.75l-3.29 4.53M8.77 10.95L3.44 9.22"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+    </Icon>
+  )
+}

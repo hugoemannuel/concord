@@ -16,6 +16,7 @@ const p = (id: string, enabled = true): ServerPlugin => ({
   name: `Plugin ${id}`,
   description: 'd',
   panel_url: 'https://x.test',
+  icon: 'quebra-cabeca',
   author_username: 'mugis',
   status: 'approved',
   enabled
@@ -54,6 +55,19 @@ describe('PluginHeaderButtons', () => {
     expect(html).toContain('aria-label="Plugin a"')
     expect(html).toContain('aria-label="Plugin b"')
     expect(html).toContain('aria-expanded="false"')
+  })
+
+  it('usa o ícone da ficha: bola no placar, quebra-cabeça nos outros', () => {
+    const bola = { ...p('a'), icon: 'bola' as const }
+    expect(setup([bola])).toContain('stroke="currentColor"')
+    expect(setup([p('a')])).not.toContain('stroke="currentColor"')
+    const dois = setup([bola, p('b')])
+    expect(dois.match(/stroke="currentColor"/g)).toHaveLength(1)
+  })
+
+  it('o botão agrupado "Plugins" mantém o quebra-cabeça', () => {
+    const bola = { ...p('a'), icon: 'bola' as const }
+    expect(setup([bola, p('b'), p('c')])).not.toContain('stroke="currentColor"')
   })
 
   it('3 ligados: um botão Plugins só', () => {

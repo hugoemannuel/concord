@@ -16,6 +16,7 @@ const plugin = (id: string, enabled: boolean) => ({
   name: id,
   description: '',
   panel_url: 'https://x.test',
+  icon: 'quebra-cabeca' as const,
   author_username: 'a',
   status: 'approved' as const,
   enabled

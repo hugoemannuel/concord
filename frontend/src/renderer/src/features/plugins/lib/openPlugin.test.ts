@@ -7,6 +7,7 @@ const p = (id: string, enabled = true): ServerPlugin => ({
   name: id,
   description: 'd',
   panel_url: 'https://x.test',
+  icon: 'quebra-cabeca',
   author_username: 'mugis',
   status: 'approved',
   enabled

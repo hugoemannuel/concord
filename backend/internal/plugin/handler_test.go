@@ -131,3 +131,16 @@ func TestHandlerReviewNoteTooLong(t *testing.T) {
 	w := do(newRouterAs(st, nil, "tech"), "PATCH", "/plugins/22222222-2222-4222-8222-222222222222/review", body)
 	wantError(t, w, 400, "invalid_note")
 }
+
+func TestHandlerCreateWithIcon(t *testing.T) {
+	st := &fakeStore{plugin: Plugin{Status: StatusPending, Icon: "bola"}}
+	w := do(newRouter(st, nil), "POST", "/plugins", `{"name":"Placar ao vivo","description":"Jogos do Galo","panel_url":"https://example.com/","icon":"bola"}`)
+	if w.Code != 201 || st.draft.Icon != "bola" || !strings.Contains(w.Body.String(), `"icon":"bola"`) {
+		t.Fatalf("%d %s draft=%+v", w.Code, w.Body, st.draft)
+	}
+}
+
+func TestHandlerCreateInvalidIcon(t *testing.T) {
+	w := do(newRouter(&fakeStore{}, nil), "POST", "/plugins", `{"name":"Placar","description":"Jogos","panel_url":"https://example.com/","icon":"xyz"}`)
+	wantError(t, w, 400, "invalid_icon")
+}

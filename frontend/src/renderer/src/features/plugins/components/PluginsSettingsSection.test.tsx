@@ -24,6 +24,7 @@ const plugin = (id: string, status: PluginStatus = 'approved'): Plugin => ({
   name: `Plugin ${id}`,
   description: `desc ${id}`,
   panel_url: 'https://x.test',
+  icon: 'quebra-cabeca',
   author_username: 'mugis',
   status
 })

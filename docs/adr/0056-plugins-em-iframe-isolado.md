@@ -50,6 +50,7 @@ painel; trocar para a opção 3 no futuro muda quem serve a URL, não a ficha.
 ## Consequências
 
 - `frame-src https:` na CSP do desktop e da web.
+- O ícone da ficha vem de uma lista fixa de SVGs da Salinha (`quebra-cabeca`, `bola`); não há URL externa de ícone, que vazaria o IP de quem vê o botão.
 - O main do Electron não muda: o `sandbox` impede o plugin de navegar a janela, e
   os popups dele caem no `setWindowOpenHandler` atual (http/https no navegador de
   fora; link de convite só abre a confirmação). A navegação dentro do iframe não é presa à origem: exigiria IPC novo e quebraria

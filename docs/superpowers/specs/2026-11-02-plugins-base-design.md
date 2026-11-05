@@ -33,6 +33,7 @@ O projeto tem três specs, nesta ordem:
 | Cada membro liga o plugin para si, por servidor. **Tudo vem desligado.** A escolha fica salva no backend e vale em qualquer dispositivo | "Sem mudar a experiência de quem não usa" |
 | A loja é por instalação da Salinha: cada servidor próprio tem o próprio catálogo e o próprio time | Cada instalação tem o próprio banco. Uma loja compartilhada entre instalações seria outro projeto |
 | O painel não recebe nada da Salinha (nem usuário, nem canal, nem tema) | O placar não precisa disso, e assim não há o que vazar. Um SDK por `postMessage` fica para quando houver necessidade |
+| O ícone do botão vem da ficha, de uma lista fixa de SVGs da Salinha (`quebra-cabeca` padrão, `bola`); só o "Placar ao vivo" oficial usa `bola`. Nunca URL de imagem do autor | Carregar imagem do servidor do autor vazaria o IP de quem vê o botão (ADR 0056) |
 | Um único lugar de aparecer: o botão na barra do canal de texto, ao lado dos pinados | É o que a #480 pede. Outros lugares ficam fora de escopo |
 | Com três ou mais plugins ligados, a barra mostra um botão "Plugins" com um menu | A barra não estoura em 360 px (decisão minha, vista no rascunho) |
 | Ficha retirada pelo time some de todos os servidores na hora, sem desinstalar | O time tem um botão de emergência contra plugin que virou abuso |
@@ -55,7 +56,7 @@ ligado em `backend/cmd/wire_plugins.go`.
 
 **Migration** (próximo número livre em `backend/migrations/`):
 
-- `plugins`: `id` uuid, `name` (1–40), `description` (1–120), `panel_url` (https, obrigatória), `author_id` → users,
+- `plugins`: `id` uuid, `name` (1–40), `description` (1–120), `panel_url` (https, obrigatória), `icon` (`quebra-cabeca` padrão | `bola`, lista fixa de SVGs da Salinha), `author_id` → users,
   `status` (`pending` | `approved` | `rejected`), `review_note` (motivo,
   opcional), `reviewed_by`, `created_at`, `updated_at`.
 - `server_plugins`: `server_id` → servers (cascade), `plugin_id` → plugins

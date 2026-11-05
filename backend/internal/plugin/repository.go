@@ -19,12 +19,12 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 }
 
 // pluginCols lista as colunas de plugins (alias p) mais o nome do autor (alias u).
-const pluginCols = `p.id, p.name, p.description, p.panel_url, p.author_id, u.username,
+const pluginCols = `p.id, p.name, p.description, p.panel_url, p.icon, p.author_id, u.username,
 	p.status, p.review_note, p.reviewed_by::text, p.created_at, p.updated_at`
 
 func scanPlugin(row pgx.Row) (Plugin, error) {
 	var p Plugin
-	err := row.Scan(&p.ID, &p.Name, &p.Description, &p.PanelURL, &p.AuthorID, &p.AuthorUsername,
+	err := row.Scan(&p.ID, &p.Name, &p.Description, &p.PanelURL, &p.Icon, &p.AuthorID, &p.AuthorUsername,
 		&p.Status, &p.ReviewNote, &p.ReviewedBy, &p.CreatedAt, &p.UpdatedAt)
 	return p, err
 }
@@ -44,11 +44,11 @@ func scanOne(row pgx.Row) (Plugin, error) {
 func (r *Repository) Create(ctx context.Context, authorID string, d Draft) (Plugin, error) {
 	return scanOne(r.db.QueryRow(ctx, `
 		WITH p AS (
-			INSERT INTO plugins (name, description, panel_url, author_id)
-			VALUES ($1, $2, $3, $4) RETURNING *
+			INSERT INTO plugins (name, description, panel_url, icon, author_id)
+			VALUES ($1, $2, $3, COALESCE(NULLIF($4, ''), 'quebra-cabeca'), $5) RETURNING *
 		)
 		SELECT `+pluginCols+` FROM p JOIN users u ON u.id = p.author_id`,
-		d.Name, d.Description, d.PanelURL, authorID))
+		d.Name, d.Description, d.PanelURL, d.Icon, authorID))
 }
 
 func (r *Repository) Get(ctx context.Context, id string) (Plugin, error) {
@@ -118,7 +118,7 @@ func (r *Repository) ListServer(ctx context.Context, serverID, userID string) ([
 
 func scanServerPlugin(row pgx.CollectableRow) (ServerPlugin, error) {
 	var s ServerPlugin
-	err := row.Scan(&s.ID, &s.Name, &s.Description, &s.PanelURL, &s.AuthorID, &s.AuthorUsername,
+	err := row.Scan(&s.ID, &s.Name, &s.Description, &s.PanelURL, &s.Icon, &s.AuthorID, &s.AuthorUsername,
 		&s.Status, &s.ReviewNote, &s.ReviewedBy, &s.CreatedAt, &s.UpdatedAt, &s.Enabled)
 	return s, err
 }

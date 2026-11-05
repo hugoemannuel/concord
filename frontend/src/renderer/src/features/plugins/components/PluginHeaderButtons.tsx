@@ -7,6 +7,7 @@ import { attachDismiss, focusOnEscape } from '../lib/dismiss'
 import type { ServerPlugin } from '../api/plugins'
 import IconButton from '../../../shared/ui/IconButton'
 import { PuzzleIcon } from '../../../shared/ui/icons'
+import { pluginIcon } from '../lib/pluginIcon'
 import PluginPanel from './PluginPanel'
 
 const NONE: ServerPlugin[] = []
@@ -106,7 +107,7 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
         enabled.map((p) => (
           <IconButton
             key={p.id}
-            icon={PuzzleIcon}
+            icon={pluginIcon(p.icon)}
             label={p.name}
             variant="filled"
             className="max-md:size-10"
