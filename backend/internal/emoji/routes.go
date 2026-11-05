@@ -7,6 +7,7 @@ func Routes(router *gin.RouterGroup, h *Handler, base *BaseHandler, authMiddlewa
 	servers.Use(authMiddleware)
 	{
 		servers.POST("", h.Upload)
+		servers.PATCH("/:emojiId", h.Update)
 		servers.DELETE("/:emojiId", h.Delete)
 	}
 

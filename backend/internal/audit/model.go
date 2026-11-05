@@ -58,10 +58,13 @@ const (
 	MessageUnpin  Action = "message.unpin"
 
 	EmojiCreate   Action = "emoji.create"
+	EmojiUpdate   Action = "emoji.update"
 	EmojiDelete   Action = "emoji.delete"
 	StickerCreate Action = "sticker.create"
+	StickerUpdate Action = "sticker.update"
 	StickerDelete Action = "sticker.delete"
 	SoundCreate   Action = "sound.create"
+	SoundUpdate   Action = "sound.update"
 	SoundDelete   Action = "sound.delete"
 
 	EventCreate Action = "event.create"
@@ -80,7 +83,7 @@ var Actions = []Action{
 	MemberJoin, MemberLeave, MemberKick, MemberBan, MemberUnban, MemberNickname,
 	VoiceMute, VoiceDeafen, VoiceMove, VoiceDisconnect,
 	MessageDelete, MessagePin, MessageUnpin,
-	EmojiCreate, EmojiDelete, StickerCreate, StickerDelete, SoundCreate, SoundDelete,
+	EmojiCreate, EmojiUpdate, EmojiDelete, StickerCreate, StickerUpdate, StickerDelete, SoundCreate, SoundUpdate, SoundDelete,
 	EventCreate, EventUpdate, EventDelete, EventAccess,
 }
 

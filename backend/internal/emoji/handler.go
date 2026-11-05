@@ -8,13 +8,13 @@ import (
 	"mime"
 	"net/http"
 
-	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/media"
 
 	"github.com/gin-gonic/gin"
 )
 
 type emojiRepo interface {
+	Update(ctx context.Context, serverID, id, name string) (*Emoji, error)
 	Create(ctx context.Context, e *Emoji) error
 	ListForUser(ctx context.Context, userID string) ([]ServerEmojis, error)
 	FindByID(ctx context.Context, id string) (*Emoji, error)
@@ -95,7 +95,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	serverID := c.Param("id")
-	e, status, err := h.deletable(c.Request.Context(), serverID, c.Param("emojiId"), actorID)
+	e, status, err := h.manageable(c.Request.Context(), serverID, c.Param("emojiId"), actorID, ErrCannotDeleteEmoji)
 	if err != nil {
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
@@ -110,28 +110,6 @@ func (h *Handler) Delete(c *gin.Context) {
 	h.broadcast(serverID, "emoji:deleted", DeletedEvent{ServerID: serverID, EmojiID: e.ID})
 	h.record(c.Request.Context(), audit.EmojiDelete, actorID, serverID, e.ID, e.Name)
 	c.JSON(http.StatusOK, gin.H{"message": "emoji deleted"})
-}
-
-// deletable: o emoji do servidor, se quem pede o enviou ou modera expressões.
-func (h *Handler) deletable(ctx context.Context, serverID, emojiID, actorID string) (*Emoji, int, error) {
-	e, err := h.repo.FindByID(ctx, emojiID)
-	if errors.Is(err, ErrEmojiNotFound) || (err == nil && e.ServerID != serverID) {
-		return nil, http.StatusNotFound, ErrEmojiNotFound
-	}
-	if err != nil {
-		return nil, http.StatusInternalServerError, errors.New("failed to load emoji")
-	}
-	if e.UploaderID == actorID {
-		return e, 0, nil
-	}
-	perms, err := h.permissions.ServerPerms(ctx, serverID, actorID)
-	if err != nil {
-		return nil, http.StatusInternalServerError, errors.New("failed to check permissions")
-	}
-	if !permission.Has(perms, permission.ManageExpressions) {
-		return nil, http.StatusForbidden, ErrCannotDeleteEmoji
-	}
-	return e, 0, nil
 }
 
 func deleteErrorStatus(err error) int {
