@@ -191,6 +191,7 @@ func (r *Repository) ListPending(ctx context.Context, userID string) ([]PendingR
 			&r.NameStyle.Font,
 			&r.NameStyle.Effect,
 			&r.NameStyle.Colors,
+			&r.Look,
 			&r.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -357,7 +358,7 @@ func (r *Repository) listUsers(ctx context.Context, query string, args ...any) (
 	users := []user.User{}
 	for rows.Next() {
 		var u user.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.NameStyle.Font, &u.NameStyle.Effect, &u.NameStyle.Colors, &u.StatusText, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.NameStyle.Font, &u.NameStyle.Effect, &u.NameStyle.Colors, &u.StatusText, &u.Look, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)

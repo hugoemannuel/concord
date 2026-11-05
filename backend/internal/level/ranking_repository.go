@@ -43,7 +43,7 @@ func (r *Repository) TopRanking(ctx context.Context, limit int) ([]RankingEntry,
 func scanRankingEntry(row pgx.CollectableRow) (RankingEntry, error) {
 	var e RankingEntry
 	var style namestyle.Style
-	err := row.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &style, &e.XP)
+	err := row.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &style, &e.Look, &e.XP)
 	e.NameStyle = style
 	return e, err
 }
