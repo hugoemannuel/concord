@@ -32,6 +32,15 @@ test('scriptTests: acha o .test.mjs vizinho e mantém testes alterados', () => {
   assert.deepEqual(scriptTests(['scripts/a.mjs', 'scripts/sem-teste.mjs', 'scripts/lib/b.test.mjs'], exists), ['scripts/a.test.mjs', 'scripts/lib/b.test.mjs'])
 })
 
+test('classify: scripts do site/ (.js/.mjs) entram em scripts, HTML não', () => {
+  assert.deepEqual(classify(['site/detect-os.js', 'site/index.html']).scripts, ['site/detect-os.js'])
+})
+
+test('scriptTests: x.js do site vira x.test.mjs e testes alterados entram direto', () => {
+  const exists = (f) => ['site/detect-os.test.mjs', 'site/plugins/placar/rules.test.mjs'].includes(f)
+  assert.deepEqual(scriptTests(['site/detect-os.js', 'site/plugins/placar/rules.test.mjs'], exists), ['site/detect-os.test.mjs', 'site/plugins/placar/rules.test.mjs'])
+})
+
 // Regressão: sem --base, indexOf dava -1 e o args[0] ("pr") era descartado
 // como se fosse o valor do --base; o pr rodava como loop e pulava vet/CRAP.
 test('parseArgs: modo sem --base não é descartado', () => {

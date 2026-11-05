@@ -1,0 +1,400 @@
+{
+  "team": {
+    "id": "2022"
+  },
+  "events": [
+    {
+      "id": "401841303",
+      "date": "2026-11-06T00:30Z",
+      "name": "Bahia at Cruzeiro",
+      "shortName": "BAH @ CRU",
+      "season": {
+        "year": 2026,
+        "displayName": "2026 Futebol Brasileiro"
+      },
+      "seasonType": {
+        "id": "1",
+        "type": 13907,
+        "name": "2026 Brasileiro Serie A ",
+        "abbreviation": "2026 Serie A"
+      },
+      "timeValid": true,
+      "competitions": [
+        {
+          "id": "401841303",
+          "date": "2026-11-06T00:30Z",
+          "timeValid": true,
+          "neutralSite": false,
+          "boxscoreAvailable": true,
+          "ticketsAvailable": false,
+          "competitors": [
+            {
+              "id": "2022",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": false,
+              "team": {
+                "id": "2022",
+                "location": "Cruzeiro",
+                "abbreviation": "CRU",
+                "displayName": "Cruzeiro",
+                "shortDisplayName": "Cruzeiro",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/2022.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/2022.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "9967",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "team": {
+                "id": "9967",
+                "location": "Bahia",
+                "abbreviation": "BAH",
+                "displayName": "Bahia",
+                "shortDisplayName": "Bahia",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/9967.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/9967.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            }
+          ],
+          "notes": [],
+          "status": {
+            "clock": 0,
+            "addedClock": 0,
+            "displayClock": "0'",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Thu, November 5th at 7:30 PM EST",
+              "shortDetail": "11/5 - 7:30 PM EST"
+            }
+          }
+        }
+      ],
+      "league": {
+        "id": "630",
+        "alternateId": "85",
+        "name": "Brazilian Serie A",
+        "abbreviation": "Brazil Serie A",
+        "shortName": "Brazil Serie A",
+        "midsizeName": "BRA.1",
+        "slug": "bra.1",
+        "isTournament": false
+      }
+    },
+    {
+      "id": "401841314",
+      "date": "2026-11-18T23:30Z",
+      "name": "Palmeiras at Cruzeiro",
+      "shortName": "PAL @ CRU",
+      "season": {
+        "year": 2026,
+        "displayName": "2026 Futebol Brasileiro"
+      },
+      "seasonType": {
+        "id": "1",
+        "type": 13907,
+        "name": "2026 Brasileiro Serie A ",
+        "abbreviation": "2026 Serie A"
+      },
+      "timeValid": true,
+      "competitions": [
+        {
+          "id": "401841314",
+          "date": "2026-11-18T23:30Z",
+          "timeValid": true,
+          "neutralSite": false,
+          "boxscoreAvailable": true,
+          "ticketsAvailable": false,
+          "competitors": [
+            {
+              "id": "2022",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": false,
+              "team": {
+                "id": "2022",
+                "location": "Cruzeiro",
+                "abbreviation": "CRU",
+                "displayName": "Cruzeiro",
+                "shortDisplayName": "Cruzeiro",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/2022.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/2022.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "2029",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "team": {
+                "id": "2029",
+                "location": "Palmeiras",
+                "abbreviation": "PAL",
+                "displayName": "Palmeiras",
+                "shortDisplayName": "Palmeiras",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/2029.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/2029.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            }
+          ],
+          "notes": [],
+          "status": {
+            "clock": 0,
+            "addedClock": 0,
+            "displayClock": "0'",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Wed, November 18th at 6:30 PM EST",
+              "shortDetail": "11/18 - 6:30 PM EST"
+            }
+          }
+        }
+      ],
+      "league": {
+        "id": "630",
+        "alternateId": "85",
+        "name": "Brazilian Serie A",
+        "abbreviation": "Brazil Serie A",
+        "shortName": "Brazil Serie A",
+        "midsizeName": "BRA.1",
+        "slug": "bra.1",
+        "isTournament": false
+      }
+    },
+    {
+      "id": "401841325",
+      "date": "2026-11-22T00:00Z",
+      "name": "Cruzeiro at Chapecoense",
+      "shortName": "CRU @ CHA",
+      "season": {
+        "year": 2026,
+        "displayName": "2026 Futebol Brasileiro"
+      },
+      "seasonType": {
+        "id": "1",
+        "type": 13907,
+        "name": "2026 Brasileiro Serie A ",
+        "abbreviation": "2026 Serie A"
+      },
+      "timeValid": true,
+      "competitions": [
+        {
+          "id": "401841325",
+          "date": "2026-11-22T00:00Z",
+          "timeValid": true,
+          "neutralSite": false,
+          "boxscoreAvailable": true,
+          "ticketsAvailable": false,
+          "competitors": [
+            {
+              "id": "9318",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": false,
+              "team": {
+                "id": "9318",
+                "location": "Chapecoense",
+                "abbreviation": "CHA",
+                "displayName": "Chapecoense",
+                "shortDisplayName": "Chapecoense",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/9318.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/9318.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "2022",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "team": {
+                "id": "2022",
+                "location": "Cruzeiro",
+                "abbreviation": "CRU",
+                "displayName": "Cruzeiro",
+                "shortDisplayName": "Cruzeiro",
+                "logos": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/2022.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  },
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/2022.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "dark"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            }
+          ],
+          "notes": [],
+          "status": {
+            "clock": 0,
+            "addedClock": 0,
+            "displayClock": "0'",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Sat, November 21st at 7:00 PM EST",
+              "shortDetail": "11/21 - 7:00 PM EST"
+            }
+          }
+        }
+      ],
+      "league": {
+        "id": "630",
+        "alternateId": "85",
+        "name": "Brazilian Serie A",
+        "abbreviation": "Brazil Serie A",
+        "shortName": "Brazil Serie A",
+        "midsizeName": "BRA.1",
+        "slug": "bra.1",
+        "isTournament": false
+      }
+    }
+  ]
+}

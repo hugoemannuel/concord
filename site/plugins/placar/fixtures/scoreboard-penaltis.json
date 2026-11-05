@@ -1,0 +1,469 @@
+{
+  "leagues": [
+    {
+      "id": "5454",
+      "name": "CONMEBOL Sudamericana",
+      "slug": "conmebol.sudamericana"
+    }
+  ],
+  "events": [
+    {
+      "id": "401913071",
+      "date": "2026-09-16T22:00Z",
+      "name": "Santos at Atlético-MG",
+      "shortName": "SAN @ CAM",
+      "season": {
+        "year": 2026,
+        "type": 13914,
+        "slug": "quarterfinals"
+      },
+      "competitions": [
+        {
+          "id": "401913071",
+          "date": "2026-09-16T22:00Z",
+          "startDate": "2026-09-16T22:00Z",
+          "timeValid": true,
+          "recent": false,
+          "status": {
+            "clock": 5700,
+            "displayClock": "95'",
+            "period": 5,
+            "type": {
+              "id": "47",
+              "name": "STATUS_FINAL_PEN",
+              "state": "post",
+              "completed": true,
+              "description": "Final Score - After Penalties",
+              "detail": "FT-Pens",
+              "shortDetail": "FT-Pens"
+            }
+          },
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "series": {
+            "competitors": [
+              {
+                "id": "7632",
+                "winner": true,
+                "aggregateScore": 4
+              },
+              {
+                "id": "2674",
+                "winner": false,
+                "aggregateScore": 4
+              }
+            ],
+            "completed": true,
+            "title": "Quarterfinals",
+            "totalCompetitions": 2
+          },
+          "altGameNote": "CONMEBOL Sudamericana, Quarterfinals",
+          "notes": [
+            {
+              "text": "2nd Leg - Tied on aggregate - CAM win 3-1 on penalties",
+              "headline": "2nd Leg - Tied on aggregate - CAM win 3-1 on penalties",
+              "type": "event"
+            }
+          ],
+          "broadcast": "",
+          "competitors": [
+            {
+              "id": "7632",
+              "type": "team",
+              "order": 0,
+              "homeAway": "home",
+              "winner": true,
+              "score": "4",
+              "aggregateScore": 4,
+              "shootoutScore": 3,
+              "team": {
+                "id": "7632",
+                "abbreviation": "CAM",
+                "displayName": "Atlético-MG",
+                "shortDisplayName": "Atlético-MG",
+                "name": "Atlético-MG",
+                "location": "Atlético-MG",
+                "color": "000000",
+                "alternateColor": "fafafc",
+                "isActive": true,
+                "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/7632.png"
+              }
+            },
+            {
+              "id": "2674",
+              "type": "team",
+              "order": 1,
+              "homeAway": "away",
+              "winner": false,
+              "score": "2",
+              "aggregateScore": 4,
+              "shootoutScore": 1,
+              "team": {
+                "id": "2674",
+                "abbreviation": "SAN",
+                "displayName": "Santos",
+                "shortDisplayName": "Santos",
+                "name": "Santos",
+                "location": "Santos",
+                "color": "000000",
+                "alternateColor": "fafafc",
+                "isActive": true,
+                "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2674.png"
+              }
+            }
+          ],
+          "details": [
+            {
+              "type": {
+                "id": "70",
+                "text": "Goal"
+              },
+              "clock": {
+                "value": 19,
+                "displayValue": "1'"
+              },
+              "team": {
+                "id": "7632"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false,
+              "shootout": false,
+              "athletesInvolved": [
+                {
+                  "id": "158272",
+                  "displayName": "Bernard",
+                  "shortName": "Bernard",
+                  "fullName": "Bernard",
+                  "jersey": "11",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "AM-L"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "70",
+                "text": "Goal"
+              },
+              "clock": {
+                "value": 1158,
+                "displayValue": "20'"
+              },
+              "team": {
+                "id": "7632"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false,
+              "shootout": false,
+              "athletesInvolved": [
+                {
+                  "id": "286703",
+                  "displayName": "Reiner",
+                  "shortName": "Reiner",
+                  "fullName": "Reiner",
+                  "jersey": "19",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "F"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "97",
+                "text": "Own Goal"
+              },
+              "clock": {
+                "value": 1678,
+                "displayValue": "28'"
+              },
+              "team": {
+                "id": "2674"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": true,
+              "shootout": false,
+              "athletesInvolved": [
+                {
+                  "id": "220747",
+                  "displayName": "Lyanco",
+                  "shortName": "Lyanco",
+                  "fullName": "Lyanco",
+                  "jersey": "13",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "CD-L"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "70",
+                "text": "Goal"
+              },
+              "clock": {
+                "value": 2411,
+                "displayValue": "41'"
+              },
+              "team": {
+                "id": "7632"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false,
+              "shootout": false,
+              "athletesInvolved": [
+                {
+                  "id": "286703",
+                  "displayName": "Reiner",
+                  "shortName": "Reiner",
+                  "fullName": "Reiner",
+                  "jersey": "19",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "F"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "70",
+                "text": "Goal"
+              },
+              "clock": {
+                "value": 4316,
+                "displayValue": "72'"
+              },
+              "team": {
+                "id": "2674"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false,
+              "shootout": false,
+              "athletesInvolved": [
+                {
+                  "id": "182522",
+                  "displayName": "Gabriel Barbosa",
+                  "shortName": "G. Barbosa",
+                  "fullName": "Gabriel Barbosa",
+                  "jersey": "9",
+                  "team": {
+                    "id": "2674"
+                  },
+                  "position": "F"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "137",
+                "text": "Goal - Header"
+              },
+              "clock": {
+                "value": 5400,
+                "displayValue": "90'+2'"
+              },
+              "team": {
+                "id": "7632"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": false,
+              "ownGoal": false,
+              "shootout": false,
+              "athletesInvolved": [
+                {
+                  "id": "252197",
+                  "displayName": "Tomás Cuello",
+                  "shortName": "T. Cuello",
+                  "fullName": "Tomás Cuello",
+                  "jersey": "28",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "AM-R"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "104",
+                "text": "Penalty - Scored"
+              },
+              "clock": {
+                "value": 5459,
+                "displayValue": "91'"
+              },
+              "team": {
+                "id": "7632"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": true,
+              "ownGoal": false,
+              "shootout": true,
+              "athletesInvolved": [
+                {
+                  "id": "205074",
+                  "displayName": "Gustavo Scarpa",
+                  "shortName": "G. Scarpa",
+                  "fullName": "Gustavo Scarpa",
+                  "jersey": "10",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "SUB"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "104",
+                "text": "Penalty - Scored"
+              },
+              "clock": {
+                "value": 5560,
+                "displayValue": "93'"
+              },
+              "team": {
+                "id": "7632"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": true,
+              "ownGoal": false,
+              "shootout": true,
+              "athletesInvolved": [
+                {
+                  "id": "268472",
+                  "displayName": "Igor Gomes",
+                  "shortName": "I. Gomes",
+                  "fullName": "Igor Gomes",
+                  "jersey": "17",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "SUB"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "104",
+                "text": "Penalty - Scored"
+              },
+              "clock": {
+                "value": 5607,
+                "displayValue": "94'"
+              },
+              "team": {
+                "id": "2674"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": true,
+              "ownGoal": false,
+              "shootout": true,
+              "athletesInvolved": [
+                {
+                  "id": "399179",
+                  "displayName": "Gabriel Bontempo",
+                  "shortName": "G. Bontempo",
+                  "fullName": "Gabriel Bontempo",
+                  "jersey": "8",
+                  "team": {
+                    "id": "2674"
+                  },
+                  "position": "AM-R"
+                }
+              ]
+            },
+            {
+              "type": {
+                "id": "104",
+                "text": "Penalty - Scored"
+              },
+              "clock": {
+                "value": 5753,
+                "displayValue": "96'"
+              },
+              "team": {
+                "id": "7632"
+              },
+              "scoreValue": 1,
+              "scoringPlay": true,
+              "redCard": false,
+              "yellowCard": false,
+              "penaltyKick": true,
+              "ownGoal": false,
+              "shootout": true,
+              "athletesInvolved": [
+                {
+                  "id": "302628",
+                  "displayName": "Thiago Borbas",
+                  "shortName": "T. Borbas",
+                  "fullName": "Thiago Borbas",
+                  "jersey": "18",
+                  "team": {
+                    "id": "7632"
+                  },
+                  "position": "SUB"
+                }
+              ]
+            }
+          ],
+          "wasSuspended": false,
+          "playByPlayAvailable": true
+        }
+      ],
+      "status": {
+        "clock": 5700,
+        "displayClock": "95'",
+        "period": 5,
+        "type": {
+          "id": "47",
+          "name": "STATUS_FINAL_PEN",
+          "state": "post",
+          "completed": true,
+          "description": "Final Score - After Penalties",
+          "detail": "FT-Pens",
+          "shortDetail": "FT-Pens"
+        }
+      }
+    }
+  ]
+}
