@@ -178,7 +178,7 @@ Qualquer outro texto visível (incluindo `alt` e `title`) precisa de aprovação
   também `site/**/*.test.mjs` (incluindo o `detect-os.test.mjs`, que já existe e não roda), com o teste do
   próprio script atualizado. Se o `detect-os.test.mjs` estiver quebrado, o conserto entra neste PR
   (decisão minha).
-- **Sem mudança** em `backend/`, `frontend/`, `mobile/` nem no `deploy/Caddyfile`. Se o Cloudflare do
+- **Sem mudança** em `backend/`, `frontend/` nem `mobile/`; no `deploy/Caddyfile` só a exceção de `/plugins/*` com CORS. Se o Cloudflare do
   `salinha.bhrx.com.br` mandar algum cabeçalho que impeça o iframe, isso aparece na verificação e vira
   ajuste no Caddy, no mesmo PR.
 - `docs/HOSPEDAGEM.md` (ou o doc de plugins que existir): um parágrafo de como cadastrar o placar depois do
@@ -196,7 +196,7 @@ Qualquer outro texto visível (incluindo `alt` e `title`) precisa de aprovação
 
 ## Testes
 
-- `node --test site/plugins/placar/` com os fixtures:
+- `node --test site/plugins/placar/*.test.mjs` com os fixtures:
   - normalização de cada fixture para o modelo interno: status, minuto, gols com contra e pênalti, decisão
     por pênaltis;
   - regras: clássico em um cartão, o cartão próximo/último some no time ao vivo, V/E/D, nome do campeonato
@@ -218,5 +218,5 @@ Qualquer outro texto visível (incluindo `alt` e `title`) precisa de aprovação
 4. Simular a falha (bloquear `site.api.espn.com` no DevTools): os dados ficam e o aviso aparece. Ao
    desbloquear, ele some.
 5. Conferir em 300, 360 e 400 px de largura do iframe.
-6. Depois do merge e do deploy: abrir `https://salinha.bhrx.com.br/plugins/placar/`, cadastrar a ficha em
+6. Depois do merge e do deploy: aplicar o Caddyfile na VPS (`scripts/apply-caddyfile.sh root@IP deploy/Caddyfile`, sem ninguém em chamada) e conferir o cabeçalho com `curl -sI https://salinha.bhrx.com.br/plugins/placar/app.js | grep -i access-control-allow-origin`; só então abrir `https://salinha.bhrx.com.br/plugins/placar/`, cadastrar a ficha em
    produção pela API, aprovar, instalar num servidor e ligar.

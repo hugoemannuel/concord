@@ -1213,12 +1213,16 @@ Jogos do Atlético-MG e do Cruzeiro, ao vivo, numa página estática do `site/`.
 (PR #514) e não muda o backend.
 
 - A página sai no deploy do site em `https://<domínio do site>/plugins/placar/`.
+- **Antes de abrir a página, aplique o Caddyfile na VPS**: o deploy do site não o aplica. Rode
+  `scripts/apply-caddyfile.sh root@IP deploy/Caddyfile` (o reload fecha os WebSockets: faça sem ninguém em
+  chamada) e confira com `curl -sI https://salinha.bhrx.com.br/plugins/placar/app.js | grep -i access-control-allow-origin`.
+  Se a página já tiver sido aberta sem o cabeçalho, limpe o cache do Cloudflare para `/plugins/*`.
 - Para cadastrar, pela API: `POST /api/plugins` com o nome e a descrição dos textos aprovados (`Placar ao
   vivo` e `Jogos do Atlético-MG e do Cruzeiro, ao vivo`) e `panel_url` apontando para essa página.
 - Depois, alguém de `TECH_TEAM_USER_IDS` aprova: `PATCH /api/plugins/:id/review` com
   `{"status":"approved"}`.
 - Os dados vêm da API pública da ESPN, chamada pelo navegador ([ADR 0057](adr/0057-placar-com-a-api-publica-da-espn.md)).
-- Plugin com `<script type="module">` precisa de `Access-Control-Allow-Origin` nos arquivos: o iframe isolado tem origem opaca. O `deploy/Caddyfile` (e o `.modelo`) já mandam `Access-Control-Allow-Origin *` em `/plugins/*`.
+- Plugin com `<script type="module">` precisa de `Access-Control-Allow-Origin` nos arquivos: o iframe isolado tem origem opaca. O `deploy/Caddyfile` (e o `.modelo`) mandam `Access-Control-Allow-Origin *` em `/plugins/*`, depois de aplicado na VPS (passo acima).
 
 ## Segurança
 

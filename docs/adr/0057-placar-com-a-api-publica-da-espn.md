@@ -34,7 +34,7 @@ se o tráfego crescer ou se a ESPN passar a bloquear chamadas do navegador.
 - Se a ESPN falhar, todo painel aberto mostra "Não deu para atualizar o placar agora." com os últimos
   dados, até a ESPN voltar ou sair uma versão nova.
 - A CSP da página só libera `site.api.espn.com` (dados) e `a.espncdn.com` (logos).
-- Todo plugin com `<script type="module">` precisa de `Access-Control-Allow-Origin` nos seus arquivos: o iframe isolado tem origem opaca e carrega módulos em modo CORS (`deploy/Caddyfile` já faz isso em `/plugins/*`).
+- Todo plugin com `<script type="module">` precisa de `Access-Control-Allow-Origin` nos seus arquivos: o iframe isolado tem origem opaca e carrega módulos em modo CORS (`deploy/Caddyfile` faz isso em `/plugins/*`, mas só vale depois de aplicado na VPS com `scripts/apply-caddyfile.sh`: o deploy do site não o aplica).
 
 ## Fontes
 
