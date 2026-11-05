@@ -17,6 +17,10 @@ describe('exeProcessNames', () => {
 })
 
 describe('pickGameWindow', () => {
+  it('jogo fora da lista (minimizado): usa a janela do processo dele', () => {
+    expect(pickGameWindow([win(10, 'Navegador')], ['30'], 'VALORANT')).toBe('window:30:0')
+  })
+
   const sources = [win(10, 'Discord'), win(20, 'Counter-Strike 2'), win(30, 'Bloco de notas')]
 
   it('prefere a janela do processo do jogo', () => {

@@ -13,6 +13,21 @@ import { snowScene } from './snow'
 import { sparklesScene } from './sparkles'
 import { stormScene } from './storm'
 import { synthwaveScene } from './synthwave'
+import { bubblesScene } from './bubbles'
+import { buntingScene } from './bunting'
+import { cloudsScene } from './clouds'
+import { firefliesScene } from './fireflies'
+import { fireworksScene } from './fireworks'
+import { fogScene } from './fog'
+import { hexagonsScene } from './hexagons'
+import { lavaScene } from './lava'
+import { leavesScene } from './leaves'
+import { meteorsScene } from './meteors'
+import { moneyScene } from './money'
+import { oceanScene } from './ocean'
+import { pixelsScene } from './pixels'
+import { sakuraScene } from './sakura'
+import { sunbeamsScene } from './sunbeams'
 import type { Rand, Scene } from './types'
 
 export const CANVAS_EFFECTS: Record<string, Scene> = {
@@ -26,6 +41,21 @@ export const CANVAS_EFFECTS: Record<string, Scene> = {
   confetti: confettiScene,
   synthwave: synthwaveScene,
   rain: rainScene,
+  fireflies: firefliesScene,
+  sakura: sakuraScene,
+  leaves: leavesScene,
+  bubbles: bubblesScene,
+  ocean: oceanScene,
+  meteors: meteorsScene,
+  fog: fogScene,
+  sunbeams: sunbeamsScene,
+  lava: lavaScene,
+  money: moneyScene,
+  clouds: cloudsScene,
+  hexagons: hexagonsScene,
+  pixels: pixelsScene,
+  bunting: buntingScene,
+  fireworks: fireworksScene,
   // No desktop estes três são CSS; aqui são cenas do mesmo laço.
   particles: particlesScene,
   sparkles: sparklesScene,

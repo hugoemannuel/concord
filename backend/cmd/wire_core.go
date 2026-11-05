@@ -7,6 +7,7 @@ import (
 
 	"gin-quickstart/backend/internal/auth"
 	"gin-quickstart/backend/internal/channel"
+	"gin-quickstart/backend/internal/channelcategory"
 	"gin-quickstart/backend/internal/conversation"
 	"gin-quickstart/backend/internal/friendship"
 	"gin-quickstart/backend/internal/permission"
@@ -81,6 +82,18 @@ func (a *app) wireCore() {
 	a.channelService.SetPermissionCache(a.permissionService)
 	channelHandler := channel.ChannelHandler(a.channelService, a.permissionService)
 	channelHandler.SetAudit(a.audit)
+	categories := channelcategory.NewRepository(a.db)
+	categoryHandler := channelcategory.NewHandler(categories, a.permissionService, a.hub)
+	categoryHandler.SetAudit(a.audit)
+	categoryHandler.SetPermissionCache(a.permissionService)
+	// O canal do Maestro é o último que nasce com um servidor novo.
+	a.channelService.OnSystemCreated(func(ctx context.Context, ch *channel.Channel) {
+		if err := categories.CreateDefaults(ctx, ch.ServerID); err != nil {
+			log.Printf("[categorias] padrões do servidor %s: %v", ch.ServerID, err)
+			return
+		}
+		a.permissionService.InvalidateServer(ch.ServerID)
+	})
 
 	a.conversationRepository = conversation.ConversationRepository(a.db)
 	a.conversationService = conversation.ConversationService(a.conversationRepository)
@@ -93,6 +106,7 @@ func (a *app) wireCore() {
 		user.UserRoutes(api, user.UserHandler(a.userService), a.authMiddleware)
 		friendship.FriendRoutes(api, friendshipHandler, a.authMiddleware)
 		channel.ChannelRoutes(api, channelHandler, a.authMiddleware)
+		channelcategory.Routes(api, categoryHandler, a.authMiddleware)
 		role.RoleRoutes(api, roleHandler, a.authMiddleware)
 	})
 }

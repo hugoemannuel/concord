@@ -101,13 +101,14 @@
     <li><strong>Provedor do servidor:</strong> Meteor Cloud, em São Paulo (Brasil), onde ficam o banco de dados, os arquivos, os backups e o servidor de mídia.</li>
     <li><strong>Google Firebase Cloud Messaging</strong> (só no app Android): recebe o token do aparelho e o conteúdo da notificação (o nome de quem mandou e uma prévia da mensagem) para entregar o aviso.</li>
     <li><strong>Brevo</strong> (envio de e-mail, França): recebe o seu e-mail e o texto das mensagens de confirmação e de recuperação de senha.</li>
-    <li><strong>GIPHY:</strong> a busca de GIFs passa pelo nosso servidor, então a GIPHY recebe o termo buscado, mas não o seu IP. As imagens dos GIFs são carregadas direto dos servidores da GIPHY, que veem o seu IP nesse momento.</li>
+    <li><strong>KLIPY</strong> (busca de GIFs): o app pede os GIFs direto à KLIPY, sem passar pelo nosso servidor. Ela recebe o termo buscado, o seu IP, o país (Brasil), um identificador anônimo gerado por nós (um código que não revela quem você é, nem o seu nome ou e-mail) e o seu pedido de cada GIF mostrado, que vem dos servidores dela. Não usamos anúncios da KLIPY.</li>
+    <li><strong>GIPHY</strong> (só GIFs antigos): mensagens enviadas antes da troca para a KLIPY ainda mostram GIFs hospedados na GIPHY, que vê o seu IP quando eles são carregados. Não buscamos mais GIFs lá.</li>
     <li><strong>YouTube</strong> (bot de música): as buscas e os links que você pede ao bot são resolvidos pelo nosso servidor; o YouTube vê o pedido e o IP do servidor, não o seu.</li>
     <li><strong>GitHub:</strong> os instaladores e as atualizações do app são baixados da GitHub Releases (o GitHub vê o seu IP). As <strong>propostas</strong> enviadas pelo app viram issues <strong>públicas</strong> no repositório do projeto, com título, descrição, imagens e o nome de exibição de quem propôs.</li>
     <li><strong>Cloudflare:</strong> fica na frente desta página de download (vê o IP de quem visita). A página também carrega fontes do Google Fonts, que vê o seu IP.</li>
     <li><strong>Autoridades:</strong> quando houver ordem judicial ou obrigação legal.</li>
   </ul>
-  <p>Vários desses serviços (Google, GitHub, Cloudflare e GIPHY) ficam fora do Brasil,
+  <p>Vários desses serviços (Google, GitHub, Cloudflare, KLIPY e GIPHY) ficam fora do Brasil,
   principalmente nos Estados Unidos. A transferência internacional acontece para executar o
   serviço que você pediu (LGPD, art. 33).</p>
 

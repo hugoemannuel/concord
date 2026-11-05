@@ -4,11 +4,19 @@ import { onWsEvent } from '../../../shared/api/ws'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useServersStore } from '../store/serversStore'
 
-const CHANNEL_EVENTS = new Set(['channel:create', 'channel:update', 'channel:delete', 'channel:reorder'])
+const CHANNEL_EVENTS = new Set([
+  'channel:create',
+  'channel:update',
+  'channel:delete',
+  'channel:reorder',
+  'category:changed',
+  // Canal ou categoria que virou privada: quem perdeu o acesso deixa de ver na hora.
+  'server:permissions:invalidate'
+])
 
 /**
  * Mantém a lista de canais em dia com o que acontece no servidor (canal criado, renomeado, apagado ou
- * reordenado, inclusive por permissão): recarrega só os servidores cujos canais o app já tem. A sala
+ * reordenado, categoria mudada, inclusive por permissão): recarrega só os servidores cujos canais o app já tem. A sala
  * `server:<id>` é assinada em useUnreadLive.
  */
 export function useChannelsLive(): void {

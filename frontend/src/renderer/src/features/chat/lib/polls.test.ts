@@ -122,6 +122,7 @@ describe('messagePreviewParts (dentro do app: o ícone é desenhado)', () => {
     expect(messagePreviewParts({ content: '', poll: poll() })).toEqual({ icon: 'poll', text: 'Jantar?' })
     expect(messagePreviewParts({ content: 'oi' })).toEqual({ icon: null, text: 'oi' })
     expect(messagePreviewParts({ content: '', sticker_id: 's' })).toEqual({ icon: 'sticker', text: 'Figurinha' })
+    expect(messagePreviewParts({ content: '', deleted_sticker_name: 'gato' })).toEqual({ icon: 'sticker', text: 'Figurinha :gato:' })
     expect(messagePreviewParts({ content: '', gif_url: 'g' })).toEqual({ icon: 'gif', text: 'GIF' })
     expect(messagePreviewParts({ content: '', attachments: audio })).toEqual({ icon: 'audio', text: 'Áudio' })
     expect(messagePreviewParts({ content: '' })).toEqual({ icon: null, text: '' })

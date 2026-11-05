@@ -1,39 +1,47 @@
 import { useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import { useAuthStore } from '../../auth/store/authStore'
 import type { Channel, ChannelType } from '../api/channels'
 import type { Server } from '../api/servers'
+import ProfileScope from '../../memberProfiles/components/ProfileScope'
 import { useServerStore } from '../store/serverStore'
 import { useChannelSidebarStore } from '../store/channelSidebarStore'
 import { useServerAccess } from '../hooks/useServerAccess'
-import { useChannelReorder, type ChannelReorder } from '../hooks/useChannelReorder'
 import { useChannelMenuDismiss } from '../hooks/useChannelMenuDismiss'
 import { useServerCallsSync } from '../hooks/useServerCallsSync'
 import { useJoinVoiceChannel } from '../hooks/useJoinVoiceChannel'
+import { useCategories } from '../hooks/useCategories'
+import type { PlacedChannel } from '../hooks/useSidebarLayout'
 import { Perm } from '../lib/permissions'
 import type { ServerAccess } from '../lib/serverAccess'
 import { canOpenChannelMenu, sidebarSections, type SidebarSections } from '../lib/channelSidebar'
+import { categoryMenuMove } from '../lib/categoryLayout'
+import { useChannelAreaMenu } from '../hooks/useChannelAreaMenu'
 import SidebarFooter from '../../../app/SidebarFooter'
 import ResizeHandle from '../../../shared/ui/ResizeHandle'
 import { useResizableWidth } from '../../../shared/hooks/useResizableWidth'
 import ServerHeaderMenu from './ServerHeaderMenu'
-import ChannelSection, { ChannelDropLine } from './ChannelSection'
 import { ChannelMenuButton, ChannelMenuHost } from './ChannelMenu'
 import TextChannelRow from './TextChannelRow'
 import VoiceChannelRow from './VoiceChannelRow'
 import SidebarDialogs from './SidebarDialogs'
+import { CategoryPanel, type MoveChannel } from './CategoryPanel'
+import { SidebarAreaMenu } from './SidebarAreaMenu'
 
 /** O que as linhas de canal das duas seções compartilham. */
 interface ChannelListProps {
   serverId: string
   sections: SidebarSections
   access: ServerAccess
-  reorder: ChannelReorder
+  /** Mover para cima/baixo no menu (entre os vizinhos do grupo do canal). */
+  move: (type: ChannelType, from: number, to: number) => void
   menuRef: React.Ref<HTMLDivElement>
+  categoryControls?: React.ReactNode
 }
 
 /** Menu do canal: "•••", botão direito e o próprio menu (cada item se esconde sem permissão). */
 function useChannelMenuProps(
-  { serverId, sections, access, reorder, menuRef }: ChannelListProps,
+  { serverId, sections, access, move, menuRef, categoryControls }: ChannelListProps,
   ch: Channel,
   type: ChannelType
 ): {
@@ -63,8 +71,9 @@ function useChannelMenuProps(
         section={sections[type]}
         primaryId={sections.primaryId}
         access={access}
-        move={reorder.move}
+        move={move}
         menuRef={menuRef}
+        categoryControls={categoryControls}
       />
     )
   }
@@ -72,16 +81,13 @@ function useChannelMenuProps(
 
 function TextChannelItem({
   list,
-  ch,
-  index
+  ch
 }: {
   list: ChannelListProps
   ch: Channel
-  index: number
 }): React.JSX.Element {
   const { channelId } = useParams<{ channelId: string }>()
   const menu = useChannelMenuProps(list, ch, 'text')
-  const last = index === list.sections.text.length - 1
   return (
     <TextChannelRow
       serverId={list.serverId}
@@ -89,12 +95,6 @@ function TextChannelItem({
       active={ch.id === channelId}
       isPrivate={list.access.isPrivate(ch.id)}
       isPrimary={ch.id === list.sections.primaryId}
-      dragging={list.reorder.draggingId === ch.id}
-      dragProps={{
-        ...list.reorder.dragSource(ch, 'text'),
-        ...list.reorder.dropTarget('text', index)
-      }}
-      dropLine={<ChannelDropLine side={list.reorder.lineSide('text', index, last)} />}
       onContextMenu={menu.onContextMenu}
       menuButton={menu.canOpen ? <ChannelMenuButton channelId={ch.id} /> : undefined}
       menu={menu.menu}
@@ -105,24 +105,17 @@ function TextChannelItem({
 function VoiceChannelItem({
   list,
   ch,
-  index,
   onJoin
 }: {
   list: ChannelListProps
   ch: Channel
-  index: number
   onJoin: (ch: Channel) => void
 }): React.JSX.Element {
   const menu = useChannelMenuProps(list, ch, 'voice')
-  const last = index === list.sections.voice.length - 1
   return (
     <VoiceChannelRow
       channel={ch}
       access={list.access}
-      dragging={list.reorder.draggingId === ch.id}
-      dropLine={<ChannelDropLine side={list.reorder.lineSide('voice', index, last)} />}
-      dropTarget={list.reorder.dropTarget('voice', index)}
-      dragSource={list.reorder.dragSource(ch, 'voice')}
       onJoin={() => onJoin(ch)}
       onContextMenu={menu.onContextMenu}
       renderMenuButton={
@@ -135,7 +128,7 @@ function VoiceChannelItem({
   )
 }
 
-/** As duas seções de canais (texto e voz) do servidor aberto. */
+/** A lista de canais do servidor aberto: os soltos e as categorias. */
 function ChannelLists({
   server,
   access
@@ -146,44 +139,40 @@ function ChannelLists({
   const serverId = server?.id ?? ''
   const channels = useServerStore((s) => s.channels)
   const loadedFor = useServerStore((s) => s.channelsLoadedFor)
+  const userId = useAuthStore((s) => s.user?.id ?? '')
   const openCreate = useChannelSidebarStore((s) => s.openCreate)
   const menuRef = useRef<HTMLDivElement>(null)
   useChannelMenuDismiss(menuRef)
   const sections = sidebarSections(server, channels, loadedFor)
   const canManage = access.can(Perm.MANAGE_CHANNELS)
-  const reorder = useChannelReorder(serverId, sections, canManage)
+  const categories = useCategories(serverId, channels.map((channel) => channel.id).join(','))
   const onJoin = useJoinVoiceChannel(access, server?.id)
-  const list: ChannelListProps = { serverId, sections, access, reorder, menuRef }
+  const areaMenu = useChannelAreaMenu()
+  const renderChannel = (
+    ch: Channel,
+    group: PlacedChannel[],
+    categoryControls: React.ReactNode,
+    moveChannel: MoveChannel
+  ): React.ReactNode => {
+    // A lista é uma só, de texto e voz: subir e descer andam pelo grupo inteiro.
+    const groupedSections = { ...sections, text: group, voice: group }
+    const list: ChannelListProps = {
+      serverId, access, menuRef, categoryControls, sections: groupedSections,
+      move: (_type, from, to) => {
+        const step = categoryMenuMove(group, from, to)
+        if (step) moveChannel(step)
+      }
+    }
+    return ch.type === 'voice' ? <VoiceChannelItem list={list} ch={ch} onJoin={onJoin} /> : <TextChannelItem list={list} ch={ch} />
+  }
+  const ready = sections.ready && (categories.layout !== null || categories.failed)
   return (
-    <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
-      <ChannelSection
-        title="Canais de texto"
-        addLabel="Criar canal de texto"
-        onAdd={canManage ? () => openCreate('text') : undefined}
-        ready={sections.ready}
-        count={sections.text.length}
-        emptyText="Nenhum canal ainda."
-        skeleton={{ count: 6 }}
-        onDragLeave={reorder.clearOnLeave}
-      >
-        {sections.text.map((ch, index) => (
-          <TextChannelItem key={ch.id} list={list} ch={ch} index={index} />
-        ))}
-      </ChannelSection>
-      <ChannelSection
-        title="Canais de voz"
-        addLabel="Criar canal de voz"
-        onAdd={canManage ? () => openCreate('voice') : undefined}
-        ready={sections.ready}
-        count={sections.voice.length}
-        emptyText="Nenhum canal de voz ainda."
-        skeleton={{ count: 3, offset: 4 }}
-        onDragLeave={reorder.clearOnLeave}
-      >
-        {sections.voice.map((ch, index) => (
-          <VoiceChannelItem key={ch.id} list={list} ch={ch} index={index} onJoin={onJoin} />
-        ))}
-      </ChannelSection>
+    <div data-dnd="list" {...areaMenu.areaProps} className="flex-1 overflow-y-auto overscroll-contain px-2 py-3">
+      <CategoryPanel serverId={serverId} userId={userId} layout={categories.layout} channels={ready ? channels : []} ready={ready}
+        canManage={canManage && Boolean(serverId)} canManageRoles={access.can(Perm.MANAGE_ROLES)} run={categories.run} saveLayout={categories.saveLayout}
+        onCreateChannel={openCreate}
+        renderChannel={renderChannel} />
+      {areaMenu.point && serverId && <SidebarAreaMenu serverId={serverId} access={access} point={areaMenu.point} onClose={areaMenu.close} />}
     </div>
   )
 }
@@ -202,16 +191,18 @@ export function ServerSidebar(): React.JSX.Element {
   return (
     <>
       {/* z-10: a alça de redimensionar passa um pouco da borda, sobre o conteúdo. */}
-      <aside
-        style={sidebar.panelStyle}
-        className="relative z-10 flex h-full shrink-0 flex-col border-r border-subtle bg-secondary backdrop-blur-2xl"
-      >
-        <ResizeHandle {...sidebar.handleProps} />
-        <ServerHeaderMenu server={server} access={access} />
-        <ChannelLists server={server} access={access} />
-        {/* "Voz conectada" na chamada + a barra do usuário (igual em todas as telas) */}
-        <SidebarFooter />
-      </aside>
+      <ProfileScope serverId={server?.id}>
+        <aside
+          style={sidebar.panelStyle}
+          className="relative z-10 flex h-full shrink-0 flex-col border-r border-subtle bg-secondary backdrop-blur-2xl"
+        >
+          <ResizeHandle {...sidebar.handleProps} />
+          <ServerHeaderMenu server={server} access={access} />
+          <ChannelLists server={server} access={access} />
+          {/* "Voz conectada" na chamada + a barra do usuário (igual em todas as telas) */}
+          <SidebarFooter />
+        </aside>
+      </ProfileScope>
       {server && <SidebarDialogs server={server} />}
     </>
   )

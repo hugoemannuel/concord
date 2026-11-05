@@ -6,19 +6,21 @@
 //!   concord-audio foreground       informa a janela em tela cheia (overlay de jogo)
 //!   concord-audio overlay          janela nativa do overlay de jogo (estado em stdin)
 //!   concord-audio media-watch      sessões de mídia do Windows (música em atividade)
+//!   concord-audio keep-timer <pid> mantém o temporizador de <pid> com a janela coberta
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Mode {
     Window(u64),
     Include(u32),
     Exclude(u32),
+    KeepTimer(u32),
     Foreground,
     Overlay,
     MediaWatch,
 }
 
 pub fn parse_args(args: &[String]) -> Result<Mode, String> {
-    let usage = || "uso: concord-audio window <hwnd> | include <pid> | exclude <pid> | foreground | overlay | media-watch".to_string();
+    let usage = || "uso: concord-audio window <hwnd> | include <pid> | exclude <pid> | keep-timer <pid> | foreground | overlay | media-watch".to_string();
     match args {
         [mode] if mode == "foreground" => Ok(Mode::Foreground),
         [mode] if mode == "overlay" => Ok(Mode::Overlay),
@@ -30,12 +32,16 @@ pub fn parse_args(args: &[String]) -> Result<Mode, String> {
                     0 => Err("hwnd não pode ser 0".to_string()),
                     hwnd => Ok(Mode::Window(hwnd)),
                 },
-                "include" | "exclude" => {
+                "include" | "exclude" | "keep-timer" => {
                     let pid = u32::try_from(number(value)?).map_err(|_| format!("pid inválido: {value}"))?;
                     if pid == 0 {
                         return Err("pid não pode ser 0".to_string());
                     }
-                    Ok(if mode == "include" { Mode::Include(pid) } else { Mode::Exclude(pid) })
+                    Ok(match mode.as_str() {
+                        "include" => Mode::Include(pid),
+                        "exclude" => Mode::Exclude(pid),
+                        _ => Mode::KeepTimer(pid),
+                    })
                 }
                 _ => Err(usage()),
             }
@@ -72,6 +78,14 @@ mod tests {
         assert!(parse_args(&args(&["include", "0"])).is_err());
         assert!(parse_args(&args(&["include", "99999999999"])).is_err());
         assert!(parse_args(&args(&["tocar", "1"])).is_err());
+    }
+
+    #[test]
+    fn manter_o_temporizador_de_um_processo() {
+        assert_eq!(parse_args(&args(&["keep-timer", "4242"])), Ok(Mode::KeepTimer(4242)));
+        assert!(parse_args(&args(&["keep-timer"])).is_err());
+        assert!(parse_args(&args(&["keep-timer", "0"])).is_err());
+        assert!(parse_args(&args(&["keep-timer", "abc"])).is_err());
     }
 
     #[test]

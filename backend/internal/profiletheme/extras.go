@@ -20,6 +20,8 @@ type Extras struct {
 	BorderWidth     int    `json:"border_width"`
 	BackgroundAngle int    `json:"background_angle"`
 	Texture         string `json:"texture"`
+	// EffectLook sai no JSON no mesmo nível (effect_look.go).
+	EffectLook
 }
 
 // BorderAnimations: "default" é o jeito de sempre (neon pulsa, arco-íris gira).
@@ -45,6 +47,7 @@ func DefaultExtras() Extras {
 		BorderWidth:     DefaultBorderWidth,
 		BackgroundAngle: DefaultAngle,
 		Texture:         Textures[0],
+		EffectLook:      DefaultEffectLook(),
 	}
 }
 
@@ -82,7 +85,7 @@ func effectColor(c string) (string, error) {
 
 // validateExtras devolve os extras arrumados (zeros viram o padrão).
 func validateExtras(e Extras) (Extras, error) {
-	var errs [7]error
+	var errs [8]error
 	out := Extras{}
 	out.EffectColor, errs[0] = effectColor(e.EffectColor)
 	out.EffectDensity, errs[1] = number(e.EffectDensity, 100, DefaultLevel, "quantidade do efeito")
@@ -91,6 +94,7 @@ func validateExtras(e Extras) (Extras, error) {
 	out.BorderWidth, errs[4] = number(e.BorderWidth, MaxBorderWidth, DefaultBorderWidth, "espessura da borda")
 	out.BackgroundAngle, errs[5] = number(e.BackgroundAngle, 360, DefaultAngle, "ângulo do degradê")
 	out.Texture, errs[6] = option(e.Texture, Textures, "textura")
+	out.EffectLook, errs[7] = validateEffectLook(e.EffectLook)
 	for _, err := range errs {
 		if err != nil {
 			return Extras{}, err

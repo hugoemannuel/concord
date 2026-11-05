@@ -25,6 +25,8 @@ export function pickGameWindow(
   const windows = sources.filter((s) => hwndFromSourceId(s.id) !== null)
   const byProcess = windows.find((s) => hwnds.includes(hwndFromSourceId(s.id) ?? ''))
   if (byProcess) return byProcess.id
+  // Processo com janela fora da lista = minimizado: compartilhar o restaura (shareSource).
+  if (hwnds.length > 0) return `window:${hwnds[0]}:0`
   const wanted = gameName.trim().toLowerCase()
   const byTitle = wanted ? windows.find((s) => s.name.toLowerCase().includes(wanted)) : undefined
   return byTitle?.id ?? null

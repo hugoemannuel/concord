@@ -16,6 +16,8 @@ export interface PreviewBase {
   user: User
   avatarUrl: string | null
   bannerUrl: string | null
+  /** Perfil de servidor sem CHANGE_NICKNAME: o nome não muda aqui. */
+  nameLocked?: boolean
 }
 
 /**
@@ -57,6 +59,7 @@ export default function ProfilePreview({
           name_style: draft.name_style,
           username: user.username,
           avatar_url: avatarUrl,
+          avatar_decoration_url: user.avatar_decoration_url,
           banner_url: bannerUrl,
           banner_color: draft.banner_color,
           pronouns: draft.pronouns.trim(),

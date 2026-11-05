@@ -15,6 +15,8 @@ func reactionErrorResponse(err error, fallback string) (int, gin.H) {
 	switch {
 	case errors.Is(err, ErrInvalidEmoji):
 		return http.StatusBadRequest, gin.H{"error": err.Error()}
+	case errors.Is(err, ErrExternalExpression):
+		return http.StatusForbidden, gin.H{"error": err.Error(), "code": "external_expression"}
 	case errors.Is(err, ErrBotConversation):
 		return http.StatusForbidden, gin.H{"error": err.Error(), "code": "bot_conversation"}
 	case errors.Is(err, ErrMessageNotFound):

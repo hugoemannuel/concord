@@ -38,6 +38,7 @@ export function HomeScreen({ onOpenChannel, onOpenConversation, onOpenFriends, o
   const servers = useServersStore((s) => s.servers)
   const status = useServersStore((s) => s.status)
   const channelsByServer = useServersStore((s) => s.channelsByServer)
+  const layoutByServer = useServersStore((s) => s.layoutByServer)
   const channelsError = useServersStore((s) => s.channelsError)
   const load = useServersStore((s) => s.load)
   const loadChannels = useServersStore((s) => s.loadChannels)
@@ -78,6 +79,7 @@ export function HomeScreen({ onOpenChannel, onOpenConversation, onOpenFriends, o
             <ChannelList
               serverName={server.name}
               channels={channelsByServer[server.id] ?? []}
+              layout={layoutByServer[server.id]}
               error={channelsError[server.id] === true}
               unreadChannels={unreadChannels}
               voiceMembers={voiceMembers}

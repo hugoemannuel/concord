@@ -132,6 +132,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
         scope: 'text'
       },
       {
+        name: 'USE_EXTERNAL_EMOJIS',
+        label: 'Usar emojis e figurinhas de outros servidores',
+        description:
+          'Usar nas mensagens e nas reações deste servidor os emojis e as figurinhas de outros servidores de que a pessoa participa.',
+        scope: 'text'
+      },
+      {
         name: 'MENTION_EVERYONE',
         label: 'Mencionar @all e @here',
         description: 'Avisar todo mundo do canal de uma vez.',
@@ -221,13 +228,15 @@ const groupTitled = (title: string): PermissionGroup =>
  * Os grupos de permissão que valem para um tipo de canal (editor de
  * sobrescritas). O canal de voz tem chat próprio: leva também as de texto.
  */
-export function channelPermissionGroups(kind: ChannelKind): PermissionGroup[] {
+export function channelPermissionGroups(kind: ChannelKind | 'category'): PermissionGroup[] {
   const general: PermissionGroup = {
     title: 'Geral',
     permissions: groupTitled('Geral').permissions.filter((p) => p.name === 'VIEW_CHANNEL')
   }
   const text = groupTitled('Canais de texto')
   if (kind === 'text') return [general, text]
+  // A categoria vale para os dois tipos de canal dentro dela.
+  if (kind === 'category') return [general, text, groupTitled('Canais de voz')]
   return [
     general,
     groupTitled('Canais de voz'),

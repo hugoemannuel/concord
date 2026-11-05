@@ -27,6 +27,12 @@ function fakeCtx(messagesByRoom: ChatState['messagesByRoom']): {
 beforeEach(() => stickers.handleWsEvent.mockReturnValue(true))
 
 describe('withoutSticker', () => {
+  it('a figurinha apagada deixa o nome na mensagem, para mostrar :nome:', () => {
+    const sticker = { id: 'stk', server_id: 's', name: 'gato', content_type: 'image/png' }
+    const next = withoutSticker({ 'channel:c': [{ id: 'm', sticker_id: 'stk', sticker } as Message] }, 'stk')
+    expect(next?.['channel:c'][0]).toMatchObject({ sticker: null, sticker_id: null, deleted_sticker_name: 'gato' })
+  })
+
   it('tira a figurinha (pelo id ou pelo objeto) e mantém as salas sem ela', () => {
     const other = [msg('c')]
     const next = withoutSticker(

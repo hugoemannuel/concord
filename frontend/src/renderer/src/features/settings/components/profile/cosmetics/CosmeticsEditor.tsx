@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import type { CosmeticImageKind } from '../../../../profile/api/users'
 import { PROFILE_IMAGE_TYPES } from '../../../../profile/lib/profileValidation'
-import { useCosmeticsEditor } from '../../../hooks/useCosmeticsEditor'
+import { useCosmeticsEditor, type CosmeticsTarget } from '../../../hooks/useCosmeticsEditor'
 import ImageCropModal from '../../ImageCropModal'
 import CosmeticsModal from './CosmeticsModal'
 
@@ -13,21 +13,26 @@ const FILE_LABEL: Record<CosmeticImageKind, string> = {
 
 /** O modal "Faixa e moldura" ligado à sessão, com os arquivos e o recorte. */
 export default function CosmeticsEditor({
+  target,
   onClose
 }: {
+  /** Sem ele, o perfil global da sessão. */
+  target?: CosmeticsTarget
   onClose: () => void
 }): React.JSX.Element | null {
   const inputs = {
     nameplate: useRef<HTMLInputElement | null>(null),
     decoration: useRef<HTMLInputElement | null>(null)
   }
-  const editor = useCosmeticsEditor((kind) => inputs[kind].current?.click())
+  const editor = useCosmeticsEditor((kind) => inputs[kind].current?.click(), target)
   if (!editor.user) return null
   return (
     <>
       <CosmeticsModal
         user={editor.user}
         busy={editor.busy}
+        status={editor.status}
+        animatedPreview={editor.animatedPreview}
         onChoose={editor.choose}
         onPickDecoration={() => inputs.decoration.current?.click()}
         onRemove={editor.remove}

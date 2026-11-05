@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { Message } from '../api/messages'
 import type { GroupedMessage } from '../lib/messageGroups'
+import { timeText } from '../lib/dayLabel'
 import { MessageItem } from './MessageItem'
 
 jest.mock('../store/mediaToken', () => ({ ensureMediaToken: jest.fn().mockResolvedValue('tk'), invalidateMediaToken: jest.fn() }))
@@ -21,11 +22,17 @@ const item = (over: Partial<GroupedMessage> = {}, msg: Message = message()): Gro
 })
 
 describe('MessageItem', () => {
-  it('primeira do bloco: nome, hora e texto', async () => {
-    await render(<MessageItem item={item()} timeZone="UTC" />)
+  it('primeira do bloco: nome, hora (mensagem de hoje só mostra a hora) e texto', async () => {
+    const created_at = new Date().toISOString()
+    await render(<MessageItem item={item({}, message({ created_at }))} timeZone="UTC" />)
     expect(screen.getByText('Ana Mobile')).toBeOnTheScreen()
-    expect(screen.getByText('09:05')).toBeOnTheScreen()
+    expect(screen.getByText(timeText(created_at, 'UTC'))).toBeOnTheScreen()
     expect(screen.getByText('olá, pessoal')).toBeOnTheScreen()
+  })
+
+  it('mensagem antiga: data numérica e hora ao lado do nome', async () => {
+    await render(<MessageItem item={item()} timeZone="UTC" />)
+    expect(screen.getByText('28/10/2026 09:05')).toBeOnTheScreen()
   })
 
   it('continuação do bloco: só o texto', async () => {
@@ -92,5 +99,10 @@ describe('MessageItem', () => {
     )
     await fireEvent.press(screen.getByText('Usuário'))
     expect(onOpenProfile).toHaveBeenCalledWith('u7')
+  })
+
+  it('figurinha apagada na origem mostra o :nome:', async () => {
+    await render(<MessageItem item={item({}, message({ content: '', deleted_sticker_name: 'gato' }))} timeZone="UTC" />)
+    expect(screen.getByText(':gato:')).toBeOnTheScreen()
   })
 })

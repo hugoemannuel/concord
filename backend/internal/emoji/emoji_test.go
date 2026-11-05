@@ -313,6 +313,34 @@ func TestServeFileSoParaMembro(t *testing.T) {
 	}
 }
 
+// Quem não é membro só vê o arquivo depois que o emoji foi usado fora do
+// servidor, e nunca sem token: não dá para listar os arquivos.
+func TestServeFilePublicadoParaQuemNaoEMembro(t *testing.T) {
+	e := newEnv(t)
+	var created Emoji
+	_ = json.Unmarshal(e.upload(t, "ana", "festa", pngBytes).Body.Bytes(), &created)
+	url := "/api/emojis/" + created.ID + "/file?token="
+
+	if w := e.do(http.MethodGet, url+"tok-fora", ""); w.Code != http.StatusNotFound {
+		t.Fatalf("antes de publicar: %d", w.Code)
+	}
+	now := time.Now()
+	e.repo.emojis[created.ID].PublishedAt = &now
+	if w := e.do(http.MethodGet, url+"tok-fora", ""); w.Code != http.StatusOK {
+		t.Fatalf("publicado, não membro: %d", w.Code)
+	}
+	if w := e.do(http.MethodGet, url+"ruim", ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("publicado, token ruim: %d", w.Code)
+	}
+	if w := e.do(http.MethodGet, "/api/emojis/"+created.ID+"/file", ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("publicado, sem token: %d", w.Code)
+	}
+	delete(e.repo.emojis, created.ID)
+	if w := e.do(http.MethodGet, url+"tok-fora", ""); w.Code != http.StatusNotFound {
+		t.Fatalf("publicado e apagado: %d", w.Code)
+	}
+}
+
 func TestDelete(t *testing.T) {
 	e := newEnv(t)
 	var created Emoji

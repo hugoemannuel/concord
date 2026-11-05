@@ -16,8 +16,16 @@ export interface ServerSticker {
   created_at: string
 }
 
-export function fetchServerStickers(serverId: string): Promise<ServerSticker[]> {
-  return request<ServerSticker[]>(`/servers/${encodeURIComponent(serverId)}/stickers`)
+/** As figurinhas de um servidor de que a pessoa é membro. */
+export interface ServerStickers {
+  server_id: string
+  server_name: string
+  server_icon_url?: string | null
+  stickers: ServerSticker[]
+}
+
+export function fetchMyStickers(): Promise<ServerStickers[]> {
+  return request<ServerStickers[]>('/stickers')
 }
 
 export function deleteServerSticker(serverId: string, stickerId: string): Promise<void> {

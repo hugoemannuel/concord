@@ -47,6 +47,14 @@ func (m *mockRepo) ListByServer(ctx context.Context, serverID string) ([]Sticker
 	return res, nil
 }
 
+func (m *mockRepo) ListForUser(ctx context.Context, userID string) ([]ServerStickers, error) {
+	g := ServerStickers{ServerID: "srv-1", ServerName: "Salinha"}
+	for _, s := range m.stickers {
+		g.Stickers = append(g.Stickers, *s)
+	}
+	return []ServerStickers{g}, nil
+}
+
 func (m *mockRepo) FindByID(ctx context.Context, id string) (*Sticker, error) {
 	if s, ok := m.stickers[id]; ok {
 		copied := *s
@@ -258,7 +266,7 @@ func TestMockRepo(t *testing.T) {
 
 func TestStickerHTTPFlowAndPermissions(t *testing.T) {
 	t.Parallel()
-	r, h, _, pub := buildStickerRouter(t)
+	r, h, repo, pub := buildStickerRouter(t)
 
 	// 1. Non-member cannot upload or list
 	reqOut := makeMultipartReq(t, "/api/servers/srv-1/stickers", "doge", "image/png", validPNG)
@@ -321,6 +329,17 @@ func TestStickerHTTPFlowAndPermissions(t *testing.T) {
 	if recFileOut.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for outsider file download, got %d", recFileOut.Code)
 	}
+
+	// Publicada (usada fora do servidor): quem não é membro passa a ver.
+	now := time.Now()
+	repo.stickers[created.ID].PublishedAt = &now
+	reqFilePub := httptest.NewRequest(http.MethodGet, "/api/stickers/"+created.ID+"/file?token=tok-outsider", nil)
+	recFilePub := httptest.NewRecorder()
+	r.ServeHTTP(recFilePub, reqFilePub)
+	if recFilePub.Code != http.StatusOK {
+		t.Fatalf("expected 200 for outsider on published sticker, got %d", recFilePub.Code)
+	}
+	repo.stickers[created.ID].PublishedAt = nil
 
 	reqFileBadTok := httptest.NewRequest(http.MethodGet, "/api/stickers/"+created.ID+"/file?token=invalid", nil)
 	recFileBadTok := httptest.NewRecorder()
@@ -398,5 +417,22 @@ func TestFormErrorStatus(t *testing.T) {
 		if got, _ := formErrorStatus(err); got != want {
 			t.Errorf("%v: status = %d, want %d", err, got, want)
 		}
+	}
+}
+
+func TestListMine(t *testing.T) {
+	r, _, repo, _ := buildStickerRouter(t)
+	repo.stickers["stk-1"] = &Sticker{ID: "stk-1", ServerID: "srv-1", Name: "gato"}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stickers", nil)
+	req.Header.Set("X-User", "ana")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	var groups []ServerStickers
+	if err := json.Unmarshal(rec.Body.Bytes(), &groups); err != nil || len(groups) != 1 || groups[0].Stickers[0].Name != "gato" {
+		t.Fatalf("%v %s", err, rec.Body.String())
 	}
 }

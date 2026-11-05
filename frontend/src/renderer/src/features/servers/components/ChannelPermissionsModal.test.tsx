@@ -10,8 +10,10 @@ vi.mock('../../../shared/ui/Modal', () => ({
 }))
 const access = { perms: 0 }
 vi.mock('../hooks/useServerAccess', () => ({
-  useServerAccess: () => ({ isOwner: false, perms: access.perms, channelPerms: () => access.perms })
+  useServerAccess: () => ({ isOwner: false, perms: access.perms, channelPerms: () => access.perms, can: () => true })
 }))
+const categories = vi.hoisted(() => ({ layout: null as unknown }))
+vi.mock('../hooks/useCategories', () => ({ useCategories: () => ({ layout: categories.layout, refresh: vi.fn() }) }))
 // SSR lê o estado atual do zustand.
 vi.spyOn(React, 'useSyncExternalStore').mockImplementation((_subscribe, getSnapshot) =>
   getSnapshot()
@@ -21,7 +23,7 @@ import type { Channel } from '../api/channels'
 import type { ServerMember } from '../api/servers'
 import { Perm, type Role } from '../lib/permissions'
 import { useServerStore } from '../store/serverStore'
-import ChannelPermissionsModal from './ChannelPermissionsModal'
+import ChannelPermissionsModal, { CategorySyncNotice } from './ChannelPermissionsModal'
 
 const role = (id: string, name: string, extra: Partial<Role> = {}): Role =>
   ({ id, server_id: 's1', name, color: null, position: 1, permissions: 0, hoist: false, is_default: false, ...extra }) as Role
@@ -49,6 +51,7 @@ const render = (channel: Channel | null = text): string =>
 describe('ChannelPermissionsModal', () => {
   beforeEach(() => {
     access.perms = Perm.ADMINISTRATOR
+    categories.layout = null
     setStore(text)
   })
 
@@ -96,5 +99,31 @@ describe('ChannelPermissionsModal', () => {
     const html = render()
     expect(html).toContain('flex flex-col gap-4 sm:flex-row')
     expect(html).toContain('w-full shrink-0 sm:w-52')
+  })
+
+  it('canal solto não fala de categoria', () => {
+    expect(render()).not.toContain('Sincroniz')
+  })
+
+  it('canal vinculado diz que segue a categoria', () => {
+    categories.layout = { categories: [{ id: 'cat', name: 'Jogos', position: 0 }], channels: [{ channel_id: 'c1', category_id: 'cat', position: 0, synced: true }] }
+    const html = render()
+    expect(html).toContain('Sincronizado com a categoria')
+    expect(html).toContain('Jogos')
+  })
+
+  it('canal dessincronizado avisa e oferece sincronizar', () => {
+    categories.layout = { categories: [{ id: 'cat', name: 'Jogos', position: 0 }], channels: [{ channel_id: 'c1', category_id: 'cat', position: 0, synced: false }] }
+    const html = render()
+    expect(html).toContain('permissões próprias')
+    expect(html).toContain('Sincronizar')
+  })
+})
+
+describe('CategorySyncNotice', () => {
+  it('sem gerenciar cargos, só avisa', () => {
+    const html = renderToStaticMarkup(<CategorySyncNotice categoryName="Jogos" synced={false} canSync={false} busy={false} onSync={vi.fn()} />)
+    expect(html).toContain('permissões próprias')
+    expect(html).not.toContain('<button')
   })
 })

@@ -34,6 +34,14 @@ describe('saveChannel', () => {
     )
   })
 
+  it.each(['text', 'voice'] as const)('cria canal de %s já na categoria escolhida', async (type) => {
+    const a = api()
+    await saveChannel({ ...base, type, categoryId: 'categoria-jogos' }, a)
+    expect(a.create).toHaveBeenCalledWith('s1', 'off-topic', type, {
+      private: true, roleIds: ['r1'], categoryId: 'categoria-jogos'
+    })
+  })
+
   it('renomeia o canal editado', async () => {
     const a = api()
     const editing = { id: 'c1' } as Channel

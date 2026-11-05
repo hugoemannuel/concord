@@ -5,6 +5,8 @@ import { Perm } from './permissions'
 
 export type ServerSettingsSectionId =
   | 'overview'
+  | 'tag'
+  | 'look'
   | 'roles'
   | 'members'
   | 'bans'
@@ -30,7 +32,9 @@ export interface ServerSettingsSection {
 const MEMBER_PERMS = Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS | Perm.MANAGE_NICKNAMES
 
 export const SERVER_SETTINGS_SECTIONS: ServerSettingsSection[] = [
-  { id: 'overview', label: 'Visão geral', anyOf: Perm.MANAGE_SERVER },
+  { id: 'overview', label: 'Perfil do servidor', anyOf: Perm.MANAGE_SERVER },
+  { id: 'tag', label: 'Tag do servidor', anyOf: Perm.MANAGE_SERVER },
+  { id: 'look', label: 'Faixa e fundo', anyOf: Perm.MANAGE_SERVER },
   { id: 'roles', label: 'Cargos', anyOf: Perm.MANAGE_ROLES },
   { id: 'members', label: 'Membros', anyOf: MEMBER_PERMS },
   { id: 'bans', label: 'Banimentos', anyOf: Perm.BAN_MEMBERS },

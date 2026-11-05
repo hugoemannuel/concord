@@ -107,7 +107,8 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Sticker, error) 
 			s.name,
 			s.content_type,
 			s.size_bytes,
-			s.created_at
+			s.created_at,
+			s.published_at
 		FROM server_stickers s
 		LEFT JOIN users u ON u.id = s.uploader_id
 		WHERE s.id = $1
@@ -122,6 +123,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Sticker, error) 
 		&s.ContentType,
 		&s.SizeBytes,
 		&s.CreatedAt,
+		&s.PublishedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStickerNotFound
@@ -159,10 +161,48 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *Repository) StickerServerID(ctx context.Context, stickerID string) (string, error) {
-	stk, err := r.FindByID(ctx, stickerID)
-	if err != nil {
-		return "", err
+// ListForUser: numa consulta só, as figurinhas de todos os servidores de que a
+// pessoa é membro, agrupadas por servidor (servidor sem figurinha fica de fora).
+func (r *Repository) ListForUser(ctx context.Context, userID string) ([]ServerStickers, error) {
+	if _, err := uuid.Parse(userID); err != nil {
+		return []ServerStickers{}, nil
 	}
-	return stk.ServerID, nil
+	rows, err := r.db.Query(ctx, `
+		SELECT srv.id, srv.name, srv.icon_url,
+		       s.id, s.uploader_id, COALESCE(u.display_name, u.username, ''),
+		       s.name, s.content_type, s.size_bytes, s.created_at
+		FROM server_members m
+		JOIN servers srv ON srv.id = m.server_id
+		JOIN server_stickers s ON s.server_id = m.server_id
+		LEFT JOIN users u ON u.id = s.uploader_id
+		WHERE m.user_id = $1
+		ORDER BY lower(srv.name), srv.id, s.created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanGroups(rows)
+}
+
+// scanGroups: as linhas vêm ordenadas por servidor; cada uma vai para o grupo dele.
+func scanGroups(rows pgx.Rows) ([]ServerStickers, error) {
+	groups := make([]ServerStickers, 0)
+	for rows.Next() {
+		var g ServerStickers
+		var s Sticker
+		if err := rows.Scan(&g.ServerID, &g.ServerName, &g.ServerIconURL, &s.ID, &s.UploaderID, &s.UploaderName,
+			&s.Name, &s.ContentType, &s.SizeBytes, &s.CreatedAt); err != nil {
+			return nil, err
+		}
+		s.ServerID = g.ServerID
+		if n := len(groups); n > 0 && groups[n-1].ServerID == g.ServerID {
+			groups[n-1].Stickers = append(groups[n-1].Stickers, s)
+			continue
+		}
+		g.Stickers = []Sticker{s}
+		groups = append(groups, g)
+	}
+	return groups, rows.Err()
 }

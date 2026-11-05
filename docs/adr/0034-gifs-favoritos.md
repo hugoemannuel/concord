@@ -1,6 +1,6 @@
-# 0034. GIFs favoritos guardados no backend, por usuário, dentro de `internal/giphy`
+# 0034. GIFs favoritos guardados no backend, por usuário, dentro de `internal/gifs`
 
-- Status: aceito
+- Status: aceito (atualizado pelo [0053](0053-klipy-no-lugar-do-giphy.md): provedor KLIPY)
 - Data: 2026-10-30
 
 ## Contexto
@@ -39,3 +39,12 @@ no foco e sempre no toque; o id vem da própria URL da mídia.
 - GIF enviado antes desta mudança só vira favorito se a URL tiver o formato
   `/media/<id>/…` do GIPHY (todos os enviados pelo seletor têm).
 - O app mobile ainda não tem a estrela (a API já está pronta para ele).
+
+## Atualização (0053)
+
+A KLIPY substituiu o GIPHY como provedor e o pacote virou `internal/gifs`. A
+tabela ganhou `provider` (`giphy` nos favoritos antigos, `klipy` nos novos) e a
+validação aceita URLs `https` de `giphy.com` e `klipy.com`, com a prévia do
+mesmo provedor. O id do favorito da KLIPY é o hash da URL de mídia, como o do
+GIPHY (`/media/<id>/`), então favoritar pelo GIF do chat continua funcionando
+para os dois.

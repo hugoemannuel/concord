@@ -161,7 +161,7 @@ function InviteCard({ code }: { code: string }): React.JSX.Element {
 
         {preview && (
           <>
-            <InviteServerInfo preview={preview} />
+            <InviteServerInfo preview={preview} code={code} />
             <div className="mt-8 flex flex-col gap-3">
               <Button className="w-full py-2.5" onClick={openApp}>
                 Abrir aplicativo

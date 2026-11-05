@@ -15,12 +15,14 @@ import {
 } from './screenShareQuality'
 import { loadScreenCodec, screenCodecOptions } from './screenCodec'
 import {
+  detectHighH264,
   detectScreenCodecs,
   markSoftwareCodec,
   softwareMarkedCodecs,
-  type ScreenCodecSupport,
-  type ScreenVideoCodec
+  type ScreenVideoCodec,
+  type ScreenVideoShape
 } from './screenCodecSupport'
+import { syncScreenScales } from './screenScaleSync'
 import { describeCodecChoice, noteScreenCodecChoice } from './screenCodecChoice'
 import { screenSound } from './screenSound'
 import { chooseScreenSimulcast, loadScreenSimulcast } from './screenSimulcast'
@@ -40,14 +42,11 @@ import {
 // CallMedia delega para cá (o livekit.ts não cresce com a tela). Ver
 // docs/adr/0020 e 0048.
 
-/** O que a placa de vídeo/navegador codifica no tamanho da live. */
-function codecSupport(
-  quality: ScreenShareQuality,
-  settings: MediaTrackSettings
-): Promise<ScreenCodecSupport> {
+/** O tamanho da live, como a detecção de codecs pergunta. */
+function videoShape(quality: ScreenShareQuality, settings: MediaTrackSettings): ScreenVideoShape {
   const { width, height } = captureSize(quality.resolution, settings)
   const bitrate = screenEncoding(quality, settings).maxBitrate
-  return detectScreenCodecs({ width, height, bitrate, framerate: quality.frameRate })
+  return { width, height, bitrate, framerate: quality.frameRate }
 }
 
 /** Codec e camadas da live (sem os codecs que já falharam nela) e anota o porquê. */
@@ -58,7 +57,8 @@ async function screenPlan(
   const [video] = stream.getVideoTracks()
   const quality = streamQuality(stream)
   const settings = video?.getSettings() ?? {}
-  const support = await codecSupport(quality, settings)
+  const shape = videoShape(quality, settings)
+  const support = await detectScreenCodecs(shape)
   const preference = loadScreenCodec()
   const mode = loadScreenSimulcast()
   const simulcast = chooseScreenSimulcast(mode, quality, settings, support, preference)
@@ -68,7 +68,7 @@ async function screenPlan(
   noteScreenCodecChoice(
     describeCodecChoice({ preference, support, simulcast, codec, marked, sound })
   )
-  return { codec, simulcast }
+  return { codec, simulcast, h264High: await detectHighH264(shape) }
 }
 
 export class ScreenSender {
@@ -231,6 +231,7 @@ export class ScreenSender {
     if (!track || track.mediaStreamTrack !== stream.getVideoTracks()[0]) return null
     const report = (await track.getRTCStatsReport()) ?? null
     if (report) this.inspect(stream, report)
+    if (!this.republishing) void this.enqueue(() => syncScreenScales(track)).catch(() => {})
     return report
   }
 }

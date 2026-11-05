@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { GiphyItem } from '../api/giphy'
+import type { GifItem } from '../api/gifs'
 import GifGrid from './GifGrid'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }): React.JSX.Element {
@@ -11,6 +11,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+function emptyMessage(loading: boolean, unavailable: boolean): string {
+  if (loading) return 'Carregando GIFs…'
+  return unavailable ? 'GIFs indisponíveis.' : 'Nenhum GIF encontrado.'
+}
+
 /**
  * Aba "GIFs" do seletor de mídia (a busca fica no useGifSearch). Com a busca
  * vazia mostra primeiro os favoritos da pessoa e depois os GIFs em alta.
@@ -18,22 +23,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function GifsTab({
   gifs,
   loading,
+  unavailable = false,
   favorites,
   searching,
   onSelect,
   onToggleFavorite
 }: {
-  gifs: GiphyItem[]
+  gifs: GifItem[]
   loading: boolean
-  favorites: GiphyItem[]
+  /** A busca falhou ou o servidor não tem chave da KLIPY. */
+  unavailable?: boolean
+  favorites: GifItem[]
   /** Tem texto na busca: os favoritos saem e só aparece o resultado. */
   searching: boolean
-  onSelect: (gif: GiphyItem) => void
-  onToggleFavorite: (gif: GiphyItem) => void
+  onSelect: (gif: GifItem) => void
+  onToggleFavorite: (gif: GifItem) => void
 }): React.JSX.Element {
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites])
   const showFavorites = !searching && favorites.length > 0
-  const grid = (list: GiphyItem[]): React.JSX.Element => (
+  const grid = (list: GifItem[]): React.JSX.Element => (
     <GifGrid
       gifs={list}
       favoriteIds={favoriteIds}
@@ -48,7 +56,7 @@ export default function GifsTab({
       <div
         className={`flex items-center justify-center text-ds-xs text-faint ${showFavorites ? 'h-16' : 'h-48'}`}
       >
-        {loading ? 'Carregando GIFs…' : 'Nenhum GIF encontrado.'}
+        {emptyMessage(loading, unavailable)}
       </div>
     )
   } else {

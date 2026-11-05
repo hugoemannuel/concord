@@ -110,3 +110,34 @@ export function sparkle(
   ctx.fill()
   ctx.restore()
 }
+
+/** Razão entre o raio interno e o externo da estrela regular de 5 pontas. */
+export const STAR_INNER = 0.381966
+
+/**
+ * Os 10 vértices da estrela de 5 pontas (ponta, vale, ponta, vale…), em
+ * [x0, y0, x1, y1…]. Com `rot` = -π/2 a primeira ponta aponta para cima.
+ */
+export function starPoints(cx: number, cy: number, outer: number, rot: number): number[] {
+  const out: number[] = []
+  for (let i = 0; i < 10; i++) {
+    const radius = i % 2 === 0 ? outer : outer * STAR_INNER
+    const a = rot + (i * Math.PI) / 5
+    out.push(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius)
+  }
+  return out
+}
+
+/** Traça (sem preencher) a estrela de 5 pontas no caminho atual. */
+export function starPath(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  outer: number,
+  rot: number
+): void {
+  const p = starPoints(cx, cy, outer, rot)
+  ctx.moveTo(p[0], p[1])
+  for (let i = 2; i < 20; i += 2) ctx.lineTo(p[i], p[i + 1])
+  ctx.closePath()
+}

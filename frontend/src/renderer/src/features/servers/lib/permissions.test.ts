@@ -27,6 +27,13 @@ import {
 
 // Os mesmos casos rodam no backend (permission/vectors_test.go): os dois lados
 // têm que calcular igual.
+interface VectorOverwrite {
+  target_type: 'role' | 'member'
+  target_id: string
+  allow: string[]
+  deny: string[]
+}
+
 interface Vectors {
   bits: Record<string, number>
   defaults: { everyone: string[] }
@@ -47,6 +54,18 @@ interface Vectors {
       }[]
     }
     expect_base: string[]
+    expect_channel: string[]
+  }[]
+  category_gate: {
+    name: string
+    owner_id: string
+    user_id: string
+    everyone: string[]
+    roles: { id: string; position: number; permissions: string[] }[]
+    member_roles: string[]
+    category: { overwrites: VectorOverwrite[] }
+    channel: { type: ChannelKind; overwrites: VectorOverwrite[] }
+    expect_category: boolean
     expect_channel: string[]
   }[]
   can_act_on: {
@@ -84,10 +103,10 @@ const vectors: Vectors = JSON.parse(
 
 const bits = (names: string[]): number =>
   names.reduce((sum, n) => {
-    if (n === 'ALL') return sum | ALL_PERMISSIONS
+    if (n === 'ALL') return (sum | ALL_PERMISSIONS) >>> 0
     const bit = vectors.bits[n]
     if (bit === undefined) throw new Error(`permissão desconhecida ${n}`)
-    return sum | bit
+    return (sum | bit) >>> 0
   }, 0)
 
 describe('bits compartilhados com o backend', () => {
@@ -99,14 +118,57 @@ describe('bits compartilhados com o backend', () => {
     expect(DEFAULT_EVERYONE).toBe(bits(vectors.defaults.everyone))
   })
 
-  it('cabem em 32 bits (bitwise do JS)', () => {
-    expect(ALL_PERMISSIONS).toBeGreaterThan(0)
-    expect(ALL_PERMISSIONS).toBeLessThan(2 ** 31)
+  it('cabem em 32 bits (bitwise do JS) e saem sem sinal', () => {
+    expect(ALL_PERMISSIONS).toBe(2 ** 32 - 1)
+    expect(Perm.USE_EXTERNAL_EMOJIS).toBe(2 ** 31)
+    expect(DEFAULT_EVERYONE).toBeGreaterThan(0)
   })
 
-  it('normalize descarta bits desconhecidos', () => {
+  it('normalize descarta bits desconhecidos e devolve sem sinal', () => {
     expect(normalize(ALL_PERMISSIONS | (1 << 14) | (1 << 29))).toBe(ALL_PERMISSIONS)
+    expect(normalize(-2147483648)).toBe(Perm.USE_EXTERNAL_EMOJIS)
+    expect(normalize(2 ** 32 + Perm.VIEW_CHANNEL)).toBe(Perm.VIEW_CHANNEL)
   })
+
+  it('has reconhece o bit 31, com ou sem sinal', () => {
+    const perms = (Perm.VIEW_CHANNEL | Perm.USE_EXTERNAL_EMOJIS) >>> 0
+    expect(has(perms, Perm.USE_EXTERNAL_EMOJIS)).toBe(true)
+    expect(has(perms | 0, Perm.USE_EXTERNAL_EMOJIS)).toBe(true)
+    expect(has(perms, (Perm.VIEW_CHANNEL | Perm.USE_EXTERNAL_EMOJIS) >>> 0)).toBe(true)
+    expect(has(Perm.VIEW_CHANNEL, Perm.USE_EXTERNAL_EMOJIS)).toBe(false)
+  })
+})
+
+// Quem não vê a categoria não tem nada nos canais dela. O app recebe a lista já filtrada,
+// mas a conta é a mesma: a da categoria é a de um canal, e bloqueia a do canal.
+describe('categoria bloqueia os canais (casos do backend)', () => {
+  for (const tc of vectors.category_gate) {
+    it(tc.name, () => {
+      const roles: Role[] = tc.roles.map((r) => ({
+        id: r.id,
+        server_id: 's',
+        name: r.id,
+        color: null,
+        position: r.position,
+        permissions: bits(r.permissions),
+        hoist: false,
+        is_default: false
+      }))
+      const base = computeBase(tc.owner_id, tc.user_id, bits(tc.everyone), rolesOfMember(roles, tc.member_roles))
+      const inChannel = (overwrites: VectorOverwrite[]): number =>
+        computeChannel(
+          base,
+          tc.channel.type,
+          overwrites.map((o) => ({ target_type: o.target_type, target_id: o.target_id, allow: bits(o.allow), deny: bits(o.deny) })),
+          'everyone',
+          tc.user_id,
+          tc.member_roles
+        )
+      const seesCategory = (inChannel(tc.category.overwrites) & Perm.VIEW_CHANNEL) !== 0
+      expect(seesCategory).toBe(tc.expect_category)
+      expect(seesCategory ? inChannel(tc.channel.overwrites) : 0).toBe(bits(tc.expect_channel))
+    })
+  }
 })
 
 describe('computeBase / computeChannel (casos do backend)', () => {

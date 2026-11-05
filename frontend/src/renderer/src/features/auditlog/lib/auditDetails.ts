@@ -63,6 +63,13 @@ function eventActions(v: unknown): string {
   return names.length ? names.join(', ') : 'Nenhuma'
 }
 
+/** Fundo do servidor: a imagem (a URL é o que muda de uma para outra) ou o nome do degradê. */
+const art = (v: unknown): string => {
+  const value = String(v ?? '')
+  if (!value) return 'padrão'
+  return value.startsWith('/api/') ? 'imagem' : value
+}
+
 const lookup = (table: Record<string, string>) => (v: unknown) => table[String(v)] ?? text(v)
 
 /** Rótulo e formato de cada campo que o backend grava (backend/internal/<domínio>/audit.go). */
@@ -77,13 +84,27 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   hoist: { label: 'Mostrar separado', format: yesNo },
   nick: { label: 'Apelido', format: (v) => (v ? String(v) : 'sem apelido') },
   channel: { label: 'Canal', format: text },
+  category: { label: 'Categoria', format: text },
+  overwrites: { label: 'Regras de permissão', format: text },
+  synced_channels: { label: 'Canais que acompanharam', format: text },
   starts_at: { label: 'Início', format: dateTime },
   duration_minutes: { label: 'Duração', format: minutes },
   recurrence: { label: 'Repetição', format: (v) => (v ? lookup(RECURRENCE)(v) : EMPTY) },
   duration: { label: 'Duração do link', format: lookup(LINK_DURATION) },
   can_speak: { label: 'Pode falar', format: yesNo },
   can_stream: { label: 'Câmera e tela', format: yesNo },
-  event_actions: { label: 'Ações nos eventos', format: eventActions }
+  event_actions: { label: 'Ações nos eventos', format: eventActions },
+  banner: { label: 'Banner', format: art },
+  traits: { label: 'Traços', format: text },
+  games: { label: 'Jogos', format: text },
+  profile_private: { label: 'Perfil privado', format: yesNo },
+  strip: { label: 'Faixa', format: art },
+  server_theme: { label: 'Tema de fundo', format: art },
+  server_theme_image: { label: 'Imagem de fundo', format: art },
+  server_theme_dim: { label: 'Escurecer a imagem', format: (v) => `${String(v)}%` },
+  tag_name: { label: 'Nome da tag', format: text },
+  tag_badge: { label: 'Emblema da tag', format: text },
+  tag_color: { label: 'Cor da tag', format: text }
 }
 
 const PERMISSION_FIELDS: Record<string, string> = { permissions: 'Permissões', allow: 'Permitido', deny: 'Negado' }

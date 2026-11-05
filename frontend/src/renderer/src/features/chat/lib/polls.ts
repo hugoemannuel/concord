@@ -91,7 +91,7 @@ export function applyPollUpdate(
 
 type PreviewSource = Pick<
   Message,
-  'content' | 'poll' | 'attachments' | 'sticker' | 'sticker_id' | 'gif_url'
+  'content' | 'poll' | 'attachments' | 'sticker' | 'sticker_id' | 'deleted_sticker_name' | 'gif_url'
 >
 
 /** Prévia da mensagem dentro do app (barra de resposta, busca): texto e tipo. */
@@ -100,6 +100,7 @@ export function messagePreviewParts(message: PreviewSource): Preview {
   if (message.content) return textPreview(message.content)
   if (message.sticker) return { icon: 'sticker', text: `Figurinha :${message.sticker.name}:` }
   if (message.sticker_id) return { icon: 'sticker', text: 'Figurinha' }
+  if (message.deleted_sticker_name) return { icon: 'sticker', text: `Figurinha :${message.deleted_sticker_name}:` }
   if (message.gif_url) return { icon: 'gif', text: 'GIF' }
   return attachmentPreview(message.attachments) ?? textPreview('')
 }

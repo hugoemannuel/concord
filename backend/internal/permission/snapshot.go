@@ -7,6 +7,8 @@ type ChannelInfo struct {
 	ID         string
 	Type       string
 	Overwrites []Overwrite
+	// CategoryID: categoria onde o canal está ("" = solto no topo da lista).
+	CategoryID string
 }
 
 // Snapshot é o estado de permissões de um servidor inteiro (cargos, quem tem
@@ -22,6 +24,7 @@ type Snapshot struct {
 	// é ser membro.
 	MemberRoles map[string][]string
 	Channels    map[string]ChannelInfo
+	Categories  map[string]CategoryInfo
 }
 
 // NewSnapshot monta um snapshot à mão (testes e fakes): o @everyone tem id
@@ -100,11 +103,11 @@ func (s *Snapshot) Server(userID string) int64 {
 	return baseFrom(s.OwnerID, userID, s.Everyone.Permissions, rolePerms)
 }
 
-// Channel: permissões do membro no canal (0 se não é membro ou o canal não é
-// do servidor).
+// Channel: permissões do membro no canal (0 se não é membro, se o canal não é
+// do servidor ou se o membro não vê a categoria do canal).
 func (s *Snapshot) Channel(channelID string, userID string) int64 {
 	ch, ok := s.Channels[channelID]
-	if !ok || !s.IsMember(userID) {
+	if !ok || !s.IsMember(userID) || !s.passesCategory(ch, userID) {
 		return 0
 	}
 	return ForChannel(s.Server(userID), ch.Type, ch.Overwrites, s.Everyone.ID, userID, s.MemberRoles[userID])

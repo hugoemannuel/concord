@@ -2,15 +2,15 @@ import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
 import {
   type ServerSticker,
-  fetchServerStickers,
+  fetchMyStickers,
   uploadServerSticker,
   deleteServerSticker
 } from '../api/stickers'
 
 interface StickerState {
   stickersByServer: Record<string, ServerSticker[]>
-  loadingByServer: Record<string, boolean>
-  loadStickers: (serverId: string) => Promise<void>
+  /** As figurinhas de todos os servidores da pessoa, numa consulta só. */
+  loadMine: () => Promise<void>
   uploadSticker: (
     serverId: string,
     name: string,
@@ -32,21 +32,13 @@ export const selectStickers =
 
 export const useStickerStore = create<StickerState>((set) => ({
   stickersByServer: {},
-  loadingByServer: {},
 
-  loadStickers: async (serverId: string) => {
-    if (!serverId) return
-    set((s) => ({ loadingByServer: { ...s.loadingByServer, [serverId]: true } }))
+  loadMine: async () => {
     try {
-      const stickers = await fetchServerStickers(serverId)
-      set((s) => ({
-        stickersByServer: { ...s.stickersByServer, [serverId]: stickers },
-        loadingByServer: { ...s.loadingByServer, [serverId]: false }
-      }))
+      const groups = await fetchMyStickers()
+      set({ stickersByServer: Object.fromEntries(groups.map((g) => [g.server_id, g.stickers])) })
     } catch {
-      set((s) => ({
-        loadingByServer: { ...s.loadingByServer, [serverId]: false }
-      }))
+      // Sem rede: o seletor fica com o que já tinha carregado.
     }
   },
 

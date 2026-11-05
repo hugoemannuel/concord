@@ -17,6 +17,7 @@ import (
 type stickerRepo interface {
 	Create(ctx context.Context, s *Sticker) error
 	ListByServer(ctx context.Context, serverID string) ([]Sticker, error)
+	ListForUser(ctx context.Context, userID string) ([]ServerStickers, error)
 	FindByID(ctx context.Context, id string) (*Sticker, error)
 	CountByServer(ctx context.Context, serverID string) (int, error)
 	Delete(ctx context.Context, id string) error
@@ -104,6 +105,21 @@ func (h *Handler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, stickers)
 }
 
+// ListMine: as figurinhas de todos os servidores de quem pede (uma consulta).
+func (h *Handler) ListMine(c *gin.Context) {
+	userID := c.GetString("userID")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	groups, err := h.repo.ListForUser(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list stickers"})
+		return
+	}
+	c.JSON(http.StatusOK, groups)
+}
+
 func (h *Handler) Delete(c *gin.Context) {
 	actorID := c.GetString("userID")
 	if actorID == "" {
@@ -167,6 +183,9 @@ func deleteError(err error) (int, string) {
 	return http.StatusInternalServerError, "failed to delete sticker"
 }
 
+// ServeFile entrega a imagem a membros do servidor da figurinha e, se ela já foi
+// usada fora do servidor, a quem tem conta (id aleatório e token obrigatório:
+// não dá para listar os arquivos).
 func (h *Handler) ServeFile(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
@@ -192,12 +211,12 @@ func (h *Handler) ServeFile(c *gin.Context) {
 		return
 	}
 
-	isMember, err := h.servers.IsMember(ctx, stk.ServerID, userID)
+	visible, err := h.fileVisible(ctx, stk, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check access"})
 		return
 	}
-	if !isMember {
+	if !visible {
 		notFound()
 		return
 	}
@@ -216,4 +235,11 @@ func (h *Handler) ServeFile(c *gin.Context) {
 	header.Set("Cache-Control", "public, max-age=86400")
 	header.Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": stk.Name}))
 	http.ServeContent(c.Writer, c.Request, "", stk.CreatedAt, file)
+}
+
+func (h *Handler) fileVisible(ctx context.Context, stk *Sticker, userID string) (bool, error) {
+	if stk.PublishedAt != nil {
+		return true, nil
+	}
+	return h.servers.IsMember(ctx, stk.ServerID, userID)
 }

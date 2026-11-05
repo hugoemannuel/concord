@@ -46,6 +46,8 @@ export interface Message {
   attachments?: Attachment[] | null
   sticker_id?: string | null
   sticker?: MessageSticker | null
+  /** Figurinha apagada na origem: sobrou o nome, para mostrar :nome:. */
+  deleted_sticker_name?: string | null
   gif_url?: string | null
   gif_metadata?: GifMetadata | null
   created_at: string

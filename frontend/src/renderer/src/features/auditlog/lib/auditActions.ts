@@ -21,6 +21,11 @@ const changeOf = (e: AuditEntry, field: string): { before?: unknown; after?: unk
 
 const turnedOn = (e: AuditEntry, field: string): boolean => changeOf(e, field)?.after === true
 
+const CHANNEL_REORDER_SENTENCE: Record<string, string> = {
+  voice: '{a} reordenou os canais de voz',
+  layout: '{a} reorganizou as categorias e os canais'
+}
+
 const ACTIONS: Record<AuditAction, ActionInfo> = {
   'server.update': {
     label: 'Servidor atualizado',
@@ -49,10 +54,7 @@ const ACTIONS: Record<AuditAction, ActionInfo> = {
   'channel.reorder': {
     label: 'Canais reordenados',
     tone: 'update',
-    sentence: (e) =>
-      changeOf(e, 'type')?.after === 'voice'
-        ? '{a} reordenou os canais de voz'
-        : '{a} reordenou os canais de texto'
+    sentence: (e) => CHANNEL_REORDER_SENTENCE[String(changeOf(e, 'type')?.after)] ?? '{a} reordenou os canais de texto'
   },
   'channel.overwrite.update': {
     label: 'Permissões de canal alteradas',
@@ -64,6 +66,14 @@ const ACTIONS: Record<AuditAction, ActionInfo> = {
     tone: 'delete',
     sentence: '{a} removeu as permissões de {t} em {c}'
   },
+  'channel.sync': {
+    label: 'Canal sincronizado com a categoria',
+    tone: 'update',
+    sentence: '{a} sincronizou o canal {t} com a categoria'
+  },
+  'category.create': { label: 'Categoria criada', tone: 'create', sentence: '{a} criou a categoria {t}' },
+  'category.update': { label: 'Categoria editada', tone: 'update', sentence: '{a} editou a categoria {t}' },
+  'category.delete': { label: 'Categoria apagada', tone: 'delete', sentence: '{a} apagou a categoria {t}' },
   'role.create': { label: 'Cargo criado', tone: 'create', sentence: '{a} criou o cargo {t}' },
   'role.update': { label: 'Cargo editado', tone: 'update', sentence: '{a} editou o cargo {t}' },
   'role.delete': { label: 'Cargo apagado', tone: 'delete', sentence: '{a} apagou o cargo {t}' },
@@ -126,7 +136,11 @@ export const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
       'channel.delete',
       'channel.reorder',
       'channel.overwrite.update',
-      'channel.overwrite.delete'
+      'channel.overwrite.delete',
+      'channel.sync',
+      'category.create',
+      'category.update',
+      'category.delete'
     ]
   },
   {

@@ -41,7 +41,14 @@ func newSearchRouter(store *fakeSearchStore, access RoomAccess, userID string) (
 		WithChannel("segredo", permission.ChannelText,
 			permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel},
 			permission.Overwrite{TargetType: permission.TargetRole, TargetID: "vip", Allow: permission.ViewChannel},
-		)
+		).
+		// Sem regra nenhuma no canal: só a categoria privada o esconde.
+		WithCategory("privada",
+			permission.Overwrite{TargetType: permission.TargetRole, TargetID: "everyone", Deny: permission.ViewChannel},
+			permission.Overwrite{TargetType: permission.TargetRole, TargetID: "vip", Allow: permission.ViewChannel},
+		).
+		WithChannel("na-categoria", permission.ChannelText).
+		InCategory("na-categoria", "privada")
 	perms := permission.NewService(&permission.StaticStore{Snapshots: map[string]*permission.Snapshot{searchServerID: snap}})
 	h := NewSearchHandler(store, perms, access)
 	r := gin.New()
@@ -76,8 +83,23 @@ func TestSearchServerOnlyVisibleChannels(t *testing.T) {
 	store = &fakeSearchStore{}
 	r, _ = newSearchRouter(store, fakeAccess{}, "vip")
 	doSearch(r, "/api/servers/"+searchServerID+"/messages/search?q=oi")
-	if !reflect.DeepEqual(store.scope.ChannelIDs, []string{"geral", "segredo"}) {
+	if !reflect.DeepEqual(store.scope.ChannelIDs, []string{"geral", "na-categoria", "segredo"}) {
 		t.Errorf("escopo do vip = %v", store.scope.ChannelIDs)
+	}
+}
+
+// Busca não acha canal de categoria privada, nem pedido pelo nome.
+func TestSearchSkipsChannelsOfPrivateCategory(t *testing.T) {
+	store := &fakeSearchStore{}
+	r, _ := newSearchRouter(store, fakeAccess{}, "ana")
+	w := doSearch(r, "/api/servers/"+searchServerID+"/messages/search?q=oi+in:na-categoria")
+	if w.Code != http.StatusOK || reflect.DeepEqual(store.scope.ChannelIDs, []string{"na-categoria"}) {
+		t.Fatalf("status %d, escopo %v", w.Code, store.scope.ChannelIDs)
+	}
+	for _, id := range store.scope.ChannelIDs {
+		if id == "na-categoria" {
+			t.Fatalf("escopo da ana: %v", store.scope.ChannelIDs)
+		}
 	}
 }
 

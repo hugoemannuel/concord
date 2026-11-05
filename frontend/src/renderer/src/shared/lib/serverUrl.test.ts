@@ -65,13 +65,13 @@ describe('deriveServerUrls', () => {
 describe('buildConnectSrc', () => {
   it('libera http e ws do servidor configurado', () => {
     expect(buildConnectSrc('http://abc.gl.at.ply.gg:12345')).toBe(
-      "'self' http://abc.gl.at.ply.gg:12345 ws://abc.gl.at.ply.gg:12345"
+      "'self' http://abc.gl.at.ply.gg:12345 ws://abc.gl.at.ply.gg:12345 https://api.klipy.com"
     )
   })
 
   it('libera https e wss quando o servidor é https', () => {
     expect(buildConnectSrc('https://concord.exemplo.com.br')).toBe(
-      "'self' https://concord.exemplo.com.br wss://concord.exemplo.com.br"
+      "'self' https://concord.exemplo.com.br wss://concord.exemplo.com.br https://api.klipy.com"
     )
   })
 
@@ -79,7 +79,7 @@ describe('buildConnectSrc', () => {
     expect(
       buildConnectSrc('https://74-0-5-252.sslip.io', ['https://app-salinha.bhrx.com.br'])
     ).toBe(
-      "'self' https://74-0-5-252.sslip.io wss://74-0-5-252.sslip.io https://app-salinha.bhrx.com.br wss://app-salinha.bhrx.com.br"
+      "'self' https://74-0-5-252.sslip.io wss://74-0-5-252.sslip.io https://app-salinha.bhrx.com.br wss://app-salinha.bhrx.com.br https://api.klipy.com"
     )
   })
 })
@@ -138,15 +138,15 @@ describe('resolveServerUrls', () => {
 })
 
 describe('buildWebConnectSrc', () => {
-  it('libera a própria origem e o wss do endereço público', () => {
+  it('libera a própria origem, o wss do endereço público e a API de GIFs (KLIPY)', () => {
     expect(buildWebConnectSrc('https://app-salinha.bhrx.com.br/')).toBe(
-      "'self' wss://app-salinha.bhrx.com.br"
+      "'self' wss://app-salinha.bhrx.com.br https://api.klipy.com"
     )
   })
 
-  it("sem endereço público fica só no 'self' (que já cobre o ws da mesma origem)", () => {
-    expect(buildWebConnectSrc(undefined)).toBe("'self'")
-    expect(buildWebConnectSrc('  ')).toBe("'self'")
+  it("sem endereço público fica no 'self' (que já cobre o ws da mesma origem) e na KLIPY", () => {
+    expect(buildWebConnectSrc(undefined)).toBe("'self' https://api.klipy.com")
+    expect(buildWebConnectSrc('  ')).toBe("'self' https://api.klipy.com")
   })
 })
 

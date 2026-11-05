@@ -75,7 +75,7 @@ describe('PermissionSwitches helpers', () => {
   it('nextPermissionsValue ao marcar Administrador liga tudo; ao desmarcar desliga apenas Administrador', () => {
     const adminOn = nextPermissionsValue(0, Perm.ADMINISTRATOR, true, true)
     expect(adminOn & Perm.ADMINISTRATOR).toBeTruthy()
-    expect(adminOn & ALL_PERMISSIONS).toBe(ALL_PERMISSIONS)
+    expect(adminOn).toBe(ALL_PERMISSIONS)
 
     const adminOff = nextPermissionsValue(adminOn, Perm.ADMINISTRATOR, true, false)
     expect(adminOff & Perm.ADMINISTRATOR).toBe(0)
@@ -117,5 +117,18 @@ describe('PermissionSwitches component', () => {
     )
     expect(html).not.toContain('pointer-events-none')
     expect(html.match(/role="switch"[^>]*disabled=""/g)).toHaveLength(3)
+  })
+})
+
+describe('nextPermissionsValue com o bit mais alto', () => {
+  it('liga e desliga sem sinal (o valor vai ao servidor e é comparado)', () => {
+    const on = nextPermissionsValue(Perm.VIEW_CHANNEL, Perm.USE_EXTERNAL_EMOJIS, false, true)
+    expect(on).toBe(Perm.VIEW_CHANNEL + 2 ** 31)
+    expect(nextPermissionsValue(on, Perm.VIEW_CHANNEL, false, false)).toBe(2 ** 31)
+    expect(nextPermissionsValue(on, Perm.USE_EXTERNAL_EMOJIS, false, false)).toBe(Perm.VIEW_CHANNEL)
+  })
+
+  it('ligar Administrador liga tudo, sem sinal', () => {
+    expect(nextPermissionsValue(0, Perm.ADMINISTRATOR, true, true)).toBe(2 ** 32 - 1)
   })
 })

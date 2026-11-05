@@ -7,6 +7,7 @@ import { useServerMemberColor, useServerNickname } from '../../servers/hooks/use
 import { serverDisplayName } from '../../servers/lib/serverNames'
 import { PinIcon } from '../../../shared/ui/icons'
 import MessageText from './MessageText'
+import { MessageClock, MessageTime } from './MessageTime'
 import MessageEditor from './MessageEditor'
 import ReplyReference from './ReplyReference'
 import PollCard from './PollCard'
@@ -16,14 +17,11 @@ import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
 import TTSBadge from '../../tts/components/TTSBadge'
 import { useChatStore } from '../store/chatStore'
+import UserServerTag from '../../serverprofile/components/ServerTagChip'
 import { messagePreviewParts } from '../lib/polls'
 import { textPreview, type Preview } from '../lib/preview'
 
 // Pedaços da linha de mensagem do chat (ver MessageItem).
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-}
 
 function formatEditedAt(iso: string): string {
   const when = new Date(iso).toLocaleString('pt-BR', {
@@ -142,12 +140,10 @@ export function MessageGutter({
   if (compact) {
     // Mesma largura do avatar; a hora aparece ao passar o mouse.
     return (
-      <span
-        aria-hidden="true"
+      <MessageClock
+        iso={message.created_at}
         className="w-10 shrink-0 select-none self-start pt-[3px] text-center text-ds-xxs font-medium leading-[1.375rem] text-faint opacity-0 group-hover:opacity-100"
-      >
-        {formatTime(message.created_at)}
-      </span>
+      />
     )
   }
   return (
@@ -202,23 +198,28 @@ export function MessageHeader({
           nameColor ? '' : 'text-strong'
         }`}
       >
-        {nickname ? (
-          name
-        ) : (
-          <StyledName name={name} userId={message.author_id} style={message.author?.name_style} />
-        )}
+        <StyledName
+          name={name}
+          userId={message.author_id}
+          style={nickname ? null : message.author?.name_style}
+        />
       </button>
-      <span className="shrink-0 text-ds-xs font-medium text-faint">
-        {formatTime(message.created_at)}
-      </span>
+      <UserServerTag userId={message.author_id} className="self-center" />
+      <MessageTime
+        iso={message.created_at}
+        className="shrink-0 text-ds-xs font-medium text-faint"
+      />
       <MessageBadges message={message} />
     </div>
   )
 }
 
-/** Figurinha, ou o aviso de "Figurinha indisponível". */
+/** Figurinha; apagada na origem, o :nome:; ou o aviso de "Figurinha indisponível". */
 function MessageStickerSlot({ message }: { message: Message }): React.JSX.Element | null {
   if (message.sticker) return <MessageSticker sticker={message.sticker} />
+  if (message.deleted_sticker_name) {
+    return <p className="text-ds-chat text-muted">:{message.deleted_sticker_name}:</p>
+  }
   if (!stickerUnavailable(message)) return null
   return (
     <div className="my-1 flex h-28 w-28 items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/5 p-2 text-center text-ds-xs text-faint">

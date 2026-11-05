@@ -12,7 +12,7 @@ function ServerEmojiBar({ serverId, onAdd }: { serverId: string; onAdd: () => vo
   const count = useEmojiStore((s) => s.groups.find((g) => g.server_id === serverId)?.emojis.length ?? 0)
   const canAdd = useServerAccess().can(Perm.ADD_EMOJIS)
   return (
-    <div className="mb-2 flex items-center justify-between">
+    <div className="mb-2 flex shrink-0 items-center justify-between">
       <span className="text-ds-xs text-muted">
         {count} / {MAX_EMOJIS_PER_SERVER} emojis
       </span>
@@ -33,11 +33,13 @@ function ServerEmojiBar({ serverId, onAdd }: { serverId: string; onAdd: () => vo
 /** Aba "Emojis" do seletor de mídia: personalizados dos seus servidores e o pack base. */
 export default function EmojisTab({
   serverId,
+  channelId,
   search,
   onSelect,
   onAdd
 }: {
   serverId?: string | null
+  channelId?: string | null
   search: string
   onSelect: (emoji: string) => void
   onAdd: () => void
@@ -50,9 +52,13 @@ export default function EmojisTab({
     e.uploader_id === meId || (e.server_id === openServerId && canManage)
   const viewingServer = Boolean(serverId && serverId === openServerId)
   return (
-    <div>
-      {viewingServer && <ServerEmojiBar serverId={serverId as string} onAdd={onAdd} />}
-      <EmojiPickerGrid search={search} mode="message" onPick={onSelect} canDelete={canDelete} />
-    </div>
+    <EmojiPickerGrid
+      search={search}
+      mode="message"
+      onPick={onSelect}
+      canDelete={canDelete}
+      destination={{ serverId, channelId }}
+      header={viewingServer && <ServerEmojiBar serverId={serverId as string} onAdd={onAdd} />}
+    />
   )
 }

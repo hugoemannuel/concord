@@ -17,6 +17,28 @@ export interface ShareDeps {
   log: (message: string) => void
   audioRequested: boolean
   platform: NodeJS.Platform
+  restoreWindow: (hwnd: string) => void
+  sleep: (ms: number) => Promise<void>
+}
+
+/** Jogo em tela cheia leva alguns segundos para voltar do minimizado. */
+const RESTORE_POLL_MS = 500
+const RESTORE_ATTEMPTS = 24
+
+/** A fonte da lista; janela minimizada (fora dela) é restaurada e esperada. */
+async function findSource(sourceId: string, d: ShareDeps): Promise<Source | undefined> {
+  const find = async (): Promise<Source | undefined> =>
+    (await d.listSources()).find((s) => s.id === sourceId)
+  const listed = await find()
+  const hwnd = hwndFromSourceId(sourceId)
+  if (listed || hwnd === null) return listed
+  d.restoreWindow(hwnd)
+  for (let attempt = 0; attempt < RESTORE_ATTEMPTS; attempt++) {
+    await d.sleep(RESTORE_POLL_MS)
+    const source = await find()
+    if (source) return source
+  }
+  return undefined
 }
 
 async function windowSound(source: Source, d: ShareDeps): Promise<boolean> {
@@ -33,7 +55,7 @@ function watchOrStop(source: Source, d: ShareDeps): void {
 /** As fontes de vídeo (e som) a entregar; null = recusar o pedido. */
 export async function shareStreams(sourceId: string, d: ShareDeps): Promise<DisplayStreams | null> {
   try {
-    const source = (await d.listSources()).find((s) => s.id === sourceId)
+    const source = await findSource(sourceId, d)
     d.stopWindowAudio()
     if (!source) {
       d.log(`fonte ${sourceId} não encontrada`)

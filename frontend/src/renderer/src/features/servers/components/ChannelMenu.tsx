@@ -83,11 +83,12 @@ interface ChannelMenuProps {
   /** Posição do canal na seção (para subir e descer). */
   index: number
   move: (from: number, to: number) => void
+  categoryControls?: React.ReactNode
 }
 
 /** Menu "•••" (ou botão direito) de um canal. */
 const ChannelMenu = forwardRef<HTMLDivElement, ChannelMenuProps>(function ChannelMenu(
-  { serverId, channel, items, index, move },
+  { serverId, channel, items, index, move, categoryControls },
   ref
 ) {
   const sidebar = useChannelSidebarStore()
@@ -104,6 +105,7 @@ const ChannelMenu = forwardRef<HTMLDivElement, ChannelMenuProps>(function Channe
   return (
     <div
       ref={ref}
+      data-no-drag
       className="absolute right-1.5 top-full z-30 mt-1 flex w-48 flex-col rounded-xl border border-subtle bg-floating p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in"
     >
       {items.map((item) => (
@@ -116,6 +118,7 @@ const ChannelMenu = forwardRef<HTMLDivElement, ChannelMenuProps>(function Channe
           }}
         />
       ))}
+      {categoryControls}
     </div>
   )
 })
@@ -129,6 +132,7 @@ interface ChannelMenuHostProps {
   access: ServerAccess
   move: (type: ChannelType, from: number, to: number) => void
   menuRef: React.Ref<HTMLDivElement>
+  categoryControls?: React.ReactNode
 }
 
 /** O menu do canal, quando é este que está aberto (cada item se esconde sem a permissão). */
@@ -139,7 +143,8 @@ export function ChannelMenuHost({
   primaryId,
   access,
   move,
-  menuRef
+  menuRef,
+  categoryControls
 }: ChannelMenuHostProps): React.JSX.Element | null {
   const open = useChannelSidebarStore((s) => s.menuFor === channel.id)
   if (!open) return null
@@ -165,6 +170,7 @@ export function ChannelMenuHost({
       items={items}
       index={index}
       move={(from, to) => move(type, from, to)}
+      categoryControls={categoryControls}
     />
   )
 }

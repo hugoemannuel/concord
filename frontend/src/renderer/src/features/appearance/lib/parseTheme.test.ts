@@ -121,3 +121,64 @@ describe('parseGradient', () => {
     expect(parseGradient(null)).toBeUndefined()
   })
 })
+
+describe('parseThemeInput: ajustes do efeito', () => {
+  it('tema salvo antes deles: os padrões, que desenham igual', () => {
+    expect(parseThemeInput({ ...V1, effect: 'fire' })).toMatchObject({
+      effect: 'fire',
+      effectSize: 50,
+      effectDirection: 'default',
+      effectOpacity: 100,
+      effectPalette: 'single',
+      effectColor2: '',
+      effectArea: 'full',
+      effectGlow: 0
+    })
+  })
+  it('valores válidos ficam e efeito novo é reconhecido', () => {
+    expect(
+      parseThemeInput({
+        ...V1,
+        effect: 'fireworks',
+        effectSize: 90,
+        effectDirection: 'left',
+        effectOpacity: 30,
+        effectPalette: 'duo',
+        effectColor2: '#ABCDEF',
+        effectArea: 'banner',
+        effectGlow: 70
+      })
+    ).toMatchObject({
+      effect: 'fireworks',
+      effectSize: 90,
+      effectDirection: 'left',
+      effectOpacity: 30,
+      effectPalette: 'duo',
+      effectColor2: '#abcdef',
+      effectArea: 'banner',
+      effectGlow: 70
+    })
+  })
+  it('cada inválido volta ao padrão sem derrubar o tema', () => {
+    expect(
+      parseThemeInput({
+        ...V1,
+        effectSize: 500,
+        effectDirection: 'diagonal',
+        effectOpacity: 0,
+        effectPalette: 'neon',
+        effectColor2: 'url(x)',
+        effectArea: 'avatar',
+        effectGlow: 1000
+      })
+    ).toMatchObject({
+      effectSize: 50,
+      effectDirection: 'default',
+      effectOpacity: 100,
+      effectPalette: 'single',
+      effectColor2: '',
+      effectArea: 'full',
+      effectGlow: 0
+    })
+  })
+})

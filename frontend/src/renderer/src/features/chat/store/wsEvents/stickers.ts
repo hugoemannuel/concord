@@ -10,7 +10,11 @@ const usesSticker = (m: Message, stickerId: string): boolean =>
   m.sticker_id === stickerId || m.sticker?.id === stickerId
 
 const withoutStickerIn = (list: Message[], stickerId: string): Message[] =>
-  list.map((m) => (usesSticker(m, stickerId) ? { ...m, sticker_id: null, sticker: null } : m))
+  list.map((m) =>
+    usesSticker(m, stickerId)
+      ? { ...m, sticker_id: null, sticker: null, deleted_sticker_name: m.sticker?.name ?? m.deleted_sticker_name }
+      : m
+  )
 
 /** Tira a figurinha das mensagens que a usam; sem nenhuma, devolve null. */
 export function withoutSticker(

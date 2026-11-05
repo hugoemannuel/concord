@@ -25,7 +25,7 @@ describe('useChannelsLive', () => {
     useServersStore.setState({ channelsByServer: { s1: [], s2: [] }, loadChannels } as never)
   })
 
-  it.each(['channel:create', 'channel:update', 'channel:delete', 'channel:reorder'])('%s recarrega os canais do servidor do evento', async (type) => {
+  it.each(['channel:create', 'channel:update', 'channel:delete', 'channel:reorder', 'category:changed', 'server:permissions:invalidate'])('%s recarrega os canais do servidor do evento', async (type) => {
     await renderHook(() => useChannelsLive())
     await emit(type, { server_id: 's1' })
     expect(loadChannels).toHaveBeenCalledTimes(1)

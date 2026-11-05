@@ -122,8 +122,9 @@ function run(id: string, seed: number, steps: number, dt = DT, density = 1): unk
 }
 
 describe('cenas de canvas', () => {
-  it('o catálogo tem os 10 efeitos e cada um tem um caso de teste', () => {
-    expect(Object.keys(CANVAS_EFFECTS).sort()).toEqual(Object.keys(CASES).sort())
+  it('os 10 primeiros efeitos estão no catálogo (os outros: newScenes.test.ts)', () => {
+    expect(Object.keys(CANVAS_EFFECTS)).toEqual(expect.arrayContaining(Object.keys(CASES)))
+    expect(Object.keys(CANVAS_EFFECTS)).toHaveLength(25)
   })
 
   describe.each(Object.keys(CASES))('%s', (id) => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ProfileScope from '../../memberProfiles/components/ProfileScope'
 import { useServerSettingsStore } from '../store/serverSettingsStore'
 import { useServerStore } from '../store/serverStore'
 import { useChatStore } from '../../chat/store/chatStore'
@@ -13,7 +14,9 @@ import {
 } from '../lib/serverSettingsNav'
 import SettingsShell from '../../../shared/ui/SettingsShell'
 import ConfirmModal from '../../friends/components/ConfirmModal'
-import OverviewSection from './OverviewSection'
+import ProfileSection from '../../serverprofile/components/ProfileSection'
+import TagSection from '../../serverprofile/components/TagSection'
+import LookSection from '../../serverprofile/components/LookSection'
 import RolesSection from './RolesSection'
 import ServerSettingsNav from './ServerSettingsNav'
 import MembersSection from './MembersSection'
@@ -25,7 +28,9 @@ import PluginsSettingsSection from '../../plugins/components/PluginsSettingsSect
 import { useEventAccess } from '../../events/hooks/useEventAccess'
 
 const SECTION_VIEW = {
-  overview: OverviewSection,
+  overview: ProfileSection,
+  tag: TagSection,
+  look: LookSection,
   level: ServerLevelSection,
   roles: RolesSection,
   members: MembersSection,
@@ -36,13 +41,19 @@ const SECTION_VIEW = {
 } as const
 
 /**
- * Configurações do servidor em tela cheia, como as de usuário: visão geral,
- * nível, cargos, membros, banimentos e registro de auditoria. Cada seção só aparece para quem tem a
+ * Configurações do servidor em tela cheia, como as de usuário: perfil, tag,
+ * faixa e fundo, nível, cargos, membros, banimentos e registro de auditoria. Cada seção só aparece para quem tem a
  * permissão (o servidor confere de novo a cada ação).
  */
 function ServerSettingsScreen(): React.JSX.Element | null {
   const open = useServerSettingsStore((s) => s.open)
-  return open ? <ServerSettingsContent /> : null
+  // Fica fora do ServerView: os membros aparecem com o perfil deste servidor aqui também.
+  const serverId = useServerStore((s) => s.currentServer?.id)
+  return open ? (
+    <ProfileScope serverId={serverId}>
+      <ServerSettingsContent />
+    </ProfileScope>
+  ) : null
 }
 
 function ServerSettingsContent(): React.JSX.Element | null {
@@ -89,7 +100,7 @@ function ServerSettingsContent(): React.JSX.Element | null {
       sectionKey={current}
       title={label}
       titleClassName="text-ds-lg font-bold text-strong"
-      contentClassName="max-w-[860px]"
+      contentClassName="max-w-[960px]"
       closeLabel="Fechar configurações do servidor"
       onClose={close}
       nav={

@@ -17,6 +17,8 @@ import trayIcon2x from '../../resources/tray-2x.png?asset'
 import './screen/captureSwitches'
 import { PendingDisplayRequest } from './screen/displayPicker'
 import { shareStreams, type ShareDeps } from './screen/shareSource'
+import { restoreWindow } from './screen/minimizedWindows'
+import { listPickerSources } from './screen/pickerList'
 import { WindowWatch } from './screen/windowWatch'
 import { PreferredSource, findGameWindow, listProcessWindows } from './screen/gameWindow'
 import { checkScreenCastPortal } from './screen/screenPortal'
@@ -168,18 +170,7 @@ function registerScreenShareHandlers(): void {
 
   ipcMain.handle('screen-picker:sources', async (event) => {
     if (!pickerAllowed(event)) return []
-    const sources = await desktopCapturer.getSources({
-      types: ['screen', 'window'],
-      thumbnailSize: { width: 480, height: 270 },
-      fetchWindowIcons: true
-    })
-    return sources.map((source) => ({
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail.toDataURL(),
-      appIcon: source.appIcon?.toDataURL() ?? null,
-      displayId: source.display_id
-    }))
+    return listPickerSources()
   })
 
   // Responde o getDisplayMedia pendente com a fonte escolhida (modal ou atalho do jogo).
@@ -200,7 +191,9 @@ function registerScreenShareHandlers(): void {
       mainWindow?.webContents.send('screen-audio:fallback', audioLogPath()),
     log: logAudio,
     audioRequested: pendingAudioRequested,
-    platform: process.platform
+    platform: process.platform,
+    restoreWindow,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms))
   })
 
   ipcMain.on('screen-picker:select', (event, raw: unknown) => {

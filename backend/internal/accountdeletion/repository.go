@@ -157,6 +157,7 @@ var reassignSQL = []string{
 	`UPDATE message_attachments SET uploader_id = '` + DeletedUserID + `' WHERE uploader_id = $1`,
 	`UPDATE channels SET created_by = '` + DeletedUserID + `' WHERE created_by = $1`,
 	`DELETE FROM channel_overwrites WHERE target_type = 'member' AND target_id = $1`,
+	`DELETE FROM category_overwrites WHERE target_type = 'member' AND target_id = $1`,
 	`DELETE FROM users WHERE id = $1`,
 }
 

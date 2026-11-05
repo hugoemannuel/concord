@@ -108,9 +108,9 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Emoji, error) {
 	}
 	var e Emoji
 	err := r.db.QueryRow(ctx, `
-		SELECT id, server_id, uploader_id, name, content_type, size_bytes, created_at
+		SELECT id, server_id, uploader_id, name, content_type, size_bytes, created_at, published_at
 		FROM server_emojis WHERE id = $1`, id,
-	).Scan(&e.ID, &e.ServerID, &e.UploaderID, &e.Name, &e.ContentType, &e.SizeBytes, &e.CreatedAt)
+	).Scan(&e.ID, &e.ServerID, &e.UploaderID, &e.Name, &e.ContentType, &e.SizeBytes, &e.CreatedAt, &e.PublishedAt)
 	if err != nil {
 		return nil, notFound(err)
 	}

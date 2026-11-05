@@ -28,6 +28,16 @@ describe('CropViewport', () => {
     const html = renderToStaticMarkup(<CropViewport {...base} round={false} natural={null} />)
     expect(html).toContain('rounded-lg')
     expect(html).not.toContain('left:')
+    expect(html).not.toContain('data-crop-cutout')
+  })
+
+  it('moldura demarca a área circular central do avatar e arredonda os cantos', () => {
+    const html = renderToStaticMarkup(
+      <CropViewport {...base} round={false} cutout natural={{ width: 600, height: 600 }} />
+    )
+    expect(html).toContain('data-crop-cutout')
+    expect(html).toContain('border-radius:16px')
+    expect(html).toContain('width:250px;height:250px')
   })
 })
 

@@ -5,6 +5,9 @@ describe('gifIdFromUrl', () => {
   it.each([
     ['https://media3.giphy.com/media/abc123/giphy.gif', 'abc123'],
     ['https://media1.giphy.com/media/v1.Y2lkPTc5/xyz789/giphy.gif?cid=1', 'xyz789'],
+    ['https://static.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/md.gif', '935d7ab9d8c6202580a668421940ec81'],
+    ['https://static2.klipy.com/ii/935d7ab9d8c6202580a668421940ec81/14/af/sm.gif', '935d7ab9d8c6202580a668421940ec81'],
+    ['https://static.klipy.com/sem/hash.gif', ''],
     ['https://exemplo.com/foto.gif', ''],
     ['isso não é url', '']
   ])('%s → %s', (url, id) => {

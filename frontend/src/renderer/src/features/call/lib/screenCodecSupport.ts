@@ -3,6 +3,8 @@
 // codifica (null). Pergunta ao Chromium no tamanho da live e guarda a resposta
 // na sessão. Ver docs/adr/0020-qualidade-das-lives.md.
 
+import { H264_HIGH_CONTENT_TYPE } from './screenH264Profile'
+
 export type ScreenVideoCodec = 'av1' | 'h265' | 'h264' | 'vp8'
 export type CodecEncoder = 'hardware' | 'software' | null
 export type ScreenCodecSupport = Record<ScreenVideoCodec, CodecEncoder>
@@ -21,9 +23,9 @@ interface EncodingInfoApi {
 }
 
 /**
- * H.264 como o WebRTC publica (Constrained Baseline, packetization-mode=1).
- * Sem os parâmetros o Chromium compara com packetization-mode=0, que só o
- * OpenH264 (processador) anuncia: a placa nunca era encontrada (ADR 0048).
+ * H.264 como o WebRTC publica por padrão (Constrained Baseline,
+ * packetization-mode=1). Sem os parâmetros o Chromium compara com
+ * packetization-mode=0, que só o OpenH264 (processador) anuncia (ADR 0048).
  */
 export const H264_CONTENT_TYPE = 'video/H264;profile-level-id=42e01f;packetization-mode=1'
 
@@ -33,11 +35,19 @@ const QUERIED: {
   mime: string
   contentType: string
   mode?: string
+  /** Outro perfil do codec que a live consegue usar, se o padrão não for na placa. */
+  hardwareProfile?: string
 }[] = [
   // O LiveKit publica tela em AV1 com L1T3: a pergunta inclui o modo.
   { codec: 'av1', mime: 'video/AV1', contentType: 'video/AV1', mode: 'L1T3' },
   { codec: 'h265', mime: 'video/H265', contentType: 'video/H265' },
-  { codec: 'h264', mime: 'video/H264', contentType: H264_CONTENT_TYPE }
+  // Windows: o 42e01f é só OpenH264; a placa fica no High (ADR 0049).
+  {
+    codec: 'h264',
+    mime: 'video/H264',
+    contentType: H264_CONTENT_TYPE,
+    hardwareProfile: H264_HIGH_CONTENT_TYPE
+  }
 ]
 
 /**
@@ -69,6 +79,16 @@ export function softwareMarkedCodecs(): ScreenVideoCodec[] {
   return QUERIED.map((q) => q.codec).filter(markedSoftware)
 }
 
+function ask(
+  api: EncodingInfoApi,
+  contentType: string,
+  video: ScreenVideoShape,
+  mode?: string
+): Promise<{ supported: boolean; powerEfficient: boolean }> {
+  const scalability = mode ? { scalabilityMode: mode } : {}
+  return api.encodingInfo({ type: 'webrtc', video: { contentType, ...scalability, ...video } })
+}
+
 /** powerEfficient = encoder da placa de vídeo (o Chromium responde pelo encoder da GPU). */
 async function encoderOf(
   query: (typeof QUERIED)[number],
@@ -77,16 +97,33 @@ async function encoderOf(
 ): Promise<CodecEncoder> {
   if (!api || markedSoftware(query.codec)) return 'software'
   try {
-    const mode = query.mode ? { scalabilityMode: query.mode } : {}
-    const info = await api.encodingInfo({
-      type: 'webrtc',
-      video: { contentType: query.contentType, ...mode, ...video }
-    })
+    const info = await ask(api, query.contentType, video, query.mode)
     if (!info.supported) return null
-    return info.powerEfficient ? 'hardware' : 'software'
+    if (info.powerEfficient) return 'hardware'
+    if (!query.hardwareProfile) return 'software'
+    const other = await ask(api, query.hardwareProfile, video)
+    return other.powerEfficient ? 'hardware' : 'software'
   } catch {
     return 'software'
   }
+}
+
+/** A placa só codifica o H.264 no High? Então a live precisa oferecer só ele. */
+export async function needsHighH264(
+  video: ScreenVideoShape,
+  api: EncodingInfoApi | undefined
+): Promise<boolean> {
+  if (!api || markedSoftware('h264')) return false
+  try {
+    if ((await ask(api, H264_CONTENT_TYPE, video)).powerEfficient) return false
+    return (await ask(api, H264_HIGH_CONTENT_TYPE, video)).powerEfficient
+  } catch {
+    return false
+  }
+}
+
+export function detectHighH264(video: ScreenVideoShape): Promise<boolean> {
+  return needsHighH264(video, globalThis.navigator?.mediaCapabilities as EncodingInfoApi | undefined)
 }
 
 export async function screenCodecSupport(

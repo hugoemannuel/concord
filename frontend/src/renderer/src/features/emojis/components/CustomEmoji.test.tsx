@@ -10,9 +10,14 @@ vi.mock('../store/emojiStore', () => ({
   useEmojiStore: <T,>(select: (s: typeof state) => T): T => select(state)
 }))
 vi.mock('../hooks/useCustomEmojis', () => ({ useCustomEmojis: () => {} }))
+const origins = vi.hoisted(() => ({ emoji: {} as Record<string, unknown>, sticker: {} }))
+vi.mock('../store/expressionOrigins', () => ({
+  useExpressionOrigins: <T,>(select: (s: typeof origins) => T): T => select(origins),
+  requestOrigin: () => {}
+}))
 
 import CustomEmoji from './CustomEmoji'
-import ReactionEmoji from './ReactionEmoji'
+import ReactionEmoji, { ReactionOrigin } from './ReactionEmoji'
 import MessageText from '../../chat/components/MessageText'
 import { clearEmojiSrcs, primeEmojiSrc } from '../store/emojiSrc'
 import type { CustomEmoji as Emoji } from '../api/emojis'
@@ -38,6 +43,7 @@ describe('CustomEmoji', () => {
     state.loaded = false
     state.byId = {}
     clearEmojiSrcs()
+    origins.emoji = {}
   })
 
   it('membro vê a imagem com tamanho fixo, lazy e o :nome: como texto alternativo', () => {
@@ -50,9 +56,55 @@ describe('CustomEmoji', () => {
     expect(html).toContain('loading="lazy"')
   })
 
-  it('quem não é membro (ou emoji apagado) vê :nome:', () => {
-    loadWith([])
-    expect(renderToStaticMarkup(<CustomEmoji id={ID} name="festa" />)).toBe(':festa:')
+  describe('de um servidor que não é da pessoa', () => {
+    const origin = { server_name: 'Alfa' }
+
+    it('enquanto o servidor não responde, guarda o espaço', () => {
+      loadWith([])
+      expect(renderToStaticMarkup(<CustomEmoji id={ID} name="festa" />)).toContain('role="img"')
+    })
+
+    it('sem acesso vê :nome:', () => {
+      loadWith([])
+      origins.emoji = { [ID]: null }
+      expect(renderToStaticMarkup(<CustomEmoji id={ID} name="festa" />)).toBe(':festa:')
+    })
+
+    it('apagado na origem vê :nome:, não a imagem quebrada', () => {
+      loadWith([])
+      primeEmojiSrc(ID, 'u')
+      origins.emoji = { [ID]: { id: ID, name: 'festa', deleted: true } }
+      expect(renderToStaticMarkup(<CustomEmoji id={ID} name="festa" />)).toBe(':festa:')
+    })
+
+    it('já usado fora do servidor vê a imagem, como quem é membro', () => {
+      loadWith([])
+      primeEmojiSrc(ID, 'u')
+      origins.emoji = { [ID]: { id: ID, name: 'festa', origin } }
+      expect(renderToStaticMarkup(<CustomEmoji id={ID} name="festa" />)).toContain('src="u"')
+    })
+
+    it('na reação, o nome vem do servidor (a reação só guarda o id)', () => {
+      loadWith([])
+      origins.emoji = { [ID]: { id: ID, name: 'festa', deleted: true } }
+      expect(renderToStaticMarkup(<ReactionEmoji emoji={`<:${ID}>`} />)).toBe(':festa:')
+    })
+
+    it('no texto da mensagem, dá para clicar para ver de onde veio', () => {
+      loadWith([])
+      primeEmojiSrc(ID, 'u')
+      origins.emoji = { [ID]: { id: ID, name: 'festa', origin } }
+      const html = renderToStaticMarkup(<MessageText content={`<:festa:${ID}>`} everyone={null} />)
+      expect(html).toContain('aria-haspopup="dialog"')
+    })
+
+    it('apagado no texto da mensagem é só texto, sem clique', () => {
+      loadWith([])
+      origins.emoji = { [ID]: { id: ID, name: 'festa', deleted: true } }
+      const html = renderToStaticMarkup(<MessageText content={`<:festa:${ID}>`} everyone={null} />)
+      expect(html).toContain(':festa:')
+      expect(html).not.toContain('aria-haspopup')
+    })
   })
 
   it('antes de carregar guarda o espaço sem mostrar o token', () => {
@@ -76,5 +128,24 @@ describe('CustomEmoji', () => {
     const mixed = renderToStaticMarkup(<MessageText content={`oi <:festa:${ID}>`} everyone={null} />)
     expect(mixed).toContain('width="22"')
     expect(mixed).toContain('oi ')
+  })
+})
+
+describe('ReactionOrigin', () => {
+  beforeEach(() => {
+    origins.emoji = {}
+  })
+
+  it('diz de que servidor veio; privado não tem nome', () => {
+    origins.emoji = { [ID]: { id: ID, name: 'festa', origin: { server_name: 'Alfa' } } }
+    expect(renderToStaticMarkup(<ReactionOrigin emoji={`<:${ID}>`} />)).toContain('de Alfa')
+    origins.emoji = { [ID]: { id: ID, name: 'festa', origin: { private: true } } }
+    expect(renderToStaticMarkup(<ReactionOrigin emoji={`<:${ID}>`} />)).toContain('de um servidor privado')
+  })
+
+  it('emoji comum ou apagado não tem origem', () => {
+    expect(renderToStaticMarkup(<ReactionOrigin emoji="🔥" />)).toBe('')
+    origins.emoji = { [ID]: { id: ID, name: 'festa', deleted: true } }
+    expect(renderToStaticMarkup(<ReactionOrigin emoji={`<:${ID}>`} />)).toBe('')
   })
 })

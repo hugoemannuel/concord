@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { browserEnv } from './browserEnv'
 import { fakeCtx, type FakeCtx } from './fakeCtx'
 import { seededRand } from './index'
-import { mountEffect, type MountEnv } from './mount'
+import type { PostFxSpec } from './postFx'
+import { mountEffect, renderDpr, type MountEnv } from './mount'
 import type { Scene } from './types'
 
 const scene: Scene<{ n: number }> = {
@@ -132,5 +133,54 @@ describe('browserEnv', () => {
     expect(() => env.observeSize(el, () => {})()).not.toThrow()
     expect(() => env.observeVisible(el, () => {})()).not.toThrow()
     expect(() => env.watchPage(() => {})()).not.toThrow()
+  })
+})
+
+describe('mistura de cor e brilho', () => {
+  const run = (postFx?: PostFxSpec): FakeCtx => {
+    const ctx = fakeCtx()
+    const { env } = fakeEnv({ reducedMotion: () => true })
+    mountEffect(fakeCanvas(ctx) as unknown as HTMLCanvasElement, {
+      scene: scene as Scene,
+      params: { density: 1, speed: 1, color: '#ffffff' },
+      env,
+      rand: seededRand(1),
+      postFx
+    })
+    return ctx
+  }
+  const SPEC = { palette: 'single', color: '#ffffff', color2: '#000000', glow: 0 }
+
+  it('padrão: exatamente os mesmos passos de quem não pede nada', () => {
+    expect(run(SPEC).calls).toEqual(run().calls)
+  })
+  it('com mistura, o quadro parado sai pintado', () => {
+    const calls = run({ ...SPEC, palette: 'duo' }).calls
+    expect(calls).toContain('createLinearGradient')
+  })
+  it('brilho sem a tela pequena do ambiente: não quebra', () => {
+    expect(run({ ...SPEC, glow: 1 }).bad).toEqual([])
+  })
+})
+
+describe('renderDpr', () => {
+  it('sem mistura nem brilho, a densidade de sempre', () => {
+    expect(renderDpr(1920, 1080, 1.5, false)).toBe(1.5)
+  })
+  it('com os passos a mais, só a área grande cede', () => {
+    expect(renderDpr(1920, 1080, 1.5, true)).toBe(1)
+    expect(renderDpr(300, 450, 1.5, true)).toBe(1.5)
+  })
+  it('o canvas sai nesse tamanho', () => {
+    const canvas = fakeCanvas(fakeCtx(), 1920, 1080)
+    const { env } = fakeEnv({ dpr: 1.5, reducedMotion: () => true })
+    mountEffect(canvas as unknown as HTMLCanvasElement, {
+      scene: scene as Scene,
+      params: { density: 1, speed: 1, color: '#ffffff' },
+      env,
+      rand: seededRand(1),
+      postFx: { palette: 'duo', color: '#ffffff', color2: '#000000', glow: 0 }
+    })
+    expect(canvas.width).toBe(1920)
   })
 })

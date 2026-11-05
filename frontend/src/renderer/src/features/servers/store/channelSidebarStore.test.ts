@@ -60,11 +60,30 @@ describe('channelSidebarStore', () => {
     })
   })
 
+  it('abre a criação na categoria escolhida sem reutilizar a seleção no próximo formulário', () => {
+    const s = useChannelSidebarStore.getState()
+    s.openCreate('text', 'jogos')
+    expect(useChannelSidebarStore.getState().form).toMatchObject({ editing: null, type: 'text', categoryId: 'jogos' })
+    s.closeForm()
+    s.openCreate('voice')
+    expect(useChannelSidebarStore.getState().form?.categoryId).toBeUndefined()
+  })
+
   it('confirmações de sair e apagar o servidor', () => {
     const s = useChannelSidebarStore.getState()
     s.openConfirm('leave')
     expect(useChannelSidebarStore.getState().confirm).toBe('leave')
     s.closeConfirm()
     expect(useChannelSidebarStore.getState().confirm).toBeNull()
+  })
+
+  it('o diálogo de categoria fecha o menu do canal e fecha sozinho', () => {
+    const s = useChannelSidebarStore.getState()
+    s.openMenu('c1')
+    s.openCategoryDialog({ kind: 'create' })
+    expect(useChannelSidebarStore.getState().menuFor).toBeNull()
+    expect(useChannelSidebarStore.getState().categoryDialog).toEqual({ kind: 'create' })
+    s.closeCategoryDialog()
+    expect(useChannelSidebarStore.getState().categoryDialog).toBeNull()
   })
 })

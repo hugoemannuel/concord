@@ -192,3 +192,25 @@ func TestValidateProfileTheme(t *testing.T) {
 		t.Fatalf("sem tema deve continuar nil: %+v, %v", out.ProfileTheme, err)
 	}
 }
+
+// Validadores por campo: os mesmos do perfil global valem para o do servidor.
+func TestFieldValidators(t *testing.T) {
+	if err := ValidateTextFields(strings.Repeat("a", MaxPronouns+1), "", ""); !errors.Is(err, ErrInvalidProfile) {
+		t.Fatalf("pronomes longos: %v", err)
+	}
+	if err := ValidateTextFields("", strings.Repeat("a", MaxBio+1), ""); !errors.Is(err, ErrInvalidProfile) {
+		t.Fatalf("bio longa: %v", err)
+	}
+	if err := ValidateTextFields("", "", strings.Repeat("a", MaxStatusText+1)); !errors.Is(err, ErrInvalidProfile) {
+		t.Fatalf("nota longa: %v", err)
+	}
+	if color, err := NormalizeBannerColor("#AABBCC"); err != nil || color != "#aabbcc" {
+		t.Fatalf("cor: %q %v", color, err)
+	}
+	if _, err := NormalizeBannerColor("azul"); !errors.Is(err, ErrInvalidProfile) {
+		t.Fatalf("cor inválida: %v", err)
+	}
+	if links, err := NormalizeLinks(nil); err != nil || links == nil || len(links) != 0 {
+		t.Fatalf("sem links nunca é nil: %v %v", links, err)
+	}
+}

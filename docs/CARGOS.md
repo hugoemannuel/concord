@@ -23,6 +23,8 @@ O **dono** (quem criou o servidor, `owner_id`) **não é um cargo**: é um níve
    3. a do próprio membro (vence tudo).
 5. Sem **Ver canais** o resultado é zero: o canal nem aparece. Sem *Enviar mensagens* caem *Enviar arquivos*, *Mencionar @all* e *Enviar mensagens TTS* (no canal de texto e no chat do canal de voz). Em voz, sem *Conectar* caem falar, transmitir, mesa de áudio e moderação.
 
+6. Canal dentro de uma categoria só existe para quem **vê a categoria**: a conta da categoria é a mesma de um canal, e sem *Ver canais* nela o resultado no canal é zero, mesmo com permissão própria. O dono e o Administrador sempre veem. Ver "Categorias privadas" abaixo.
+
 O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`frontend/src/renderer/src/features/servers/lib/permissions.ts`). Os dois rodam os mesmos casos de `backend/internal/permission/testdata/vectors.json`: mudou uma regra, mude os casos e os dois lados.
 
 ## Permissões
@@ -32,7 +34,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | Geral | Ver canais | Vê o canal (sem isso ele é invisível). |
 | | Gerenciar canais | Criar, editar, reordenar e apagar canais. |
 | | Gerenciar cargos | Criar/editar cargos abaixo do seu, dar e tirar cargos, editar permissões de canal. |
-| | Gerenciar servidor | Nome, ícone e canal principal. |
+| | Gerenciar servidor | Nome, ícone, canal principal e a customização: perfil do servidor (banner, traços, descrição, jogos, perfil privado), tag, faixa e tema de fundo. Ver [ADR 0050](adr/0050-customizacao-do-servidor.md). |
 | | Ver registro de auditoria | Ver em Configurações do servidor → Registro de auditoria quem fez cada ação de moderação e administração (últimos 90 dias). **Fora do @everyone**: só o dono, o Administrador e os cargos que ganharem. Ver [ADR 0036](adr/0036-registro-de-auditoria.md). |
 | | Criar convite | Convidar amigos e ver o código do servidor. |
 | | Gerenciar mesa de áudio | Apagar áudios (e figurinhas) de outras pessoas. |
@@ -42,6 +44,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | Membros | Expulsar / Banir | Tirar o membro (o ban impede de voltar até desbanir). |
 | | Administrador | Tudo, ignorando os canais. |
 | Texto | Enviar mensagens, Enviar arquivos, Adicionar reações, Ver histórico | Uso normal do chat. |
+| | Usar emojis e figurinhas de outros servidores | Usar em mensagens e reações deste servidor os emojis e figurinhas de outros servidores de que a pessoa participa. Vem ligada no @everyone e vale por canal. Em DM e grupo não há servidor de destino: basta ser membro do servidor de origem. Sem ela, os itens de fora aparecem desabilitados no seletor; quem mandar assim mesmo vê o emoji virar `:nome:` no texto e a figurinha e a reação serem recusadas. Somar-se a uma reação que já está na mensagem não pede a permissão. Ver [ADR 0054](adr/0054-emojis-de-outros-servidores.md). |
 | | Mencionar @all e @here | Avisar o canal inteiro. |
 | | Enviar mensagens TTS | Usar `/tts`: a mensagem é lida em voz para quem está em call no servidor (até 200 caracteres, uma a cada 10 s). Vem ligada no @everyone (no Discord vem desligada); quem quiser restringir desliga no cargo ou no canal. Ver [ADR 0012](adr/0012-tts-no-cliente.md). |
 | | Gerenciar mensagens | Apagar mensagem de outros e encerrar enquetes. |
@@ -50,7 +53,9 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | | Silenciar / Ensurdecer / Mover membros | Moderação na chamada (mover inclui desconectar). |
 | | Convidar visitantes | Gerar, na call em que está, um link para alguém de fora do servidor entrar só nela, por tempo limitado (ver "Visitantes" abaixo). **Fora do @everyone**: só o dono, o Administrador e os cargos que ganharem. Vale por canal (sobrescrita do canal de voz). |
 
-Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir, histórico, convidar, conectar, falar, transmitir, mesa de áudio, alterar o próprio apelido, adicionar sons e figurinhas, mensagens TTS) e o cargo fixo **Bots** (dos bots do servidor). Não há mais cargo **Moderador** padrão: quem quiser cria os seus. Nos servidores antigos o Moderador que já existia continua, como um cargo comum (dá para editar, mover e apagar).
+Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir, histórico, convidar, conectar, falar, transmitir, mesa de áudio, alterar o próprio apelido, adicionar sons e figurinhas, mensagens TTS, usar emojis e figurinhas de outros servidores) e o cargo fixo **Bots** (dos bots do servidor). Não há mais cargo **Moderador** padrão: quem quiser cria os seus. Nos servidores antigos o Moderador que já existia continua, como um cargo comum (dá para editar, mover e apagar).
+
+**Perfil por servidor** ([ADR 0051](adr/0051-perfil-por-servidor.md)): todo membro edita o próprio perfil em cada servidor (avatar, banner, cor, estilo do nome, pronomes, nota, Sobre mim, links, tema, faixa e moldura), sem permissão nenhuma. O nome nesse perfil é o apelido: *Alterar o próprio apelido* controla só ele. Sem ela, o nome fica travado e o resto continua liberado; um apelido imposto pela moderação não some ao apagar o perfil. Ninguém edita o perfil de servidor de outra pessoa.
 
 ## Hierarquia
 
@@ -61,6 +66,18 @@ A posição do cargo define quem manda em quem (maior = mais alto).
 - Expulsar, banir, silenciar, ensurdecer, desconectar e mover só vale sobre quem tem o cargo mais alto **menor** que o seu. Mesma posição não vale.
 - Ninguém dá ou tira uma permissão que **não tem** (Administrador pode tudo).
 - **Administrador** tem todas as permissões, mas a hierarquia vale para ele também: age sobre quem tem o cargo mais alto menor que o seu. Quem não tem cargo nenhum (só o @everyone, posição 0) está abaixo de qualquer cargo, então qualquer administrador com um cargo age sobre ele. Administrador dado só pelo @everyone não age sobre outros membros sem cargo (mesma posição); para isso, precisa de um cargo.
+
+## Categorias privadas
+
+*Categoria privada* é a categoria em que o @everyone não tem **Ver canais**. Quem vê é quem foi escolhido (cargos e membros) em "Categoria privada" ao criar ou editar, ou em **Permissões da categoria**. Ver [ADR 0055](adr/0055-categorias-normais-e-privadas.md).
+
+- **Canal vinculado** tem as mesmas regras da categoria, copiadas nele. Mudar a categoria muda os vinculados. Canal novo sem regras próprias nasce vinculado.
+- **Canal com permissão própria** não acompanha a categoria: aparece com um aviso, e **Sincronizar com a categoria** faz voltar a seguir. A categoria continua valendo: ele pode fechar mais, nunca abrir para quem não a vê.
+- **Mover** não abre canal: canal público ou vinculado que entra numa categoria herda dela, mas privado que vai para categoria aberta (ou fica solto) continua privado. Abrir é explícito, com Sincronizar.
+- **Excluir a categoria** deixa os canais soltos no topo. Nenhum canal é apagado e nenhum abre: quem tinha permissão própria recebe as restrições da categoria.
+- Canais de sistema e de evento não recebem regras da categoria: ela só os esconde, enquanto estiverem dentro. Fora dela, voltam a valer para todos (canal de sistema não tem regras próprias).
+- Criar categoria privada exige *Gerenciar canais*. Mudar quem vê uma categoria que já existe, e sincronizar um canal, exige também *Gerenciar cargos* (mexe nas permissões dos canais), e só se mexe nos bits que o próprio ator tem.
+- Quem não vê a categoria recebe 404 em toda rota dela, mesmo com *Gerenciar canais*, e não a recebe em nenhuma lista nem evento.
 
 ## Canais privados
 
@@ -92,6 +109,8 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 | `PUT/DELETE /servers/:id/members/:userId/roles/:roleId` | Gerenciar cargos (cargo abaixo do seu; nos cargos do dono, só o dono) |
 | `PUT/DELETE /servers/:id/channels/:channelId/overwrites/:role\|member/:targetId` | Gerenciar cargos no canal |
 | `POST /servers/:id/channels` com `private` e `role_ids` | Gerenciar canais |
+| `POST /servers/:id/categories` (com `private`, `role_ids` e `member_ids`), `PUT /categories/:id` (só o nome), `DELETE`, ordem e `PUT /categories/channels/:id` | Gerenciar canais e ver a categoria |
+| `PUT /servers/:id/categories/:id` com `private`, `PUT` e `DELETE /categories/:id/overwrites/:type/:targetId`, `POST /categories/channels/:id/sync` | Gerenciar canais + Gerenciar cargos e ver a categoria; só bits que o ator tem |
 | `DELETE /servers/:id/members/:userId`, `POST /servers/:id/leave` | Expulsar / o próprio membro |
 | `GET/POST /servers/:id/bans`, `DELETE …/bans/:userId` | Banir |
 | `GET /servers/:id/audit-log?actor_id=&action=&before=&limit=` | Ver registro de auditoria |
@@ -99,8 +118,9 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 | `POST /guest-invites` (estar na call do canal) | Convidar visitantes |
 | `GET /guest-invites?channel_id=`, `DELETE /guest-invites/:id`, `POST /guests/:userId/end` | Convidar visitantes ou Desconectar membros |
 | `GET /guest-invites/:token`, `POST /guest-invites/:token/join` | público (limite por IP) |
+| `POST /expressions/resolve` | com login: nome e origem dos emojis e figurinhas que a pessoa pode conhecer (membro da origem, ou item já usado fora dela); servidor privado não diz o nome |
 
-Erros de permissão vêm com `code` (`missing_permission`, `role_hierarchy`, `owner_roles`, `cannot_grant`, `banned`, `not_member`…) e o app os traduz.
+Reagir com emoji de outro servidor sem poder responde 403 com `code` `external_expression`. Erros de permissão vêm com `code` (`missing_permission`, `role_hierarchy`, `owner_roles`, `cannot_grant`, `banned`, `not_member`…) e o app os traduz.
 
 ## Eventos em tempo real
 

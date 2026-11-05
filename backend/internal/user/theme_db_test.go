@@ -57,7 +57,7 @@ func TestProfileThemeDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.ProfileTheme.Border != "neon" || u.ProfileTheme.BackgroundColors[1] != "#0f172a" || u.ProfileTheme.Effect != "fire" || u.ProfileTheme.Extras != theme.Extras {
+	if u.ProfileTheme.Border != "neon" || u.ProfileTheme.BackgroundColors[1] != "#0f172a" || u.ProfileTheme.Effect != "fire" || u.ProfileTheme.Extras != theme.Extras.Filled() {
 		t.Fatalf("gravado = %+v", u.ProfileTheme)
 	}
 

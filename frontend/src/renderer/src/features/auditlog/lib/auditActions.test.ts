@@ -80,6 +80,9 @@ describe('frase de cada registro', () => {
     expect(text({ action: 'channel.reorder', changes: [{ field: 'type', after: 'text' }] })).toBe(
       '@Fulano reordenou os canais de texto'
     )
+    expect(text({ action: 'channel.reorder', changes: [{ field: 'type', after: 'layout' }] })).toBe(
+      '@Fulano reorganizou as categorias e os canais'
+    )
     expect(
       text({
         action: 'server.update',

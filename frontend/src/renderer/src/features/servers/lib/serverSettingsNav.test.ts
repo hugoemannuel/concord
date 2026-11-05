@@ -23,11 +23,11 @@ describe('seções das configurações do servidor', () => {
   })
 
   it('o dono e o administrador veem todas', () => {
-    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'plugins', 'level'])
+    expect(ids(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'roles', 'members', 'bans', 'audit', 'plugins', 'level'])
   })
 
   it('cada permissão abre só o que usa', () => {
-    expect(ids(Perm.MANAGE_SERVER)).toEqual(['overview', 'plugins', 'level'])
+    expect(ids(Perm.MANAGE_SERVER)).toEqual(['overview', 'tag', 'look', 'plugins', 'level'])
     expect(ids(Perm.MANAGE_ROLES)).toEqual(['roles', 'members', 'plugins', 'level'])
     expect(ids(Perm.KICK_MEMBERS)).toEqual(['members', 'plugins', 'level'])
     expect(ids(Perm.BAN_MEMBERS)).toEqual(['members', 'bans', 'plugins', 'level'])
@@ -40,9 +40,9 @@ describe('seções das configurações do servidor', () => {
     expect(ids(Perm.CHANGE_NICKNAME)).toEqual(['plugins'])
   })
 
-  it('o moderador padrão (editar servidor + expulsar) vê visão geral e membros', () => {
+  it('o moderador padrão (editar servidor + expulsar) vê o perfil e membros', () => {
     const mod = DEFAULT_EVERYONE | Perm.MANAGE_SERVER | Perm.MANAGE_CHANNELS | Perm.KICK_MEMBERS
-    expect(ids(mod)).toEqual(['overview', 'members', 'plugins', 'level'])
+    expect(ids(mod)).toEqual(['overview', 'tag', 'look', 'members', 'plugins', 'level'])
     expect(canOpenServerSettings(mod)).toBe(true)
   })
 
@@ -71,7 +71,7 @@ describe('serverSectionLabel', () => {
 
   it('Eventos é do dono e de quem recebeu a configuração: o administrador não vê, e entra antes de Nível', () => {
     expect(ids(ALL_PERMISSIONS)).not.toContain('events')
-    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'roles', 'members', 'bans', 'audit', 'events', 'plugins', 'level'])
+    expect(ownerIds(ALL_PERMISSIONS)).toEqual(['overview', 'tag', 'look', 'roles', 'members', 'bans', 'audit', 'events', 'plugins', 'level'])
   })
 
   it('pedir Eventos sem ser o dono cai na primeira seção visível', () => {
