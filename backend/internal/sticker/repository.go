@@ -206,3 +206,28 @@ func scanGroups(rows pgx.Rows) ([]ServerStickers, error) {
 	}
 	return groups, rows.Err()
 }
+
+func updateNotFound(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrStickerNotFound
+	}
+	return err
+}
+
+// Update devolve os metadados persistidos; o arquivo e sua identidade permanecem iguais.
+func (r *Repository) Update(ctx context.Context, serverID, id, name string) (*Sticker, error) {
+	if uuid.Validate(id) != nil {
+		return nil, ErrStickerNotFound
+	}
+	var s Sticker
+	err := r.db.QueryRow(ctx, `WITH updated AS (
+ UPDATE server_stickers SET name=$3 WHERE server_id=$1 AND id=$2 RETURNING *
+ )
+ SELECT s.id,s.server_id,s.uploader_id,COALESCE(u.display_name,u.username,''),
+ s.name,s.content_type,s.size_bytes,s.created_at,s.published_at
+ FROM updated s LEFT JOIN users u ON u.id=s.uploader_id`, serverID, id, name).Scan(&s.ID, &s.ServerID, &s.UploaderID, &s.UploaderName, &s.Name, &s.ContentType, &s.SizeBytes, &s.CreatedAt, &s.PublishedAt)
+	if err != nil {
+		return nil, updateNotFound(err)
+	}
+	return &s, nil
+}

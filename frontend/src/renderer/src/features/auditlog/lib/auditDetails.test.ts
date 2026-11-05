@@ -21,6 +21,23 @@ const entry = (over: Partial<AuditEntry>): AuditEntry => ({
 })
 
 describe('detalhes do que mudou', () => {
+  it('som editado: o nome e o emoji, com "sem emoji" quando ficou vazio', () => {
+    const rows = describeChanges(
+      entry({
+        action: 'sound.update',
+        target_type: 'sound',
+        changes: [
+          { field: 'name', before: 'Corneta', after: 'Buzina' },
+          { field: 'emoji', before: '\u{1F3BA}', after: '' }
+        ]
+      })
+    )
+    expect(rows).toEqual([
+      { label: 'Nome', before: 'Corneta', after: 'Buzina' },
+      { label: 'Emoji', before: '\u{1F3BA}', after: 'sem emoji' }
+    ])
+  })
+
   it('nome, cor e separação: antes e depois legíveis', () => {
     const rows = describeChanges(
       entry({

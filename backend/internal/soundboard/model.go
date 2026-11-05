@@ -32,6 +32,7 @@ var (
 	ErrInvalidName       = errors.New("sound name is required (max 32 characters)")
 	ErrInvalidDuration   = errors.New("sound duration must be between 0.1s and 15s")
 	ErrNotServerMember   = errors.New("you are not a member of this server")
+	ErrCannotEditSound   = errors.New("Só quem enviou ou quem gerencia expressões pode editar este som.")
 	ErrCannotDeleteSound = errors.New("only the uploader, moderators or server owner can delete this sound")
 	ErrCannotAddSound    = errors.New("você não tem permissão para adicionar sons neste servidor")
 	ErrFavoritesFull     = errors.New("limite de sons favoritos atingido")
@@ -57,6 +58,11 @@ type FavoriteSound struct {
 }
 
 type CreatedEvent struct {
+	ServerID string `json:"server_id"`
+	Sound    Sound  `json:"sound"`
+}
+
+type UpdatedEvent struct {
 	ServerID string `json:"server_id"`
 	Sound    Sound  `json:"sound"`
 }

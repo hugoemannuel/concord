@@ -126,3 +126,18 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+// Update devolve os metadados persistidos; o arquivo e sua identidade permanecem iguais.
+func (r *Repository) Update(ctx context.Context, serverID, id, name string, emoji *string) (*Sound, error) {
+	if uuid.Validate(id) != nil {
+		return nil, ErrSoundNotFound
+	}
+	var s Sound
+	err := r.db.QueryRow(ctx, `WITH updated AS (
+ UPDATE soundboard_sounds SET name=$3,emoji=$4 WHERE server_id=$1 AND id=$2 RETURNING *
+ ) SELECT `+soundColumns+` FROM updated s LEFT JOIN users u ON u.id=s.uploader_id`, serverID, id, name, emoji).Scan(soundFields(&s)...)
+	if err != nil {
+		return nil, notFoundOr(err)
+	}
+	return &s, nil
+}

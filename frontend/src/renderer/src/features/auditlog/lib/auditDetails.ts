@@ -78,6 +78,7 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   title: { label: 'Título', format: text },
   description: { label: 'Descrição', format: text },
   icon: { label: 'Ícone', format: (v) => (v ? 'imagem' : 'sem ícone') },
+  emoji: { label: 'Emoji', format: (v) => (v ? String(v) : 'sem emoji') },
   type: { label: 'Tipo', format: lookup(CHANNEL_TYPE) },
   private: { label: 'Privado', format: yesNo },
   color: { label: 'Cor', format: color },

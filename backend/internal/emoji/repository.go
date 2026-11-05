@@ -147,3 +147,17 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+// Update devolve os metadados persistidos; o arquivo e sua identidade permanecem iguais.
+func (r *Repository) Update(ctx context.Context, serverID, id, name string) (*Emoji, error) {
+	if uuid.Validate(id) != nil {
+		return nil, ErrEmojiNotFound
+	}
+	var s Emoji
+	err := r.db.QueryRow(ctx, `UPDATE server_emojis SET name=$3 WHERE server_id=$1 AND id=$2
+ RETURNING id,server_id,uploader_id,name,content_type,size_bytes,created_at,published_at`, serverID, id, name).Scan(&s.ID, &s.ServerID, &s.UploaderID, &s.Name, &s.ContentType, &s.SizeBytes, &s.CreatedAt, &s.PublishedAt)
+	if err != nil {
+		return nil, insertError(notFound(err))
+	}
+	return &s, nil
+}

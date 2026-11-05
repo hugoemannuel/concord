@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -163,5 +164,48 @@ func TestAppendToGroup(t *testing.T) {
 	groups = appendToGroup(groups, ServerEmojis{ServerID: "b"}, Emoji{ID: "3"})
 	if len(groups) != 2 || len(groups[0].Emojis) != 2 || groups[1].Emojis[0].ID != "3" {
 		t.Fatalf("grupos = %+v", groups)
+	}
+}
+
+func TestRepositoryUpdate(t *testing.T) {
+	db, ctx := emojiDB(t)
+	repo := NewRepository(db)
+	user, server := seedUserAndServer(t, db, "Edição")
+	_, other := seedUserAndServer(t, db, "Outro")
+	original := &Emoji{ID: uuid.NewString(), ServerID: server, UploaderID: user, Name: "antigo", ContentType: "image/png", SizeBytes: 10}
+	if err := repo.Create(ctx, original); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.Update(ctx, server, original.ID, "novo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := *original
+	expected.Name = "novo"
+	if !reflect.DeepEqual(*got, expected) {
+		t.Fatalf("atualizado = %+v, esperado %+v", got, expected)
+	}
+	persisted, err := repo.FindByID(ctx, original.ID)
+	if err != nil || !reflect.DeepEqual(persisted, got) {
+		t.Fatalf("persistido = %+v, erro %v", persisted, err)
+	}
+	if _, err := repo.Update(ctx, other, original.ID, "fora"); !errors.Is(err, ErrEmojiNotFound) {
+		t.Fatalf("outro servidor: %v", err)
+	}
+	if _, err := repo.Update(ctx, server, uuid.NewString(), "ausente"); !errors.Is(err, ErrEmojiNotFound) {
+		t.Fatalf("inexistente: %v", err)
+	}
+	duplicate := &Emoji{ID: uuid.NewString(), ServerID: server, UploaderID: user, Name: "ocupado", ContentType: "image/png", SizeBytes: 10}
+	if err := repo.Create(ctx, duplicate); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.Update(ctx, server, original.ID, "OCUPADO"); !errors.Is(err, ErrNameTaken) {
+		t.Fatalf("nome duplicado: %v", err)
+	}
+	if _, err := repo.Update(ctx, server, original.ID, "NOVO"); err != nil {
+		t.Fatalf("mesmo emoji: %v", err)
+	}
+	if _, err := repo.Update(ctx, other, duplicate.ID, "novo"); !errors.Is(err, ErrEmojiNotFound) {
+		t.Fatalf("servidor incorreto: %v", err)
 	}
 }

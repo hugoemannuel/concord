@@ -10,9 +10,10 @@ import {
   fetchMyEmojis,
   uploadServerEmoji
 } from '../api/emojis'
+import { updateServerEmoji } from '../../expressions/api/expressions'
 
 // Emojis personalizados dos servidores da pessoa e o pack base. Uma carga por
-// sessão; depois só eventos do ws (emoji:created/deleted) e recarga explícita
+// sessão; depois só eventos do ws (emoji:created/updated/deleted) e recarga explícita
 // quando a lista de servidores muda (ver watchServers).
 
 interface EmojiState {
@@ -25,6 +26,8 @@ interface EmojiState {
   reload: () => Promise<void>
   ensureBase: () => Promise<void>
   upload: (serverId: string, name: string, file: Blob) => Promise<CustomEmoji>
+  /** Troca o nome (o arquivo fica). */
+  rename: (serverId: string, emojiId: string, name: string) => Promise<CustomEmoji>
   remove: (serverId: string, emojiId: string) => Promise<void>
   handleWsEvent: (event: WsEvent) => boolean
 }
@@ -60,11 +63,46 @@ export function removeEmoji(groups: ServerEmojis[], emojiId: string): ServerEmoj
     .filter((g) => g.emojis.length > 0)
 }
 
+/** Troca o emoji editado; se ele não está na lista, devolve a mesma. */
+export function replaceEmoji(groups: ServerEmojis[], emoji: CustomEmoji): ServerEmojis[] {
+  const i = groups.findIndex((g) => g.emojis.some((e) => e.id === emoji.id))
+  if (i < 0) return groups
+  const next = [...groups]
+  next[i] = { ...groups[i], emojis: groups[i].emojis.map((e) => (e.id === emoji.id ? emoji : e)) }
+  return next
+}
+
+interface EmojiPayload {
+  emoji?: CustomEmoji
+  emoji_id?: string
+}
+
+/** Aplica o valor do evento, se veio; diz se tratou. */
+function applyIf<T>(value: T | undefined, apply: (v: T) => void): boolean {
+  if (!value) return false
+  apply(value)
+  return true
+}
+
 export const useEmojiStore = create<EmojiState>((set, get) => {
   const applyCreated = (emoji: CustomEmoji): void => {
     const next = addEmoji(get().groups, emoji)
     if (next) set(withGroups(next))
     else void get().reload()
+  }
+
+  const applyUpdated = (emoji: CustomEmoji): void => {
+    const next = replaceEmoji(get().groups, emoji)
+    if (next !== get().groups) set(withGroups(next))
+  }
+
+  const applyDeleted = (emojiId: string): void => set(withGroups(removeEmoji(get().groups, emojiId)))
+
+  /** Cada evento: o tratador, se o payload traz o que ele precisa. */
+  const wsHandlers: Record<string, (p: EmojiPayload) => boolean> = {
+    'emoji:created': (p) => applyIf(p.emoji, applyCreated),
+    'emoji:updated': (p) => applyIf(p.emoji, applyUpdated),
+    'emoji:deleted': (p) => applyIf(p.emoji_id, applyDeleted)
   }
 
   return {
@@ -115,19 +153,21 @@ export const useEmojiStore = create<EmojiState>((set, get) => {
       return created
     },
 
+    rename: async (serverId, emojiId, name) => {
+      const updated = await updateServerEmoji(serverId, emojiId, name)
+      applyUpdated(updated)
+      return updated
+    },
+
     remove: async (serverId, emojiId) => {
       await deleteServerEmoji(serverId, emojiId)
-      set(withGroups(removeEmoji(get().groups, emojiId)))
+      applyDeleted(emojiId)
     },
 
     handleWsEvent: (event) => {
       if (!get().loaded) return event.type.startsWith('emoji:')
-      const payload = (event.payload ?? {}) as { emoji?: CustomEmoji; emoji_id?: string }
-      if (event.type === 'emoji:created' && payload.emoji) applyCreated(payload.emoji)
-      else if (event.type === 'emoji:deleted' && payload.emoji_id)
-        set(withGroups(removeEmoji(get().groups, payload.emoji_id)))
-      else return false
-      return true
+      const handler = wsHandlers[event.type]
+      return handler ? handler((event.payload ?? {}) as EmojiPayload) : false
     }
   }
 })

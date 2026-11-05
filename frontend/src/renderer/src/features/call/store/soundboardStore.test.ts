@@ -119,6 +119,39 @@ describe('soundboardStore', () => {
     expect(useSoundboardStore.getState().soundsByServer['srv-1']).toHaveLength(0)
   })
 
+  it('updateSound e soundboard:updated trocam nome e emoji na lista do servidor', async () => {
+    const editApi = await import('../../expressions/api/expressions')
+    const { useSoundboardStore } = await import('./soundboardStore')
+    const corneta = {
+      id: 'snd-1',
+      server_id: 'srv-1',
+      uploader_id: 'u1',
+      uploader_name: 'Alice',
+      name: 'Corneta',
+      emoji: 'x',
+      content_type: 'audio/wav',
+      size_bytes: 4096,
+      duration_ms: 1500,
+      created_at: '2026-11-01T00:00:00Z'
+    }
+    useSoundboardStore.setState({ soundsByServer: { 'srv-1': [corneta] } })
+    const renamed = { ...corneta, name: 'Buzina', emoji: null }
+    const update = vi.spyOn(editApi, 'updateServerSound').mockResolvedValue(renamed)
+    await expect(
+      useSoundboardStore.getState().updateSound('srv-1', 'snd-1', { name: 'Buzina', emoji: '' })
+    ).resolves.toEqual(renamed)
+    expect(update).toHaveBeenCalledWith('srv-1', 'snd-1', { name: 'Buzina', emoji: '' })
+    expect(useSoundboardStore.getState().soundsByServer['srv-1']).toEqual([renamed])
+
+    useSoundboardStore.getState().handleWsEvent({
+      type: 'soundboard:updated',
+      payload: { server_id: 'srv-1', sound: { ...corneta, name: 'Apito' } }
+    })
+    expect(useSoundboardStore.getState().soundsByServer['srv-1'][0].name).toBe('Apito')
+    useSoundboardStore.getState().handleWsEvent({ type: 'soundboard:updated', payload: { server_id: 'srv-1' } })
+    expect(useSoundboardStore.getState().soundsByServer['srv-1']).toHaveLength(1)
+  })
+
   it('registra activePlays ao receber call:soundboard e envia evento em triggerSound', async () => {
     const { useCallStore } = await import('./callStore')
     const { useSoundboardStore } = await import('./soundboardStore')
