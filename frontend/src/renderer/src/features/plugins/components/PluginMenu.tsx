@@ -18,7 +18,7 @@ function PluginName({
       type="button"
       role="menuitem"
       onClick={() => onOpen(plugin)}
-      className={`focus-ring rounded-sm hover:underline ${NAME}`}
+      className={`focus-ring rounded hover:underline ${NAME}`}
     >
       {plugin.name}
     </button>
