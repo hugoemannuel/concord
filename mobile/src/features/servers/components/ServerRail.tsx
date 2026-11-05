@@ -6,6 +6,8 @@ import { PathIcon } from '../../../shared/ui/PathIcon'
 import { DIAMOND_PATHS } from '../../../shared/ui/icons/hubIcons'
 import { UnreadBadge, UnreadDot } from '../../chat/components/UnreadBadge'
 import type { Server } from '../api/servers'
+import type { RailDm } from '../../chat/lib/unreadCounts'
+import { RailDms } from './RailDms'
 
 interface ServerRailProps {
   servers: Server[]
@@ -18,12 +20,18 @@ interface ServerRailProps {
   unreadServers?: Record<string, number>
   /** O diamante logo abaixo das DMs (como na web): Melhorias (Novidades e Rank global; Propostas em breve). */
   onOpenHub?: () => void
+  /** DMs não lidas que aparecem logo abaixo do ícone de DMs (foto e quantidade). */
+  unreadDms?: RailDm[]
+  onOpenDm?: (dm: RailDm) => void
 }
+
+const NO_DMS: RailDm[] = []
+const noop = () => {}
 
 const SIZE = 48
 
 /** Trilho da esquerda: ícone de DMs no topo e um botão por servidor. */
-export function ServerRail({ servers, selectedId, onSelect, dmUnread = 0, unreadServers = {}, onOpenHub }: ServerRailProps) {
+export function ServerRail({ servers, selectedId, onSelect, dmUnread = 0, unreadServers = {}, onOpenHub, unreadDms = NO_DMS, onOpenDm = noop }: ServerRailProps) {
   return (
     <ScrollView style={styles.rail} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Pressable
@@ -40,6 +48,7 @@ export function ServerRail({ servers, selectedId, onSelect, dmUnread = 0, unread
           </View>
         ) : null}
       </Pressable>
+      <RailDms dms={unreadDms} onOpen={onOpenDm} />
       <View style={styles.divider} />
       {onOpenHub ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Melhorias" onPress={onOpenHub} style={[styles.item, styles.hub]}>

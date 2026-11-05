@@ -7,8 +7,9 @@ import { CallBar } from '../../call/components/CallBar'
 import { CallNotice } from '../../call/components/CallNotice'
 import { useVoiceRoster } from '../../call/hooks/useVoiceRoster'
 import { DirectMessages, type OpenConversationArgs } from '../../chat/components/DirectMessages'
-import { totalUnread } from '../../chat/lib/unreadCounts'
+import { railDmsOf, totalUnread } from '../../chat/lib/unreadCounts'
 import { useConversationsStore } from '../../chat/store/conversationsStore'
+import { useAuthStore } from '../../auth/store/authStore'
 import { useUnreadStore } from '../../chat/store/unreadStore'
 import { UserPanel } from '../../profile/components/UserPanel'
 import type { Channel } from '../api/channels'
@@ -44,7 +45,9 @@ export function HomeScreen({ onOpenChannel, onOpenConversation, onOpenFriends, o
   const loadChannels = useServersStore((s) => s.loadChannels)
   const serverId = useSelectedServerStore((s) => s.serverId)
   const select = useSelectedServerStore((s) => s.select)
-  const dmUnread = useConversationsStore((s) => totalUnread(s.conversations))
+  const conversations = useConversationsStore((s) => s.conversations)
+  const dmUnread = totalUnread(conversations)
+  const myId = useAuthStore((s) => s.user?.id)
   const unreadServers = useUnreadStore((s) => s.byServer)
   const unreadChannels = useUnreadStore((s) => s.byChannel)
   const ensureSelection = useSelectedServerStore((s) => s.ensureSelection)
@@ -68,7 +71,16 @@ export function HomeScreen({ onOpenChannel, onOpenConversation, onOpenFriends, o
   return (
     <View style={styles.screen}>
       <View style={styles.columns}>
-        <ServerRail servers={servers} selectedId={serverId} onSelect={select} dmUnread={dmUnread} unreadServers={unreadServers} onOpenHub={onOpenHub} />
+        <ServerRail
+          servers={servers}
+          selectedId={serverId}
+          onSelect={select}
+          dmUnread={dmUnread}
+          unreadServers={unreadServers}
+          onOpenHub={onOpenHub}
+          unreadDms={railDmsOf(conversations, myId)}
+          onOpenDm={(dm) => onOpenConversation({ id: dm.id, title: dm.title, type: dm.type })}
+        />
         <View style={styles.main}>
           {status === 'error' && servers.length === 0 ? (
             <View style={styles.centered}>

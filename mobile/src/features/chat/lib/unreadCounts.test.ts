@@ -1,6 +1,6 @@
 import type { ConversationSummary } from '../api/conversations'
 import type { Message } from '../api/messages'
-import { badgeText, shouldCountUnread, totalUnread, unreadLabel } from './unreadCounts'
+import { badgeText, MAX_RAIL_DMS, shouldCountUnread, totalUnread, railDmsOf, unreadLabel, unreadRailDms } from './unreadCounts'
 
 const msg = (over: Partial<Message> = {}): Message => ({
   id: 'm1',
@@ -48,5 +48,35 @@ describe('badgeText / unreadLabel', () => {
   it('rótulo para leitor de tela, no singular e no plural', () => {
     expect(unreadLabel(1)).toBe('1 mensagem não lida')
     expect(unreadLabel(5)).toBe('5 mensagens não lidas')
+  })
+})
+
+describe('unreadRailDms', () => {
+  const conv = (id: string, unread: number, at: string) =>
+    ({ id, unread_count: unread, updated_at: at, type: 'dm', name: '', members: [], created_at: at }) as ConversationSummary
+
+  it('só as conversas com não lidas, da mensagem mais nova para a mais velha', () => {
+    const list = [conv('a', 2, '2026-11-01'), conv('b', 0, '2026-11-04'), conv('c', 1, '2026-11-03')]
+    expect(unreadRailDms(list).map((c) => c.id)).toEqual(['c', 'a'])
+  })
+
+  it('no máximo MAX_RAIL_DMS (o resto continua no selo das DMs)', () => {
+    const list = Array.from({ length: MAX_RAIL_DMS + 2 }, (_, i) => conv(`c${i}`, 1, `2026-11-0${i + 1}`))
+    expect(unreadRailDms(list)).toHaveLength(MAX_RAIL_DMS)
+  })
+})
+
+describe('railDmsOf', () => {
+  it('DM mostra a foto da outra pessoa; grupo, o ícone do grupo', () => {
+    const at = '2026-11-01'
+    const person = { id: 'u2', username: 'ana', display_name: 'Ana', avatar_url: 'a.png' }
+    const list = [
+      { id: 'd', type: 'dm', name: '', other_user: person, members: [], unread_count: 2, created_at: at, updated_at: '2026-11-02' },
+      { id: 'g', type: 'group', name: 'Turma', icon_url: 'g.png', members: [], unread_count: 1, created_at: at, updated_at: at }
+    ] as ConversationSummary[]
+    expect(railDmsOf(list, 'eu')).toEqual([
+      { id: 'd', title: 'Ana', type: 'dm', avatarUrl: 'a.png', unread: 2 },
+      { id: 'g', title: 'Turma', type: 'group', avatarUrl: 'g.png', unread: 1 }
+    ])
   })
 })
