@@ -172,7 +172,7 @@ describe('ServerRailList — E2E integrado (ordenação, pastas, menu e modal)',
     )
     expect(otherMenu).toContain('Sair do servidor')
     expect(otherMenu).not.toContain('Deletar servidor')
-    expect(otherMenu).not.toContain('Configurações do servidor')
+    expect(otherMenu).toContain('Configurações do servidor') // aba Plugins é de todo membro
 
     // Menu da pasta Jogos permite editar o nome, descer e desfazer pasta
     const folderMenu = renderToStaticMarkup(
