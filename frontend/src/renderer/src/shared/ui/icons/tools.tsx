@@ -59,3 +59,27 @@ export function ImageAddIcon(props: IconProps): React.JSX.Element {
     </Icon>
   )
 }
+
+/** Peça de quebra-cabeça: plugins. */
+export function PuzzleIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M10 2.5A2.5 2.5 0 0 1 12.5 5v1H17a2 2 0 0 1 2 2v3.5h-1a2.5 2.5 0 0 0 0 5h1V19a2 2 0 0 1-2 2h-3.5v-1a2.5 2.5 0 0 0-5 0v1H5a2 2 0 0 1-2-2v-4.5h1a2.5 2.5 0 0 0 0-5H3V8a2 2 0 0 1 2-2h3.5V5A2.5 2.5 0 0 1 10 2.5z" />
+    </Icon>
+  )
+}
+
+/**
+ * Bola de futebol (plugin do placar ao vivo): disco claro com o pentágono do
+ * centro e os gomos da borda vazados, como numa bola de verdade.
+ */
+export function SoccerBallIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path
+        fillRule="evenodd"
+        d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 8.3L15.52 10.86L14.17 14.99L9.83 14.99L8.48 10.86ZM14.25 3.6L19.3 7.26L16.91 7.74L15.47 7.23L14.54 6.02ZM20.69 11.54L18.76 17.48L17.57 15.35L17.61 13.82L18.48 12.57ZM15.12 20.12L8.88 20.12L10.54 18.33L12 17.9L13.46 18.33ZM5.24 17.48L3.31 11.54L5.52 12.57L6.39 13.82L6.43 15.35ZM4.7 7.26L9.75 3.6L9.46 6.02L8.53 7.23L7.09 7.74Z"
+      />
+    </Icon>
+  )
+}
