@@ -18,6 +18,14 @@ import { showToast } from '../../../shared/store/toastStore'
 import { useUserAudioStore } from './userAudioStore'
 import { useSoundFavoritesStore } from './soundFavoritesStore'
 import { legacyFavoriteIds, SOUNDBOARD_PREFS_KEY } from '../lib/legacySoundFavorites'
+import {
+  editServerSounds,
+  prependSound,
+  replaceSound,
+  withoutSound,
+  type SoundListEdit
+} from '../lib/serverSoundList'
+import { updateServerSound, type SoundUpdate } from '../../expressions/api/expressions'
 const DEFAULT_VOLUME = 0.8
 
 /** Preferências locais da mesa (os favoritos ficam no servidor: soundFavoritesStore). */
@@ -45,7 +53,8 @@ interface CallSoundboardPayload {
   user: CallUserInfo
 }
 
-interface SoundboardCreatedPayload {
+/** soundboard:created e soundboard:updated. */
+interface SoundboardSoundPayload {
   server_id: string
   sound: SoundboardItem
 }
@@ -110,6 +119,8 @@ interface SoundboardState {
     file: Blob,
     input: UploadSoundboardInput
   ) => Promise<SoundboardItem>
+  /** Troca nome e emoji (o áudio fica). */
+  updateSound: (serverId: string, soundId: string, input: SoundUpdate) => Promise<SoundboardItem>
   deleteSound: (serverId: string, soundId: string) => Promise<void>
   triggerSound: (soundId: string) => void
   clearActivePlays: () => void
@@ -135,34 +146,22 @@ export const useSoundboardStore = create<SoundboardState>()((set, get) => {
     })
   }
 
-  const onSoundCreated = (payload: unknown): void => {
-    const p = payload as SoundboardCreatedPayload
-    if (!p?.server_id || !p?.sound) return
-    set((s) => {
-      const current = s.soundsByServer[p.server_id] ?? []
-      if (current.some((x) => x.id === p.sound.id)) return s
-      return {
-        soundsByServer: {
-          ...s.soundsByServer,
-          [p.server_id]: [p.sound, ...current]
-        }
-      }
-    })
-  }
+  const editSounds = (serverId: string, edit: SoundListEdit): void =>
+    set((s) => ({ soundsByServer: editServerSounds(s.soundsByServer, serverId, edit) }))
+
+  /** Som criado ou editado: o payload traz o som inteiro. */
+  const onSound =
+    (toEdit: (sound: SoundboardItem) => SoundListEdit) =>
+    (payload: unknown): void => {
+      const p = payload as SoundboardSoundPayload
+      if (p?.server_id && p?.sound) editSounds(p.server_id, toEdit(p.sound))
+    }
 
   const onSoundDeleted = (payload: unknown): void => {
     const p = payload as SoundboardDeletedPayload
     if (!p?.server_id || !p?.sound_id) return
     useSoundFavoritesStore.getState().forget(p.sound_id)
-    set((s) => {
-      const current = s.soundsByServer[p.server_id] ?? []
-      return {
-        soundsByServer: {
-          ...s.soundsByServer,
-          [p.server_id]: current.filter((x) => x.id !== p.sound_id)
-        }
-      }
-    })
+    editSounds(p.server_id, withoutSound(p.sound_id))
   }
 
   /** Alguém tocou um som na chamada ativa: marca quem tocou e reproduz. */
@@ -214,7 +213,8 @@ export const useSoundboardStore = create<SoundboardState>()((set, get) => {
   }
 
   const wsHandlers: Record<string, (payload: unknown) => void> = {
-    'soundboard:created': onSoundCreated,
+    'soundboard:created': onSound(prependSound),
+    'soundboard:updated': onSound(replaceSound),
     'soundboard:deleted': onSoundDeleted,
     'call:soundboard': onCallSoundboard
   }
@@ -273,30 +273,19 @@ export const useSoundboardStore = create<SoundboardState>()((set, get) => {
 
     uploadSound: async (serverId, file, input) => {
       const created = await uploadServerSound(serverId, file, input)
-      set((s) => {
-        const current = s.soundsByServer[serverId] ?? []
-        if (current.some((x) => x.id === created.id)) return s
-        return {
-          soundsByServer: {
-            ...s.soundsByServer,
-            [serverId]: [created, ...current]
-          }
-        }
-      })
+      editSounds(serverId, prependSound(created))
       return created
+    },
+
+    updateSound: async (serverId, soundId, input) => {
+      const updated = await updateServerSound(serverId, soundId, input)
+      editSounds(serverId, replaceSound(updated))
+      return updated
     },
 
     deleteSound: async (serverId, soundId) => {
       await deleteServerSound(serverId, soundId)
-      set((s) => {
-        const current = s.soundsByServer[serverId] ?? []
-        return {
-          soundsByServer: {
-            ...s.soundsByServer,
-            [serverId]: current.filter((x) => x.id !== soundId)
-          }
-        }
-      })
+      editSounds(serverId, withoutSound(soundId))
     },
 
     triggerSound: (soundId) => {

@@ -6,20 +6,26 @@ import {
   uploadServerSticker,
   deleteServerSticker
 } from '../api/stickers'
+import { updateServerSticker } from '../../expressions/api/expressions'
 
 interface StickerState {
   stickersByServer: Record<string, ServerSticker[]>
-  /** As figurinhas de todos os servidores da pessoa, numa consulta só. */
-  loadMine: () => Promise<void>
+  /** As figurinhas de todos os servidores da pessoa, numa consulta só (false se falhou). */
+  loadMine: () => Promise<boolean>
   uploadSticker: (
     serverId: string,
     name: string,
     file: Blob,
     filename?: string
   ) => Promise<ServerSticker>
+  /** Troca o nome (o arquivo fica). */
+  renameSticker: (serverId: string, stickerId: string, name: string) => Promise<ServerSticker>
   deleteSticker: (serverId: string, stickerId: string) => Promise<void>
   handleWsEvent: (event: WsEvent) => boolean
 }
+
+type ByServer = StickerState['stickersByServer']
+type Edit = (list: ServerSticker[]) => ServerSticker[]
 
 // Sem figurinhas, devolva sempre a mesma referência: um `[]` novo por leitura
 // faz o zustand v5 entrar em loop de render (React #185).
@@ -30,81 +36,84 @@ export const selectStickers =
   (s: Pick<StickerState, 'stickersByServer'>): ServerSticker[] =>
     serverId ? (s.stickersByServer[serverId] ?? NO_STICKERS) : NO_STICKERS
 
-export const useStickerStore = create<StickerState>((set) => ({
-  stickersByServer: {},
+/** A lista do servidor depois da mudança. */
+const editServer = (
+  byServer: ByServer,
+  serverId: string,
+  edit: Edit
+): { stickersByServer: ByServer } => ({
+  stickersByServer: { ...byServer, [serverId]: edit(byServer[serverId] ?? []) }
+})
 
-  loadMine: async () => {
-    try {
-      const groups = await fetchMyStickers()
-      set({ stickersByServer: Object.fromEntries(groups.map((g) => [g.server_id, g.stickers])) })
-    } catch {
-      // Sem rede: o seletor fica com o que já tinha carregado.
-    }
-  },
+const prepend =
+  (sticker: ServerSticker): Edit =>
+  (list) =>
+    list.some((x) => x.id === sticker.id) ? list : [sticker, ...list]
 
-  uploadSticker: async (serverId, name, file, filename) => {
-    const created = await uploadServerSticker(serverId, name, file, filename)
-    set((s) => {
-      const current = s.stickersByServer[serverId] ?? []
-      if (current.some((x) => x.id === created.id)) return s
-      return {
-        stickersByServer: {
-          ...s.stickersByServer,
-          [serverId]: [created, ...current]
-        }
+const replace =
+  (sticker: ServerSticker): Edit =>
+  (list) =>
+    list.map((x) => (x.id === sticker.id ? sticker : x))
+
+const without =
+  (stickerId: string): Edit =>
+  (list) =>
+    list.filter((x) => x.id !== stickerId)
+
+interface StickerPayload {
+  server_id?: string
+  sticker?: ServerSticker
+  sticker_id?: string
+}
+
+/** A mudança que cada evento pede (null se o payload não traz o necessário). */
+const WS_EDITS: Record<string, (p: StickerPayload) => Edit | null> = {
+  'sticker:created': (p) => (p.sticker ? prepend(p.sticker) : null),
+  'sticker:updated': (p) => (p.sticker ? replace(p.sticker) : null),
+  'sticker:deleted': (p) => (p.sticker_id ? without(p.sticker_id) : null)
+}
+
+export const useStickerStore = create<StickerState>((set) => {
+  const apply = (serverId: string, edit: Edit): void =>
+    set((s) => editServer(s.stickersByServer, serverId, edit))
+
+  return {
+    stickersByServer: {},
+
+    loadMine: async () => {
+      try {
+        const groups = await fetchMyStickers()
+        set({ stickersByServer: Object.fromEntries(groups.map((g) => [g.server_id, g.stickers])) })
+        return true
+      } catch {
+        // Sem rede: o seletor fica com o que já tinha carregado.
+        return false
       }
-    })
-    return created
-  },
+    },
 
-  deleteSticker: async (serverId, stickerId) => {
-    await deleteServerSticker(serverId, stickerId)
-    set((s) => {
-      const current = s.stickersByServer[serverId] ?? []
-      return {
-        stickersByServer: {
-          ...s.stickersByServer,
-          [serverId]: current.filter((x) => x.id !== stickerId)
-        }
-      }
-    })
-  },
+    uploadSticker: async (serverId, name, file, filename) => {
+      const created = await uploadServerSticker(serverId, name, file, filename)
+      apply(serverId, prepend(created))
+      return created
+    },
 
-  handleWsEvent: (event: WsEvent) => {
-    const payload = (event.payload ?? {}) as Record<string, unknown>
-    const serverId = payload.server_id as string | undefined
+    renameSticker: async (serverId, stickerId, name) => {
+      const updated = await updateServerSticker(serverId, stickerId, name)
+      apply(serverId, replace(updated))
+      return updated
+    },
 
-    if (event.type === 'sticker:created') {
-      const sticker = payload.sticker as ServerSticker | undefined
-      if (!serverId || !sticker) return false
-      set((s) => {
-        const current = s.stickersByServer[serverId] ?? []
-        if (current.some((x) => x.id === sticker.id)) return s
-        return {
-          stickersByServer: {
-            ...s.stickersByServer,
-            [serverId]: [sticker, ...current]
-          }
-        }
-      })
+    deleteSticker: async (serverId, stickerId) => {
+      await deleteServerSticker(serverId, stickerId)
+      apply(serverId, without(stickerId))
+    },
+
+    handleWsEvent: (event: WsEvent) => {
+      const payload = (event.payload ?? {}) as StickerPayload
+      const edit = WS_EDITS[event.type]?.(payload)
+      if (!payload.server_id || !edit) return false
+      apply(payload.server_id, edit)
       return true
     }
-
-    if (event.type === 'sticker:deleted') {
-      const stickerId = payload.sticker_id as string | undefined
-      if (!serverId || !stickerId) return false
-      set((s) => {
-        const current = s.stickersByServer[serverId] ?? []
-        return {
-          stickersByServer: {
-            ...s.stickersByServer,
-            [serverId]: current.filter((x) => x.id !== stickerId)
-          }
-        }
-      })
-      return true
-    }
-
-    return false
   }
-}))
+})

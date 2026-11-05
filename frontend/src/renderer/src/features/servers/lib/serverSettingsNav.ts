@@ -7,6 +7,9 @@ export type ServerSettingsSectionId =
   | 'overview'
   | 'tag'
   | 'look'
+  | 'emojis'
+  | 'stickers'
+  | 'sounds'
   | 'roles'
   | 'members'
   | 'bans'
@@ -33,6 +36,11 @@ export const SERVER_SETTINGS_SECTIONS: ServerSettingsSection[] = [
   { id: 'overview', label: 'Perfil do servidor', anyOf: Perm.MANAGE_SERVER },
   { id: 'tag', label: 'Tag do servidor', anyOf: Perm.MANAGE_SERVER },
   { id: 'look', label: 'Faixa e fundo', anyOf: Perm.MANAGE_SERVER },
+  // Emojis, figurinhas e sons juntos, como no Discord: quem envia vê a lista
+  // (edita e apaga os seus); com Gerenciar expressões, os de todos.
+  { id: 'emojis', label: 'Emojis', anyOf: Perm.ADD_EMOJIS | Perm.MANAGE_EXPRESSIONS },
+  { id: 'stickers', label: 'Figurinhas', anyOf: Perm.ADD_STICKERS | Perm.MANAGE_EXPRESSIONS },
+  { id: 'sounds', label: 'Sons', anyOf: Perm.ADD_SOUNDS | Perm.MANAGE_EXPRESSIONS },
   { id: 'roles', label: 'Cargos', anyOf: Perm.MANAGE_ROLES },
   { id: 'members', label: 'Membros', anyOf: MEMBER_PERMS },
   { id: 'bans', label: 'Banimentos', anyOf: Perm.BAN_MEMBERS },
