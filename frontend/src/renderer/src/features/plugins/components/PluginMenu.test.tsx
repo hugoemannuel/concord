@@ -16,13 +16,16 @@ const p = (id: string, enabled = true): ServerPlugin => ({
   enabled
 })
 
-const render = (plugins: ServerPlugin[]): string =>
-  renderToStaticMarkup(<PluginMenu serverId="s1" plugins={plugins} onOpen={() => {}} />)
+const idle = { ids: new Set<string>(), exclusive: async () => undefined }
+const render = (plugins: ServerPlugin[], busy = idle): string =>
+  renderToStaticMarkup(<PluginMenu serverId="s1" plugins={plugins} busy={busy} onOpen={() => {}} />)
 
 describe('PluginMenu', () => {
   it('uma linha por plugin instalado, ligado ou não, com nome, descrição e interruptor', () => {
     const html = render([p('a'), p('b', false)])
-    expect(html).toContain('role="menu"')
+    // Popover (não `menu`): tem interruptores e texto, e se navega com Tab.
+    expect(html).toContain('role="dialog" aria-label="Plugins"')
+    expect(html).not.toContain('role="menu')
     expect(html.match(/role="switch"/g)).toHaveLength(2)
     expect(html).toContain('Descrição a')
     expect(html).toContain('Descrição b')
@@ -32,9 +35,15 @@ describe('PluginMenu', () => {
 
   it('o nome abre o painel só do plugin ligado', () => {
     const html = render([p('a'), p('b', false)])
-    expect(html.match(/role="menuitem"/g)).toHaveLength(1)
-    expect(html).toMatch(/<button[^>]*role="menuitem"[^>]*>Plugin a</)
+    expect(html).toMatch(/<button[^>]*>Plugin a</)
     expect(html).not.toMatch(/<button[^>]*>Plugin b</)
+  })
+
+  it('pedido em andamento (vem de quem abre o menu): interruptor desabilitado', () => {
+    const busy = { ...idle, ids: new Set(['a']) }
+    const html = render([p('a'), p('b')], busy)
+    expect(html).toContain('aria-label="Plugin a" disabled=""')
+    expect(html).not.toContain('aria-label="Plugin b" disabled=""')
   })
 
   it('linhas com alvo de toque de 40 px e cabem em 360 px', () => {

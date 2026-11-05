@@ -10,6 +10,7 @@ import { PuzzleIcon } from '../../../shared/ui/icons'
 import { pluginIcon } from '../lib/pluginIcon'
 import PluginPanel from './PluginPanel'
 import PluginMenu from './PluginMenu'
+import { usePluginBusy } from '../hooks/usePluginBusy'
 
 const NONE: ServerPlugin[] = []
 
@@ -23,6 +24,7 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
   const load = usePluginsStore((s) => s.load)
   const [open, setOpen] = useState<OpenPlugin | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const busy = usePluginBusy()
   const anchor = useRef<HTMLElement | null>(null)
   const wrap = useRef<HTMLDivElement>(null)
 
@@ -77,7 +79,7 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
         label="Plugins"
         variant="filled"
         className="max-md:size-10"
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={menuOpen}
         onClick={(e) => {
           anchor.current = e.currentTarget
@@ -96,7 +98,7 @@ export default function PluginHeaderButtons(): React.JSX.Element | null {
         />
       ))}
       {menuOpen && (
-        <PluginMenu serverId={serverId} plugins={list} onOpen={(p) => openPlugin(p, anchor.current)} />
+        <PluginMenu serverId={serverId} plugins={list} busy={busy} onOpen={(p) => openPlugin(p, anchor.current)} />
       )}
       {current && <PluginPanel plugin={current} onClose={close} anchorRef={anchor} />}
     </div>

@@ -1,5 +1,4 @@
 import type { ServerPlugin } from '../api/plugins'
-import { headerPlugins } from './headerPlugins'
 
 export interface OpenPlugin {
   serverId: string
@@ -13,7 +12,8 @@ export function findOpenPlugin(
   list: ServerPlugin[]
 ): ServerPlugin | undefined {
   if (!open || open.serverId !== serverId) return undefined
-  return headerPlugins(list).find((p) => p.id === open.pluginId)
+  // Todos os ligados, não só os que têm ícone: o 3º em diante abre pelo menu.
+  return list.find((p) => p.enabled && p.id === open.pluginId)
 }
 
 /**

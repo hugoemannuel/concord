@@ -41,7 +41,7 @@ describe('PluginHeaderButtons', () => {
     const html = setup([p('a', false)])
     expect(html.match(/<button/g)).toHaveLength(1)
     expect(html).toContain('aria-label="Plugins"')
-    expect(html).toContain('aria-haspopup="menu"')
+    expect(html).toContain('aria-haspopup="dialog"')
     expect(html).toContain('max-md:size-10')
   })
 

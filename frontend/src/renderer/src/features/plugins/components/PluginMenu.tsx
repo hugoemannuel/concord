@@ -1,6 +1,6 @@
 import type { ServerPlugin } from '../api/plugins'
 import Switch from '../../../shared/ui/Switch'
-import { usePluginBusy } from '../hooks/usePluginBusy'
+import type { PluginBusy } from '../hooks/usePluginBusy'
 import { menuToggle } from '../lib/pluginSettingsActions'
 
 const NAME = 'min-w-0 truncate text-left text-ds-sm font-semibold text-strong'
@@ -16,7 +16,6 @@ function PluginName({
   return (
     <button
       type="button"
-      role="menuitem"
       onClick={() => onOpen(plugin)}
       className={`focus-ring rounded hover:underline ${NAME}`}
     >
@@ -28,20 +27,24 @@ function PluginName({
 /**
  * Menu do quebra-cabeça na barra do canal: os plugins instalados no servidor, cada um
  * com o interruptor (só para quem clica). O nome de um plugin ligado abre o painel.
+ * É um popover (`dialog`), não um `menu`: tem interruptores e texto, e se navega com Tab.
+ * O `busy` vem de quem abre: fechar e reabrir não libera um pedido ainda no ar.
  */
 export default function PluginMenu({
   serverId,
   plugins,
+  busy,
   onOpen
 }: {
   serverId: string
   plugins: ServerPlugin[]
+  busy: PluginBusy
   onOpen: (p: ServerPlugin) => void
 }): React.JSX.Element {
-  const busy = usePluginBusy()
   return (
     <div
-      role="menu"
+      role="dialog"
+      aria-label="Plugins"
       className="absolute right-4 top-14 z-50 flex max-h-[calc(100dvh-6rem)] w-72 max-w-[calc(100vw-2rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-subtle bg-accent p-1 shadow-2xl"
     >
       {plugins.map((p) => (
