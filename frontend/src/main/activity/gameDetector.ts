@@ -1,6 +1,7 @@
 import { execFile } from 'child_process'
-import { detectGame } from '../../shared/gameCatalog'
+import { detectGame, exesNeedingWindow, withoutHiddenGames } from '../../shared/gameCatalog'
 import { detectSteamGame, type SteamGame } from './steamGames'
+import { exesWithVisibleWindow } from './visibleWindows'
 
 // "Em atividade": olha os processos em andamento (como o Discord, não só a
 // janela da frente) e avisa quando um jogo do catálogo abre ou fecha.
@@ -49,6 +50,20 @@ export function nextGame(
   }
 }
 
+/**
+ * Tira os jogos que só contam com janela (Roblox) e estão sem ela: o processo
+ * fica vivo em segundo plano depois de fechado. Só pergunta pelas janelas
+ * (`checkWindows`) quando um desses está em andamento.
+ */
+export async function visibleGameExes(
+  runningExes: string[],
+  checkWindows: (exes: string[]) => Promise<Set<string>>
+): Promise<string[]> {
+  const needing = exesNeedingWindow(runningExes)
+  if (needing.length === 0) return runningExes
+  return withoutHiddenGames(runningExes, await checkWindows(needing))
+}
+
 function listProcesses(): Promise<string[]> {
   return new Promise((resolve) => {
     execFile(
@@ -67,7 +82,8 @@ let current: DetectedGame | null = null
 export function startGameDetector(onChange: (game: DetectedGame | null) => void): void {
   if (timer || process.platform !== 'win32') return
   const tick = async (): Promise<void> => {
-    const [exes, steamGame] = await Promise.all([listProcesses(), detectSteamGame()])
+    const [running, steamGame] = await Promise.all([listProcesses(), detectSteamGame()])
+    const exes = await visibleGameExes(running, exesWithVisibleWindow)
     const next = nextGame(current, exes, Date.now(), steamGame)
     if (next?.name === current?.name) return
     current = next

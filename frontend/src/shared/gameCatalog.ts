@@ -9,11 +9,21 @@ export interface GameDefinition {
   exes: string[]
   /** Cor de destaque do card. */
   accent: string
+  /**
+   * Só conta com janela visível: o executável fica vivo em segundo plano
+   * depois de fechado (o Roblox faz isso), e o processo sozinho mentiria.
+   */
+  needsWindow?: boolean
 }
 
 export const GAMES: readonly GameDefinition[] = [
   { name: 'VALORANT', exes: ['valorant-win64-shipping.exe'], accent: '#fd4556' },
-  { name: 'League of Legends', exes: ['league of legends.exe'], accent: '#c89b3c' },
+  {
+    name: 'League of Legends',
+    // O cliente (saguão, fila, seleção de campeões) e a partida.
+    exes: ['leagueclientux.exe', 'league of legends.exe'],
+    accent: '#c89b3c'
+  },
   { name: 'PUBG: BATTLEGROUNDS', exes: ['tslgame.exe'], accent: '#f2a900' },
   { name: 'Counter-Strike 2', exes: ['cs2.exe'], accent: '#de9b35' },
   { name: 'Fortnite', exes: ['fortniteclient-win64-shipping.exe'], accent: '#7d5fff' },
@@ -22,7 +32,7 @@ export const GAMES: readonly GameDefinition[] = [
     exes: ['minecraftlauncher.exe', 'minecraft.windows.exe'],
     accent: '#62b543'
   },
-  { name: 'Roblox', exes: ['robloxplayerbeta.exe'], accent: '#e2231a' },
+  { name: 'Roblox', exes: ['robloxplayerbeta.exe'], accent: '#e2231a', needsWindow: true },
   { name: 'Grand Theft Auto V', exes: ['gta5.exe'], accent: '#5aa469' },
   { name: 'Apex Legends', exes: ['r5apex.exe', 'r5apex_dx12.exe'], accent: '#da292a' },
   { name: 'Rocket League', exes: ['rocketleague.exe'], accent: '#1c8cff' },
@@ -53,6 +63,24 @@ export function detectGame(runningExes: readonly string[]): GameDefinition | und
     if (game) return game
   }
   return undefined
+}
+
+/** Executáveis em andamento (minúsculos) de jogos que só contam com janela visível. */
+export function exesNeedingWindow(runningExes: readonly string[]): string[] {
+  return runningExes
+    .map((exe) => exe.trim().toLowerCase())
+    .filter((exe) => gameForExe(exe)?.needsWindow)
+}
+
+/** Tira os executáveis de jogos `needsWindow` que não estão em `withWindow` (minúsculos). */
+export function withoutHiddenGames(
+  runningExes: readonly string[],
+  withWindow: ReadonlySet<string>
+): string[] {
+  return runningExes.filter((exe) => {
+    const name = exe.trim().toLowerCase()
+    return !gameForExe(name)?.needsWindow || withWindow.has(name)
+  })
 }
 
 /** Cor de destaque do jogo pelo nome (ou undefined se não for do catálogo). */
