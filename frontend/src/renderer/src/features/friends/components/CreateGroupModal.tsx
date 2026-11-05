@@ -111,6 +111,7 @@ function CreateGroupModal({
               userId={f.id}
               name={f.display_name || f.username}
               avatarUrl={f.avatar_url}
+              decorationUrl={f.avatar_decoration_url}
               size={32}
             />
             <span className="min-w-0 flex-1 truncate text-sm text-strong">

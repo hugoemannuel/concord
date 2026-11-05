@@ -12,9 +12,16 @@ import { callAvatarAnimate } from '../lib/callAvatarMotion'
  */
 function CallAvatar(props: React.ComponentProps<typeof Avatar>): React.JSX.Element {
   const background = useInBackground()
-  const { userId } = props
-  const speaking = useCallStore((s) => !!userId && s.speakingIds.includes(userId))
-  return <Avatar {...props} animate={callAvatarAnimate({ background, speaking })} />
+  const { userId, speaking: speakingProp } = props
+  const speakingStore = useCallStore((s) => !!userId && s.speakingIds.includes(userId))
+  const speaking = speakingProp ?? speakingStore
+  return (
+    <Avatar
+      {...props}
+      speaking={speaking}
+      animate={callAvatarAnimate({ background, speaking })}
+    />
+  )
 }
 
 export default CallAvatar

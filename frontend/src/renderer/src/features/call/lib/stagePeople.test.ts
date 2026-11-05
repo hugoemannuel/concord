@@ -70,6 +70,8 @@ describe('buildMeInfo', () => {
       username: '',
       display_name: 'Você',
       avatar_url: null,
+      avatar_decoration_url: null,
+      nameplate_url: null,
       name_style: undefined
     })
   })

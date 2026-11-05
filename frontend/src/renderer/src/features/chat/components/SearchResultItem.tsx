@@ -85,6 +85,7 @@ export default function SearchResultItem({
           userId={result.author_id}
           name={name}
           avatarUrl={result.author?.avatar_url}
+          decorationUrl={result.author?.avatar_decoration_url}
           size={32}
         />
         <span className="min-w-0 flex-1">

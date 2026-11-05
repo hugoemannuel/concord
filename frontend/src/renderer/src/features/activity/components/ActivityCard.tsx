@@ -24,6 +24,7 @@ export function ActivityCard({
     username: string
     display_name?: string
     avatar_url?: string | null
+    avatar_decoration_url?: string | null
     name_style?: NameStyle
   }
   activity: PresenceActivity
@@ -32,7 +33,8 @@ export function ActivityCard({
   const accent = gameAccent(activity.name) ?? '#5865f2'
   const look = useUserLook(user.id, {
     name: user.display_name || user.username,
-    avatarUrl: user.avatar_url
+    avatarUrl: user.avatar_url,
+    decorationUrl: user.avatar_decoration_url
   })
   return (
     <button
@@ -40,7 +42,7 @@ export function ActivityCard({
       onClick={onClick}
       className="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-subtle bg-floating p-3 text-left transition-colors hover:bg-fg/5"
     >
-      <Avatar userId={user.id} name={look.name} avatarUrl={look.avatarUrl} size={32} />
+      <Avatar userId={user.id} name={look.name} avatarUrl={look.avatarUrl} decorationUrl={look.decorationUrl} size={32} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-ds-sm font-medium text-muted">
           <StyledName name={look.name} userId={user.id} style={user.name_style} />

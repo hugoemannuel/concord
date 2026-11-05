@@ -55,8 +55,10 @@ function DmCallView({ children }: { children?: React.ReactNode }): React.JSX.Ele
               userId={peer.id}
               name={peer.display_name}
               avatarUrl={peer.avatar_url}
+              decorationUrl={peer.avatar_decoration_url}
               size={32}
               animate="always"
+              speaking={speaking.has(peer.id)}
               className={`rounded-full transition-shadow ${
                 speaking.has(peer.id) ? 'ring-2 ring-success' : ''
               }`}

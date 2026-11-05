@@ -25,7 +25,7 @@ function RankRow({ entry, isMe }: { entry: RankingEntry; isMe: boolean }): React
         <span className="w-10 shrink-0 text-right text-ds-sm font-bold tabular-nums text-muted">
           {positionLabel(entry.position)}
         </span>
-        <Avatar userId={entry.user_id} name={name} avatarUrl={entry.avatar_url} size={36} />
+        <Avatar userId={entry.user_id} name={name} avatarUrl={entry.avatar_url} decorationUrl={entry.avatar_decoration_url} size={36} />
         <span className="min-w-0 flex-1 truncate text-ds-sm font-semibold text-strong">
           <StyledName name={name} userId={entry.user_id} style={entry.name_style} />
         </span>

@@ -141,10 +141,12 @@ function UserBar(): React.JSX.Element {
           userId={user?.id}
           name={name}
           avatarUrl={user?.avatar_url}
+          decorationUrl={user?.avatar_decoration_url}
           size={32}
           animate="always"
           status={status}
           cutoutColor={BAR_BG}
+          speaking={speaking}
           className={`rounded-full transition-shadow ${speaking ? 'ring-2 ring-success' : ''}`}
         />
         <div className="min-w-0">

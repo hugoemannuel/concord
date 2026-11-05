@@ -6,6 +6,7 @@ export interface InvitableFriend {
   username: string
   display_name: string
   avatar_url?: string | null
+  avatar_decoration_url?: string | null
 }
 
 const norm = (text: string): string =>

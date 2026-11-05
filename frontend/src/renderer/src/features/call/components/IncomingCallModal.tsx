@@ -49,6 +49,7 @@ function IncomingCallModal(): React.JSX.Element | null {
           userId={peer.id}
           name={peer.display_name}
           avatarUrl={peer.avatar_url}
+          decorationUrl={peer.avatar_decoration_url}
           size={80}
           animate="always"
           className="mx-auto mb-4"

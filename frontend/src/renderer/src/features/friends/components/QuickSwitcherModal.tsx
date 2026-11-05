@@ -66,7 +66,7 @@ function QuickSwitcherModal({
             : (c.other_user?.username ?? ''),
         route,
         avatar: c.other_user
-          ? { userId: c.other_user.id, url: c.other_user.avatar_url }
+          ? { userId: c.other_user.id, url: c.other_user.avatar_url, decorationUrl: c.other_user.avatar_decoration_url }
           : undefined,
         nameStyle: c.type !== 'group' ? c.other_user?.name_style : undefined
       })
@@ -80,7 +80,7 @@ function QuickSwitcherModal({
         label: f.display_name || f.username,
         hint: f.username,
         route,
-        avatar: { userId: f.id, url: f.avatar_url },
+        avatar: { userId: f.id, url: f.avatar_url, decorationUrl: f.avatar_decoration_url },
         nameStyle: f.name_style
       })
     }
@@ -159,6 +159,7 @@ function QuickSwitcherModal({
                 userId={item.avatar.userId}
                 name={item.label}
                 avatarUrl={item.avatar.url}
+                decorationUrl={item.avatar.decorationUrl}
                 size={24}
               />
             ) : item.iconUrl ? (

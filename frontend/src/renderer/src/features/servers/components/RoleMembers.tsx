@@ -64,6 +64,7 @@ function RoleMembers({
                       userId={m.user_id}
                       name={nameOf(m)}
                       avatarUrl={m.avatar_url}
+                      decorationUrl={m.avatar_decoration_url}
                       size={24}
                     />
                     <span className="truncate text-ds-sm text-strong">{nameOf(m)}</span>
@@ -93,7 +94,7 @@ function RoleMembers({
             {withRole.map((m) => (
               <li key={m.user_id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="flex min-w-0 items-center gap-2">
-                  <Avatar userId={m.user_id} name={nameOf(m)} avatarUrl={m.avatar_url} size={24} />
+                  <Avatar userId={m.user_id} name={nameOf(m)} avatarUrl={m.avatar_url} decorationUrl={m.avatar_decoration_url} size={24} />
                   <span className="truncate text-ds-sm text-strong">{nameOf(m)}</span>
                 </span>
                 {manageable && !role.is_system && access.canEditRolesOf(m.user_id) && (

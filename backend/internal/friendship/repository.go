@@ -3,6 +3,7 @@ package friendship
 import (
 	"context"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/user"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -103,6 +104,7 @@ func (r *Repository) ListFriends(ctx context.Context, userID string) ([]user.Use
 			u.name_effect,
 			u.name_colors,
 			u.status_text,
+			`+cosmetics.Expr("u")+`,
 			u.created_at,
 			u.updated_at
 		FROM friendships f
@@ -135,6 +137,7 @@ func (r *Repository) ListFriends(ctx context.Context, userID string) ([]user.Use
 			&u.NameStyle.Effect,
 			&u.NameStyle.Colors,
 			&u.StatusText,
+			&u.Look,
 			&u.CreatedAt,
 			&u.UpdatedAt,
 		); err != nil {
@@ -162,6 +165,7 @@ func (r *Repository) ListPending(ctx context.Context, userID string) ([]PendingR
 			u.name_font,
 			u.name_effect,
 			u.name_colors,
+			`+cosmetics.Expr("u")+`,
 			f.created_at
 		FROM friendships f
 		JOIN users u ON u.id = f.requester_id
@@ -314,7 +318,7 @@ func (r *Repository) Blocks(ctx context.Context, a string, b string) (aBlocksB b
 func (r *Repository) ListBlocked(ctx context.Context, userID string) ([]user.User, error) {
 	return r.listUsers(
 		ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url, u.name_font, u.name_effect, u.name_colors, u.status_text, u.created_at, u.updated_at
+		`SELECT u.id, u.username, u.display_name, u.avatar_url, u.name_font, u.name_effect, u.name_colors, u.status_text, `+cosmetics.Expr("u")+`, u.created_at, u.updated_at
 		FROM user_blocks b
 		JOIN users u ON u.id = b.blocked_id
 		WHERE b.blocker_id = $1
@@ -334,7 +338,7 @@ func (r *Repository) MutualFriends(ctx context.Context, a string, b string) ([]u
 			SELECT CASE WHEN requester_id = $2 THEN addressee_id ELSE requester_id END AS id
 			FROM friendships WHERE (requester_id = $2 OR addressee_id = $2) AND status = 'accepted'
 		)
-		SELECT u.id, u.username, u.display_name, u.avatar_url, u.name_font, u.name_effect, u.name_colors, u.status_text, u.created_at, u.updated_at
+		SELECT u.id, u.username, u.display_name, u.avatar_url, u.name_font, u.name_effect, u.name_colors, u.status_text, `+cosmetics.Expr("u")+`, u.created_at, u.updated_at
 		FROM users u
 		WHERE u.id IN (SELECT id FROM fa) AND u.id IN (SELECT id FROM fb)
 		ORDER BY u.username`,

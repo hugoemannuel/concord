@@ -39,10 +39,28 @@ const server = (over: Partial<CallStateResponse> = {}): CallStateResponse => ({
 })
 
 describe('syncCallState', () => {
+  it('preserva a moldura e a faixa dos participantes', () => {
+    const s = server({
+      participants: [
+        {
+          call_id: 'c1',
+          user_id: 'bia',
+          role: 'member',
+          joined_at: '2026-01-01',
+          avatar_decoration_url: '/api/profile-media/dec',
+          nameplate_url: '/api/profile-media/plate'
+        }
+      ]
+    })
+    const synced = syncCallState(s, 'eu', local(), true)
+    expect(synced.participants[0].avatar_decoration_url).toBe('/api/profile-media/dec')
+    expect(synced.participants[0].nameplate_url).toBe('/api/profile-media/plate')
+  })
+
   it('lista os outros participantes, sem mim, com nome de reserva', () => {
     const synced = syncCallState(server(), 'eu', local(), true)
     expect(synced.participants).toEqual([
-      { id: 'ana', username: 'ana', display_name: 'ana', avatar_url: null, name_style: undefined }
+      { id: 'ana', username: 'ana', display_name: 'ana', avatar_url: null, avatar_decoration_url: null, nameplate_url: null, name_style: undefined }
     ])
     expect(synced.voiceStates.ana).toEqual({
       muted: true,

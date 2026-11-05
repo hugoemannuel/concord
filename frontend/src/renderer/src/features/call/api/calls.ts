@@ -33,6 +33,8 @@ export interface CallParticipant {
   username?: string
   display_name?: string
   avatar_url?: string | null
+  avatar_decoration_url?: string | null
+  nameplate_url?: string | null
   name_style?: NameStyle
   /** Servidor de que a pessoa é visitante (selo "Visitante"; ausente = não é). */
   guest_of?: string
@@ -48,7 +50,14 @@ export interface CallStateResponse {
   /** Lista de quem assiste cada tela (sharer_id -> espectadores) */
   screen_watchers?: Record<
     string,
-    { id: string; username: string; display_name: string; avatar_url?: string | null }[]
+    {
+      id: string
+      username: string
+      display_name: string
+      avatar_url?: string | null
+      avatar_decoration_url?: string | null
+      nameplate_url?: string | null
+    }[]
   >
   /** pedidos para entrar na sala trancada (só no estado visto por participantes) */
   join_requests?: {
@@ -56,6 +65,8 @@ export interface CallStateResponse {
     username: string
     display_name: string
     avatar_url?: string | null
+    avatar_decoration_url?: string | null
+    nameplate_url?: string | null
   }[]
 }
 

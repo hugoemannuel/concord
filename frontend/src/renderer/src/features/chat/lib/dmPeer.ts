@@ -8,6 +8,7 @@ export interface PeerLike {
   username?: string
   display_name?: string
   avatar_url?: string | null
+  avatar_decoration_url?: string | null
   name_style?: Partial<NameStyle> | null
 }
 

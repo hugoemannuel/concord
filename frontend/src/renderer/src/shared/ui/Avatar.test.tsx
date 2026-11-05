@@ -51,4 +51,37 @@ describe('Avatar com moldura', () => {
     expect(html).toContain('/a_d"')
     expect(html).not.toContain('/a_d/static')
   })
+
+  it('indicador de fala (speaking) sem moldura fica em volta do avatar', () => {
+    const html = renderToStaticMarkup(<Avatar name="Mugis" size={32} speaking />)
+    expect(html).toContain('data-speaking-ring')
+    expect(html).toContain('inset-0')
+    expect(html).toContain('ring-2 ring-success')
+  })
+
+  it('indicador de fala (speaking) com moldura fica em volta da moldura para ela não tampar o círculo', () => {
+    const html = renderToStaticMarkup(
+      <Avatar name="Mugis" size={32} decorationUrl="/api/profile-media/d" speaking />
+    )
+    expect(html).toContain('data-speaking-ring')
+    expect(html).toContain('width:38px')
+    expect(html).toContain('left:-3px')
+    expect(html).toContain('ring-2 ring-success')
+  })
+
+  it('reconhece ring-success passado por className e extrai para o anel da moldura', () => {
+    const html = renderToStaticMarkup(
+      <Avatar
+        name="Mugis"
+        size={96}
+        decorationUrl="/api/profile-media/d"
+        className="rounded-full ring-4 ring-success"
+      />
+    )
+    expect(html).toContain('data-speaking-ring')
+    expect(html).toContain('width:115px')
+    expect(html).toContain('left:-10px')
+    expect(html).toContain('ring-4 ring-success')
+    expect(html).not.toMatch(/class="[^"]*ring-success[^"]*"[^>]*data-speaking-ring/)
+  })
 })
