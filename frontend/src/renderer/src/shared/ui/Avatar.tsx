@@ -12,7 +12,7 @@ import StatusIcon from './StatusIcon'
 
 export type AvatarAnimate = 'always' | 'hover' | 'never'
 
-interface AvatarProps {
+export interface AvatarProps {
   /** Com o id, usa a foto/nome mais novos do profileStore (user:update). */
   userId?: string
   name: string
@@ -39,6 +39,12 @@ interface AvatarProps {
   /** Fundo da inicial quando não há foto. */
   fallbackClassName?: string
   className?: string
+  /**
+   * Indica se o usuário está falando em chamada.
+   * Quando presente (ou quando className contiver ring-success), desenha o
+   * anel verde contornando a moldura caso ela exista.
+   */
+  speaking?: boolean
 }
 
 /** Bolinha de status no canto do avatar, com o recorte na cor do fundo. */
@@ -62,6 +68,29 @@ function AvatarStatus({
     >
       <StatusIcon status={status} size={dot} />
     </span>
+  )
+}
+
+/** Anel de voz ativo: contorna a moldura quando ela existe, evitando ficar tampado. */
+export function AvatarSpeakingRing({
+  size,
+  hasDecoration
+}: {
+  size: number
+  hasDecoration: boolean
+}): React.JSX.Element {
+  const ringWidth = size >= 64 ? 'ring-4' : 'ring-2'
+  const { side, offset } = decorationBox(size)
+  const style = hasDecoration
+    ? { width: side, height: side, left: offset, top: offset }
+    : undefined
+
+  return (
+    <span
+      data-speaking-ring
+      className={`pointer-events-none absolute rounded-full ${ringWidth} ring-success transition-all duration-150 ${hasDecoration ? '' : 'inset-0'}`}
+      style={style}
+    />
   )
 }
 
@@ -110,6 +139,88 @@ function AvatarDecoration({
   )
 }
 
+function sanitizeAvatarRing(
+  className: string,
+  speaking?: boolean
+): { isSpeaking: boolean; cleanClassName: string } {
+  const hasRingSuccess = /ring-success\b/.test(className)
+  const isSpeaking = speaking ?? hasRingSuccess
+  const cleanClassName = hasRingSuccess
+    ? className
+        .replace(/\bring-(?:2|4)\b/g, '')
+        .replace(/\bring-success\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : className
+  return { isSpeaking, cleanClassName }
+}
+
+interface AvatarBodyProps {
+  userId?: string
+  name: string
+  avatarUrl?: string | null
+  animate: AvatarAnimate
+  fallbackClassName: string
+  size: number
+}
+
+function AvatarBody({
+  userId,
+  name,
+  avatarUrl,
+  animate,
+  fallbackClassName,
+  size
+}: AvatarBodyProps): React.JSX.Element {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const animated = isAnimatedMedia(avatarUrl)
+  const still = profileMediaSrc(avatarUrl, API_BASE_URL, { animate: animate === 'always' })
+  const moving =
+    animated && animate === 'hover' ? profileMediaSrc(avatarUrl, API_BASE_URL) : null
+  const showImage = Boolean(still && failedSrc !== still)
+
+  if (userId === MAESTRO_USER_ID && !showImage) {
+    return <MaestroImage className="h-full w-full rounded-full bg-accent object-cover" />
+  }
+  if (userId === SALINHA_BOT_USER_ID && !showImage) {
+    return (
+      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-brand text-white">
+        <SalinhaMarkIcon className="h-[72%] w-[72%]" />
+      </div>
+    )
+  }
+  if (showImage && still) {
+    return (
+      <>
+        <img
+          src={still}
+          alt=""
+          draggable={false}
+          onError={() => setFailedSrc(still)}
+          className={`h-full w-full rounded-full object-cover ${moving ? 'group-hover:invisible group-focus-within:invisible' : ''}`}
+        />
+        {moving && (
+          <img
+            src={moving}
+            alt=""
+            draggable={false}
+            loading="lazy"
+            className="invisible absolute inset-0 h-full w-full rounded-full object-cover group-hover:visible group-focus-within:visible"
+          />
+        )}
+      </>
+    )
+  }
+  return (
+    <div
+      className={`flex h-full w-full items-center justify-center rounded-full font-bold text-white ${fallbackClassName}`}
+      style={{ fontSize: Math.max(9, Math.round(size * 0.4)) }}
+    >
+      {(name || '?').charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
 /** Avatar redondo: foto (GIF anima como no Discord) ou a inicial do nome. */
 function Avatar({
   userId,
@@ -122,59 +233,26 @@ function Avatar({
   fallbackClassName = 'bg-brand',
   className = '',
   decorationUrl,
-  active = false
+  active = false,
+  speaking
 }: AvatarProps): React.JSX.Element {
   const look = useUserLook(userId, { name, avatarUrl, decorationUrl })
-  const [failedSrc, setFailedSrc] = useState<string | null>(null)
-
-  const animated = isAnimatedMedia(look.avatarUrl)
-  const still = profileMediaSrc(look.avatarUrl, API_BASE_URL, { animate: animate === 'always' })
-  const moving =
-    animated && animate === 'hover' ? profileMediaSrc(look.avatarUrl, API_BASE_URL) : null
-  const showImage = still && failedSrc !== still
-  // O Maestro não tem foto no banco: o GIF vem embutido no app. O Salinha Bot
-  // usa o ícone da Salinha (o mesmo da tela de login).
-  const maestro = userId === MAESTRO_USER_ID && !showImage
-  const salinhaBot = userId === SALINHA_BOT_USER_ID && !showImage
+  const { isSpeaking, cleanClassName } = sanitizeAvatarRing(className, speaking)
 
   return (
-    <div className={`group relative shrink-0 ${className}`} style={{ width: size, height: size }}>
-      {maestro ? (
-        <MaestroImage className="h-full w-full rounded-full bg-accent object-cover" />
-      ) : salinhaBot ? (
-        <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-brand text-white">
-          <SalinhaMarkIcon className="h-[72%] w-[72%]" />
-        </div>
-      ) : showImage ? (
-        <>
-          <img
-            src={still}
-            alt=""
-            draggable={false}
-            onError={() => setFailedSrc(still)}
-            className={`h-full w-full rounded-full object-cover ${moving ? 'group-hover:invisible group-focus-within:invisible' : ''}`}
-          />
-          {moving && (
-            <img
-              src={moving}
-              alt=""
-              draggable={false}
-              loading="lazy"
-              className="invisible absolute inset-0 h-full w-full rounded-full object-cover group-hover:visible group-focus-within:visible"
-            />
-          )}
-        </>
-      ) : (
-        <div
-          className={`flex h-full w-full items-center justify-center rounded-full font-bold text-white ${fallbackClassName}`}
-          style={{ fontSize: Math.max(9, Math.round(size * 0.4)) }}
-        >
-          {(look.name || '?').charAt(0).toUpperCase()}
-        </div>
-      )}
+    <div className={`group relative shrink-0 ${cleanClassName}`} style={{ width: size, height: size }}>
+      <AvatarBody
+        userId={userId}
+        name={look.name}
+        avatarUrl={look.avatarUrl}
+        animate={animate}
+        fallbackClassName={fallbackClassName}
+        size={size}
+      />
       {look.decorationUrl && (
         <AvatarDecoration url={look.decorationUrl} size={size} animate={animate} active={active} />
       )}
+      {isSpeaking && <AvatarSpeakingRing size={size} hasDecoration={Boolean(look.decorationUrl)} />}
       {status && <AvatarStatus status={status} size={size} cutoutColor={cutoutColor} />}
     </div>
   )

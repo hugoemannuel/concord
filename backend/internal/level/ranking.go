@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
 	"gin-quickstart/backend/internal/relationship"
 )
@@ -28,6 +29,7 @@ type RankingEntry struct {
 	DisplayName  string            `json:"display_name"`
 	AvatarURL    *string           `json:"avatar_url"`
 	NameStyle    namestyle.Style   `json:"name_style"`
+	cosmetics.Look
 	Level        int               `json:"level"`
 	XP           int64             `json:"xp"`
 }

@@ -11,6 +11,8 @@ export interface RankingEntry {
   relationship: ProfileRelationship
   display_name: string
   avatar_url: string | null
+  avatar_decoration_url?: string | null
+  nameplate_url?: string | null
   name_style: NameStyle
   level: number
   xp: number

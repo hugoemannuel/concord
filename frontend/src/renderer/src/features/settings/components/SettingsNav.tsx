@@ -44,6 +44,7 @@ function SettingsNav({
           userId={user?.id}
           name={name}
           avatarUrl={user?.avatar_url}
+          decorationUrl={user?.avatar_decoration_url}
           size={40}
           animate="always"
         />

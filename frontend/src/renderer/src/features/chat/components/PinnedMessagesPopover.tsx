@@ -68,6 +68,7 @@ function PinnedMessageItem({
             userId={pin.author_id}
             name={authorName}
             avatarUrl={pin.author?.avatar_url}
+            decorationUrl={pin.author?.avatar_decoration_url}
             size={24}
           />
           <span

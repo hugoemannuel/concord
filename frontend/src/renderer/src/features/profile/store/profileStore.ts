@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useAuthStore } from '../../auth/store/authStore'
 import { getProfile, type PublicProfile } from '../api/users'
 import { mergeProfile } from '../lib/profileRelationship'
 import { useScopedMemberProfile } from '../../memberProfiles/hooks/useProfileScope'
@@ -70,8 +71,9 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
  */
 export function useUserLook(userId: string | undefined, fallback: LookFallback): UserLook {
   const profile = useProfileStore((s) => (userId ? s.profiles[userId] : undefined))
+  const me = useAuthStore((s) => (userId && s.user?.id === userId ? s.user : undefined))
   const memberProfile = useScopedMemberProfile(userId)
-  return overlayLook(lookOf(profile, fallback), memberProfile)
+  return overlayLook(lookOf(profile ?? me, fallback), memberProfile)
 }
 
 /** O que veio junto com a mensagem/membro/amigo. */
@@ -90,8 +92,17 @@ export interface UserLook {
   decorationUrl: string | null
 }
 
+export type ProfileLookSource =
+  | {
+      display_name?: string
+      avatar_url?: string | null
+      nameplate_url?: string | null
+      avatar_decoration_url?: string | null
+    }
+  | undefined
+
 /** O perfil conhecido ganha de tudo (inclusive quando tirou a faixa). */
-export function lookOf(profile: PublicProfile | undefined, fallback: LookFallback): UserLook {
+export function lookOf(profile: ProfileLookSource, fallback: LookFallback): UserLook {
   if (!profile) {
     return {
       name: fallback.name,

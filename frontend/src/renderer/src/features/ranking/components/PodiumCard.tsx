@@ -34,6 +34,7 @@ function PodiumCard({ slot }: { slot: PodiumSlot }): React.JSX.Element {
             userId={entry.user_id}
             name={name}
             avatarUrl={entry.avatar_url}
+            decorationUrl={entry.avatar_decoration_url}
             size={look.avatar}
           />
         </span>

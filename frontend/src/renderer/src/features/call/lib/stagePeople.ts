@@ -42,6 +42,8 @@ export function buildMeInfo(
     username: me?.username ?? '',
     display_name: serverDisplayName({ nickname }, me, 'Você'),
     avatar_url: me?.avatar_url ?? null,
+    avatar_decoration_url: me?.avatar_decoration_url ?? null,
+    nameplate_url: me?.nameplate_url ?? null,
     name_style: nickname ? null : me?.name_style
   }
 }

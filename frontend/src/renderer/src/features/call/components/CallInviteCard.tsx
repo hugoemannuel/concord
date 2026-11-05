@@ -79,6 +79,7 @@ function CallInviteCard({ message }: { message: Message }): React.JSX.Element | 
           userId={message.author_id}
           name={authorName}
           avatarUrl={author?.avatar_url}
+          decorationUrl={author?.avatar_decoration_url}
           size={56}
           className="shrink-0"
         />

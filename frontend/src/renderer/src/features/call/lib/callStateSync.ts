@@ -36,6 +36,8 @@ const otherParticipants = (state: CallStateResponse, meId: string): CallUserInfo
       username: p.username ?? '',
       display_name: p.display_name ?? p.username ?? 'Usuário',
       avatar_url: p.avatar_url ?? null,
+      avatar_decoration_url: p.avatar_decoration_url ?? null,
+      nameplate_url: p.nameplate_url ?? null,
       name_style: p.name_style
     }))
 
@@ -83,7 +85,9 @@ export function syncCallState(
     id: p.id,
     username: p.username,
     display_name: p.display_name,
-    avatar_url: p.avatar_url ?? null
+    avatar_url: p.avatar_url ?? null,
+    avatar_decoration_url: p.avatar_decoration_url ?? null,
+    nameplate_url: p.nameplate_url ?? null
   }))
   return {
     locked: state.call?.locked ?? local.locked,

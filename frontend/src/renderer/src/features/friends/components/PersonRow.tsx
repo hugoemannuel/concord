@@ -46,6 +46,7 @@ export interface RowUser {
   username: string
   display_name?: string
   avatar_url?: string | null
+  avatar_decoration_url?: string | null
   name_style?: NameStyle
 }
 
@@ -68,7 +69,8 @@ export function PersonRow({
   const status = usePresenceStatus(user.id)
   const look = useUserLook(user.id, {
     name: user.display_name || user.username,
-    avatarUrl: user.avatar_url
+    avatarUrl: user.avatar_url,
+    decorationUrl: user.avatar_decoration_url
   })
   const { className, ...interaction } = rowInteraction(onClick)
   return (
@@ -82,6 +84,7 @@ export function PersonRow({
         userId={user.id}
         name={look.name}
         avatarUrl={look.avatarUrl}
+        decorationUrl={look.decorationUrl}
         size={32}
         status={showStatus ? status : null}
         cutoutColor={MAIN_BG}

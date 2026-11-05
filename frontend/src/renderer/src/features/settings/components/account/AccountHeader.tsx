@@ -32,6 +32,7 @@ export default function AccountHeader({
               userId={user.id}
               name={name}
               avatarUrl={user.avatar_url}
+              decorationUrl={user.avatar_decoration_url}
               size={80}
               animate="always"
               status={user.status ?? 'online'}

@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const effects = vi.hoisted(() => [] as (() => (() => void) | void)[])
 const getMe = vi.hoisted(() => vi.fn())
-vi.mock('react', () => ({ useEffect: (fn: () => (() => void) | void) => effects.push(fn) }))
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return {
+    ...actual,
+    useEffect: (fn: () => (() => void) | void) => effects.push(fn)
+  }
+})
 vi.mock('../../profile/api/users', () => ({ getMe }))
 
 import { useAuthStore, type User } from '../store/authStore'

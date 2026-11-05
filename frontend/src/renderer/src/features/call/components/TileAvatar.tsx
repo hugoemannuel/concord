@@ -36,8 +36,10 @@ export default function TileAvatar({
             userId={user.id}
             name={user.display_name}
             avatarUrl={user.avatar_url}
+            decorationUrl={user.avatar_decoration_url}
             size={size}
             animate="always"
+            speaking={active}
             className={`rounded-full transition-shadow ${active ? 'ring-4 ring-success' : ''}`}
           />
         )}
