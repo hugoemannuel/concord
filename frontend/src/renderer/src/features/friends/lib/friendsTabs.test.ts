@@ -13,9 +13,11 @@ describe('classes das abas', () => {
 })
 
 describe('parseFriendsTab', () => {
-  it('aceita as abas conhecidas, inclusive convites', () => {
+  it('aceita as abas conhecidas', () => {
     expect(parseFriendsTab('pending')).toBe('pending')
-    expect(parseFriendsTab('invites')).toBe('invites')
+  })
+  it('a aba antiga de convites não existe mais (o convite vai na DM)', () => {
+    expect(parseFriendsTab('invites')).toBeNull()
   })
   it('ignora o desconhecido e o vazio', () => {
     expect(parseFriendsTab('nada')).toBeNull()
@@ -28,17 +30,13 @@ describe('tabHasSearch', () => {
     expect(tabHasSearch('online')).toBe(true)
     expect(tabHasSearch('blocked')).toBe(true)
     expect(tabHasSearch('add')).toBe(false)
-    expect(tabHasSearch('invites')).toBe(false)
   })
 })
 
 describe('tabBadge', () => {
-  const counts = { pending: 2, invites: 5 }
+  const counts = { pending: 2 }
   it('pendente mostra os pedidos recebidos', () => {
     expect(tabBadge('pending', counts)).toBe(2)
-  })
-  it('convites mostra os convites de servidor', () => {
-    expect(tabBadge('invites', counts)).toBe(5)
   })
   it('as outras abas ficam sem selo', () => {
     expect(tabBadge('online', counts)).toBe(0)

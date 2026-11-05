@@ -30,27 +30,27 @@ export const SETTLE_MS = 1500
 interface Scroller {
   scrollTop: number
   scrollHeight: number
-}
-
-interface BottomMark {
-  scrollIntoView: (options: ScrollIntoViewOptions) => void
+  scrollTo: (options: ScrollToOptions) => void
 }
 
 /**
  * Executa o plano de rolagem ao fim. Devolve até quando (Date.now) acompanhar
  * o conteúdo que cresce, ou null quando não há o que acompanhar.
+ *
+ * Rola só a lista (scrollTo), nunca scrollIntoView: este rola também os pais
+ * com overflow hidden (#root, main) quando a janela é baixa, e o app inteiro
+ * subia a cada mensagem nova (#555).
  */
 export function applyBottomScroll(
   scroll: BottomScroll,
   scroller: Scroller | null,
-  bottom: BottomMark | null,
   now: number
 ): number | null {
   if (scroll === 'instant') {
     if (scroller) scroller.scrollTop = scroller.scrollHeight
     return now + SETTLE_MS
   }
-  if (scroll === 'smooth') bottom?.scrollIntoView({ behavior: 'smooth' })
+  if (scroll === 'smooth') scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
   return null
 }
 

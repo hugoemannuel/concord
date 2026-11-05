@@ -57,7 +57,7 @@ export const router = createRouter([
         )
       },
       // Antiga página de convites: agora é a aba "Convites" do Início.
-      { path: 'invites', element: <Navigate to="/friends?tab=invites" replace /> },
+      { path: 'invites', element: <Navigate to="/friends" replace /> },
       // Aba do diamante: o hub com 3 cards e as telas que ele abre. As telas
       // ganham o "voltar" para o hub (HubBackFrame); só o hub leva à lista no celular.
       {

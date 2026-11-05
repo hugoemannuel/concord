@@ -36,39 +36,40 @@ describe('distanceFromBottom / isNearBottom', () => {
 })
 
 describe('applyBottomScroll', () => {
-  const scroller = (): { scrollTop: number; scrollHeight: number } => ({
+  const scroller = (): { scrollTop: number; scrollHeight: number; scrollTo: ReturnType<typeof vi.fn> } => ({
     scrollTop: 0,
-    scrollHeight: 900
+    scrollHeight: 900,
+    scrollTo: vi.fn()
   })
 
   it('instantâneo: vai ao fim de uma vez e devolve até quando acompanhar o conteúdo', () => {
     const el = scroller()
-    const bottom = { scrollIntoView: vi.fn() }
-    expect(applyBottomScroll('instant', el, bottom, 1000)).toBe(1000 + SETTLE_MS)
+    expect(applyBottomScroll('instant', el, 1000)).toBe(1000 + SETTLE_MS)
     expect(el.scrollTop).toBe(900)
-    expect(bottom.scrollIntoView).not.toHaveBeenCalled()
+    expect(el.scrollTo).not.toHaveBeenCalled()
   })
 
   it('instantâneo sem a lista desenhada: só devolve o prazo', () => {
-    expect(applyBottomScroll('instant', null, null, 1000)).toBe(1000 + SETTLE_MS)
+    expect(applyBottomScroll('instant', null, 1000)).toBe(1000 + SETTLE_MS)
   })
 
-  it('suave: rola até a marca do fim e não pede para acompanhar', () => {
+  // #555: scrollIntoView na marca do fim rolava também os pais com overflow
+  // hidden (#root, main) quando a janela é baixa, e o app inteiro subia.
+  it('suave: rola só a lista até o fim, sem mexer nos pais', () => {
     const el = scroller()
-    const bottom = { scrollIntoView: vi.fn() }
-    expect(applyBottomScroll('smooth', el, bottom, 1000)).toBeNull()
-    expect(bottom.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
-    expect(el.scrollTop).toBe(0)
+    expect(applyBottomScroll('smooth', el, 1000)).toBeNull()
+    expect(el.scrollTo).toHaveBeenCalledWith({ top: 900, behavior: 'smooth' })
   })
 
-  it('suave sem a marca do fim: não faz nada', () => {
-    expect(applyBottomScroll('smooth', scroller(), null, 1000)).toBeNull()
+  it('suave sem a lista desenhada: não faz nada', () => {
+    expect(applyBottomScroll('smooth', null, 1000)).toBeNull()
   })
 
   it('nenhum: não mexe em nada', () => {
     const el = scroller()
-    expect(applyBottomScroll('none', el, null, 1000)).toBeNull()
+    expect(applyBottomScroll('none', el, 1000)).toBeNull()
     expect(el.scrollTop).toBe(0)
+    expect(el.scrollTo).not.toHaveBeenCalled()
   })
 })
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type FriendsTab = 'online' | 'all' | 'pending' | 'invites' | 'blocked' | 'add'
+export type FriendsTab = 'online' | 'all' | 'pending' | 'blocked' | 'add'
 
 const CALL_CONTROLS_KEY = 'concord:call-controls-hidden'
 

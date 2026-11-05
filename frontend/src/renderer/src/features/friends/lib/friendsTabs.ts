@@ -1,15 +1,15 @@
 import type { FriendsTab } from '../../../shared/store/uiStore'
 
-export const FRIENDS_TABS: FriendsTab[] = ['online', 'all', 'pending', 'invites', 'blocked', 'add']
+export const FRIENDS_TABS: FriendsTab[] = ['online', 'all', 'pending', 'blocked', 'add']
 
 /** Aba pedida na URL (/friends?tab=...), ou null se não existir. */
 export function parseFriendsTab(raw: string | null): FriendsTab | null {
   return FRIENDS_TABS.find((t) => t === raw) ?? null
 }
 
-/** A caixa "Buscar" filtra pessoas: não faz sentido em "Adicionar amigo" nem em convites. */
+/** A caixa "Buscar" filtra pessoas: não faz sentido em "Adicionar amigo". */
 export function tabHasSearch(tab: FriendsTab): boolean {
-  return tab !== 'add' && tab !== 'invites'
+  return tab !== 'add'
 }
 
 /** Classes do botão de aba (ativa x inativa). */
@@ -26,12 +26,9 @@ export function addTabClass(active: boolean): string {
 
 export interface TabCounts {
   pending: number
-  invites: number
 }
 
 /** Número vermelho da aba (0 = sem selo). */
 export function tabBadge(tab: FriendsTab, counts: TabCounts): number {
-  if (tab === 'pending') return counts.pending
-  if (tab === 'invites') return counts.invites
-  return 0
+  return tab === 'pending' ? counts.pending : 0
 }

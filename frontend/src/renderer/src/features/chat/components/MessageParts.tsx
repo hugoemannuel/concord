@@ -12,6 +12,7 @@ import MessageEditor from './MessageEditor'
 import ReplyReference from './ReplyReference'
 import PollCard from './PollCard'
 import CallInviteCard from '../../call/components/CallInviteCard'
+import MessageInviteEmbeds from '../../servers/components/ServerInviteEmbed'
 import MessageAttachments from './MessageAttachments'
 import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
@@ -271,6 +272,9 @@ export function MessageContent({
         )
       )}
       {message.call_invite && <CallInviteCard message={message} />}
+      {!isEditing && message.content && !message.call_invite && (
+        <MessageInviteEmbeds content={message.content} authorId={message.author_id} />
+      )}
       <MessageStickerSlot message={message} />
       {message.gif_url && <MessageGif gifUrl={message.gif_url} metadata={message.gif_metadata} />}
       {message.attachments?.length ? (
