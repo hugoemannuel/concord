@@ -13,6 +13,11 @@ de membros, amigos, DMs, barra do usuário, painel de voz e perfil) e na coluna
    lista os processos (`tasklist`) a cada 15 s e procura executáveis do
    catálogo `frontend/src/shared/gameCatalog.ts`. Processo fora do catálogo
    nunca sai do PC. Para incluir um jogo, adicione uma entrada em `GAMES`.
+   Jogo com `needsWindow` (o Roblox, que deixa o processo vivo em segundo plano
+   depois de fechado) só conta com janela visível: `main/activity/visibleWindows.ts`
+   pergunta ao PowerShell (`MainWindowHandle`), e só quando um desses está rodando.
+   O League of Legends conta já no cliente (`leagueclientux.exe`: saguão, fila e
+   seleção de campeões), não só na partida.
    **Jogos da Steam fora do catálogo** (`main/steamGames.ts`): a Steam grava o
    appid do jogo aberto em `HKCU\Software\Valve\Steam\RunningAppID`; o título
    vem do `appmanifest_<appid>.acf` local (bibliotecas em `libraryfolders.vdf`).

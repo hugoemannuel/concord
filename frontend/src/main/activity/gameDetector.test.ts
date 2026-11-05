@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { nextGame, parseTasklist } from './gameDetector'
+import { describe, expect, it, vi } from 'vitest'
+import { nextGame, parseTasklist, visibleGameExes } from './gameDetector'
 
 describe('parseTasklist', () => {
   it('lê o nome do executável de cada linha csv', () => {
@@ -65,5 +65,26 @@ describe('nextGame', () => {
 
   it('some quando o jogo fecha', () => {
     expect(nextGame({ name: 'Counter-Strike 2', startedAt: 100 }, ['chrome.exe'], 900)).toBeNull()
+  })
+})
+
+describe('visibleGameExes', () => {
+  it('nem pergunta pelas janelas quando nenhum jogo precisa', async () => {
+    const check = vi.fn()
+    expect(await visibleGameExes(['cs2.exe'], check)).toEqual(['cs2.exe'])
+    expect(check).not.toHaveBeenCalled()
+  })
+
+  it('o Roblox que sobrou em segundo plano, sem janela, não vira atividade', async () => {
+    const check = vi.fn(async () => new Set<string>())
+    const exes = await visibleGameExes(['chrome.exe', 'RobloxPlayerBeta.exe'], check)
+    expect(check).toHaveBeenCalledWith(['robloxplayerbeta.exe'])
+    expect(nextGame(null, exes, 100)).toBeNull()
+  })
+
+  it('o Roblox aberto, com janela, vira atividade', async () => {
+    const check = async (): Promise<Set<string>> => new Set(['robloxplayerbeta.exe'])
+    const exes = await visibleGameExes(['RobloxPlayerBeta.exe'], check)
+    expect(nextGame(null, exes, 100)).toEqual({ name: 'Roblox', startedAt: 100 })
   })
 })
