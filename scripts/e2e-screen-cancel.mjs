@@ -10,6 +10,7 @@ import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
+import { createE2E } from './lib/e2e.mjs'
 
 const frontend = fileURLToPath(new URL('../frontend', import.meta.url))
 const require = createRequire(join(frontend, 'package.json'))
@@ -17,17 +18,7 @@ const { _electron: electron } = require('playwright')
 
 const API = process.env.API ?? 'http://localhost:8080/api'
 const run = Date.now().toString(36)
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
+const { api } = createE2E({ api: API, run })
 
 const email = `tela-${run}@teste.dev`
 const password = 'senha-forte-123'

@@ -5,9 +5,10 @@
 // banco descartável (cria usuários e um servidor).
 // Uso: backend rodando e o dist-web servido com o proxy do backend:
 //   (frontend) yarn build:web && WEB_BACKEND_URL=http://localhost:8080 yarn preview:web
-//   APP=http://localhost:4173/ SHOTS=/tmp/apelido node scripts/e2e-apelido.mjs
+//   APP=http://localhost:4173/ BACKEND_LOG=<saída do backend> SHOTS=/tmp/apelido node scripts/e2e-apelido.mjs
 import { mkdirSync } from 'fs'
 import { createRequire } from 'module'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
@@ -16,38 +17,14 @@ const API = new URL('api', APP).toString()
 const SHOTS = process.env.SHOTS ?? '/tmp/salinha-e2e-apelido'
 mkdirSync(SHOTS, { recursive: true })
 const run = Date.now().toString(36)
+// request: devolve { status, body } sem lançar (o teste confere os 403).
+const { request: api, makeUser } = createE2E({ api: API, run })
 const NICK = 'Bibi Apelidada'
 
 const failures = []
 const check = (name, cond, extra = '') => {
   console.log(`${cond ? 'OK  ' : 'FAIL'} ${name}${cond ? '' : '  ' + extra}`)
   if (!cond) failures.push(name)
-}
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  let json = null
-  try { json = text ? JSON.parse(text) : null } catch { json = text }
-  return { status: res.status, body: json }
-}
-
-async function makeUser(name) {
-  const username = `${name}${run}`
-  const email = `${username}@teste.dev`
-  const password = 'Senha-Forte-123!'
-  const { status, body } = await api('/auth/register', {
-    method: 'POST',
-    body: { username, display_name: name, email, password, birthday_day: 1, birthday_month: 1, birthday_year: 1990 }
-  })
-  if (status >= 300) throw new Error(`register ${status} ${JSON.stringify(body)}`)
-  const token = body.access_token
-  const id = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).user_id
-  return { username, email, password, token, id, name }
 }
 
 const dono = await makeUser('dono')

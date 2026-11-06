@@ -3,11 +3,13 @@
 // relação às cores medidas no Discord de verdade (prints do cliente desktop).
 // Uso: backend rodando e o dist-web servido com o proxy do backend:
 //   (frontend) yarn build:web && WEB_BACKEND_URL=http://localhost:8080 yarn preview:web
-//   APP=http://localhost:4173/ CHROME=<chrome> [OUT=pasta-dos-prints] node scripts/e2e-cores-discord.mjs
+//   APP=http://localhost:4173/ BACKEND_LOG=<saída do backend> CHROME=<chrome> [OUT=pasta-dos-prints] \
+//     node scripts/e2e-cores-discord.mjs
 // Com OUT, salva os prints (dm.png, dm-hover.png, servidor.png, modal.png) e
 // amostras.json (região, cor medida no Discord, cor do app, ΔE).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "module";
+import { createE2E } from "./lib/e2e.mjs";
 const require = createRequire(
   new URL("../frontend/package.json", import.meta.url),
 );
@@ -18,6 +20,7 @@ const API = new URL("api", APP).toString();
 const OUT = process.env.OUT;
 const MAX_DELTA_E = 2;
 const run = Date.now().toString(36);
+const { api, makeUser } = createE2E({ api: API, run });
 
 // --- ΔE CIEDE2000 (a mesma conta de frontend/src/renderer/src/shared/lib/colorDiff.ts) ---
 function lab([r, g, b]) {
@@ -72,38 +75,6 @@ function deltaE([l1, a1, b1], [l2, a2, b2]) {
 const hex = (rgb) =>
   "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-
-// --- API ---
-async function api(path, { token, method = "GET", body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`);
-  return text ? JSON.parse(text) : null;
-}
-async function makeUser(name) {
-  const email = `${name.toLowerCase()}-${run}@teste.dev`;
-  const password = "senha-forte-123";
-  const { access_token } = await api("/auth/register", {
-    method: "POST",
-    body: { username: `${name}${run}`, display_name: name, email, password },
-  });
-  const me = await api("/users/me", { token: access_token });
-  return {
-    name,
-    email,
-    password,
-    token: access_token,
-    id: me.id ?? me.user?.id,
-    username: `${name}${run}`,
-  };
-}
 
 // Regiões em pixels do print 1912x1031 e a cor medida no Discord naquela região
 // (moda dos pixels nos prints do dono: DM completa, modais e painel do usuário).
