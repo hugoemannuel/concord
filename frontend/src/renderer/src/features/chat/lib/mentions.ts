@@ -277,3 +277,11 @@ export function sameLabels(a: MentionLabels | undefined, b: MentionLabels | unde
   if (keys.length !== Object.keys(b).length) return false
   return keys.every((k) => a[k] === b[k])
 }
+
+/**
+ * Os nomes novos, ou o objeto anterior se nada mudou: a lista de mensagens recebe
+ * a mesma referência e as linhas memoizadas não redesenham a cada mensagem.
+ */
+export function keepSameLabels(prev: MentionLabels | undefined, next: MentionLabels): MentionLabels {
+  return prev && sameLabels(prev, next) ? prev : next
+}
