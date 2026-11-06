@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"gin-quickstart/backend/internal/platform/wsevent"
 	"gin-quickstart/backend/internal/user"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -224,7 +225,7 @@ func (h *Hub) publishActivity(userID string, entry ActivityEntry) {
 	provider := h.audience
 	h.mu.RUnlock()
 
-	event := writeEvent("presence:activity", map[string]interface{}{
+	event := wsevent.Marshal("presence:activity", map[string]interface{}{
 		"user_id":   userID,
 		"activity":  entry.Activity,
 		"listening": entry.Listening,

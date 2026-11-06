@@ -26,11 +26,12 @@ type FormSpec struct {
 }
 
 // Form é o que o upload trouxe: o arquivo já salvo no Store (tamanho, início
-// para o Sniff e o Content-Type declarado) e os campos de texto pedidos.
+// para o Sniff, o Content-Type e o nome declarados) e os campos de texto pedidos.
 type Form struct {
 	Size     int64
 	Head     []byte
 	Declared string
+	Filename string
 	Fields   map[string]string
 }
 
@@ -68,7 +69,7 @@ func (s *Store) readPart(part *multipart.Part, spec FormSpec, form *Form, saved 
 	case name == "file" && saved:
 		return saved, ErrBadForm
 	case name == "file":
-		form.Declared = part.Header.Get("Content-Type")
+		form.Declared, form.Filename = part.Header.Get("Content-Type"), part.FileName()
 		size, head, err := s.Save(spec.ID, part, spec.MaxFile)
 		if errors.Is(err, io.ErrUnexpectedEOF) {
 			return false, badForm(err)

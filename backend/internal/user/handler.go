@@ -84,9 +84,8 @@ func (h *Handler) GetBirthday(c *gin.Context) {
 // SetBirthday grava (ou apaga, com dia e mês vazios) o aniversário e se os
 // servidores podem anunciar.
 func (h *Handler) SetBirthday(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
@@ -96,7 +95,7 @@ func (h *Handler) SetBirthday(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.SetBirthday(c.Request.Context(), userID.(string), input); err != nil {
+	if err := h.service.SetBirthday(c.Request.Context(), userID, input); err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, ErrInvalidBirthday) {
 			status = http.StatusBadRequest

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"gin-quickstart/backend/internal/platform/wsevent"
 	"gin-quickstart/backend/internal/user"
 )
 
@@ -10,7 +11,7 @@ import (
 // broadcastPresence avisa todo mundo do status efetivo. "online" continua no
 // evento para quem só quer saber se está conectado.
 func (h *Hub) broadcastPresence(userID, status string) {
-	h.BroadcastAll(writeEvent("presence:update", map[string]interface{}{
+	h.BroadcastAll(wsevent.Marshal("presence:update", map[string]interface{}{
 		"user_id": userID,
 		"online":  status != user.StatusOffline,
 		"status":  status,

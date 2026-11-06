@@ -13,9 +13,6 @@ import (
 // Respostas HTTP das regras de acesso (access.go), usadas por todos os
 // handlers que gravam numa sala.
 
-// requestUserID: o usuário autenticado (platform/authctx); sem ele, já responde 401.
-var requestUserID = authctx.UserID
-
 // requireChannelAccess confere se userID tem want no canal; se não tiver, já
 // responde o erro (canal que a pessoa não vê é 404).
 func requireChannelAccess(c *gin.Context, perms PermissionChecker, channelID string, userID string, want int64) bool {
@@ -52,4 +49,14 @@ func requireConversationWrite(c *gin.Context, access RoomAccess, conversationID 
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check access"})
 	}
 	return false
+}
+
+// requireChannel confere se userID tem want no canal; se não tiver, já
+// responde o erro (canal que a pessoa não vê é 404).
+func (h *Handler) requireChannel(c *gin.Context, channelID string, userID string, want int64) bool {
+	return requireChannelAccess(c, h.perms, channelID, userID, want)
+}
+
+func (h *Handler) getUserID(c *gin.Context) (string, bool) {
+	return authctx.UserID(c)
 }
