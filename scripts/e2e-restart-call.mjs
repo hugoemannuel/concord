@@ -53,6 +53,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { connect as tcpConnect } from 'net'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { createE2E, writeToneWav } from './lib/e2e.mjs'
 
 const CADDY_PORT = process.env.CADDY_PORT ?? '18080'
 const BACKEND_PORT = process.env.BACKEND_PORT ?? '18090'
@@ -86,20 +87,8 @@ if (!BACKEND_DIR) {
 }
 
 // Tom contínuo como microfone: com o DTX, silêncio não manda pacote nenhum.
-function writeToneWav(path, seconds = 30, rate = 48000) {
-  const samples = seconds * rate
-  const buf = Buffer.alloc(44 + samples * 2)
-  buf.write('RIFF', 0); buf.writeUInt32LE(36 + samples * 2, 4); buf.write('WAVE', 8)
-  buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22)
-  buf.writeUInt32LE(rate, 24); buf.writeUInt32LE(rate * 2, 28); buf.writeUInt16LE(2, 32); buf.writeUInt16LE(16, 34)
-  buf.write('data', 36); buf.writeUInt32LE(samples * 2, 40)
-  for (let i = 0; i < samples; i++) {
-    buf.writeInt16LE(Math.round(12000 * Math.sin((2 * Math.PI * 440 * i) / rate)), 44 + i * 2)
-  }
-  writeFileSync(path, buf)
-}
 const TONE = join(tmpdir(), 'concord-e2e-restart-tone.wav')
-writeToneWav(TONE)
+writeToneWav(TONE, { seconds: 30 })
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -252,44 +241,8 @@ await waitHealthy()
 
 // ─── Dados: ana e bia no mesmo servidor, com canal de voz ───────────────────
 
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-/**
- * Confirma o e-mail como o usuário faria: sem SMTP o backend imprime o e-mail
- * no log (LogMailer), e o link traz o token.
- */
-async function verifyEmail(email) {
-  const start = Date.now()
-  while (Date.now() - start < 10000) {
-    const at = backendLog.lastIndexOf(`para ${email}`)
-    const token = at >= 0 && /\/verify-email\?token=([^\s&]+)/.exec(backendLog.slice(at))?.[1]
-    if (token) {
-      await api('/auth/verify-email', { method: 'POST', body: { token: decodeURIComponent(token) } })
-      return
-    }
-    await sleep(100)
-  }
-  throw new Error(`e-mail de confirmação de ${email} não apareceu no log do backend`)
-}
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { access_token } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  await verifyEmail(email)
-  const me = await api('/users/me', { token: access_token })
-  return { email, password, token: access_token, id: me.id ?? me.user?.id, username: `${name}${run}` }
-}
+// O e-mail de confirmação sai na saída do backend que o script subiu.
+const { api, makeUser } = createE2E({ api: API, run, readLog: () => backendLog })
 
 const ana = await makeUser('ana')
 const bia = await makeUser('bia')

@@ -1,35 +1,19 @@
 // Comprehensive E2E test for Chat, Reactions, GIFs, Server Stickers, DMs, Edits, Pins & WebSockets
+// Uso: backend rodando, sem SMTP, com a saída num arquivo (o link de confirmação do e-mail sai lá):
+//   API=http://localhost:8080/api BACKEND_LOG=<saída do backend> node scripts/e2e-stickers-gifs.mjs
 import { strict as assert } from 'assert'
-import { execSync } from 'child_process'
+import { createE2E, parseBody } from './lib/e2e.mjs'
 
 const API = process.env.API ?? 'http://localhost:8080/api'
 const WS_URL = API.replace(/^http/, 'ws').replace(/\/api$/, '/ws')
 const run = Date.now().toString(36)
+const { request: api, makeUser } = createE2E({ api: API, run })
 
 // PNG 1x1 valid image
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
   'base64'
 )
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  let parsed = null
-  try {
-    parsed = text ? JSON.parse(text) : null
-  } catch {
-    parsed = text
-  }
-  return { status: res.status, body: parsed }
-}
 
 async function uploadSticker(token, serverId, name, bytes, mime = 'image/png', ext = 'png') {
   const form = new FormData()
@@ -40,58 +24,7 @@ async function uploadSticker(token, serverId, name, bytes, mime = 'image/png', e
     headers: { Authorization: `Bearer ${token}` },
     body: form
   })
-  const text = await res.text()
-  let parsed = null
-  try {
-    parsed = text ? JSON.parse(text) : null
-  } catch {
-    parsed = text
-  }
-  return { status: res.status, body: parsed }
-}
-
-async function makeUser(name) {
-  const username = `${name}_${run}`
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const res = await api('/auth/register', {
-    method: 'POST',
-    body: { username, display_name: name, email, password }
-  })
-
-  if (res.status === 429) {
-    console.log(`   (Aviso: registro de ${name} retornou 429, tentando login com conta existente ${name}...)`)
-    const loginRes = await api('/auth/login', {
-      method: 'POST',
-      body: { login: name, password }
-    })
-    if (loginRes.status === 200 && loginRes.body?.access_token) {
-      const me = (await api('/users/me', { token: loginRes.body.access_token })).body
-      return {
-        email: `${name}@teste.dev`,
-        password,
-        token: loginRes.body.access_token,
-        name,
-        id: me.id ?? me.user?.id
-      }
-    }
-  }
-
-  assert.equal(res.status, 201, `register ${name} failed: ${JSON.stringify(res.body)}`)
-
-  // Marca email como verificado no banco para os testes
-  execSync(
-    'docker exec concord-postgres psql -U concord-user -d concord -c "UPDATE users SET email_verified_at = NOW();"'
-  )
-
-  const me = (await api('/users/me', { token: res.body.access_token })).body
-  return {
-    email,
-    password,
-    token: res.body.access_token,
-    name,
-    id: me.id ?? me.user?.id
-  }
+  return { status: res.status, body: parseBody(await res.text()) }
 }
 
 function connectWs(token, rooms = []) {

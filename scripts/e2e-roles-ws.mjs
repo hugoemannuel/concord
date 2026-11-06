@@ -3,7 +3,9 @@
 // expulso. Roda contra um backend ligado — use um banco descartável, pois cria
 // usuários e um servidor de teste.
 // Uso (Node 22+):
-//   API=http://localhost:8080/api WS=ws://localhost:8080/ws node scripts/e2e-roles-ws.mjs
+//   API=http://localhost:8080/api WS=ws://localhost:8080/ws BACKEND_LOG=<saída do backend> node scripts/e2e-roles-ws.mjs
+import { createE2E } from './lib/e2e.mjs'
+
 const BASE = process.env.API ?? 'http://localhost:8080/api'
 const WS = process.env.WS ?? 'ws://localhost:8080/ws'
 const tag = Math.random().toString(16).slice(2, 8)
@@ -14,29 +16,10 @@ const check = (name, cond, extra = '') => {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function api(method, path, token, body) {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  })
-  const text = await res.text()
-  let json = null
-  try { json = text ? JSON.parse(text) : null } catch { json = text }
-  return { status: res.status, body: json }
-}
-
-async function user(name) {
-  const username = `${name}${tag}`
-  const { status, body } = await api('POST', '/auth/register', null, {
-    username, display_name: name, email: `${username}@ex.com`, password: 'Senha-Forte-123!',
-    birthday_day: 1, birthday_month: 1, birthday_year: 1990
-  })
-  if (status !== 201 && status !== 200) throw new Error(`register ${status} ${JSON.stringify(body)}`)
-  const token = body.access_token
-  const id = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).user_id
-  return { token, id, name }
-}
+const e2e = createE2E({ api: BASE, run: tag })
+// (método, caminho, token, corpo) → { status, body }, sem lançar.
+const api = (method, path, token, body) => e2e.request(path, { method, token, body })
+const user = e2e.makeUser
 
 function connect(u) {
   return new Promise((resolve, reject) => {

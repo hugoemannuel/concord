@@ -1,34 +1,16 @@
 // E2E do convite por código: Ana pega o link em "Convidar"; Bia (que não é
 // amiga dela) cola o link e entra no servidor sozinha.
 // Uso: igual ao scripts/e2e-voice.mjs (backend rodando + renderer servido em APP).
-//   API=http://localhost:8080/api APP=http://localhost:5174/ node scripts/e2e-invite.mjs
+//   API=http://localhost:8080/api APP=http://localhost:5174/ BACKEND_LOG=<saída do backend> node scripts/e2e-invite.mjs
 import { createRequire } from 'module'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
 const API = process.env.API ?? 'http://localhost:8080/api'
 const APP = process.env.APP ?? 'http://localhost:5174/'
 const run = Date.now().toString(36)
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  return { status: res.status, body: text ? JSON.parse(text) : null }
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { body } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  return { email, password, token: body.access_token, name }
-}
+const { request: api, makeUser } = createE2E({ api: API, run })
 
 function check(desc, ok, detail) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${desc}${detail === undefined ? '' : ': ' + JSON.stringify(detail)}`)

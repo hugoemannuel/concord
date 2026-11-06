@@ -1,7 +1,7 @@
 // E2E Electron + backend/LiveKit locais. Isola perfis em /tmp/opencode.
 // O download é um artefato de teste com assinatura Ed25519 real. Somente o
 // instalador nativo é substituído por fechar o Electron; a reabertura é real.
-// Uso: xvfb-run -a node scripts/e2e-update-call.mjs
+// Uso: BACKEND_LOG=<saída do backend> xvfb-run -a node scripts/e2e-update-call.mjs
 // Requer backend e LiveKit em localhost:8080. Não instala nem publica releases.
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -9,6 +9,7 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
+import { createE2E } from './lib/e2e.mjs'
 
 const frontend = resolve(import.meta.dirname, '../frontend')
 const require = createRequire(join(frontend, 'package.json'))
@@ -54,25 +55,13 @@ global.e2eOffer = () => autoUpdater.emit('update-available', { version: '0.6.1' 
 requireApp(${JSON.stringify(join(frontend, 'out/main/index.js'))})
 `)
 
-async function api(path, { token, method = 'GET', body, allowNotFound = false } = {}) {
-  const response = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await response.text()
-  if (allowNotFound && response.status === 404) return null
-  assert(response.ok, `${method} ${path}: ${response.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-async function makeUser(prefix) {
-  const email = `${prefix}${run}@teste.dev`
-  const auth = await api('/auth/register', {
-    method: 'POST', body: { email, password, username: `${prefix}${run}`, display_name: prefix }
-  })
-  const user = await api('/users/me', { token: auth.access_token })
-  return { ...user, email, token: auth.access_token }
+const e2e = createE2E({ api: API, run, password })
+const { makeUser } = e2e
+async function api(path, { allowNotFound = false, ...opts } = {}) {
+  const res = await e2e.request(path, opts)
+  if (allowNotFound && res.status === 404) return null
+  assert(res.ok, `${opts.method ?? 'GET'} ${path}: ${res.status} ${res.text}`)
+  return res.body
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
