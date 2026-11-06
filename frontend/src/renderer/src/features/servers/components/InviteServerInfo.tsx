@@ -1,4 +1,5 @@
 import type { InvitePreview } from '../api/invites'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import { serverIconSrc } from '../lib/serverIcon'
 import { formatInviteCount } from '../lib/invitePreview'
 import ServerCardView from '../../serverprofile/components/ServerCardView'
@@ -15,16 +16,15 @@ export function InviteServerIcon({
   size?: number
 }): React.JSX.Element {
   return (
-    <div
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-brand font-bold text-white shadow-lg shadow-black/30"
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
-    >
-      {iconUrl ? (
-        <img src={serverIconSrc(iconUrl)} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <span aria-hidden>{name.charAt(0).toUpperCase()}</span>
-      )}
-    </div>
+    <ServerIcon
+      name={name}
+      iconUrl={iconUrl}
+      size={size}
+      shape="xl"
+      className="bg-gradient-brand font-bold text-white shadow-lg shadow-black/30"
+      fallbackClassName=""
+      style={{ fontSize: size * 0.4 }}
+    />
   )
 }
 

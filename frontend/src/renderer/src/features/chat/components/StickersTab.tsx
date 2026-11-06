@@ -14,7 +14,7 @@ import ExpressionPicker, {
   type PickerPreview,
   type PickerRailEntry
 } from '../../emojis/components/ExpressionPicker'
-import ServerBadge from '../../emojis/components/ServerBadge'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import {
   EXTERNAL_REASON,
   externalNotice,
@@ -228,7 +228,7 @@ export default function StickersTab({
     ...sections.map((s) => ({
       sectionId: `sticker:${s.server.id}`,
       label: s.server.name,
-      icon: <ServerBadge name={s.server.name} iconUrl={s.server.icon_url} />
+      icon: <ServerIcon name={s.server.name} iconUrl={s.server.icon_url} lazy />
     }))
   ]
 
@@ -239,7 +239,7 @@ export default function StickersTab({
     return {
       ...itemPreview(sticker.name, server?.name, isDisabled(sticker)),
       media: <StickerImage sticker={sticker} />,
-      aside: server && <ServerBadge name={server.name} iconUrl={server.icon_url} />
+      aside: server && <ServerIcon name={server.name} iconUrl={server.icon_url} lazy />
     }
   }
 
@@ -265,7 +265,7 @@ export default function StickersTab({
           key={section.server.id}
           id={`sticker:${section.server.id}`}
           title={section.server.name}
-          icon={<ServerBadge name={section.server.name} iconUrl={section.server.icon_url} size="xs" />}
+          icon={<ServerIcon name={section.server.name} iconUrl={section.server.icon_url} size="xs" lazy />}
           eager={searching || i < EAGER_SECTIONS}
           estimatedHeight={sectionHeight(section.items.length)}
         >

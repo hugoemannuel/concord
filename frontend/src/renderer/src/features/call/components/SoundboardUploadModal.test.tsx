@@ -37,7 +37,7 @@ describe('SoundboardUploadModal', () => {
 })
 
 describe('SoundboardUploadFields', () => {
-  const file = new File(['x'.repeat(2048)], 'corneta.mp3')
+  const file = new File(['x'.repeat(2458)], 'corneta.mp3')
   const refs = { fileInputRef: createRef<HTMLInputElement>(), previewAudioRef: createRef<HTMLAudioElement>() }
 
   it('com arquivo: nome, duração e tamanho, e a prévia tocando', () => {
@@ -54,8 +54,8 @@ describe('SoundboardUploadFields', () => {
       />
     )
     expect(html).toContain('corneta.mp3')
-    expect(html).toContain('1.5s')
-    expect(html).toContain('2 KB')
+    // Duração e tamanho no formato do resto do app (vírgula decimal, unidade separada).
+    expect(html).toContain('1,5 s · 2,4 KB')
     expect(html).toContain('title="Parar prévia"')
     expect(html).toContain('<audio')
   })
