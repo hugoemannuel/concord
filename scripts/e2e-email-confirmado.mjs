@@ -23,6 +23,7 @@ import { mkdirSync, readFileSync } from 'fs'
 import { createRequire } from 'module'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
@@ -30,6 +31,7 @@ const APP = process.env.APP ?? 'http://localhost:4173/'
 const API = new URL('api', APP).toString()
 const SHOTS = process.env.SHOTS ?? join(tmpdir(), 'email-confirmado-shots')
 const run = Date.now().toString(36)
+const { request: api, registerUser } = createE2E({ api: API, run })
 const BANNER = /Confirme seu e-mail \(/
 mkdirSync(SHOTS, { recursive: true })
 if (!process.env.BACKEND_LOG) {
@@ -44,22 +46,6 @@ function check(desc, ok, detail) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
-let nextIp = 1
-async function api(path, { token, method = 'GET', body, ip } = {}) {
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) headers.Authorization = `Bearer ${token}`
-  if (ip) headers['X-Forwarded-For'] = ip
-  const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined })
-  const text = await res.text()
-  let parsed = text
-  try {
-    parsed = text ? JSON.parse(text) : null
-  } catch {
-    // corpo que não é JSON fica como texto
-  }
-  return { status: res.status, body: parsed }
-}
 
 /** Tokens dos links (confirmação ou reset) mandados ao e-mail, na ordem (o backend sem SMTP imprime no log). */
 function linksFor(email, path = 'verify-email') {
@@ -84,18 +70,11 @@ async function waitLinks(email, count, path) {
   throw new Error(`esperava ${count} link(s) para ${email} no log`)
 }
 
+// Cadastra sem confirmar o e-mail (é o que este teste confere) e espera o link chegar.
 async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const res = await api('/auth/register', {
-    method: 'POST',
-    ip: `198.51.100.${nextIp++}`,
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  if (res.status >= 300) throw new Error(`cadastro de ${name}: ${res.status} ${JSON.stringify(res.body)}`)
-  const me = (await api('/users/me', { token: res.body.access_token })).body
-  await waitLinks(email, 1)
-  return { name, email, password, token: res.body.access_token, id: me.id }
+  const user = await registerUser(name)
+  await waitLinks(user.email, 1)
+  return user
 }
 
 /** Confirma pela API: é o link aberto em outro navegador ou no celular. */

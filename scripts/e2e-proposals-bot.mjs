@@ -20,6 +20,7 @@ import { createServer } from 'node:http'
 import { mkdtempSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { createApi } from './lib/e2e.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const BACKEND_BIN = resolve(process.env.BACKEND_BIN ?? '')
@@ -123,16 +124,11 @@ async function stopBackend() {
   backend = null
 }
 
-async function api(path, { token, method = 'GET', body, expect = [200, 201] } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  const data = text ? JSON.parse(text) : null
-  assert(expect.includes(res.status), `${method} ${path}: ${res.status} ${text}`)
-  return { status: res.status, data }
+const { request } = createApi(API)
+async function api(path, { expect = [200, 201], ...opts } = {}) {
+  const res = await request(path, opts)
+  assert(expect.includes(res.status), `${opts.method ?? 'GET'} ${path}: ${res.status} ${res.text}`)
+  return { status: res.status, data: res.body }
 }
 
 const run = Date.now().toString(36)

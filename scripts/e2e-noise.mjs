@@ -1,7 +1,7 @@
 // E2E da supressão de ruído (RNNoise) com o app de verdade no Chromium.
 // Uso: backend + LiveKit rodando, renderer buildado e servido em APP (ex.:
 // python3 -m http.server 5174 em frontend/out/renderer).
-//   API=http://localhost:8080/api APP=http://localhost:5174/ \
+//   API=http://localhost:8080/api APP=http://localhost:5174/ BACKEND_LOG=<saída do backend> \
 //   NOISE_WAV=ruido.wav VOICE_WAV=voz-com-ruido.wav node scripts/e2e-noise.mjs
 // NOISE_WAV: só ruído (ex.: ventilador); VOICE_WAV: voz + o mesmo ruído. Ambos
 // 48 kHz 16 bits — scripts/rnnoise-offline.mjs ajuda a gerar/conferir.
@@ -11,6 +11,7 @@
 import { createRequire } from 'module'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
@@ -23,28 +24,7 @@ if (!NOISE_WAV || !VOICE_WAV) {
   process.exit(1)
 }
 const run = Date.now().toString(36)
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { access_token } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  const me = await api('/users/me', { token: access_token })
-  return { email, password, token: access_token, id: me.id ?? me.user?.id, username: `${name}${run}` }
-}
+const { api, makeUser } = createE2E({ api: API, run })
 
 const ana = await makeUser('ana')
 const bia = await makeUser('bia')
