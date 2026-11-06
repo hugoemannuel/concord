@@ -79,7 +79,7 @@ func (a *app) wireChat() {
 	entranceSoundHandler := user.NewEntranceSoundHandler(profileService, entranceSounds, a.uploadSpace)
 	conversationHandler := conversation.ConversationHandler(a.conversationService, a.userService, a.profileHandler)
 	// O ícone do servidor usa o mesmo upload do avatar.
-	serverHandler := server.ServerHandler(a.serverService, a.friendshipService, a.userService, a.channelService, a.permissionService, a.roleService, a.moderationService, a.nicknameService, a.profileHandler)
+	serverHandler := server.ServerHandler(a.serverService, a.friendshipService, a.channelService, a.permissionService, a.roleService, a.moderationService, a.nicknameService, a.profileHandler)
 	serverHandler.SetAudit(a.audit)
 	railLayoutHandler := server.NewRailLayoutHandler(server.NewRailLayoutService(server.ServerRepository(a.db), a.hub))
 

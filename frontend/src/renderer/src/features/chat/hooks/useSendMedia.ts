@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { showToast } from '../../../shared/store/toastStore'
 import type { GifItem } from '../api/gifs'
 import type { Message } from '../api/messages'
@@ -14,14 +14,15 @@ export function useSendMedia({
   setDraft,
   replyingTo,
   setReplyState,
-  stickToBottom
+  followBottom
 }: {
   room: string
   draft: string
   setDraft: Dispatch<SetStateAction<string>>
   replyingTo: Message | null
   setReplyState: (state: ReplyState | null) => void
-  stickToBottom: MutableRefObject<boolean>
+  /** A lista volta a acompanhar o fim (a própria mensagem aparece embaixo). */
+  followBottom: () => void
 }): { handleSendSticker: (s: ServerSticker) => Promise<void>; handleSendGif: (g: GifItem) => Promise<void> } {
   const sendToRoom = useChatStore((s) => s.sendToRoom)
   const env: MediaSendEnv = {
@@ -30,7 +31,7 @@ export function useSendMedia({
     draft,
     replyId: replyingTo?.id ?? null,
     begin: () => {
-      stickToBottom.current = true
+      followBottom()
       setReplyState(null)
     },
     clearDraft: () => setDraft(''),

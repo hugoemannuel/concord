@@ -37,6 +37,7 @@ func (a *app) wireMusic() {
 	a.wireMusicLinks()
 
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) {
+		bot.AvatarRoutes(api)
 		music.Routes(api, music.NewHandler(a.musicManager, a.authService), a.authMiddleware)
 	})
 }

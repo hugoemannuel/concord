@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Message, PinnedMessage } from '../api/messages'
 import { DIRECT_CHAT_PERMISSIONS } from './chatPermissions'
 import {
+  mentionPeople,
   channelIdOf,
   composerCommands,
   composerDisabledReason,
@@ -200,5 +201,32 @@ describe('composerCommands', () => {
   it('DM: só o /tts', () => {
     expect(composerCommands(false, true).map((c) => c.command)).toEqual(['/tts'])
     expect(composerCommands(false, false)).toEqual([])
+  })
+})
+
+describe('mentionPeople', () => {
+  const ana = { username: 'ana', display_name: 'Ana' }
+  const me = { id: 'eu', username: 'eu', display_name: 'Eu' }
+  const fromBia = {
+    id: 'm1',
+    author_id: 'bia',
+    author: { username: 'bia', display_name: 'Bia' },
+    content: 'oi',
+    created_at: '2026-01-01T10:00:00Z'
+  } as Message
+  const system = { ...fromBia, id: 'm2', author: undefined } as Message
+
+  it('quem está no chat, eu e os autores, com o apelido do servidor', () => {
+    expect(mentionPeople([ana], me, [fromBia, system], { eu: 'Euzinho', bia: 'Bibi' })).toEqual([
+      ana,
+      { username: 'eu', display_name: 'Eu', nickname: 'Euzinho' },
+      { username: 'bia', display_name: 'Bia', nickname: 'Bibi' }
+    ])
+  })
+
+  it('sem login e sem apelidos (DM)', () => {
+    expect(mentionPeople([], null, [fromBia], undefined)).toEqual([
+      { username: 'bia', display_name: 'Bia', nickname: undefined }
+    ])
   })
 })

@@ -1,6 +1,7 @@
 import { useCallStore } from '../../call/store/callStore'
 import { knockView } from '../lib/voiceChannelRow'
 import { LockIcon, XIcon } from '../../../shared/ui/icons'
+import CloseButton from '../../../shared/ui/CloseButton'
 
 interface VoiceKnockOverlayProps {
   channelId: string
@@ -27,16 +28,15 @@ function VoiceKnockOverlay({
           <span className="h-2 w-2 shrink-0 animate-ping rounded-full bg-warning" />
           <span className="truncate text-ds-xs font-semibold text-warning">Pedido enviado…</span>
         </div>
-        <button
+        <CloseButton
+          variant="filled"
+          size="xs"
+          label="Cancelar pedido"
           onClick={(e) => {
             e.stopPropagation()
             cancelJoinRequest()
           }}
-          title="Cancelar pedido"
-          className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-fg/10 text-secondary hover:bg-fg/20 hover:text-strong"
-        >
-          <XIcon className="h-3 w-3" />
-        </button>
+        />
       </div>
     )
   }

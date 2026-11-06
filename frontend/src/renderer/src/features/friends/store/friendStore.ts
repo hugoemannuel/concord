@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { PublicUser } from '../../auth/store/authStore'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import type { PendingRequest, RelationshipType, SendRequestResult } from '../api/friends'
 import { relationshipOf } from '../../profile/lib/relationship'
 import { keepWithId } from '../../../shared/lib/listGuards'
@@ -38,9 +39,6 @@ interface FriendState {
   reset: () => void
 }
 
-const isSameSession = (tokenAtStart: string | null): boolean =>
-  useAuthStore.getState().accessToken === tokenAtStart
-
 const refetchOnFocus = (): void => {
   if (!useAuthStore.getState().accessToken) return
   useFriendStore.getState().loadAll()
@@ -58,29 +56,29 @@ export const useFriendStore = create<FriendState>()((set, get) => ({
   loaded: false,
   error: null,
   fetchFriends: async () => {
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     try {
       const friends = await listFriends()
-      if (!isSameSession(token)) return
+      if (!sameSession()) return
       set({ friends: keepWithId<PublicUser>(friends, 'id', 'friends') })
     } catch (err) {
       console.error('[friendStore] fetchFriends error:', err)
-      if (isSameSession(token)) set({ friends: [] })
+      if (sameSession()) set({ friends: [] })
     }
   },
   fetchPending: async () => {
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     try {
       const pending = await listPending()
-      if (!isSameSession(token)) return
+      if (!sameSession()) return
       set({ pending: keepWithId<PendingRequest>(pending, 'user_id', 'pending') })
     } catch (err) {
       console.error('[friendStore] fetchPending error:', err)
-      if (isSameSession(token)) set({ pending: [] })
+      if (sameSession()) set({ pending: [] })
     }
   },
   loadAll: async () => {
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     set({ loading: true, error: null })
     try {
       const [friends, pending, blocked] = await Promise.allSettled([
@@ -89,7 +87,7 @@ export const useFriendStore = create<FriendState>()((set, get) => ({
         listBlocked()
       ])
 
-      if (!isSameSession(token)) return
+      if (!sameSession()) return
 
       const resolvedFriends =
         friends.status === 'fulfilled' ? keepWithId<PublicUser>(friends.value, 'id', 'friends') : []

@@ -7,6 +7,7 @@ import {
   mentionLabels,
   mentionQuery,
   mentionSuggestions,
+  keepSameLabels,
   messageMentionsMe,
   sameLabels,
   mentionsUser,
@@ -391,5 +392,13 @@ describe('mentionLabels / mentionChipText', () => {
     expect(sameLabels({ a: 'A' }, { a: 'B' })).toBe(false)
     expect(sameLabels({ a: 'A' }, { a: 'A', b: 'B' })).toBe(false)
     expect(sameLabels(undefined, {})).toBe(false)
+  })
+
+  it('keepSameLabels devolve o objeto anterior quando os nomes não mudaram', () => {
+    const before = { ana: 'Ana' }
+    expect(keepSameLabels(before, { ana: 'Ana' })).toBe(before)
+    const changed = { ana: 'Ana', bia: 'Bia' }
+    expect(keepSameLabels(before, changed)).toBe(changed)
+    expect(keepSameLabels(undefined, changed)).toBe(changed)
   })
 })

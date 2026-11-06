@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"gin-quickstart/backend/internal/expression"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -104,26 +106,18 @@ func (r *Repository) ListForUser(ctx context.Context, userID string) ([]ServerSo
 
 // scanServerSounds: as linhas vêm ordenadas por servidor; cada uma vai para o grupo dele.
 func scanServerSounds(rows pgx.Rows) ([]ServerSounds, error) {
-	groups := make([]ServerSounds, 0)
-	for rows.Next() {
+	return expression.ScanGroups(rows, func() (ServerSounds, Sound, error) {
 		var g ServerSounds
 		var s Sound
-		if err := rows.Scan(append([]any{&g.ServerID, &g.ServerName, &g.ServerIconURL}, soundFields(&s)...)...); err != nil {
-			return nil, err
-		}
-		groups = addToGroup(groups, g, s)
-	}
-	return groups, rows.Err()
+		err := rows.Scan(append([]any{&g.ServerID, &g.ServerName, &g.ServerIconURL}, soundFields(&s)...)...)
+		return g, s, err
+	}, byServer)
 }
 
-// addToGroup: o som entra no último grupo se é do mesmo servidor; senão abre um grupo novo.
-func addToGroup(groups []ServerSounds, g ServerSounds, s Sound) []ServerSounds {
-	if n := len(groups); n > 0 && groups[n-1].ServerID == g.ServerID {
-		groups[n-1].Sounds = append(groups[n-1].Sounds, s)
-		return groups
-	}
-	g.Sounds = []Sound{s}
-	return append(groups, g)
+// byServer: os sons de cada grupo, pelo servidor.
+var byServer = expression.Grouping[ServerSounds, Sound]{
+	Key:   func(g *ServerSounds) string { return g.ServerID },
+	Items: func(g *ServerSounds) *[]Sound { return &g.Sounds },
 }
 
 func (r *Repository) FindByID(ctx context.Context, id string) (*Sound, error) {

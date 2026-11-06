@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { WsClient, type WsEvent } from '../../../shared/api/ws'
 import type { CreatePollInput, Message, ExtraMessageData } from '../api/messages'
 import {
@@ -22,15 +23,12 @@ import { mergeMessages } from '../lib/messageOrder'
 import { IDLE_CHAT } from './chatIdle'
 import { clearDeletedReplyTarget, replacePoll, withUpdatedMessage } from '../lib/roomMessages'
 import { dispatchWsEvent } from './wsEvents/dispatch'
+import { chatListActions } from './chatListsLoad'
 import type { ChatWsContext } from './wsEvents/context'
 import { withMessagePage } from '../lib/messagePages'
 import { requestUpdateCheck } from '../../updates/lib/appUpdate'
 import type { ConversationSummary } from '../api/conversations'
-import { listConversations, markConversationRead } from '../api/conversations'
-import { sanitizeConversations } from '../lib/conversations'
-import type { PresenceMap } from '../../friends/api/presence'
-import { fetchActivities, fetchPresence } from '../../friends/api/presence'
-import { listChannels } from '../../servers/api/channels'
+import { markConversationRead } from '../api/conversations'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useFriendStore } from '../../friends/store/friendStore'
 import { useCallStore } from '../../call/store/callStore'
@@ -39,7 +37,6 @@ import { useLevelStore } from '../../levels/store/levelStore'
 import { useBadgeStore } from '../../levels/store/badgeStore'
 import { useProposalStore } from '../../proposals/store/proposalStore'
 import { useNotifySettingsStore } from '../../notifications/store/notifySettingsStore'
-import { isBotUser } from '../../music/lib/bots'
 import { useTypingStore } from './typingStore'
 import { usePresenceActivityStore } from '../../activity/store/presenceActivityStore'
 import { useListeningStore } from '../../activity/store/listeningStore'
@@ -55,7 +52,7 @@ import {
 } from '../lib/pendingMessages'
 import { router } from '../../../app/router'
 import { MESSAGE_LIMIT } from '../api/messages'
-import { presenceStatusOf, type PresenceStatus } from '../../friends/lib/presenceStatus'
+import type { PresenceStatus } from '../../friends/lib/presenceStatus'
 
 export type RoomKey = string
 
@@ -326,7 +323,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     openRooms.set(room, { loaded: false })
     client.subscribe(room)
     const fetch = getRoomFetch(room)
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     set((state) => {
       const channelId = room.startsWith('channel:') ? room.slice('channel:'.length) : null
       let unreadByServer = state.unreadByServer
@@ -352,7 +349,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     if (room.startsWith('conversation:')) markReadSoon(room.slice('conversation:'.length))
     try {
       const fetched = await fetch()
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       if (!openRooms.has(room)) return
       openRooms.set(room, { loaded: true })
       set((state) => withMessagePage(state, room, fetched))
@@ -392,10 +389,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     if (current.length === 0) return
     // A lista está em ordem (created_at, id): a primeira é a mais antiga.
     const before = current[0].id
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     try {
       const fetched = await fetch(before)
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       if (!openRooms.has(room)) return
       // Página vazia também encerra o histórico (total múltiplo da página),
       // senão o scroll infinito deixaria o topo "carregando" para sempre.
@@ -535,86 +532,11 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
     }))
   },
 
-  fetchConversations: async () => {
-    const token = useAuthStore.getState().accessToken
-    set({ conversationsLoading: true })
-    try {
-      const conversations = await listConversations()
-      if (useAuthStore.getState().accessToken !== token) return
-      // Linha fora do formato (null, sem id, sem membros) não derruba a lista.
-      const list = sanitizeConversations(conversations)
-      // Não lidas vêm do servidor (sobrevivem ao reload); a aberta fica zerada.
-      set((state) => {
-        const unreadByRoom = { ...state.unreadByRoom }
-        for (const c of list) {
-          const room = `conversation:${c.id}`
-          unreadByRoom[room] = room === state.activeRoom ? 0 : (c.unread_count ?? 0)
-        }
-        return { conversations: list, unreadByRoom, conversationsLoaded: true }
-      })
-      const meId = useAuthStore.getState().user?.id
-      const ids = list
-        .flatMap((c) => (c.members ?? []).map((m) => m.id))
-        .filter((id) => id !== meId)
-      if (ids.length > 0) await get().fetchPresenceFor(ids)
-    } catch (err) {
-      console.error('[chatStore] fetchConversations error:', err)
-      if (useAuthStore.getState().accessToken === token) set({ conversationsLoaded: true })
-    } finally {
-      set({ conversationsLoading: false })
-    }
-  },
-
-  fetchPresenceFor: async (userIds) => {
-    const unique = Array.from(new Set(userIds.filter(Boolean)))
-    if (unique.length === 0) return
-    const token = useAuthStore.getState().accessToken
-    try {
-      const map: PresenceMap = await fetchPresence(unique)
-      if (useAuthStore.getState().accessToken !== token) return
-      const presence: Record<string, boolean> = {}
-      const statuses: Record<string, PresenceStatus> = {}
-      for (const [id, value] of Object.entries(map)) {
-        const status = presenceStatusOf(value, value === true)
-        statuses[id] = status
-        presence[id] = status !== 'offline'
-      }
-      set((state) => ({
-        presence: { ...state.presence, ...presence },
-        statuses: { ...state.statuses, ...statuses }
-      }))
-      // Atividade vem à parte: backend antigo não tem a rota (erro = ignora).
-      fetchActivities(unique)
-        .then((activities) => {
-          if (useAuthStore.getState().accessToken !== token) return
-          usePresenceActivityStore.getState().applyFetched(unique, activities)
-        })
-        .catch(() => {})
-    } catch (err) {
-      console.error('[chatStore] fetchPresenceFor error:', err)
-    }
-  },
-
-  fetchChannelsForServers: async (serverIds) => {
-    const unique = Array.from(new Set(serverIds.filter(Boolean)))
-    if (unique.length === 0) return
-    const token = useAuthStore.getState().accessToken
-    try {
-      const results = await Promise.all(unique.map((id) => listChannels(id)))
-      if (useAuthStore.getState().accessToken !== token) return
-      const map: Record<string, string[]> = {}
-      unique.forEach((id, i) => {
-        map[id] = Array.isArray(results[i]) ? results[i].map((c) => c.id) : []
-      })
-      set((state) => ({ channelsByServer: { ...state.channelsByServer, ...map } }))
-    } catch (err) {
-      console.error('[chatStore] fetchChannelsForServers error:', err)
-    }
-  },
+  ...chatListActions(set, get),
 
   resyncAfterReconnect: async () => {
-    const token = useAuthStore.getState().accessToken
-    if (!token) return
+    if (!useAuthStore.getState().accessToken) return
+    const sameSession = sessionGuard()
     // As salas abertas (inclusive uma cuja primeira carga falhou), a ativa primeiro.
     const { activeRoom } = get()
     const rooms = [...openRooms.keys()].sort(
@@ -627,7 +549,7 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
       const knownBefore = newestMessage(get().messagesByRoom[room] ?? [])
       try {
         const latest = await getRoomFetch(room)()
-        if (useAuthStore.getState().accessToken !== token) return
+        if (!sameSession()) return
         const entry = openRooms.get(room)
         if (!entry) return // sala fechada enquanto buscava
         if (!loaded) {
@@ -665,7 +587,7 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
     }
 
     const refreshLists = async (): Promise<void> => {
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       const servers = useServerStore.getState()
       const currentServerId = servers.currentServer?.id
       await Promise.all([
@@ -745,15 +667,14 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
 
 /**
  * Status para a bolinha do avatar: o que eu escolhi quando sou eu (invisível
- * inclusive); dos outros, o que chegou pela presença.
+ * inclusive); dos outros, o que chegou pela presença (os bots o servidor manda
+ * sempre online).
  */
 export function usePresenceStatus(userId: string | undefined): PresenceStatus {
   const mine = useAuthStore((s) => (userId && s.user?.id === userId ? s.user.status : undefined))
   const known = useChatStore((s) => (userId ? s.statuses[userId] : undefined))
   const online = useChatStore((s) => (userId ? Boolean(s.presence[userId]) : false))
   if (mine) return mine
-  // Bots não têm websocket: sempre online (como no cartão de perfil).
-  if (isBotUser(userId)) return 'online'
   if (!online) return 'offline'
   return known && known !== 'offline' ? known : 'online'
 }

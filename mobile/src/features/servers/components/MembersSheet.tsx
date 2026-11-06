@@ -59,16 +59,16 @@ export function MembersSheet({ serverId, onClose, onOpenProfile }: MembersSheetP
     getServerDetail(serverId)
       .then((d) => {
         setDetail(d)
-        void loadPresence(d.members.filter((m) => !m.is_bot).map((m) => m.user_id))
+        void loadPresence(d.members.map((m) => m.user_id))
       })
       .catch(() => setError(true))
   }, [serverId, loadPresence])
   useEffect(load, [load])
 
-  // O Maestro não tem WebSocket: está sempre online.
-  const statusOf = (m: ServerMember): PresenceStatus => (m.is_bot ? 'online' : statuses[m.user_id] ?? 'offline')
+  // Os bots o servidor já manda online na presença.
+  const statusOf = (m: ServerMember): PresenceStatus => statuses[m.user_id] ?? 'offline'
   const roles = detail?.roles ?? []
-  const groups = detail ? groupMembers({ members: detail.members, roles, isOnline: (id) => statusOf(detail.members.find((m) => m.user_id === id) as ServerMember) !== 'offline' }) : []
+  const groups = detail ? groupMembers({ members: detail.members, roles, isOnline: (id) => (statuses[id] ?? 'offline') !== 'offline' }) : []
 
   return (
     <ModalSheet title="Membros" onClose={onClose}>

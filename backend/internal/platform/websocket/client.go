@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"gin-quickstart/backend/internal/platform/wsevent"
-
 	"github.com/coder/websocket"
 )
 
@@ -169,5 +167,10 @@ func parseRoom(room string) (channelID string, conversationID string, serverID s
 	return "", "", "", "", ""
 }
 
-// writeEvent monta o envelope dos eventos (platform/wsevent).
-var writeEvent = wsevent.Marshal
+// trySend entrega o evento sem bloquear: cliente lento perde o evento.
+func (c *Client) trySend(event []byte) {
+	select {
+	case c.send <- event:
+	default:
+	}
+}

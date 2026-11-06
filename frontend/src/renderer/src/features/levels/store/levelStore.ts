@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
 import { fetchLevels, fetchMyLevel, type LevelProgress } from '../api/levels'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { levelUpEffects, milestoneFor, nextMilestone } from '../lib/levels'
 import {
   canReplay,
@@ -149,10 +150,10 @@ export const useLevelStore = create<LevelState>()((set, get) => {
         flushTimer = null
         const ids = Array.from(queued)
         queued = new Set()
-        const token = useAuthStore.getState().accessToken
+        const sameSession = sessionGuard()
         try {
           const map = await fetchLevels(ids)
-          if (useAuthStore.getState().accessToken !== token) return
+          if (!sameSession()) return
           set((state) => {
             const levels = { ...state.levels }
             for (const [id, progress] of Object.entries(map)) levels[id] = progress.level

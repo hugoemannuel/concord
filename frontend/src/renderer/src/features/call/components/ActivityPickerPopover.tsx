@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ACTIVITIES,
@@ -10,6 +10,8 @@ import { useCallStore } from '../store/callStore'
 import { IS_WEB } from '../../../shared/lib/config'
 import { CrosshairIcon } from '../../../shared/ui/icons'
 import Button from '../../../shared/ui/Button'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 const POPOVER_WIDTH = 360
 const GAP = 10
@@ -82,21 +84,7 @@ function ActivityPickerPopover({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    const onDown = (e: MouseEvent): void => {
-      const target = e.target as Node
-      if (!ref.current?.contains(target) && !anchor.contains(target)) onClose()
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [anchor, onClose])
+  useDismiss((target) => insideAny([ref.current, anchor], target), () => onClose())
 
   const selected = ACTIVITIES.find((a) => a.id === selectedId)
 

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useVideoModalStore } from '../store/videoModalStore'
 import { useVideoSettingsStore } from '../store/videoSettingsStore'
 import { useCallStore } from '../store/callStore'
 import { resolveBackgroundEffect, type VideoBackground } from '../lib/videoBackground'
 import { trapTab } from '../../../shared/lib/focusTrap'
+import { useModalBehavior } from '../../../shared/hooks/useModalBehavior'
 import { XIcon } from '../../../shared/ui/icons'
 import Button from '../../../shared/ui/Button'
 import BackgroundPicker from './BackgroundPicker'
@@ -46,19 +47,8 @@ function Dialog({ mode }: { mode: 'background' | 'preview' }): React.JSX.Element
   )
 
   const dialogRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null
-    dialogRef.current?.focus()
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') close()
-      trapTab(e, dialogRef.current)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      previousFocus?.focus()
-    }
-  }, [close])
+  // Foco entra e volta, Esc fecha (o Tab fica preso no onKeyDown do diálogo).
+  useModalBehavior(true, close, dialogRef)
 
   const isBackground = mode === 'background'
   const title = isBackground ? 'Mudar fundo de vídeo' : 'Prévia do vídeo'
@@ -76,6 +66,7 @@ function Dialog({ mode }: { mode: 'background' | 'preview' }): React.JSX.Element
         tabIndex={-1}
         aria-modal="true"
         aria-labelledby="video-modal-title"
+        onKeyDown={(e) => trapTab(e, dialogRef.current)}
         className="flex max-h-full w-full max-w-xl flex-col rounded-xl border border-subtle bg-modal shadow-2xl shadow-black/70"
       >
         <div className="flex items-center justify-between px-6 pb-3 pt-5">

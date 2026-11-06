@@ -9,6 +9,8 @@ import { nextMenuIndex } from '../../../shared/lib/menuNav'
 import { CAN_CHOOSE_OUTPUT, useAudioDevices } from '../hooks/useAudioDevices'
 import { CheckIcon } from '../../../shared/ui/icons'
 import DeviceVolume from './DeviceVolume'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 const MENU_WIDTH = 260
 const GAP = 8
@@ -85,21 +87,10 @@ function AudioDeviceMenu({
     anchor.focus()
   }, [anchor, onClose])
 
-  useEffect(() => {
-    const onDown = (e: MouseEvent): void => {
-      const target = e.target as Node
-      if (!ref.current?.contains(target) && !anchor.contains(target)) onClose()
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') closeToAnchor()
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [anchor, onClose, closeToAnchor])
+  useDismiss(
+    (target) => insideAny([ref.current, anchor], target),
+    (reason) => (reason === 'escape' ? closeToAnchor() : onClose())
+  )
 
   // Foco no item marcado ao abrir e de novo quando a lista de dispositivos
   // chega (antes dela só existe "Padrão do sistema").

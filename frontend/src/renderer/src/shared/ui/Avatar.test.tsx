@@ -16,6 +16,25 @@ import Avatar from './Avatar'
 
 const gif = '/api/profile-media/a_d'
 
+describe('Avatar dos bots', () => {
+  // O avatar do bot vem do servidor (avatar_url): o Avatar não conhece UUID de bot.
+  it('bot sem foto cai na inicial, como qualquer pessoa', () => {
+    const html = renderToStaticMarkup(
+      <Avatar userId="4d414553-5452-4f00-8000-000000000001" name="Maestro" size={32} />
+    )
+    expect(html).not.toContain('<img')
+    expect(html).toContain('>M</div>')
+  })
+
+  it('a foto tem o fundo neutro atrás (o GIF do Maestro é transparente)', () => {
+    const html = renderToStaticMarkup(
+      <Avatar name="Maestro" size={32} avatarUrl="/api/bot-media/a_maestro" />
+    )
+    expect(html).toContain('src="http://host/api/bot-media/a_maestro/static"')
+    expect(html).toMatch(/<img[^>]*class="[^"]*bg-accent/)
+  })
+})
+
 describe('Avatar com moldura', () => {
   it('sem moldura não desenha nada a mais', () => {
     const html = renderToStaticMarkup(<Avatar name="Mugis" size={32} />)
