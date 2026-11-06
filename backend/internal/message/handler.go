@@ -35,16 +35,6 @@ func MessageHandler(service *Service, channelService *channel.Service, conversat
 	}
 }
 
-// requireChannel confere se userID tem want no canal; se não tiver, já
-// responde o erro (canal que a pessoa não vê é 404).
-func (h *Handler) requireChannel(c *gin.Context, channelID string, userID string, want int64) bool {
-	return requireChannelAccess(c, h.perms, channelID, userID, want)
-}
-
-func (h *Handler) getUserID(c *gin.Context) (string, bool) {
-	return requestUserID(c)
-}
-
 func parseListParams(c *gin.Context) (limit int, before string) {
 	limit = 50
 	if raw := c.Query("limit"); raw != "" {

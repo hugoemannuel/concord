@@ -1,8 +1,8 @@
 import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useRef, useState } from 'react'
-import { ApiError } from '../../../shared/api/client'
 import type { ProposalComment } from '../api/proposals'
 import { commentSaveDisabled } from '../lib/commentKeys'
+import { commentEdit, reactError, runCommentEdit } from '../lib/commentFlows'
 import { hasReacted } from '../lib/proposals'
 import { useProposalStore } from '../store/proposalStore'
 import { showToast } from '../../../shared/store/toastStore'
@@ -20,14 +20,6 @@ const NO_COMMENTS: ProposalComment[] = []
 
 /** Quanto tempo o comentário fica destacado depois de "ir até a resposta". */
 const HIGHLIGHT_MS = 1800
-
-function reactError(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.code === 'too_many_reactions') return 'Esse comentário já tem emojis demais.'
-    if (err.code === 'email_not_verified') return 'Confirme seu e-mail para reagir.'
-  }
-  return err instanceof Error && err.message ? err.message : 'Não foi possível reagir.'
-}
 
 function CommentRow({
   comment,
@@ -57,24 +49,13 @@ function CommentRow({
 
   const hasAttachments = comment.attachments.length > 0
 
-  const save = async (): Promise<void> => {
-    const body = draft.trim()
-    // Só quem tem anexo pode ficar sem texto.
-    if ((!body && !hasAttachments) || busy) return
-    if (body === comment.body) {
-      setEditing(false)
-      return
-    }
-    setBusy(true)
-    try {
-      await editComment(proposalId, comment.id, body)
-      setEditing(false)
-    } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível editar o comentário.')
-    } finally {
-      setBusy(false)
-    }
-  }
+  const save = (): Promise<void> =>
+    runCommentEdit(commentEdit(draft, comment.body, hasAttachments, busy), {
+      save: (body) => editComment(proposalId, comment.id, body),
+      done: () => setEditing(false),
+      setBusy,
+      error: showToast.error
+    })
 
   const remove = async (): Promise<void> => {
     if (busy) return

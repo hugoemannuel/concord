@@ -3,6 +3,7 @@ package liveobs
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,8 +16,9 @@ const (
 )
 
 const (
-	userAna = "6f1c1b7e-8a5e-4a51-9f2a-000000000001"
-	userBia = "6f1c1b7e-8a5e-4a51-9f2a-000000000002"
+	sessionB = "6f1c1b7e-8a5e-4a51-9f2a-eeeeeeeeeeee"
+	userAna  = "6f1c1b7e-8a5e-4a51-9f2a-000000000001"
+	userBia  = "6f1c1b7e-8a5e-4a51-9f2a-000000000002"
 )
 
 func newTelemetryDB(t *testing.T) *pgxpool.Pool {
@@ -89,6 +91,42 @@ func TestTelemetryRepositorySessaoDeOutraPessoa(t *testing.T) {
 	}
 	if n := count(t, db, `SELECT count(*) FROM live_samples`); n != 0 {
 		t.Errorf("amostra de outra pessoa gravada: %d", n)
+	}
+}
+
+// O pedido inteiro numa transação: a sessão de outra pessoa é pulada e as
+// outras gravam amostra e eventos, na ordem.
+func TestTelemetryRepositorySaveAllGravaOPedidoInteiro(t *testing.T) {
+	db := newTelemetryDB(t)
+	repo := NewTelemetryRepository(db)
+	ctx := context.Background()
+	if err := repo.Save(ctx, userBia, Report{SessionID: sessionB, Kind: KindCall}); err != nil {
+		t.Fatal(err)
+	}
+	reports := []Report{
+		{SessionID: sessionB, Kind: KindCall, Sample: &Sample{Seconds: 20}},
+		{SessionID: sessionA, Kind: KindShare, Sample: &Sample{Seconds: 20, Codec: "H264"},
+			Events: []Event{{Type: EventStepDown, Detail: "a"}, {Type: EventStepDown, Detail: "b"}}, Ended: true},
+	}
+	if err := repo.SaveAll(ctx, userAna, reports); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, db, `SELECT count(*) FROM live_samples WHERE session_id = $1`, sessionB); n != 0 {
+		t.Errorf("amostra na sessão de outra pessoa: %d", n)
+	}
+	if n := count(t, db, `SELECT count(*) FROM live_samples WHERE session_id = $1`, sessionA); n != 1 {
+		t.Errorf("amostras = %d, quer 1", n)
+	}
+	var details []string
+	rows, _ := db.Query(ctx, `SELECT type || ':' || detail FROM live_events WHERE session_id = $1 ORDER BY id`, sessionA)
+	for rows.Next() {
+		var s string
+		_ = rows.Scan(&s)
+		details = append(details, s)
+	}
+	want := []string{EventStart + ":", EventStepDown + ":a", EventStepDown + ":b", EventEnd + ":"}
+	if strings.Join(details, ",") != strings.Join(want, ",") {
+		t.Errorf("eventos = %v, quer %v", details, want)
 	}
 }
 

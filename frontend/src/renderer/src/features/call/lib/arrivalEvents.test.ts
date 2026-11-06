@@ -64,3 +64,34 @@ describe('handleArrivalEvent', () => {
     expect(d.leave).not.toHaveBeenCalled()
   })
 })
+
+describe('handleArrivalEvent — lista dos canais do servidor', () => {
+  const channelJoined = (userId: string, channelId: string) => ({
+    type: 'call:channel_joined',
+    payload: { call: { id: 'c9', channel_id: channelId }, participant: { user_id: userId } }
+  })
+  const channelLeft = (userId: string, channelId: string) => ({
+    type: 'call:channel_left',
+    payload: { call_id: 'c9', channel_id: channelId, user_id: userId }
+  })
+
+  it('alguém entrou num canal em que não estou: marca a chegada nele', () => {
+    const d = deps({ call: () => ({ callId: null, type: null, status: 'idle', channelId: null }) })
+    handleArrivalEvent(channelJoined('ana', 'v2'), d)
+    expect(d.join).toHaveBeenCalledWith('v2', 'ana', 'eu')
+  })
+
+  it('alguém saiu de um canal: registra a saída nele', () => {
+    const d = deps({ call: () => ({ callId: null, type: null, status: 'idle', channelId: null }) })
+    handleArrivalEvent(channelLeft('ana', 'v2'), d)
+    expect(d.leave).toHaveBeenCalledWith('v2', 'ana')
+  })
+
+  it('evento sem canal é ignorado', () => {
+    const d = deps()
+    handleArrivalEvent({ type: 'call:channel_joined', payload: { call: {}, participant: {} } }, d)
+    handleArrivalEvent({ type: 'call:channel_left', payload: null }, d)
+    expect(d.join).not.toHaveBeenCalled()
+    expect(d.leave).not.toHaveBeenCalled()
+  })
+})

@@ -7,6 +7,7 @@ import {
   type NotificationLevel,
   type NotifySettings
 } from '../lib/notificationMute'
+import { saveNotifySettings } from '../lib/notifySave'
 import { useNotifySettingsStore } from '../store/notifySettingsStore'
 import { showToast } from '../../../shared/store/toastStore'
 import Modal from '../../../shared/ui/Modal'
@@ -49,12 +50,8 @@ function Form({
   const save = async (next: NotifySettings): Promise<void> => {
     setSaving(true)
     try {
-      if (channelId) await saveChannel(serverId, channelId, next)
-      else await saveServer(serverId, next)
-    } catch (err) {
-      showToast.error(
-        err instanceof Error ? err.message : 'Não foi possível salvar as notificações.'
-      )
+      const deps = { saveServer, saveChannel, error: showToast.error }
+      await saveNotifySettings(deps, serverId, channelId, next)
     } finally {
       setSaving(false)
     }

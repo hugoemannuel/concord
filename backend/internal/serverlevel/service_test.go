@@ -14,6 +14,7 @@ import (
 type fakeStore struct {
 	added      []grant
 	failAdd    bool
+	addCalls   int
 	members    int
 	rows       []levelRow
 	levels     map[string]int
@@ -21,11 +22,12 @@ type fakeStore struct {
 	detailWeek map[string]int64
 }
 
-func (f *fakeStore) Add(_ context.Context, serverID, userID, source string, xp int64) error {
+func (f *fakeStore) AddAll(_ context.Context, grants []grant) error {
+	f.addCalls++
 	if f.failAdd {
 		return errors.New("banco fora")
 	}
-	f.added = append(f.added, grant{serverID, userID, source, xp})
+	f.added = append(f.added, grants...)
 	return nil
 }
 func (f *fakeStore) GrantNewMembers(context.Context) error      { f.members++; return nil }
@@ -93,6 +95,9 @@ func TestServiceGravaOTempoDeCallACadaMinutoEPerguntaSoQuemEstaEmServidor(t *tes
 	}
 	if got := sorted(st.added); !reflect.DeepEqual(got, []grant{{"s1", "ana", SourceVoice, 1}, {"s1", "bia", SourceVoice, 1}}) {
 		t.Errorf("gravado = %+v", got)
+	}
+	if st.addCalls != 1 {
+		t.Errorf("escritas = %d, quer 1 (todos numa escrita só)", st.addCalls)
 	}
 }
 

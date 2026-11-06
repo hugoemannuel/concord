@@ -3,7 +3,7 @@ import { create } from 'zustand'
 // Confirmações de remover amigo e bloquear, abertas de qualquer lugar (linha
 // de amigo, menu do botão direito, cartão de perfil).
 
-interface Pending {
+export interface PendingFriendAction {
   kind: 'remove' | 'block'
   userId: string
   username: string
@@ -11,8 +11,8 @@ interface Pending {
 }
 
 interface FriendActionsState {
-  pending: Pending | null
-  ask: (p: Pending) => void
+  pending: PendingFriendAction | null
+  ask: (p: PendingFriendAction) => void
   close: () => void
 }
 

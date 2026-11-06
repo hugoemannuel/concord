@@ -7,9 +7,10 @@
 //   (frontend) yarn build:web && WEB_BACKEND_URL=http://localhost:8080 yarn preview:web
 //   APP=http://localhost:4173/ BACKEND_LOG=/caminho/backend.log node scripts/e2e-convite.mjs
 // BACKEND_LOG: log do backend sem SMTP (o link de confirmação de e-mail sai lá).
-import { mkdirSync, readFileSync } from 'fs'
+import { mkdirSync } from 'fs'
 import { createRequire } from 'module'
 import { deflateSync } from 'zlib'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
@@ -17,46 +18,8 @@ const APP = process.env.APP ?? 'http://localhost:4173/'
 const API = new URL('api', APP).toString()
 const SHOTS = process.env.SHOTS ?? new URL('../convite-shots/', import.meta.url).pathname
 const run = Date.now().toString(36)
+const { request: api, makeUser, verifyEmail } = createE2E({ api: API, run })
 mkdirSync(SHOTS, { recursive: true })
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  return { status: res.status, body: text ? JSON.parse(text) : null }
-}
-
-// Confirma o e-mail pelo link que o backend sem SMTP imprime no log.
-async function verifyEmail(email) {
-  for (let i = 0; i < 50; i++) {
-    const log = readFileSync(process.env.BACKEND_LOG, 'utf8')
-    const at = log.lastIndexOf(`para ${email} —`)
-    const match = at >= 0 && /verify-email\?token=([^\s]+)/.exec(log.slice(at))
-    if (match) {
-      const token = decodeURIComponent(match[1])
-      const res = await api('/auth/verify-email', { method: 'POST', body: { token } })
-      if (res.status >= 300) throw new Error(`verify-email ${res.status}`)
-      return
-    }
-    await new Promise((r) => setTimeout(r, 200))
-  }
-  throw new Error(`sem e-mail de confirmação para ${email} no log`)
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { body } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  const me = (await api('/users/me', { token: body.access_token })).body
-  await verifyEmail(email)
-  return { email, password, token: body.access_token, id: me.id, name }
-}
 
 // Ícone de teste (PNG em degradê, como data: URL — sem depender da internet).
 function gradientPng(size) {

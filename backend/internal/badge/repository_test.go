@@ -60,10 +60,10 @@ func TestRepositoryDB(t *testing.T) {
 	exec(`DELETE FROM message_reactions WHERE message_id = $1 AND emoji = '🔥'`, msgs[0])
 
 	repo := BadgeRepository(db)
-	if err := repo.AddCallStats(ctx, userID, Delta{Stream: 30, Watch: 20, Night: 10, PeakCallSize: 6, LongestSession: 100}); err != nil {
+	if err := repo.AddCallStats(ctx, map[string]Delta{userID: {Stream: 30, Watch: 20, Night: 10, PeakCallSize: 6, LongestSession: 100}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.AddCallStats(ctx, userID, Delta{Stream: 30, Watch: 20, Morning: 5, PeakCallSize: 4, LongestSession: 50}); err != nil {
+	if err := repo.AddCallStats(ctx, map[string]Delta{userID: {Stream: 30, Watch: 20, Morning: 5, PeakCallSize: 4, LongestSession: 50}}); err != nil {
 		t.Fatal(err)
 	}
 

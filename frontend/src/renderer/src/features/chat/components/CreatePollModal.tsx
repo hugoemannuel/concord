@@ -11,10 +11,10 @@ import {
   POLL_MIN_ANSWERS,
   POLL_QUESTION_MAX,
   pollDraftError,
-  pollDraftToInput,
   type PollDraft,
   type PollDraftAnswer
 } from '../lib/polls'
+import { submitPoll } from '../lib/pollSubmit'
 
 interface CreatePollModalProps {
   open: boolean
@@ -59,14 +59,8 @@ function CreatePollModal({ open, onClose, onCreate }: CreatePollModalProps): Rea
     e.preventDefault()
     if (error || saving) return
     setSaving(true)
-    try {
-      await onCreate(pollDraftToInput(draft))
-      close()
-    } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Falha ao criar a enquete.')
-    } finally {
-      setSaving(false)
-    }
+    await submitPoll({ create: onCreate, done: close, error: showToast.error }, draft)
+    setSaving(false)
   }
 
   return (

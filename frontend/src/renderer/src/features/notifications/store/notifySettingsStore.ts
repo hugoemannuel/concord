@@ -11,7 +11,7 @@ import {
   type NotifySettings,
   type ResolvedScope
 } from '../lib/notificationMute'
-import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 
 /** Alvo do modal de notificações (servidor inteiro ou um canal). */
 export interface NotifyModalTarget {
@@ -57,10 +57,10 @@ export const useNotifySettingsStore = create<NotifySettingsState>()((set, get) =
   channels: {},
 
   fetchSettings: async () => {
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     try {
       const all = await getNotifySettings()
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       set({ servers: all.servers ?? {}, channels: all.channels ?? {} })
     } catch (err) {
       console.error('[notifySettingsStore] fetchSettings error:', err)

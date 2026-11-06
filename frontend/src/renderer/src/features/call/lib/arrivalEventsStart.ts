@@ -14,7 +14,7 @@ const liveDeps: ArrivalEventDeps = {
 
 /**
  * Liga o selo "Chegou" nos eventos do WS: quem entra na minha call chega na
- * hora; a lista dos outros canais vem do polling (ver useServerCallsSync).
+ * hora; nos outros canais, pelos call:channel_* da lista do servidor.
  * Com a conexão fora do ar, a próxima lista é só base: quem entrou durante a
  * queda não ganha selo. Chamado uma vez na entrada do app; devolve o "desligar".
  */

@@ -224,14 +224,23 @@ func (r *Repository) RecordActiveDay(ctx context.Context, userIDs []string, day 
 	return err
 }
 
-// AddCallStats soma o que o tracker juntou (tempos) e guarda o maior valor
-// (tamanho da call e sessão seguida).
-func (r *Repository) AddCallStats(ctx context.Context, userID string, d Delta) error {
+// AddCallStats soma, numa escrita só, o que o tracker juntou de cada pessoa
+// (tempos) e guarda o maior valor (tamanho da call e sessão seguida). Quem não
+// existe mais (conta apagada no meio da call) é pulado, para não derrubar o
+// lote.
+func (r *Repository) AddCallStats(ctx context.Context, deltas map[string]Delta) error {
+	if len(deltas) == 0 {
+		return nil
+	}
+	c := callStatsColumns(deltas)
 	_, err := r.db.Exec(
 		ctx,
 		`
 		INSERT INTO user_badge_stats (user_id, stream_seconds, watch_seconds, night_seconds, morning_seconds, peak_call_size, longest_session_seconds, camera_seconds)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		SELECT x.id, x.stream, x.watch, x.night, x.morning, x.peak, x.longest, x.camera
+		FROM unnest($1::uuid[], $2::bigint[], $3::bigint[], $4::bigint[], $5::bigint[], $6::bigint[], $7::bigint[], $8::bigint[])
+			AS x(id, stream, watch, night, morning, peak, longest, camera)
+		JOIN users u ON u.id = x.id
 		ON CONFLICT (user_id) DO UPDATE SET
 			stream_seconds = user_badge_stats.stream_seconds + EXCLUDED.stream_seconds,
 			watch_seconds = user_badge_stats.watch_seconds + EXCLUDED.watch_seconds,
@@ -242,9 +251,30 @@ func (r *Repository) AddCallStats(ctx context.Context, userID string, d Delta) e
 			longest_session_seconds = GREATEST(user_badge_stats.longest_session_seconds, EXCLUDED.longest_session_seconds),
 			updated_at = NOW()
 		`,
-		userID, d.Stream, d.Watch, d.Night, d.Morning, d.PeakCallSize, d.LongestSession, d.Camera,
+		c.ids, c.stream, c.watch, c.night, c.morning, c.peak, c.longest, c.camera,
 	)
 	return err
+}
+
+// callStatsCols: os deltas em colunas, na ordem do unnest de AddCallStats.
+type callStatsCols struct {
+	ids                                                  []string
+	stream, watch, night, morning, peak, longest, camera []int64
+}
+
+func callStatsColumns(deltas map[string]Delta) callStatsCols {
+	var c callStatsCols
+	for userID, d := range deltas {
+		c.ids = append(c.ids, userID)
+		c.stream = append(c.stream, d.Stream)
+		c.watch = append(c.watch, d.Watch)
+		c.night = append(c.night, d.Night)
+		c.morning = append(c.morning, d.Morning)
+		c.peak = append(c.peak, d.PeakCallSize)
+		c.longest = append(c.longest, d.LongestSession)
+		c.camera = append(c.camera, d.Camera)
+	}
+	return c
 }
 
 // SaveSessions grava, no desligamento, as sessões de maratona em andamento

@@ -2,6 +2,7 @@ import ConfirmModal from './ConfirmModal'
 import { useFriendStore } from '../store/friendStore'
 import { useFriendActions } from '../store/friendActionsStore'
 import { showToast } from '../../../shared/store/toastStore'
+import { runFriendAction } from '../lib/friendAction'
 
 /** Montado uma vez no App. */
 function FriendActionsHost(): React.JSX.Element {
@@ -10,16 +11,12 @@ function FriendActionsHost(): React.JSX.Element {
 
   const run = async (): Promise<void> => {
     if (!pending) return
-    try {
-      if (pending.kind === 'remove') {
-        await useFriendStore.getState().remove(pending.username)
-      } else {
-        await useFriendStore.getState().block(pending.userId)
-      }
-    } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível concluir.')
-      throw err
-    }
+    const friends = useFriendStore.getState()
+    await runFriendAction(pending, {
+      remove: friends.remove,
+      block: friends.block,
+      error: showToast.error
+    })
   }
 
   const isBlock = pending?.kind === 'block'

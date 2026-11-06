@@ -29,7 +29,7 @@ type store interface {
 	Stats(ctx context.Context, userID string) (Stats, error)
 	Unlocks(ctx context.Context, userID string) (Unlocks, error)
 	SaveUnlocks(ctx context.Context, userID string, unlocks []Unlock) ([]Unlock, error)
-	AddCallStats(ctx context.Context, userID string, d Delta) error
+	AddCallStats(ctx context.Context, deltas map[string]Delta) error
 	SaveSessions(ctx context.Context, sessions map[string]int64) error
 	LoadSessions(ctx context.Context, maxAge time.Duration) (map[string]int64, error)
 	AddCount(ctx context.Context, userID, category string, n int64) (int64, error)
@@ -272,22 +272,6 @@ func (s *Service) shutdown() {
 	if err := s.store.SaveSessions(ctx, sessions); err != nil {
 		log.Printf("[badge] save sessions: %v", err)
 	}
-}
-
-// flush grava os deltas; o que falhar volta para o tracker e vai no próximo.
-func (s *Service) flush(ctx context.Context, deltas map[string]Delta) map[string]bool {
-	written := make(map[string]bool, len(deltas))
-	for userID, d := range deltas {
-		if err := s.store.AddCallStats(ctx, userID, d); err != nil {
-			log.Printf("[badge] add call stats for %s: %v", userID, err)
-			s.mu.Lock()
-			s.tracker.restore(userID, d)
-			s.mu.Unlock()
-			continue
-		}
-		written[userID] = true
-	}
-	return written
 }
 
 func (s *Service) tick(ctx context.Context, now time.Time) {

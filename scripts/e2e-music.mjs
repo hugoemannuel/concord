@@ -1,61 +1,27 @@
 // Uso: backend com MUSIC_TEST_SOURCE=1 MUSIC_IDLE_TIMEOUT=5s, LiveKit e ffmpeg no
 // PATH, renderer buildado com VITE_SERVER_URL e servido em APP.
-//   API=http://localhost:8080/api APP=http://localhost:5174/ node scripts/e2e-music.mjs
+//   API=http://localhost:8080/api APP=http://localhost:5174/ BACKEND_LOG=<saída do backend> \
+//     node scripts/e2e-music.mjs
 // E2E do Maestro: dois canais de voz tocando ao mesmo tempo, cada um com o seu
 // player independente. Quatro clientes (Chrome, mídia fake) entram nas salas,
 // pedem músicas com /play e /skip e conferem áudio, painel, mensagens públicas
 // e a presença do bot (que some depois do tempo ocioso).
 import { createRequire } from 'module'
+import { createE2E, writeToneWav } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
-const { writeFileSync } = require('fs')
 const { tmpdir } = require('os')
 const { join } = require('path')
 
 // Tom contínuo como "microfone": o bipe padrão do Chromium é curto demais
 // para a detecção de fala do LiveKit.
-function writeToneWav(path, seconds = 10, rate = 48000) {
-  const samples = seconds * rate
-  const buf = Buffer.alloc(44 + samples * 2)
-  buf.write('RIFF', 0); buf.writeUInt32LE(36 + samples * 2, 4); buf.write('WAVE', 8)
-  buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22)
-  buf.writeUInt32LE(rate, 24); buf.writeUInt32LE(rate * 2, 28); buf.writeUInt16LE(2, 32); buf.writeUInt16LE(16, 34)
-  buf.write('data', 36); buf.writeUInt32LE(samples * 2, 40)
-  for (let i = 0; i < samples; i++) {
-    const env = 0.6 + 0.4 * Math.sin((2 * Math.PI * 3 * i) / rate)
-    buf.writeInt16LE(Math.round(12000 * env * Math.sin((2 * Math.PI * 440 * i) / rate)), 44 + i * 2)
-  }
-  writeFileSync(path, buf)
-}
 const TONE = join(tmpdir(), 'concord-e2e-tone.wav')
-writeToneWav(TONE)
+writeToneWav(TONE, { tremolo: 0.4 })
 
 const API = process.env.API ?? 'http://localhost:8080/api'
 const APP = process.env.APP ?? 'http://localhost:5174/'
 const run = Date.now().toString(36)
-
-async function api(path, { token, method = 'GET', body, raw } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (raw) return { status: res.status, body: text ? JSON.parse(text) : null }
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { access_token } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  const me = await api('/users/me', { token: access_token })
-  return { email, password, token: access_token, id: me.id ?? me.user?.id, username: `${name}${run}` }
-}
+const { api, request, makeUser } = createE2E({ api: API, run })
 
 function check(desc, ok, detail) {
   if (!ok) throw new Error(`FAIL ${desc}: ${JSON.stringify(detail)}`)
@@ -151,8 +117,8 @@ try {
   await waitFor('caio e davi se ouvem na Sala 2', () => audioTracks(pageD), (t) => t.includes('live'))
 
   // --- /play nas duas salas: respondem 202 {command:true} ---
-  const say = (user, content) => api(`/channels/${textChannel}/messages`, {
-    token: user.token, method: 'POST', body: { content }, raw: true
+  const say = (user, content) => request(`/channels/${textChannel}/messages`, {
+    token: user.token, method: 'POST', body: { content }
   })
   const play1 = await say(ana, '/play https://youtu.be/sala1tom001')
   check('/play da ana responde 202 {command:true}', play1.status === 202 && play1.body?.command === true, play1)

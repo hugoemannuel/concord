@@ -18,7 +18,16 @@ vi.mock('../../../shared/api/client', () => ({
 vi.mock('../api/users', () => ({ setStatus: vi.fn() }))
 vi.mock('../../../app/router', () => ({ default: { navigate: vi.fn() } }))
 vi.mock('../../../shared/store/toastStore', () => ({ showToast: { error: vi.fn() } }))
-vi.mock('../../auth/store/authStore', () => ({ useAuthStore: { getState: () => ({}) } }))
+const auth = vi.hoisted(() => {
+  const state = {
+    user: null as { id: string; status?: string } | null,
+    setUser: (user: { id: string; status?: string } | null): void => {
+      state.user = user
+    }
+  }
+  return state
+})
+vi.mock('../../auth/store/authStore', () => ({ useAuthStore: { getState: () => auth } }))
 vi.mock('../../servers/store/channelNameStore', () => ({
   useChannelNameStore: { getState: () => ({ reset: track('channelNames') }) }
 }))
@@ -50,7 +59,9 @@ vi.mock('../../settings/store/settingsStore', () => ({
   useSettingsStore: { getState: () => ({ forceClose: track('settings') }) }
 }))
 
-import { logoutAndReset } from './meActions'
+import { changeMyStatus, logoutAndReset } from './meActions'
+import { setStatus } from '../api/users'
+import { showToast } from '../../../shared/store/toastStore'
 
 describe('logoutAndReset', () => {
   beforeEach(() => {
@@ -85,5 +96,63 @@ describe('logoutAndReset', () => {
     await logoutAndReset()
     expect(calls).toContain('clearSession')
     expect(calls).toContain('call.endCall')
+  })
+})
+
+describe('changeMyStatus', () => {
+  beforeEach(() => {
+    auth.user = { id: 'u1', status: 'online' }
+    vi.mocked(setStatus).mockReset()
+    vi.mocked(showToast.error).mockClear()
+  })
+
+  it('sem usuário ou status igual: nem chama o servidor', async () => {
+    await changeMyStatus('online')
+    auth.user = null
+    await changeMyStatus('idle')
+    expect(setStatus).not.toHaveBeenCalled()
+  })
+
+  it('troca na hora e fica com o status que o servidor devolveu', async () => {
+    let during: string | undefined
+    vi.mocked(setStatus).mockImplementation(async () => {
+      during = auth.user?.status
+      return { status: 'dnd' } as never
+    })
+    await changeMyStatus('idle')
+    expect(during).toBe('idle')
+    expect(auth.user?.status).toBe('dnd')
+  })
+
+  it('servidor sem status na resposta: mantém o escolhido', async () => {
+    vi.mocked(setStatus).mockResolvedValue({} as never)
+    await changeMyStatus('idle')
+    expect(auth.user?.status).toBe('idle')
+  })
+
+  it('servidor recusou: desfaz e avisa (mensagem do erro ou o padrão)', async () => {
+    vi.mocked(setStatus).mockRejectedValueOnce(new Error('offline'))
+    await changeMyStatus('idle')
+    expect(auth.user?.status).toBe('online')
+    expect(showToast.error).toHaveBeenLastCalledWith('offline')
+    vi.mocked(setStatus).mockRejectedValueOnce('x')
+    await changeMyStatus('idle')
+    expect(showToast.error).toHaveBeenLastCalledWith('Não foi possível mudar o status.')
+  })
+
+  it('saiu da conta no meio: não recria o usuário', async () => {
+    vi.mocked(setStatus).mockImplementationOnce(async () => {
+      auth.user = null
+      return { status: 'idle' } as never
+    })
+    await changeMyStatus('idle')
+    expect(auth.user).toBeNull()
+    vi.mocked(setStatus).mockImplementationOnce(async () => {
+      auth.user = null
+      throw new Error('offline')
+    })
+    auth.user = { id: 'u1', status: 'online' }
+    await changeMyStatus('idle')
+    expect(auth.user).toBeNull()
   })
 })

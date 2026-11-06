@@ -49,6 +49,13 @@ describe('rawRequest', () => {
     await expect(rawRequest('/x')).rejects.toMatchObject({ status: 502, message: 'Request failed' })
   })
 
+  it('erro sem code mantém o corpo (ex.: call_id do 423 de sala trancada)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(423, { error: 'trancada', call_id: 'call-9' }))
+    const err = (await rawRequest('/x').catch((e) => e)) as ApiError
+    expect(err.code).toBeUndefined()
+    expect(err.body).toEqual({ error: 'trancada', call_id: 'call-9' })
+  })
+
   it('passou do tempo: ApiError 0; timeoutMs muda o limite e 0 tira', async () => {
     vi.useFakeTimers()
     const hang = (_url: string, init: RequestInit): Promise<Response> =>
