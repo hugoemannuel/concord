@@ -1,14 +1,14 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useChatStore } from '../store/chatStore'
 import type { Message } from '../api/messages'
 import { showToast } from '../../../shared/store/toastStore'
+import { useStableHandlers } from '../../../shared/hooks/useStableHandlers'
 import { useMusicStore } from '../../music/store/musicStore'
 import { useServerNicknames } from '../../servers/hooks/useServerNames'
 import { lastEditableMessage } from '../lib/messageEdit'
-import { isGroupedWithPrevious } from '../lib/messageGrouping'
-import MessageItem from './MessageItem'
-import MessageDayDivider from './MessageDayDivider'
+import { messageRowProps, type MessageRowHandlers } from '../lib/messageRows'
+import ChatMessageRow from './ChatMessageRow'
 import ChatComposer from './ChatComposer'
 import { copyText } from '../../../shared/lib/clipboard'
 import CreatePollModal from './CreatePollModal'
@@ -263,6 +263,22 @@ function ChatPane({
     }
   }
 
+  // Um objeto fixo para todas as linhas: o memo delas não cai a cada render.
+  const rowHandlers = useStableHandlers<MessageRowHandlers>({
+    onReply: handleStartReply,
+    onReact: reactToMessage,
+    onJumpToMessage: (messageId) => void handleJumpToMessage(messageId),
+    onDelete: (m) => handleDelete(m.id),
+    onVote: (m, answerIds) => votePollInRoom(room, m.id, answerIds),
+    onEndPoll: (m) => endPollInRoom(room, m.id),
+    onCopy: (m) => copyText(m.content),
+    onStartEdit: (m) => startEdit(m.id),
+    onSaveEdit: (m, text) => void saveEdit(m, text),
+    onCancelEdit: closeEdit,
+    onTogglePin: (m) => void handleTogglePin(m)
+  })
+  const rowView = { highlightedId, editingId, savingEdit }
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col" {...drop.zoneProps}>
       <DropOverlay visible={drop.dragging} />
@@ -284,33 +300,17 @@ function ChatPane({
             <OlderMessagesLoader ref={olderSentinelRef} visible={hasMore} loading={loadingOlder} />
             <EmptyRoomNotice empty={messages.length === 0} />
             {messages.map((m, i) => (
-              <Fragment key={m.id}>
-                <MessageDayDivider message={m} previous={messages[i - 1]} />
-                <MessageItem
-                  message={m}
-                  grouped={isGroupedWithPrevious(m, messages[i - 1])}
-                  serverId={serverId}
-                  isHighlighted={highlightedId === m.id}
-                  mentionLabels={labels}
-                  onReply={() => handleStartReply(m)}
-                  onReact={(emoji) => reactToMessage(m, emoji)}
-                  onJumpToMessage={handleJumpToMessage}
-                  onDelete={() => handleDelete(m.id)}
-                  onVote={(answerIds) => votePollInRoom(room, m.id, answerIds)}
-                  onEndPoll={() => endPollInRoom(room, m.id)}
-                  onCopy={() => copyText(m.content)}
-                  onStartEdit={() => startEdit(m.id)}
-                  onSaveEdit={(text) => void saveEdit(m, text)}
-                  onCancelEdit={closeEdit}
-                  isEditing={editingId === m.id}
-                  savingEdit={savingEdit && editingId === m.id}
-                  canReact={permissions.canReact}
-                  canModerate={permissions.canModerate}
-                  canDelete={canDeleteMessages}
-                  canPin={isChannel && permissions.canModerate}
-                  onTogglePin={() => void handleTogglePin(m)}
-                />
-              </Fragment>
+              <ChatMessageRow
+                key={m.id}
+                {...messageRowProps(messages, i, rowView)}
+                serverId={serverId}
+                mentionLabels={labels}
+                canReact={permissions.canReact}
+                canModerate={permissions.canModerate}
+                canDelete={canDeleteMessages}
+                canPin={isChannel && permissions.canModerate}
+                handlers={rowHandlers}
+              />
             ))}
             <MessageListTail room={room} serverId={serverId} bottomRef={bottomRef} />
           </div>
