@@ -1,4 +1,7 @@
 import type { Message } from '../api/messages'
+import { ApiError } from '../../../shared/api/client'
+import { permissionError } from '../../servers/lib/permissions'
+import { sendErrorMessage } from './attachments'
 import {
   afterSendFailure,
   canRestoreHere,
@@ -83,4 +86,10 @@ function restoreLater(
   env.setDraft((now) => restoreFailedText(sent.text, now))
   env.setReply((now) => replyAfterRestore(now, sentReply))
   env.focusInput()
+}
+
+/** Aviso de uma mensagem que não foi: permissão, erro da API ou falha de rede. */
+export function sendErrorText(err: unknown): string {
+  if (!(err instanceof ApiError)) return 'Falha ao enviar mensagem.'
+  return permissionError(err.code, '') || sendErrorMessage(err.status, err.message)
 }
