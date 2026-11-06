@@ -3,6 +3,8 @@ package user
 import (
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,7 +18,7 @@ func (h *ProfileHandler) DeleteDecoration(c *gin.Context) { h.remove(c, h.servic
 
 // SetNameplateMode recebe {"mode": "off" | "banner" | "custom"}.
 func (h *ProfileHandler) SetNameplateMode(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

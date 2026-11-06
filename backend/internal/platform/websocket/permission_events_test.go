@@ -12,6 +12,7 @@ import (
 	"gin-quickstart/backend/internal/message"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/server"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 // staticVisibility entrega o snapshot que o teste mexe a seguir.
@@ -77,7 +78,7 @@ func TestPrivateCategoryKeepsEventsFromWhoCannotSee(t *testing.T) {
 		events(c)
 	}
 
-	h.BroadcastToServerChannel("s1", "proprio", writeEvent("message:create", map[string]string{"channel_id": "proprio", "content": "segredo"}))
+	h.BroadcastToServerChannel("s1", "proprio", wsevent.Marshal("message:create", map[string]string{"channel_id": "proprio", "content": "segredo"}))
 	if got := events(clients["ana"]); len(got) != 0 {
 		t.Fatalf("ana recebeu %v", got)
 	}

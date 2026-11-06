@@ -29,13 +29,12 @@ func (h *Handler) SendRequest(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	result, err := h.service.SendRequest(c.Request.Context(), userID.(string), input.Username)
+	result, err := h.service.SendRequest(c.Request.Context(), userID, input.Username)
 	if err != nil {
 		respondError(c, err)
 		return

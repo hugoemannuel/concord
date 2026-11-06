@@ -72,12 +72,11 @@ func (h *Handler) Ban(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return
 	}
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	if err := h.moderation.Ban(c.Request.Context(), c.Param("id"), userID.(string), input.UserID, input.Reason); err != nil {
+	if err := h.moderation.Ban(c.Request.Context(), c.Param("id"), userID, input.UserID, input.Reason); err != nil {
 		respondModeration(c, err)
 		return
 	}

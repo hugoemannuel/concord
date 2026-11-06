@@ -33,9 +33,6 @@ func ConversationHandler(service *Service, userService *user.Service, images Ima
 	}
 }
 
-// currentUser: o usuário autenticado (platform/authctx).
-var currentUser = authctx.UserID
-
 func respondError(c *gin.Context, err error) {
 	status := http.StatusInternalServerError
 	switch {
@@ -58,7 +55,7 @@ func respondError(c *gin.Context, err error) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -80,7 +77,7 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) GetOrCreateWith(c *gin.Context) {
 	otherUserID := c.Param("userId")
 
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -108,7 +105,7 @@ func (h *Handler) GetOrCreateWith(c *gin.Context) {
 func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -129,7 +126,7 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) CreateGroup(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -152,7 +149,7 @@ func (h *Handler) CreateGroup(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -187,7 +184,7 @@ func (h *Handler) UploadIcon(c *gin.Context) {
 }
 
 func (h *Handler) DeleteIcon(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -212,7 +209,7 @@ func (h *Handler) respondDetail(c *gin.Context) {
 }
 
 func (h *Handler) AddMembers(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -235,7 +232,7 @@ func (h *Handler) AddMembers(c *gin.Context) {
 
 // RemoveMember: ":userId" = "me" sai do grupo.
 func (h *Handler) RemoveMember(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -254,7 +251,7 @@ func (h *Handler) RemoveMember(c *gin.Context) {
 }
 
 func (h *Handler) Hide(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -268,7 +265,7 @@ func (h *Handler) Hide(c *gin.Context) {
 }
 
 func (h *Handler) MarkRead(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { AUTH_STORAGE_KEY } from '../lib/authRefresh'
+import { isNewSession } from '../lib/sessionEpoch'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 import type { NameStyle } from '../../profile/lib/nameStyle'
 import type { ProfileTheme } from '../../profile/lib/profileTheme'
@@ -59,6 +60,11 @@ interface AuthState {
   accessToken: string | null
   refreshToken: string | null
   user: User | null
+  /**
+   * Muda a cada sessão nova (entrar, sair, trocar de conta), não na renovação
+   * do token. Fica só em memória: cada aba conta a sua. Ver lib/sessionGuard.
+   */
+  sessionEpoch: number
   setTokens: (accessToken: string, refreshToken: string) => void
   setUser: (user: User) => void
   clear: () => void
@@ -70,13 +76,22 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       user: null,
+      sessionEpoch: 0,
       setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
       setUser: (user) => set({ user }),
       clear: () => set({ accessToken: null, refreshToken: null, user: null })
     }),
-    { name: AUTH_STORAGE_KEY }
+    {
+      name: AUTH_STORAGE_KEY,
+      partialize: ({ accessToken, refreshToken, user }) => ({ accessToken, refreshToken, user })
+    }
   )
 )
+
+// Toda mudança de sessão (login, clear, visitante, outra aba) avança a época.
+useAuthStore.subscribe((state, prev) => {
+  if (isNewSession(prev, state)) useAuthStore.setState({ sessionEpoch: state.sessionEpoch + 1 })
+})
 
 // Login, logout ou renovação em outra aba (app web): esta aba passa a usar a
 // mesma sessão. O evento não dispara na própria aba (nem no Electron, que tem

@@ -22,10 +22,14 @@ import (
 )
 
 type fakeAttachmentRepo struct {
-	rows map[string]*storedAttachment
+	rows      map[string]*storedAttachment
+	createErr error
 }
 
 func (r *fakeAttachmentRepo) CreatePendingAttachment(_ context.Context, a *storedAttachment) error {
+	if r.createErr != nil {
+		return r.createErr
+	}
 	copied := *a
 	r.rows[a.ID] = &copied
 	return nil

@@ -54,6 +54,7 @@ type fakeUserStore struct {
 	users       []User
 	gotQuery    string
 	gotExcluded string
+	birthdayErr error
 }
 
 func (f *fakeUserStore) FindByID(_ context.Context, id string) (*User, error) {
@@ -74,7 +75,7 @@ func (f *fakeUserStore) SearchByUsername(_ context.Context, q, exclude string) (
 func (f *fakeUserStore) GetBirthday(context.Context, string) (*Birthday, error) {
 	return &Birthday{}, nil
 }
-func (f *fakeUserStore) SetBirthday(context.Context, string, Birthday) error { return nil }
+func (f *fakeUserStore) SetBirthday(context.Context, string, Birthday) error { return f.birthdayErr }
 func (f *fakeUserStore) UpdatePrivacy(_ context.Context, id string, p Privacy) (*User, error) {
 	if !ValidFriendPolicy(p.FriendRequestPolicy) {
 		return nil, ErrInvalidPrivacy
