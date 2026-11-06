@@ -3,7 +3,6 @@
 package emoji
 
 import (
-	"encoding/json"
 	"errors"
 	"regexp"
 	"time"
@@ -72,12 +71,4 @@ type DeletedEvent struct {
 
 func validName(name string) bool {
 	return nameRe.MatchString(name)
-}
-
-func marshalEvent(typ string, payload any) []byte {
-	data, err := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	if err != nil {
-		return nil
-	}
-	return data
 }

@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -27,9 +29,8 @@ func BadgeHandler(service *Service) *Handler {
 // conquistados; números e progresso, só a própria pessoa. Badge sem o tier 1
 // não sai para ninguém.
 func (h *Handler) Get(c *gin.Context) {
-	viewer, ok := c.Get("userID")
+	viewerID, ok := authctx.UserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 	id := c.Param("id")
@@ -37,7 +38,6 @@ func (h *Handler) Get(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
-	viewerID, _ := viewer.(string)
 	res, err := h.service.Badges(c.Request.Context(), viewerID, id)
 	if errors.Is(err, ErrUserNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})

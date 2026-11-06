@@ -2,14 +2,14 @@ package sticker
 
 import (
 	"context"
-	"errors"
 	"gin-quickstart/backend/internal/audit"
 	"log"
 	"net/http"
-	"syscall"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -31,18 +31,17 @@ func fail(status int, msg string) *uploadErr {
 }
 
 func (h *Handler) Upload(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	sticker := &Sticker{ID: uuid.New().String(), ServerID: c.Param("id"), UploaderID: userID.(string)}
+	sticker := &Sticker{ID: uuid.New().String(), ServerID: c.Param("id"), UploaderID: userID}
 	if e := h.receiveSticker(c, sticker); e != nil {
 		c.JSON(e.status, e.body)
 		return
 	}
 	if h.publisher != nil {
-		h.publisher.BroadcastToRoom("server:"+sticker.ServerID, marshalEvent("sticker:created", CreatedEvent{
+		h.publisher.BroadcastToRoom("server:"+sticker.ServerID, wsevent.Marshal("sticker:created", CreatedEvent{
 			ServerID: sticker.ServerID,
 			Sticker:  *sticker,
 		}))
@@ -55,9 +54,6 @@ func (h *Handler) Upload(c *gin.Context) {
 func (h *Handler) receiveSticker(c *gin.Context, sticker *Sticker) *uploadErr {
 	ctx := c.Request.Context()
 	if e := h.checkUploader(ctx, sticker.ServerID, sticker.UploaderID); e != nil {
-		return e
-	}
-	if e := h.checkBody(c); e != nil {
 		return e
 	}
 	form, e := h.readStickerForm(c, sticker.ID)
@@ -107,25 +103,14 @@ func (h *Handler) checkServerRoom(ctx context.Context, serverID string) *uploadE
 	return nil
 }
 
-// checkBody recusa corpo grande demais ou sem espaço em disco.
-func (h *Handler) checkBody(c *gin.Context) *uploadErr {
-	incoming := c.Request.ContentLength
-	if incoming < 0 {
-		incoming = h.maxStickerBytes
-	}
-	if !h.space.HasRoom(incoming) {
-		return fail(http.StatusInsufficientStorage, "server out of space")
-	}
-	if c.Request.ContentLength > h.maxStickerBytes+multipartOverhead {
-		return fail(http.StatusRequestEntityTooLarge, "file too large (max 1 MB)")
-	}
-	return nil
-}
-
+// readStickerForm confere o corpo (espaço em disco e tamanho) e lê o upload.
 func (h *Handler) readStickerForm(c *gin.Context, id string) (media.Form, *uploadErr) {
-	reader, err := c.Request.MultipartReader()
+	reader, err := media.OpenUpload(c.Writer, c.Request, h.space, media.UploadSpec{
+		Limit: h.maxStickerBytes + multipartOverhead,
+		Room:  h.maxStickerBytes,
+	})
 	if err != nil {
-		return media.Form{}, fail(http.StatusBadRequest, "multipart/form-data required")
+		return media.Form{}, formError(err)
 	}
 	form, err := h.store.ReadForm(reader, media.FormSpec{
 		ID:       id,
@@ -134,25 +119,26 @@ func (h *Handler) readStickerForm(c *gin.Context, id string) (media.Form, *uploa
 		Fields:   []string{"name"},
 	})
 	if err != nil {
-		return media.Form{}, fail(formErrorStatus(err))
+		return media.Form{}, formError(err)
 	}
 	return form, nil
 }
 
-func formErrorStatus(err error) (int, string) {
-	switch {
-	case errors.Is(err, media.ErrMissingFile):
-		return http.StatusBadRequest, "image file is required"
-	case errors.Is(err, media.ErrBadForm):
-		return http.StatusBadRequest, "invalid multipart body"
-	case errors.Is(err, media.ErrTooLarge):
-		return http.StatusRequestEntityTooLarge, "file too large (max 1 MB)"
-	case errors.Is(err, syscall.ENOSPC):
-		return http.StatusInsufficientStorage, "server out of space"
-	default:
-		log.Printf("sticker save failed: %v", err)
-		return http.StatusInternalServerError, "failed to save file"
+// formErrors: a resposta de cada recusa do upload.
+var formErrors = media.UploadErrors[*uploadErr]{
+	MissingFile:  fail(http.StatusBadRequest, "image file is required"),
+	BadForm:      fail(http.StatusBadRequest, "invalid multipart body"),
+	NotMultipart: fail(http.StatusBadRequest, "multipart/form-data required"),
+	TooLarge:     fail(http.StatusRequestEntityTooLarge, "file too large (max 1 MB)"),
+	NoSpace:      fail(http.StatusInsufficientStorage, "server out of space"),
+}
+
+func formError(err error) *uploadErr {
+	if e, ok := formErrors.For(err); ok {
+		return e
 	}
+	log.Printf("sticker save failed: %v", err)
+	return fail(http.StatusInternalServerError, "failed to save file")
 }
 
 // fillSticker valida o nome e o tipo da imagem e preenche a figurinha.

@@ -1,7 +1,6 @@
 package guest
 
 import (
-	"net/http"
 	"time"
 
 	"gin-quickstart/backend/internal/platform/ratelimit"
@@ -16,6 +15,7 @@ const (
 	joinPerIP    = 10
 	limitWindow  = 10 * time.Minute
 	limitMaxKeys = 10000
+	tooMany      = "muitas tentativas; espere um pouco"
 )
 
 // Middlewares das rotas: auth (só conta), memberOrGuest (conta ou visitante) e
@@ -29,23 +29,12 @@ func Routes(router *gin.RouterGroup, h *Handler, mw Middlewares) {
 	joins := ratelimit.New(joinPerIP, limitWindow, limitMaxKeys)
 
 	invites := router.Group("/guest-invites")
-	invites.GET("/:id", limitByIP(previews), h.Preview)
-	invites.POST("/:id/join", limitByIP(joins), mw.OptionalAuth, h.Join)
+	invites.GET("/:id", ratelimit.ByIP(previews, tooMany), h.Preview)
+	invites.POST("/:id/join", ratelimit.ByIP(joins, tooMany), mw.OptionalAuth, h.Join)
 	invites.POST("", mw.Auth, h.Create)
 	invites.GET("", mw.Auth, h.List)
 	invites.DELETE("/:id", mw.Auth, h.Revoke)
 
 	router.POST("/guests/:userId/end", mw.Auth, h.End)
 	router.GET("/guest/passes", mw.MemberOrGuest, h.Passes)
-}
-
-func limitByIP(limiter *ratelimit.Limiter) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if retry, ok := limiter.Allow(ratelimit.IPKey(c.ClientIP())); !ok {
-			c.Header("Retry-After", ratelimit.RetryAfterSeconds(retry))
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "muitas tentativas; espere um pouco"})
-			return
-		}
-		c.Next()
-	}
 }

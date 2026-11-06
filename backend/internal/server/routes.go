@@ -49,12 +49,5 @@ func ServerRoutes(router *gin.RouterGroup, handler *Handler, authMiddleware, req
 	// limite por IP contra quem tenta adivinhar códigos.
 	previewLimiter := ratelimit.New(invitePreviewPerIP, invitePreviewWindow, invitePreviewMaxKeys)
 	public := router.Group("/invites")
-	public.GET("/:id/preview", limitByIP(previewLimiter, "too many requests"), optionalAuth, handler.InvitePreview)
-
-	me := router.Group("/users/me")
-	me.Use(authMiddleware)
-	{
-		me.GET("/server-layout", handler.GetRailLayout)
-		me.PUT("/server-layout", handler.SetRailLayout)
-	}
+	public.GET("/:id/preview", ratelimit.ByIP(previewLimiter, "too many requests"), optionalAuth, handler.InvitePreview)
 }

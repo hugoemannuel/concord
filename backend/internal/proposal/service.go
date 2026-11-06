@@ -2,13 +2,14 @@ package proposal
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 var (
@@ -556,17 +557,13 @@ func (s *Service) publish(typ, id string) {
 }
 
 func (s *Service) broadcast(typ string, payload any) {
-	data, err := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	if err != nil {
-		return
+	if data := wsevent.Marshal(typ, payload); data != nil {
+		s.publisher.BroadcastAll(data)
 	}
-	s.publisher.BroadcastAll(data)
 }
 
 func (s *Service) sendToUser(userID, typ string, payload any) {
-	data, err := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	if err != nil {
-		return
+	if data := wsevent.Marshal(typ, payload); data != nil {
+		s.publisher.SendToUser(userID, data)
 	}
-	s.publisher.SendToUser(userID, data)
 }

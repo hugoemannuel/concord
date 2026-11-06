@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -45,13 +47,12 @@ func (h *Handler) SendRequest(c *gin.Context) {
 func (h *Handler) AcceptRequest(c *gin.Context) {
 	requesterUsername := c.Param("username")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.service.AcceptRequest(c.Request.Context(), userID.(string), requesterUsername); err != nil {
+	if err := h.service.AcceptRequest(c.Request.Context(), userID, requesterUsername); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -62,13 +63,12 @@ func (h *Handler) AcceptRequest(c *gin.Context) {
 func (h *Handler) DeclineRequest(c *gin.Context) {
 	requesterUsername := c.Param("username")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.service.DeclineRequest(c.Request.Context(), userID.(string), requesterUsername); err != nil {
+	if err := h.service.DeclineRequest(c.Request.Context(), userID, requesterUsername); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -79,13 +79,12 @@ func (h *Handler) DeclineRequest(c *gin.Context) {
 func (h *Handler) CancelRequest(c *gin.Context) {
 	addresseeUsername := c.Param("username")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.service.CancelRequest(c.Request.Context(), userID.(string), addresseeUsername); err != nil {
+	if err := h.service.CancelRequest(c.Request.Context(), userID, addresseeUsername); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -96,13 +95,12 @@ func (h *Handler) CancelRequest(c *gin.Context) {
 func (h *Handler) RemoveFriend(c *gin.Context) {
 	friendUsername := c.Param("username")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.service.RemoveFriend(c.Request.Context(), userID.(string), friendUsername); err != nil {
+	if err := h.service.RemoveFriend(c.Request.Context(), userID, friendUsername); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -111,13 +109,12 @@ func (h *Handler) RemoveFriend(c *gin.Context) {
 }
 
 func (h *Handler) ListFriends(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	friends, err := h.service.ListFriends(c.Request.Context(), userID.(string))
+	friends, err := h.service.ListFriends(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list friends"})
 		return
@@ -127,13 +124,12 @@ func (h *Handler) ListFriends(c *gin.Context) {
 }
 
 func (h *Handler) ListPending(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	pending, err := h.service.ListPending(c.Request.Context(), userID.(string))
+	pending, err := h.service.ListPending(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list pending requests"})
 		return
@@ -178,13 +174,12 @@ func respondError(c *gin.Context, err error) {
 }
 
 func (h *Handler) Block(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.service.Block(c.Request.Context(), userID.(string), c.Param("id")); err != nil {
+	if err := h.service.Block(c.Request.Context(), userID, c.Param("id")); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -193,13 +188,12 @@ func (h *Handler) Block(c *gin.Context) {
 }
 
 func (h *Handler) Unblock(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.service.Unblock(c.Request.Context(), userID.(string), c.Param("id")); err != nil {
+	if err := h.service.Unblock(c.Request.Context(), userID, c.Param("id")); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -208,13 +202,12 @@ func (h *Handler) Unblock(c *gin.Context) {
 }
 
 func (h *Handler) ListBlocked(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	blocked, err := h.service.ListBlocked(c.Request.Context(), userID.(string))
+	blocked, err := h.service.ListBlocked(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list blocked users"})
 		return
@@ -224,13 +217,12 @@ func (h *Handler) ListBlocked(c *gin.Context) {
 }
 
 func (h *Handler) Relationship(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	rel, err := h.service.Relationship(c.Request.Context(), userID.(string), c.Param("id"))
+	rel, err := h.service.Relationship(c.Request.Context(), userID, c.Param("id"))
 	if err != nil {
 		respondError(c, err)
 		return

@@ -2,16 +2,16 @@ package soundboard
 
 import (
 	"context"
-	"errors"
 	"gin-quickstart/backend/internal/audit"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,18 +23,17 @@ const multipartOverhead = 256 << 10 // 256 KB para cabeçalhos e campos de texto
 const maxFieldBytes = 256
 
 func (h *Handler) Upload(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	sound := &Sound{ID: uuid.NewString(), ServerID: c.Param("id"), UploaderID: userID.(string)}
+	sound := &Sound{ID: uuid.NewString(), ServerID: c.Param("id"), UploaderID: userID}
 	if e := h.receiveSound(c, sound); e != nil {
 		c.JSON(e.status, e.body)
 		return
 	}
 	if h.publisher != nil {
-		h.publisher.BroadcastToRoom("server:"+sound.ServerID, marshalEvent("soundboard:created", CreatedEvent{
+		h.publisher.BroadcastToRoom("server:"+sound.ServerID, wsevent.Marshal("soundboard:created", CreatedEvent{
 			ServerID: sound.ServerID,
 			Sound:    *sound,
 		}))
@@ -47,9 +46,6 @@ func (h *Handler) Upload(c *gin.Context) {
 func (h *Handler) receiveSound(c *gin.Context, sound *Sound) *apiErr {
 	ctx := c.Request.Context()
 	if e := h.checkUploader(ctx, sound.ServerID, sound.UploaderID); e != nil {
-		return e
-	}
-	if e := h.checkBody(c); e != nil {
 		return e
 	}
 	form, e := h.readSoundForm(c, sound.ID)
@@ -99,26 +95,16 @@ func (h *Handler) checkServerRoom(ctx context.Context, serverID string) *apiErr 
 	return nil
 }
 
-// checkBody recusa corpo grande demais ou sem espaço em disco e limita a leitura.
-func (h *Handler) checkBody(c *gin.Context) *apiErr {
-	incoming := c.Request.ContentLength
-	if incoming < 0 {
-		incoming = h.maxSoundBytes
-	}
-	if !h.space.HasRoom(incoming) {
-		return fail(http.StatusInsufficientStorage, "server out of space")
-	}
-	if c.Request.ContentLength > h.maxSoundBytes+multipartOverhead {
-		return fail(http.StatusRequestEntityTooLarge, "file too large (max 5 MB)")
-	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, h.maxSoundBytes+multipartOverhead)
-	return nil
-}
-
+// readSoundForm confere o corpo (espaço em disco e tamanho), limita a
+// leitura e lê o upload.
 func (h *Handler) readSoundForm(c *gin.Context, id string) (media.Form, *apiErr) {
-	reader, err := c.Request.MultipartReader()
+	reader, err := media.OpenUpload(c.Writer, c.Request, h.space, media.UploadSpec{
+		Limit: h.maxSoundBytes + multipartOverhead,
+		Room:  h.maxSoundBytes,
+		Cap:   true,
+	})
 	if err != nil {
-		return media.Form{}, fail(http.StatusBadRequest, "invalid upload")
+		return media.Form{}, formError(err)
 	}
 	form, err := h.store.ReadForm(reader, media.FormSpec{
 		ID:       id,
@@ -127,22 +113,27 @@ func (h *Handler) readSoundForm(c *gin.Context, id string) (media.Form, *apiErr)
 		Fields:   []string{"name", "emoji", "duration_ms"},
 	})
 	if err != nil {
-		return media.Form{}, fail(formErrorStatus(err))
+		return media.Form{}, formError(err)
 	}
 	return form, nil
 }
 
-func formErrorStatus(err error) (int, string) {
-	switch {
-	case errors.Is(err, media.ErrMissingFile):
-		return http.StatusBadRequest, "audio file is required"
-	case errors.Is(err, media.ErrTooLarge):
-		return http.StatusRequestEntityTooLarge, "file too large (max 5 MB)"
-	case errors.Is(err, syscall.ENOSPC):
-		return http.StatusInsufficientStorage, "server out of space"
-	default:
-		return http.StatusBadRequest, "invalid upload"
+// formErrors: a resposta de cada recusa do upload; o resto também é 400.
+var formErrors = media.UploadErrors[*apiErr]{
+	MissingFile:  fail(http.StatusBadRequest, "audio file is required"),
+	BadForm:      errInvalidUpload,
+	NotMultipart: errInvalidUpload,
+	TooLarge:     fail(http.StatusRequestEntityTooLarge, "file too large (max 5 MB)"),
+	NoSpace:      fail(http.StatusInsufficientStorage, "server out of space"),
+}
+
+var errInvalidUpload = fail(http.StatusBadRequest, "invalid upload")
+
+func formError(err error) *apiErr {
+	if e, ok := formErrors.For(err); ok {
+		return e
 	}
+	return errInvalidUpload
 }
 
 // fillSound valida os campos e o tipo do arquivo e preenche o som.

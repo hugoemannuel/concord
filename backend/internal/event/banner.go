@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"syscall"
 	"time"
 
 	"gin-quickstart/backend/internal/platform/media"
@@ -127,10 +126,10 @@ func (h *BannerHandler) receive(c *gin.Context, serverID, userID, id string) *up
 // checkBody recusa corpo grande demais ou sem espaço em disco.
 func (h *BannerHandler) checkBody(c *gin.Context) *uploadErr {
 	if c.Request.ContentLength > MaxBannerBytes+multipartOverhead {
-		return refuse(http.StatusRequestEntityTooLarge, "too_large", errBannerTooLarge)
+		return formErrors.TooLarge
 	}
 	if !h.space.HasRoom(MaxBannerBytes) {
-		return refuse(http.StatusInsufficientStorage, "no_space", errBannerNoSpace)
+		return formErrors.NoSpace
 	}
 	return nil
 }
@@ -138,7 +137,7 @@ func (h *BannerHandler) checkBody(c *gin.Context) *uploadErr {
 func (h *BannerHandler) readForm(c *gin.Context, id string) (media.Form, *uploadErr) {
 	reader, err := c.Request.MultipartReader()
 	if err != nil {
-		return media.Form{}, refuse(http.StatusBadRequest, "bad_request", errBannerBadRequest)
+		return media.Form{}, formErrors.NotMultipart
 	}
 	form, err := h.store.ReadForm(reader, media.FormSpec{ID: id, MaxFile: MaxBannerBytes, MaxField: 256})
 	if err != nil {
@@ -147,14 +146,20 @@ func (h *BannerHandler) readForm(c *gin.Context, id string) (media.Form, *upload
 	return form, nil
 }
 
+// formErrors: a resposta de cada recusa do upload.
+var formErrors = media.UploadErrors[*uploadErr]{
+	MissingFile:  errBannerRequest,
+	BadForm:      errBannerRequest,
+	NotMultipart: errBannerRequest,
+	TooLarge:     refuse(http.StatusRequestEntityTooLarge, "too_large", errBannerTooLarge),
+	NoSpace:      refuse(http.StatusInsufficientStorage, "no_space", errBannerNoSpace),
+}
+
+var errBannerRequest = refuse(http.StatusBadRequest, "bad_request", errBannerBadRequest)
+
 func formError(err error) *uploadErr {
-	switch {
-	case errors.Is(err, media.ErrMissingFile), errors.Is(err, media.ErrBadForm):
-		return refuse(http.StatusBadRequest, "bad_request", errBannerBadRequest)
-	case errors.Is(err, media.ErrTooLarge):
-		return refuse(http.StatusRequestEntityTooLarge, "too_large", errBannerTooLarge)
-	case errors.Is(err, syscall.ENOSPC):
-		return refuse(http.StatusInsufficientStorage, "no_space", errBannerNoSpace)
+	if ue, ok := formErrors.For(err); ok {
+		return ue
 	}
 	log.Printf("eventos: salvar banner: %v", err)
 	return refuse(http.StatusInternalServerError, "", errors.New("failed to save file"))

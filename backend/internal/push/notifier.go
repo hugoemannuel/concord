@@ -150,7 +150,13 @@ func hasMedia(m message.Message) bool {
 	return len(m.Attachments) > 0 || m.StickerID != nil || m.GifURL != nil
 }
 
+// directMessage: só vai ao banco (nome da conversa, tokens) se alguém dos
+// outros participantes pode receber push agora.
 func (n *Notifier) directMessage(ctx context.Context, ev message.CreateEvent) {
+	recipients := n.pushableRecipients(ev.UserIDs, ev.Message.AuthorID)
+	if len(recipients) == 0 {
+		return
+	}
 	conversationID := *ev.ConversationID
 	name, group, err := n.Directory.ConversationName(ctx, conversationID)
 	if err != nil {
@@ -174,11 +180,18 @@ func (n *Notifier) directMessage(ctx context.Context, ev message.CreateEvent) {
 			"name": header, "message_id": ev.Message.ID,
 		},
 	}
-	for _, id := range ev.UserIDs {
-		if id != ev.Message.AuthorID {
-			n.deliver(ctx, id, msg)
+	n.deliverAll(ctx, recipients, msg)
+}
+
+// pushableRecipients: os participantes, menos o autor, que podem receber push agora.
+func (n *Notifier) pushableRecipients(userIDs []string, authorID string) []string {
+	var out []string
+	for _, id := range userIDs {
+		if id != authorID && n.pushable(id) {
+			out = append(out, id)
 		}
 	}
+	return out
 }
 
 // channelMention: mensagem comum de canal não notifica; só quem foi citado (@usuário) ou o @all.

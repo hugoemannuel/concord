@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/ratelimit"
 	"gin-quickstart/backend/internal/user"
 )
@@ -101,12 +102,11 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 
 // ResendVerification: POST /auth/resend-verification (logado).
 func (h *Handler) ResendVerification(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	id := userID.(string)
+	id := userID
 
 	if retry, ok := h.limits.resendMinute.Allow(id); !ok {
 		rateLimited(c, retry)

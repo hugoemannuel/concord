@@ -8,6 +8,7 @@ import (
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/friendship"
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/user"
 
 	"github.com/gin-gonic/gin"
@@ -165,13 +166,12 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) ListByUser(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	servers, err := h.service.ListByUserID(c.Request.Context(), userID.(string))
+	servers, err := h.service.ListByUserID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list servers"})
 		return
@@ -282,13 +282,12 @@ func (h *Handler) InviteMember(c *gin.Context) {
 }
 
 func (h *Handler) ListInvites(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	invites, err := h.service.ListInvitesByInvitee(c.Request.Context(), userID.(string))
+	invites, err := h.service.ListInvitesByInvitee(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list invites"})
 		return
@@ -345,13 +344,12 @@ func (h *Handler) AcceptInvite(c *gin.Context) {
 func (h *Handler) DeclineInvite(c *gin.Context) {
 	inviteID := c.Param("id")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.service.DeclineInvite(c.Request.Context(), inviteID, userID.(string)); err != nil {
+	if err := h.service.DeclineInvite(c.Request.Context(), inviteID, userID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

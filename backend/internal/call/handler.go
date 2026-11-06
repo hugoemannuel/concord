@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/livekit"
 
 	"github.com/gin-gonic/gin"
@@ -152,9 +153,8 @@ func (h *Handler) Active(c *gin.Context) {
 func (h *Handler) State(c *gin.Context) {
 	callID := c.Param("id")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
@@ -166,7 +166,7 @@ func (h *Handler) State(c *gin.Context) {
 
 	allowed := false
 	for _, p := range state.Participants {
-		if p.UserID == userID.(string) {
+		if p.UserID == userID {
 			allowed = true
 			break
 		}
@@ -178,7 +178,7 @@ func (h *Handler) State(c *gin.Context) {
 	state.JoinRequests = h.service.joinRequestsOf(callID)
 
 	// Só aqui (participante conferido): quem entra depois já vê a atividade.
-	state.Activity = h.service.ActivityFor(callID, userID.(string))
+	state.Activity = h.service.ActivityFor(callID, userID)
 	c.JSON(http.StatusOK, state)
 }
 
@@ -211,22 +211,21 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) Token(c *gin.Context) {
 	callID := c.Param("id")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if !h.service.IsParticipant(callID, userID.(string)) {
+	if !h.service.IsParticipant(callID, userID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": ErrNotAllowed.Error()})
 		return
 	}
 
 	// O nome vai no token para quem está só na mídia (fora da lista do
 	// backend, ex.: queda do WS) aparecer com nome e não como "Usuário".
-	name := h.service.mediaName(c.Request.Context(), userID.(string))
+	name := h.service.mediaName(c.Request.Context(), userID)
 
-	token, err := h.tokens.Issue(callID, userID.(string), name, h.service.GrantFor(c.Request.Context(), callID, userID.(string)))
+	token, err := h.tokens.Issue(callID, userID, name, h.service.GrantFor(c.Request.Context(), callID, userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue media token"})
 		return
@@ -276,9 +275,8 @@ func respondScreenPreview(c *gin.Context, err error) {
 // PutScreenPreview: PUT /calls/:id/screen-preview {image: base64 do JPEG}.
 // Quem transmite manda a miniatura quando o servidor pede.
 func (h *Handler) PutScreenPreview(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, screenPreviewBodyLimit)
@@ -290,7 +288,7 @@ func (h *Handler) PutScreenPreview(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidPreview.Error()})
 		return
 	}
-	if err := h.service.SaveScreenPreview(c.Param("id"), userID.(string), input.Image, time.Now()); err != nil {
+	if err := h.service.SaveScreenPreview(c.Param("id"), userID, input.Image, time.Now()); err != nil {
 		respondScreenPreview(c, err)
 		return
 	}
@@ -300,12 +298,11 @@ func (h *Handler) PutScreenPreview(c *gin.Context) {
 // GetScreenPreview: GET /calls/:id/screen-preview/:userId. image null = a
 // miniatura foi pedida e ainda não chegou (tentar de novo em instantes).
 func (h *Handler) GetScreenPreview(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	result, err := h.service.ScreenPreview(c.Request.Context(), c.Param("id"), c.Param("userId"), userID.(string), time.Now())
+	result, err := h.service.ScreenPreview(c.Request.Context(), c.Param("id"), c.Param("userId"), userID, time.Now())
 	if err != nil {
 		respondScreenPreview(c, err)
 		return

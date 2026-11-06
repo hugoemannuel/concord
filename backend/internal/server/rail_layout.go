@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"strings"
 	"unicode/utf8"
+
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -197,10 +198,7 @@ func (s *RailLayoutService) publish(userID string, items []RailLayoutItem) {
 	if s.publisher == nil {
 		return
 	}
-	data, err := json.Marshal(map[string]any{
-		"type":    "server:layout",
-		"payload": RailLayoutState{Items: items},
-	})
+	data, err := wsevent.Encode("server:layout", RailLayoutState{Items: items})
 	if err != nil {
 		log.Printf("[server] publish rail layout: %v", err)
 		return

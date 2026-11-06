@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"unicode/utf8"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -52,24 +54,15 @@ func FavoriteRoutes(router *gin.RouterGroup, h *FavoritesHandler, authMiddleware
 	}
 }
 
-func currentUser(c *gin.Context) (string, bool) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return "", false
-	}
-	return userID.(string), true
-}
-
 func (h *FavoritesHandler) List(c *gin.Context) {
-	if userID, ok := currentUser(c); ok {
+	if userID, ok := authctx.UserID(c); ok {
 		h.respondList(c, userID)
 	}
 }
 
 // Add favorita e responde com a lista nova. Favoritar de novo só atualiza.
 func (h *FavoritesHandler) Add(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -97,7 +90,7 @@ func (h *FavoritesHandler) Add(c *gin.Context) {
 // Remove tira dos favoritos (o que não estava não é erro) e responde com a
 // lista nova.
 func (h *FavoritesHandler) Remove(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

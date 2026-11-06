@@ -81,11 +81,13 @@ func (a *app) wireChat() {
 	// O ícone do servidor usa o mesmo upload do avatar.
 	serverHandler := server.ServerHandler(a.serverService, a.friendshipService, a.userService, a.channelService, a.permissionService, a.roleService, a.moderationService, a.nicknameService, a.profileHandler)
 	serverHandler.SetAudit(a.audit)
+	railLayoutHandler := server.NewRailLayoutHandler(server.NewRailLayoutService(server.ServerRepository(a.db), a.hub))
 
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) {
 		user.ProfileRoutes(api, a.profileHandler, a.authMiddleware)
 		user.EntranceSoundRoutes(api, entranceSoundHandler, a.authMiddleware)
 		server.ServerRoutes(api, serverHandler, a.authMiddleware, a.requireVerified, auth.OptionalAuthMiddleware(a.authService))
+		server.RailLayoutRoutes(api, railLayoutHandler, a.authMiddleware)
 		conversation.ConversationRoutes(api, conversationHandler, a.authMiddleware)
 		message.MessageRoutes(api, a.messageHandler, a.authMiddleware)
 		message.AttachmentRoutes(api, attachmentHandler, a.authMiddleware)

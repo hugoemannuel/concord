@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,15 +13,8 @@ import (
 // Respostas HTTP das regras de acesso (access.go), usadas por todos os
 // handlers que gravam numa sala.
 
-// requestUserID lê o usuário autenticado; sem ele, já responde 401.
-func requestUserID(c *gin.Context) (string, bool) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return "", false
-	}
-	return userID.(string), true
-}
+// requestUserID: o usuário autenticado (platform/authctx); sem ele, já responde 401.
+var requestUserID = authctx.UserID
 
 // requireChannelAccess confere se userID tem want no canal; se não tiver, já
 // responde o erro (canal que a pessoa não vê é 404).

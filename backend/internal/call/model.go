@@ -1,11 +1,11 @@
 package call
 
 import (
-	"encoding/json"
 	"time"
 
 	"gin-quickstart/backend/internal/cosmetics"
 	"gin-quickstart/backend/internal/namestyle"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -206,13 +206,5 @@ type ScreenDrawUndoPayload struct {
 	StrokeID string `json:"stroke_id"`
 }
 
-func marshalEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
-}
+// marshalEvent monta o envelope dos eventos (platform/wsevent).
+var marshalEvent = wsevent.Marshal
