@@ -29,6 +29,7 @@ import {
 } from '../api/conversations'
 import { conversationTitle, otherMembers, removeMemberTitle } from '../lib/conversations'
 import { initialShowMembers } from '../lib/groupLayout'
+import { saveGroupName } from '../lib/groupRename'
 import { imageFileError } from '../../profile/lib/profileValidation'
 import IconButton from '../../../shared/ui/IconButton'
 
@@ -70,13 +71,11 @@ function GroupChat(): React.JSX.Element {
   const saveName = async (): Promise<void> => {
     const name = editingName
     setEditingName(null)
-    if (name === null || name.trim() === conv.name.trim()) return
-    try {
-      await renameGroup(conv.id, name)
-      await fetchConversations()
-    } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível renomear.')
-    }
+    await saveGroupName(
+      { rename: renameGroup, refresh: fetchConversations, error: showToast.error },
+      conv,
+      name
+    )
   }
 
   const pickIcon = (file: File | undefined): void => {
