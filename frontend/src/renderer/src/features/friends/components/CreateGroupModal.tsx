@@ -6,9 +6,16 @@ import StyledName from '../../profile/components/StyledName'
 import { useFriendStore } from '../store/friendStore'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useChatStore } from '../../chat/store/chatStore'
-import { addGroupMembers, createGroup, MAX_GROUP_MEMBERS } from '../../chat/api/conversations'
-import { conversationRoute } from '../../chat/lib/conversations'
+import { addGroupMembers, createGroup } from '../../chat/api/conversations'
 import { showToast } from '../../../shared/store/toastStore'
+import {
+  filterAvailableFriends,
+  freeSlots,
+  groupSubmitLabel,
+  slotsHint,
+  submitGroupSelection,
+  toggleSelected
+} from '../lib/groupPicker'
 
 interface CreateGroupModalProps {
   open: boolean
@@ -37,47 +44,30 @@ function CreateGroupModal({
   const [selected, setSelected] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
 
-  const available = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return friends
-      .filter((f) => !existingIds.includes(f.id))
-      .filter(
-        (f) =>
-          !q || f.username.toLowerCase().includes(q) || f.display_name.toLowerCase().includes(q)
-      )
-  }, [friends, existingIds, query])
+  const available = useMemo(
+    () => filterAvailableFriends(friends, existingIds, query),
+    [friends, existingIds, query]
+  )
 
-  const slots = MAX_GROUP_MEMBERS - Math.max(existingIds.length, 1) - selected.length
-  const toggle = (id: string): void =>
-    setSelected((cur) =>
-      cur.includes(id) ? cur.filter((x) => x !== id) : slots > 0 ? [...cur, id] : cur
-    )
+  const slots = freeSlots(existingIds.length, selected.length)
+  const toggle = (id: string): void => setSelected((cur) => toggleSelected(cur, id, slots))
 
   const submit = async (): Promise<void> => {
     if (selected.length === 0 || busy) return
     setBusy(true)
-    try {
-      if (groupId) {
-        await addGroupMembers(groupId, selected)
-        await fetchConversations()
-      } else {
-        const conv = await createGroup(selected)
-        await fetchConversations()
-        const summary = useChatStore.getState().conversations.find((c) => c.id === conv.id)
-        navigate(
-          summary
-            ? conversationRoute(summary, meId)
-            : conv.type === 'group'
-              ? `/dm/c/${conv.id}`
-              : `/dm/${selected[0]}`
-        )
-      }
-      onClose()
-    } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível criar o grupo.')
-    } finally {
-      setBusy(false)
-    }
+    await submitGroupSelection(
+      {
+        addMembers: addGroupMembers,
+        createGroup,
+        fetchConversations,
+        findSummary: (id) => useChatStore.getState().conversations.find((c) => c.id === id),
+        navigate,
+        done: onClose,
+        error: showToast.error
+      },
+      { groupId, selected, meId }
+    )
+    setBusy(false)
   }
 
   return (
@@ -86,11 +76,7 @@ function CreateGroupModal({
       title={groupId ? 'Adicionar amigos ao grupo' : 'Selecionar amigos'}
       onClose={onClose}
     >
-      <p className="-mt-2 mb-3 text-xs text-gray-400">
-        {slots > 0
-          ? `Você pode adicionar mais ${slots} ${slots === 1 ? 'amigo' : 'amigos'}.`
-          : 'Este grupo já está cheio.'}
-      </p>
+      <p className="-mt-2 mb-3 text-xs text-gray-400">{slotsHint(slots)}</p>
       <input
         autoFocus
         value={query}
@@ -133,7 +119,7 @@ function CreateGroupModal({
         onClick={submit}
         className="mt-4 w-full cursor-pointer rounded-md bg-brand py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {groupId ? 'Adicionar' : selected.length > 1 ? 'Criar grupo' : 'Criar DM'}
+        {groupSubmitLabel(groupId, selected.length)}
       </button>
     </Modal>
   )
