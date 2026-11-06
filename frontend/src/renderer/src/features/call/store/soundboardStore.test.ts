@@ -152,6 +152,40 @@ describe('soundboardStore', () => {
     expect(useSoundboardStore.getState().soundsByServer['srv-1']).toHaveLength(1)
   })
 
+  it('loadMine traz os sons de todos os servidores da pessoa sem apagar os já carregados', async () => {
+    const api = await import('../api/soundboard')
+    const { useSoundboardStore } = await import('./soundboardStore')
+    const snd = (id: string, server: string) => ({
+      id,
+      server_id: server,
+      uploader_id: 'u1',
+      uploader_name: 'Alice',
+      name: id,
+      content_type: 'audio/wav',
+      size_bytes: 1,
+      duration_ms: 1000,
+      created_at: '2026-11-01T00:00:00Z'
+    })
+    useSoundboardStore.setState({ soundsByServer: { visita: [snd('v1', 'visita')] } })
+    vi.spyOn(api, 'listMySounds').mockResolvedValue([
+      { server_id: 'srv-1', server_name: 'Um', sounds: [snd('a1', 'srv-1')] },
+      { server_id: 'srv-2', server_name: 'Dois', sounds: [snd('b1', 'srv-2')] }
+    ])
+    await useSoundboardStore.getState().loadMine()
+    const byServer = useSoundboardStore.getState().soundsByServer
+    expect(Object.keys(byServer).sort()).toEqual(['srv-1', 'srv-2', 'visita'])
+    expect(byServer['srv-2'].map((s) => s.id)).toEqual(['b1'])
+  })
+
+  it('loadMine sem rede mantém o que já tinha', async () => {
+    const api = await import('../api/soundboard')
+    const { useSoundboardStore } = await import('./soundboardStore')
+    useSoundboardStore.setState({ soundsByServer: { 'srv-1': [] } })
+    vi.spyOn(api, 'listMySounds').mockRejectedValue(new Error('offline'))
+    await useSoundboardStore.getState().loadMine()
+    expect(useSoundboardStore.getState().soundsByServer).toEqual({ 'srv-1': [] })
+  })
+
   it('registra activePlays ao receber call:soundboard e envia evento em triggerSound', async () => {
     const { useCallStore } = await import('./callStore')
     const { useSoundboardStore } = await import('./soundboardStore')

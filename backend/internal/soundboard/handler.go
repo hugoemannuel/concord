@@ -17,6 +17,7 @@ type soundRepo interface {
 	Update(ctx context.Context, serverID, id, name string, emoji *string) (*Sound, error)
 	Create(ctx context.Context, s *Sound) error
 	ListByServer(ctx context.Context, serverID string) ([]Sound, error)
+	ListForUser(ctx context.Context, userID string) ([]ServerSounds, error)
 	FindByID(ctx context.Context, id string) (*Sound, error)
 	CountByServer(ctx context.Context, serverID string) (int, error)
 	Delete(ctx context.Context, id string) error
@@ -128,9 +129,9 @@ func (h *Handler) ServeFile(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid media token"})
 		return
 	}
-	// Qualquer pessoa logada: favorito de outro servidor tocado numa chamada é
+	// Qualquer pessoa logada: som de outro servidor tocado numa chamada é
 	// ouvido por quem não é de lá, e o id (UUID) do som só chega a quem o vê
-	// na mesa ou o ouve (docs/adr/0013-mesa-de-audio-por-servidor.md).
+	// na mesa ou o ouve (docs/adr/0013-mesa-de-audio-por-servidor.md e 0058).
 	if _, err := h.tokens.VerifyMediaToken(token); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid media token"})
 		return

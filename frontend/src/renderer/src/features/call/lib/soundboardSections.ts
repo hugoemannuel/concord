@@ -1,29 +1,61 @@
+import { normalizeSearch } from '../../emojis/lib/baseEmojis'
+import {
+  orderServers,
+  serverSections,
+  withItemServers,
+  type PickerServer,
+  type ServerSection
+} from '../../emojis/lib/pickerSections'
+
 /**
- * Como a mesa de áudio de uma chamada se monta: os favoritos da pessoa (de
- * qualquer servidor) e os sons do servidor da chamada que não são favoritos.
+ * Como a mesa de áudio se monta, igual ao seletor de figurinhas: os favoritos
+ * da pessoa e uma seção por servidor dela (o da chamada primeiro), sem repetir
+ * nas seções o que já está nos favoritos.
  */
 interface NamedSound {
   id: string
   name: string
 }
 
-export interface SoundboardSections<S, F> {
+export interface SoundboardLayout<S, F> {
   favorites: F[]
-  server: S[]
+  sections: ServerSection<S>[]
 }
 
-export function soundboardSections<S extends NamedSound, F extends NamedSound>(
-  serverSounds: S[],
-  favorites: F[],
-  query: string
-): SoundboardSections<S, F> {
-  const q = query.trim().toLowerCase()
-  const matches = (s: NamedSound): boolean => !q || s.name.toLowerCase().includes(q)
+export function soundboardLayout<S extends NamedSound, F extends NamedSound>({
+  servers,
+  extraServers = [],
+  soundsByServer,
+  favorites,
+  currentId,
+  search
+}: {
+  servers: PickerServer[]
+  /** Servidores fora da lista (o da visita, para quem é visitante na chamada). */
+  extraServers?: PickerServer[]
+  soundsByServer: Record<string, S[]>
+  favorites: F[]
+  currentId: string
+  search: string
+}): SoundboardLayout<S, F> {
+  const query = normalizeSearch(search.trim())
   const favoriteIds = new Set(favorites.map((f) => f.id))
   return {
-    favorites: favorites.filter(matches),
-    server: serverSounds.filter((s) => !favoriteIds.has(s.id) && matches(s))
+    favorites: query ? favorites.filter((f) => normalizeSearch(f.name).includes(query)) : favorites,
+    sections: serverSections({
+      servers: withItemServers(servers, extraServers),
+      itemsOf: (id) => (soundsByServer[id] ?? []).filter((s) => !favoriteIds.has(s.id)),
+      nameOf: (s: S) => s.name,
+      currentId,
+      search
+    })
   }
+}
+
+/** Todos os sons carregados, os do servidor da chamada primeiro (atalhos de teclado). */
+export function allServerSounds<S>(soundsByServer: Record<string, S[]>, currentId: string): S[] {
+  const ids = orderServers(Object.keys(soundsByServer).map((id) => ({ id })), currentId)
+  return ids.flatMap(({ id }) => soundsByServer[id] ?? [])
 }
 
 /** O som cujo atalho de teclado é este (sem diferenciar maiúsculas). */
