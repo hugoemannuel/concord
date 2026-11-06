@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/audit"
+	"gin-quickstart/backend/internal/bot"
 )
 
 // cardCountsTTL: a contagem de quem está fora fica guardada esse tempo (quem só
@@ -165,13 +166,14 @@ func (s *Service) buildCard(serverID string, facts *Facts, profile Profile, memb
 	return card
 }
 
+// countOnline conta as pessoas online (o Maestro aparece sempre online e não conta).
 func (s *Service) countOnline(ids []string) int {
 	if s.presence == nil {
 		return 0
 	}
 	online := 0
-	for _, status := range s.presence(ids) {
-		if status != offlineStatus {
+	for id, status := range s.presence(ids) {
+		if status != offlineStatus && !bot.IsBot(id) {
 			online++
 		}
 	}

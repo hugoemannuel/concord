@@ -10,6 +10,7 @@ import (
 
 	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/audit/audittest"
+	"gin-quickstart/backend/internal/bot"
 )
 
 // fakeStore: o banco em memória.
@@ -92,6 +93,23 @@ func newTestService(store *fakeStore, pub *fakePublisher) *Service {
 		return "", ErrInvalidInvite
 	}
 	return s
+}
+
+// O Maestro aparece sempre online, mas o "online" do cartão conta só pessoas.
+func TestCardOnlineIgnoresBots(t *testing.T) {
+	store := newFakeStore()
+	store.facts["s1"] = Facts{Name: "Salinha", MemberIDs: []string{"ana", "bia", bot.UserID}}
+	s := NewService(store, &fakePublisher{}, func(ids []string) map[string]string {
+		return map[string]string{"ana": "online", "bia": "offline", bot.UserID: "online"}
+	})
+
+	card, err := s.Card(context.Background(), "s1", "estranho", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if card.MemberCount != 3 || card.OnlineCount != 1 {
+		t.Errorf("membros = %d, online = %d; want 3 e 1", card.MemberCount, card.OnlineCount)
+	}
 }
 
 func TestCardPublico(t *testing.T) {

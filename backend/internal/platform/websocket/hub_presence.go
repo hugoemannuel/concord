@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"gin-quickstart/backend/internal/bot"
 	"gin-quickstart/backend/internal/platform/wsevent"
 	"gin-quickstart/backend/internal/user"
 )
@@ -18,8 +19,12 @@ func (h *Hub) broadcastPresence(userID, status string) {
 	}))
 }
 
-// effectiveStatusLocked: precisa de h.mu (leitura).
+// effectiveStatusLocked: precisa de h.mu (leitura). Os bots não têm websocket,
+// mas estão sempre online.
 func (h *Hub) effectiveStatusLocked(userID string) string {
+	if bot.IsBot(userID) {
+		return user.StatusOnline
+	}
 	connected := h.presence[userID] > 0
 	status, ok := h.statuses[userID]
 	if !ok {
