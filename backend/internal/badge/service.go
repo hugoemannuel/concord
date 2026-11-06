@@ -29,7 +29,7 @@ type store interface {
 	Stats(ctx context.Context, userID string) (Stats, error)
 	Unlocks(ctx context.Context, userID string) (Unlocks, error)
 	SaveUnlocks(ctx context.Context, userID string, unlocks []Unlock) ([]Unlock, error)
-	AddCallStats(ctx context.Context, userID string, d Delta) error
+	AddCallStats(ctx context.Context, deltas map[string]Delta) error
 	SaveSessions(ctx context.Context, sessions map[string]int64) error
 	LoadSessions(ctx context.Context, maxAge time.Duration) (map[string]int64, error)
 	AddCount(ctx context.Context, userID, category string, n int64) (int64, error)
