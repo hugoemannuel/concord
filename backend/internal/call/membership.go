@@ -54,6 +54,7 @@ func (s *Service) detachParticipant(callID, userID string) (remaining int, remov
 	if activityChange != nil {
 		s.sendToAll(targets, activityChange)
 	}
+	s.announceChannelLeft(serverID, channelID, callID, userID)
 	if wasSharing {
 		s.publishLive(serverID, LiveEvent{CallID: callID, ChannelID: channelID, UserID: userID, Active: false})
 	}
@@ -103,6 +104,7 @@ func (s *Service) joinLocked(ctx context.Context, ac *activeCall, userID string,
 	}
 	s.busy[userID] = ac.info.ID
 	s.consumeInviteLocked(ac, userID)
+	callCopy := *ac.info
 
 	if err := s.addParticipant(ctx, &CallParticipant{
 		CallID: ac.info.ID,
@@ -116,6 +118,13 @@ func (s *Service) joinLocked(ctx context.Context, ac *activeCall, userID string,
 		CallID: ac.info.ID,
 		User:   userInfo,
 	}))
+	s.announceChannelJoined(callCopy, ParticipantInfo{
+		UserInfo: userInfo,
+		CallID:   callCopy.ID,
+		UserID:   userID,
+		Role:     role,
+		JoinedAt: now,
+	})
 
 	return ac.info, nil
 }

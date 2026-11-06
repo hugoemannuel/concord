@@ -27,7 +27,7 @@ func (s *Service) End(ctx context.Context, callID string) error {
 }
 
 // closeCall tira a chamada da memória. Quem ainda transmitia sai do ar no
-// servidor na hora (o selo LIVE não espera o próximo polling).
+// servidor na hora (o selo LIVE some junto).
 func (s *Service) closeCall(callID string) error {
 	s.mu.Lock()
 	ac, ok := s.calls[callID]
@@ -60,6 +60,7 @@ func (s *Service) closeCall(callID string) error {
 		s.publishLive(serverID, LiveEvent{CallID: callID, ChannelID: channelID, UserID: userID, Active: false})
 	}
 	s.notifyCancelledInvites(callID, invited)
+	s.announceChannelEnded(serverID, channelID, callID)
 	// Sala esvaziou: quem esperava na porta já pode entrar (a próxima chamada
 	// nasce destrancada).
 	for _, uid := range knockers {

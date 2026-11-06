@@ -471,8 +471,7 @@ describe('callStore — mídia via LiveKit', () => {
     expect(data(useCallStore.getState())).toEqual({
       ...initial,
       stageVisible: true,
-      inputDeviceId: 'mic-2',
-      listVersion: expect.any(Number)
+      inputDeviceId: 'mic-2'
     })
   })
 
@@ -946,7 +945,7 @@ describe('callStore — mídia via LiveKit', () => {
 
   it('mostra quem está mudo/ensurdecido a partir do evento call:voice', async () => {
     await joinChannel()
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': {
         call: { id: 'call-1' } as never,
         participants: [{ call_id: 'call-1', user_id: 'ana', role: 'member', joined_at: '' }]
@@ -972,7 +971,7 @@ describe('callStore — mídia via LiveKit', () => {
 
   it('mostra o que um moderador impôs (silenciar/ensurdecer no servidor)', async () => {
     await joinChannel()
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': {
         call: { id: 'call-1' } as never,
         participants: [{ call_id: 'call-1', user_id: 'ana', role: 'member', joined_at: '' }]
@@ -1760,7 +1759,7 @@ describe('callStore — prévia da transmissão no perfil', () => {
 
 describe('callStore — selo LIVE', () => {
   it('call:live atualiza o selo da lista do servidor mesmo fora da call', () => {
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': { call: { id: 'call-9' } as never, participants: [] }
     })
 
@@ -1779,8 +1778,8 @@ describe('callStore — selo LIVE', () => {
 })
 
 describe('callStore — selo LIVE em dia', () => {
-  it('polling atrasado não apaga um call:live recém-chegado', () => {
-    useCallStore.getState().setServerCalls({
+  it('lista lida com atraso não apaga um call:live recém-chegado', () => {
+    useCallStore.getState().setServerCalls('s1', {
       'canal-2': { call: { id: 'call-7' } as never, participants: [] }
     })
     useCallStore.getState().handleWsEvent({
@@ -1788,24 +1787,46 @@ describe('callStore — selo LIVE em dia', () => {
       payload: { call_id: 'call-7', user_id: 'bia', active: true }
     })
 
-    // Resposta de um polling que saiu antes do evento.
-    useCallStore.getState().setServerCalls({
+    // Resposta de uma leitura que saiu antes do evento.
+    useCallStore.getState().setServerCalls('s1', {
       'canal-2': { call: { id: 'call-7' } as never, participants: [], screen_sharing: [] }
     })
 
     expect(useCallStore.getState().serverCalls['canal-2'].screen_sharing).toEqual(['bia'])
   })
+})
 
-  it('call:live de chamada que a lista ainda não conhece recarrega a lista', () => {
-    useCallStore.getState().setServerCalls({})
-    const before = useCallStore.getState().listVersion
+describe('callStore — lista dos canais de voz pelos eventos do servidor', () => {
+  const callInfo = { id: 'call-5', type: 'channel', channel_id: 'canal-5', server_id: 's2' }
+  const person = (user_id: string): object => ({ call_id: 'call-5', user_id, role: 'member', joined_at: '' })
 
+  it('entrar, sair e o fim da chamada mudam a lista sem ler o servidor', () => {
+    const event = (type: string, payload: object): void =>
+      useCallStore.getState().handleWsEvent({ type, payload })
+
+    event('call:channel_joined', { call: callInfo, participant: person('ana') })
+    event('call:channel_joined', { call: callInfo, participant: person('bia') })
+    const ids = (): string[] =>
+      useCallStore.getState().serverCalls['canal-5'].participants.map((p) => p.user_id)
+    expect(ids()).toEqual(['ana', 'bia'])
+
+    event('call:channel_left', { call_id: 'call-5', channel_id: 'canal-5', user_id: 'ana' })
+    expect(ids()).toEqual(['bia'])
+
+    event('call:channel_ended', { call_id: 'call-5', channel_id: 'canal-5' })
+    expect(useCallStore.getState().serverCalls['canal-5']).toBeUndefined()
+    expect(api.getCallState).not.toHaveBeenCalled()
+  })
+
+  it('a lista lida de um servidor não apaga a dos outros', () => {
     useCallStore.getState().handleWsEvent({
-      type: 'call:live',
-      payload: { call_id: 'call-nova', user_id: 'ana', active: true }
+      type: 'call:channel_joined',
+      payload: { call: callInfo, participant: person('ana') }
     })
 
-    expect(useCallStore.getState().listVersion).toBe(before + 1)
+    useCallStore.getState().setServerCalls('s1', {})
+
+    expect(useCallStore.getState().serverCalls['canal-5'].participants).toHaveLength(1)
   })
 })
 
@@ -2162,7 +2183,7 @@ describe('callStore — salas trancadas e pedidos de entrada', () => {
   })
 
   it('evento call:lock atualiza o estado local e serverCalls', () => {
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': {
         call: {
           id: 'call-1',

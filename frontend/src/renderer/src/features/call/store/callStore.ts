@@ -63,6 +63,8 @@ import {
 import { callNotification, notifyDesktop } from '../../notifications/lib/notifications'
 import { playSound, setSoundOutput } from '../lib/sounds'
 import { createKnockEventHandlers } from './knockWsEvents'
+import { createVoiceListEventHandlers } from './voiceListWsEvents'
+import { replaceServerCalls } from '../lib/voiceList'
 import { playOwnJoinSound } from '../lib/entranceSoundOwn'
 import { channelJoinState } from '../lib/channelJoinState'
 import { staleOwnLive, syncCallState } from '../lib/callStateSync'
@@ -193,9 +195,7 @@ export interface CallState {
   startedAt: number | null
   /** Mute de antes de ensurdecer — volta a ele ao desensurdecer. */
   mutedBeforeDeafen: boolean
-  /** incrementa a cada evento call:* relevante — usado pela UI p/ revalidar listas */
-  listVersion: number
-  /** chamadas ativas por canal do servidor aberto (polling da sidebar) */
+  /** chamadas ativas por canal de voz, dos servidores abertos (lib/voiceList) */
   serverCalls: Record<string, CallStateResponse>
   /** a sala de voz em que estou está trancada */
   locked: boolean
@@ -247,7 +247,8 @@ export interface CallState {
   setDmMinimized: (minimized: boolean) => void
   /** Clique na miniatura: põe em destaque uma transmissão que estou assistindo. */
   focusWatchedScreen: (userId: string) => void
-  setServerCalls: (map: Record<string, CallStateResponse>) => void
+  /** Lista lida de um servidor: substitui só as chamadas dele. */
+  setServerCalls: (serverId: string, map: Record<string, CallStateResponse>) => void
   joinVoiceChannel: (channelId: string) => Promise<void>
   /** WS de chat (re)conectou: ressincroniza a chamada (canal ou DM) e as listas de voz. */
   handleWsReconnect: () => void
@@ -322,7 +323,7 @@ let cameraQueue: Promise<void> = Promise.resolve()
 // Publicação da câmera em andamento: trocar o stream antes dela terminar não acharia a track
 let cameraPublish: Promise<void> = Promise.resolve()
 
-/** call:live recentes, reaplicados sobre o polling da lista do servidor. */
+/** call:live recentes, reaplicados sobre a lista do servidor lida há pouco. */
 let recentLive: LiveRecord[] = []
 
 /** Ao reconectar, um 404 só fecha/troca a chamada se repetir (ver confirmGone). */
@@ -464,10 +465,6 @@ export function getCallMicrophone(): MicHandle | null {
 }
 
 export const useCallStore = create<CallState>()((set, get) => {
-  const bumpList = (): void => {
-    set((s) => ({ listVersion: s.listVersion + 1 }))
-  }
-
   /**
    * Junta servidor (os outros) e detecção local (eu). Mudo nunca está
    * falando — nem quando a detecção local caiu e o servidor ainda me lista
@@ -587,7 +584,6 @@ export const useCallStore = create<CallState>()((set, get) => {
   const replacedByOtherDevice = (): void => {
     showToast.info(describeDisconnect(LK_DISCONNECT.DUPLICATE_IDENTITY, true))
     cleanup()
-    bumpList()
   }
 
   /** Reações da sala de mídia; só valem enquanto `self` ainda é a conexão da chamada. */
@@ -931,7 +927,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       if (get().callId !== call.id) return
       sendVoiceState()
       sendScreenState(call.id)
-      bumpList()
     } catch {
       // segue com a mídia; a próxima reconexão tenta de novo
     } finally {
@@ -958,7 +953,6 @@ export const useCallStore = create<CallState>()((set, get) => {
         const peerInMedia = get().participants.some((p) => p.id in get().mediaPeers)
         if (get().status === 'active' && peerInMedia) return
         cleanup()
-        bumpList()
         return
       }
       if (get().callId !== callId) return
@@ -1060,6 +1054,9 @@ export const useCallStore = create<CallState>()((set, get) => {
   }
 
   const knockHandlers = createKnockEventHandlers({ get, set })
+  const voiceListHandlers = createVoiceListEventHandlers({
+    update: (apply) => set((s) => ({ serverCalls: apply(s.serverCalls) }))
+  })
 
   const wsHandlers: Record<string, WsHandler> = {
     'call:invite': ({ payload }) => {
@@ -1209,10 +1206,7 @@ export const useCallStore = create<CallState>()((set, get) => {
         ...recentLive.filter((r) => now - r.at < LIVE_GRACE_MS),
         { payload: p, at: now }
       ]
-      const known = Object.values(get().serverCalls).some((e) => e.call?.id === p.call_id)
       set((s) => ({ serverCalls: applyLiveEvent(s.serverCalls, p) }))
-      // Chamada que começou depois do último polling: busca a lista agora.
-      if (!known) bumpList()
       return
     },
 
@@ -1223,7 +1217,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       if (current.type === 'channel') {
         if (current.status !== 'active' || !meId || p.user.id === meId) return
         set({ participants: upsertParticipant(current.participants, p.user) })
-        bumpList()
         return
       }
       if (current.status === 'outgoing') {
@@ -1258,7 +1251,6 @@ export const useCallStore = create<CallState>()((set, get) => {
             screenWatchers: nextWatchers
           }
         })
-        bumpList()
         return
       }
       // Na DM a saída do outro encerra a chamada: aqui o aviso faz falta.
@@ -1271,7 +1263,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       const p = payload as unknown as EndedPayload
       if (get().callId !== p.call_id) return
       cleanup()
-      bumpList()
       return
     },
 
@@ -1282,8 +1273,7 @@ export const useCallStore = create<CallState>()((set, get) => {
     },
 
     'call:moved': ({ payload, meId }) => {
-      // Um moderador moveu alguém de canal de voz: as listas mudam.
-      bumpList()
+      // As listas dos canais mudam pelos call:channel_* do servidor.
       const p = payload as unknown as {
         from_call_id: string
         channel_id: string
@@ -1327,7 +1317,6 @@ export const useCallStore = create<CallState>()((set, get) => {
     stageVisible: false,
     inputDeviceId: loadAudioPrefs().inputId,
     outputDeviceId: loadAudioPrefs().outputId,
-    listVersion: 0,
     serverCalls: {},
     knock: null,
     admittedChannelId: null,
@@ -1475,7 +1464,6 @@ export const useCallStore = create<CallState>()((set, get) => {
         void connectMedia(call.id)
 
         await loadCallState(call.id, false)
-        bumpList()
       } catch (err) {
         stopLocalStream()
         if (err instanceof ApiError && err.status === 423) {
@@ -1535,7 +1523,6 @@ export const useCallStore = create<CallState>()((set, get) => {
         }
       }
       cleanup()
-      bumpList()
     },
 
     toggleMute: () => {
@@ -1859,8 +1846,14 @@ export const useCallStore = create<CallState>()((set, get) => {
         }
       }),
 
-    setServerCalls: (map) => {
-      set({ serverCalls: reapplyRecentLive(map, recentLive, Date.now()) })
+    setServerCalls: (serverId, map) => {
+      set((s) => ({
+        serverCalls: reapplyRecentLive(
+          replaceServerCalls(s.serverCalls, serverId, map),
+          recentLive,
+          Date.now()
+        )
+      }))
     },
 
     joinVoiceChannel: async (channelId) => {
@@ -1903,8 +1896,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       if (get().status === 'active' && get().connection.phase === 'failed') get().retryConnection()
       void resyncChannelCall()
       void resyncDmCall()
-      // Listas dos canais de voz (quem está em cada um, LIVE) voltam a valer.
-      bumpList()
       const { knock } = get()
       if (knock && knock.status === 'pending') {
         useChatStore.getState().sendEvent('call:knock', { call_id: knock.callId })
@@ -1913,8 +1904,8 @@ export const useCallStore = create<CallState>()((set, get) => {
 
     handleWsEvent: (event) => {
       const payload = event.payload as Record<string, unknown>
-      const knock = knockHandlers[event.type]
-      if (knock) return knock(payload)
+      const byPayload = knockHandlers[event.type] ?? voiceListHandlers[event.type]
+      if (byPayload) return byPayload(payload)
       wsHandlers[event.type]?.({ payload, event, meId: useAuthStore.getState().user?.id })
     }
   }
