@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
 import { fetchBadges, type Badge, type BadgeStreak, type BadgeUnlockEvent } from '../api/badges'
-import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { unlocksComAviso } from '../lib/badges'
 
 /** Cartão aberto de novo depois disso busca os badges outra vez. */
@@ -52,10 +52,10 @@ export const useBadgeStore = create<BadgeState>()((set, get) => ({
     if (!force && cached && Date.now() - cached.loadedAt < MAX_AGE_MS) return Promise.resolve()
     const running = inflight.get(userId)
     if (running && !force) return running
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     const job = fetchBadges(userId)
       .then((res) => {
-        if (useAuthStore.getState().accessToken !== token) return
+        if (!sameSession()) return
         set((state) => ({
           byUser: {
             ...state.byUser,
