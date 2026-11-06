@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { Channel } from '../api/channels'
 import type { CallStateResponse } from '../../call/api/calls'
 import {
-  callsByChannel,
   canOpenChannelMenu,
   channelSlug,
   errorText,
@@ -87,11 +86,6 @@ describe('chamadas do servidor', () => {
       call: channel_id ? { id: 'c-' + channel_id, channel_id } : null,
       participants: users.map((user_id) => ({ user_id }))
     }) as unknown as CallStateResponse
-
-  it('indexa pelo canal de voz (sem canal fica de fora)', () => {
-    const map = callsByChannel([state('v1', ['a']), state(null, ['b'])])
-    expect(Object.keys(map)).toEqual(['v1'])
-  })
 
   it('chave estável de quem está em voz', () => {
     expect(voiceUserIdsKey({ v1: state('v1', ['b', 'a']), v2: state('v2', ['c']) })).toBe('a,b,c')

@@ -12,7 +12,7 @@ import type { CallStateResponse } from '../api/calls'
 export const ARRIVAL_BADGE_MS = 5000
 /** Sair e voltar ao mesmo canal nesse tempo é reconexão, não chegada. */
 export const REJOIN_IGNORE_MS = 15000
-/** Lista mais velha que isso não serve de base (o polling é de 10 s). */
+/** Lista mais velha que isso não serve de base. */
 export const STALE_SNAPSHOT_MS = 30000
 
 /** canal de voz -> user_ids presentes. */
