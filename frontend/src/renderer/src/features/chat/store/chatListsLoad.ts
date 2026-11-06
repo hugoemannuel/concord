@@ -1,5 +1,6 @@
 import type { StoreApi } from 'zustand'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { listConversations } from '../api/conversations'
 import { sanitizeConversations } from '../lib/conversations'
 import type { PresenceMap } from '../../friends/api/presence'
@@ -21,11 +22,11 @@ export function chatListActions(
 ): Pick<ChatState, 'fetchConversations' | 'fetchPresenceFor' | 'fetchChannelsForServers'> {
   return {
     fetchConversations: async () => {
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       set({ conversationsLoading: true })
       try {
         const conversations = await listConversations()
-        if (useAuthStore.getState().accessToken !== token) return
+        if (!sameSession()) return
         // Linha fora do formato (null, sem id, sem membros) não derruba a lista.
         const list = sanitizeConversations(conversations)
         // Não lidas vêm do servidor (sobrevivem ao reload); a aberta fica zerada.
@@ -44,7 +45,7 @@ export function chatListActions(
         if (ids.length > 0) await get().fetchPresenceFor(ids)
       } catch (err) {
         console.error('[chatStore] fetchConversations error:', err)
-        if (useAuthStore.getState().accessToken === token) set({ conversationsLoaded: true })
+        if (sameSession()) set({ conversationsLoaded: true })
       } finally {
         set({ conversationsLoading: false })
       }
@@ -52,10 +53,10 @@ export function chatListActions(
     fetchPresenceFor: async (userIds) => {
       const unique = Array.from(new Set(userIds.filter(Boolean)))
       if (unique.length === 0) return
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       try {
         const map: PresenceMap = await fetchPresence(unique)
-        if (useAuthStore.getState().accessToken !== token) return
+        if (!sameSession()) return
         const presence: Record<string, boolean> = {}
         const statuses: Record<string, PresenceStatus> = {}
         for (const [id, value] of Object.entries(map)) {
@@ -70,7 +71,7 @@ export function chatListActions(
         // Atividade vem à parte: backend antigo não tem a rota (erro = ignora).
         fetchActivities(unique)
           .then((activities) => {
-            if (useAuthStore.getState().accessToken !== token) return
+            if (!sameSession()) return
             usePresenceActivityStore.getState().applyFetched(unique, activities)
           })
           .catch(() => {})
@@ -81,10 +82,10 @@ export function chatListActions(
     fetchChannelsForServers: async (serverIds) => {
       const unique = Array.from(new Set(serverIds.filter(Boolean)))
       if (unique.length === 0) return
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       try {
         const results = await Promise.all(unique.map((id) => listChannels(id)))
-        if (useAuthStore.getState().accessToken !== token) return
+        if (!sameSession()) return
         const map: Record<string, string[]> = {}
         unique.forEach((id, i) => {
           map[id] = Array.isArray(results[i]) ? results[i].map((c) => c.id) : []

@@ -26,6 +26,7 @@ import {
 import type { WsEvent } from '../../../shared/api/ws'
 import { mergeProposal, moveProposal, restoreProposal } from '../lib/proposals'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { showToast } from '../../../shared/store/toastStore'
 
 interface ProposalState {
@@ -68,9 +69,6 @@ interface ProposalState {
   handleWsEvent: (event: WsEvent) => void
   reset: () => void
 }
-
-const isSameSession = (tokenAtStart: string | null): boolean =>
-  useAuthStore.getState().accessToken === tokenAtStart
 
 const lastSeenKey = (userId: string): string => `concord.proposals.lastSeen.${userId}`
 
@@ -135,11 +133,11 @@ export const useProposalStore = create<ProposalState>()((set, get) => {
     pendingMentions: [],
     commentsByProposal: {},
     fetchProposals: async () => {
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       if (!get().loaded && get().proposals.length === 0) set({ loading: true })
       try {
         const board = await listProposals()
-        if (!isSameSession(token)) return
+        if (!sameSession()) return
         set({
           proposals: Array.isArray(board.proposals) ? board.proposals : [],
           isTech: !!board.is_tech,
@@ -191,10 +189,10 @@ export const useProposalStore = create<ProposalState>()((set, get) => {
       set({ lastSeenAt: now })
     },
     fetchMentions: async () => {
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       try {
         const mentions = await listProposalMentions()
-        if (!isSameSession(token)) return
+        if (!sameSession()) return
         const first = get().pendingMentions.length === 0 && mentions.length > 0
         set({ pendingMentions: mentions })
         // Ao abrir o app: um aviso só para tudo que ficou pendente.
@@ -223,9 +221,9 @@ export const useProposalStore = create<ProposalState>()((set, get) => {
       }
     },
     loadComments: async (id) => {
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       const comments = await listProposalComments(id)
-      if (!isSameSession(token)) return
+      if (!sameSession()) return
       set({ commentsByProposal: { ...get().commentsByProposal, [id]: comments } })
     },
     addComment: async (id, body, mentions, replyToId = null, attachmentIds = []) => {

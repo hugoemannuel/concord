@@ -48,6 +48,8 @@ const conv = (id: string, members: string[], unread = 0) => ({
 beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
+  // Sem localStorage no teste: o persist do authStore só avisa.
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
   useAuthStore.getState().clear()
   useAuthStore.getState().setTokens('A', 'R1')
   useAuthStore.getState().setUser({ id: 'eu' } as User)
@@ -74,6 +76,16 @@ describe('fetchConversations', () => {
     await store.getState().fetchConversations()
     expect(store.getState().conversationsLoaded).toBe(true)
     expect(store.getState().conversationsLoading).toBe(false)
+  })
+
+  it('401 → refresh → sucesso no meio: a resposta vale (a lista não fica presa no skeleton)', async () => {
+    api.listConversations.mockImplementation(async () => {
+      useAuthStore.getState().setTokens('B', 'R2')
+      return [conv('c1', ['eu', 'ana'])]
+    })
+    await store.getState().fetchConversations()
+    expect(store.getState().conversations.map((c) => c.id)).toEqual(['c1'])
+    expect(store.getState().conversationsLoaded).toBe(true)
   })
 
   it('saiu da conta no meio: descarta a resposta e o erro', async () => {

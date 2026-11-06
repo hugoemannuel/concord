@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { WsClient, type WsEvent } from '../../../shared/api/ws'
 import type { CreatePollInput, Message, ExtraMessageData } from '../api/messages'
 import {
@@ -323,7 +324,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     openRooms.set(room, { loaded: false })
     client.subscribe(room)
     const fetch = getRoomFetch(room)
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     set((state) => {
       const channelId = room.startsWith('channel:') ? room.slice('channel:'.length) : null
       let unreadByServer = state.unreadByServer
@@ -349,7 +350,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     if (room.startsWith('conversation:')) markReadSoon(room.slice('conversation:'.length))
     try {
       const fetched = await fetch()
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       if (!openRooms.has(room)) return
       openRooms.set(room, { loaded: true })
       set((state) => withMessagePage(state, room, fetched))
@@ -389,10 +390,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     if (current.length === 0) return
     // A lista está em ordem (created_at, id): a primeira é a mais antiga.
     const before = current[0].id
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     try {
       const fetched = await fetch(before)
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       if (!openRooms.has(room)) return
       // Página vazia também encerra o histórico (total múltiplo da página),
       // senão o scroll infinito deixaria o topo "carregando" para sempre.
@@ -535,8 +536,8 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
   ...chatListActions(set, get),
 
   resyncAfterReconnect: async () => {
-    const token = useAuthStore.getState().accessToken
-    if (!token) return
+    if (!useAuthStore.getState().accessToken) return
+    const sameSession = sessionGuard()
     // As salas abertas (inclusive uma cuja primeira carga falhou), a ativa primeiro.
     const { activeRoom } = get()
     const rooms = [...openRooms.keys()].sort(
@@ -549,7 +550,7 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
       const knownBefore = newestMessage(get().messagesByRoom[room] ?? [])
       try {
         const latest = await getRoomFetch(room)()
-        if (useAuthStore.getState().accessToken !== token) return
+        if (!sameSession()) return
         const entry = openRooms.get(room)
         if (!entry) return // sala fechada enquanto buscava
         if (!loaded) {
@@ -587,7 +588,7 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
     }
 
     const refreshLists = async (): Promise<void> => {
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       const servers = useServerStore.getState()
       const currentServerId = servers.currentServer?.id
       await Promise.all([
