@@ -24,7 +24,7 @@ func (a *app) wireCalls() {
 	must(err, "invalid LiveKit address")
 
 	a.callService = call.CallService(call.CallRepository(a.db), a.hub, a.conversationService, a.serverService, a.channelService, a.userService, a.hub.IsOnline)
-	a.callService.SetSoundLookup(soundboard.NewCallLookup(a.soundboardRepository, a.soundboardRepository))
+	a.callService.SetSoundLookup(soundboard.NewCallLookup(a.soundboardRepository, a.soundboardRepository, a.permissionService))
 	a.callService.SetPermissions(a.permissionService)
 	a.liveKitAdmin = livekit.NewAdmin("http://127.0.0.1:"+a.liveKitPort, liveKitKey, liveKitSecret)
 	a.callService.SetMediaAdmin(a.liveKitAdmin)

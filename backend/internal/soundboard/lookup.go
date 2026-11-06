@@ -11,14 +11,22 @@ type favoriteChecker interface {
 	IsFavorite(ctx context.Context, userID, soundID string) (bool, error)
 }
 
-// CallLookup dá à chamada os sons e os favoritos (call.SoundLookup).
+// CallLookup dá à chamada os sons, os favoritos e quem é membro de onde
+// (call.SoundLookup).
 type CallLookup struct {
 	repo      soundRepo
 	favorites favoriteChecker
+	servers   serverChecker
 }
 
-func NewCallLookup(repo soundRepo, favorites favoriteChecker) *CallLookup {
-	return &CallLookup{repo: repo, favorites: favorites}
+func NewCallLookup(repo soundRepo, favorites favoriteChecker, servers serverChecker) *CallLookup {
+	return &CallLookup{repo: repo, favorites: favorites, servers: servers}
+}
+
+// IsMember: quem toca é membro do servidor do som (pode tocá-lo em outra
+// chamada, docs/adr/0058-sons-de-outros-servidores-na-mesa.md).
+func (l *CallLookup) IsMember(ctx context.Context, serverID, userID string) (bool, error) {
+	return l.servers.IsMember(ctx, serverID, userID)
 }
 
 func (l *CallLookup) IsFavorite(ctx context.Context, userID, soundID string) (bool, error) {

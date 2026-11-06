@@ -12,6 +12,12 @@ type fakeSoundLookup struct {
 	sounds map[string]SoundInfo
 	// favorites: "usuário:som" favoritados.
 	favorites map[string]bool
+	// members: "usuário:servidor" de quem é membro.
+	members map[string]bool
+}
+
+func (f fakeSoundLookup) IsMember(_ context.Context, serverID, userID string) (bool, error) {
+	return f.members[userID+":"+serverID], nil
 }
 
 func (f fakeSoundLookup) IsFavorite(_ context.Context, userID, soundID string) (bool, error) {
@@ -139,5 +145,38 @@ func TestTriggerSoundboardFavoriteFromOtherServer(t *testing.T) {
 	}
 	if err := svc.TriggerSoundboard(ctx, "call-1", "u2", "fora"); !errors.Is(err, ErrSoundNotFound) {
 		t.Fatalf("sem favorito: err = %v, want ErrSoundNotFound", err)
+	}
+}
+
+// Som de outro servidor toca para quem é membro de lá (como figurinha e emoji
+// de outros servidores, ADR 0058); de quem não é, continua recusado.
+func TestTriggerSoundboardFromMemberServer(t *testing.T) {
+	pub := newCapPublisher()
+	svc := CallService(nil, pub, nil, nil, nil, nil, nil)
+	svc.lookupUser = func(_ context.Context, uid string) (UserInfo, error) {
+		return UserInfo{ID: uid}, nil
+	}
+	svc.SetSoundLookup(fakeSoundLookup{
+		sounds:  map[string]SoundInfo{"fora": {ID: "fora", ServerID: "srv-other", Name: "Outro"}},
+		members: map[string]bool{"u1:srv-other": true},
+	})
+	srvID, chID := "srv-1", "ch-1"
+	svc.calls["call-1"] = &activeCall{
+		info: &Call{ID: "call-1", Type: TypeChannel, ServerID: &srvID, ChannelID: &chID, Status: StatusActive},
+		participants: map[string]*participantState{
+			"u1": {userID: "u1", role: RoleMember, joinedAt: time.Now()},
+			"u2": {userID: "u2", role: RoleMember, joinedAt: time.Now()},
+		},
+	}
+	ctx := context.Background()
+
+	if err := svc.TriggerSoundboard(ctx, "call-1", "u1", "fora"); err != nil {
+		t.Fatalf("som de servidor de que é membro devia tocar: %v", err)
+	}
+	if len(pub.callEvents["call-1"]) != 1 {
+		t.Fatalf("eventos = %d, want 1", len(pub.callEvents["call-1"]))
+	}
+	if err := svc.TriggerSoundboard(ctx, "call-1", "u2", "fora"); !errors.Is(err, ErrSoundNotFound) {
+		t.Fatalf("quem não é membro da origem: err = %v, want ErrSoundNotFound", err)
 	}
 }

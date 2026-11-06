@@ -1,5 +1,6 @@
 import type { SoundboardItem } from '../api/soundboard'
 import { FavoriteStarIcon, SoundboardIcon, TrashIcon } from '../../../shared/ui/icons'
+import { previewKeyProps } from '../../emojis/lib/gridNav'
 
 /** Depois da duração: o servidor de origem (favorito de fora) ou quem enviou. */
 function subtitleSuffix(sound: SoundboardItem, origin?: string): string {
@@ -47,6 +48,7 @@ export default function SoundPad({
         onClick={onTrigger}
         className="flex w-full cursor-pointer items-center gap-2.5 text-left"
         title={`Tocar "${sound.name}" para todos na chamada`}
+        {...previewKeyProps(sound.id)}
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-input text-ds-lg">
           {sound.emoji || <SoundboardIcon size={20} className="text-muted" />}

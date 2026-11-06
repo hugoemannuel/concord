@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useCallStore } from '../store/callStore'
 import { useSoundboardStore } from '../store/soundboardStore'
 import { useSoundFavoritesStore } from '../store/soundFavoritesStore'
-import { findSoundForShortcut } from '../lib/soundboardSections'
+import { allServerSounds, findSoundForShortcut } from '../lib/soundboardSections'
 
 const MODIFIER_ONLY_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta'])
 
@@ -44,15 +44,15 @@ export function channelCallServer(
 }
 
 /**
- * O som do atalho apertado: entre os do servidor da chamada e os favoritos
- * (que podem ser de outro servidor). Nada se a tecla repete ou cai num campo.
+ * O som do atalho apertado: entre os dos servidores da pessoa (o da chamada
+ * primeiro) e os favoritos. Nada se a tecla repete ou cai num campo.
  */
 export function soundForKeyEvent(e: KeyboardEvent, serverId: string): { id: string } | undefined {
   if (e.repeat || isEditableElement(e.target)) return undefined
   const shortcut = formatKeyboardShortcut(e)
   if (!shortcut) return undefined
   const { keybinds, soundsByServer } = useSoundboardStore.getState()
-  const sounds = [...(soundsByServer[serverId] ?? []), ...useSoundFavoritesStore.getState().favorites]
+  const sounds = [...allServerSounds(soundsByServer, serverId), ...useSoundFavoritesStore.getState().favorites]
   return findSoundForShortcut(shortcut, keybinds, sounds)
 }
 
