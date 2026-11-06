@@ -90,10 +90,14 @@ describe('profileCardView', () => {
     expect(v.status).toBe('online')
   })
 
-  it('bot está sempre online', () => {
-    const v = profileCardView(input({ profile: profile({ is_bot: true, status: 'offline' }) }))
-    expect(v.isBot).toBe(true)
-    expect(v.status).toBe('online')
+  it('bot segue o status do servidor, como qualquer pessoa (o backend o manda online)', () => {
+    const online = profileCardView(input({ profile: profile({ is_bot: true, status: 'online' }) }))
+    expect(online.isBot).toBe(true)
+    expect(online.status).toBe('online')
+    const known = profileCardView(
+      input({ profile: profile({ is_bot: true, status: 'online' }), knownStatus: 'offline' })
+    )
+    expect(known.status).toBe('offline')
   })
 
   it('status: o do websocket, depois o do perfil, depois a presença', () => {

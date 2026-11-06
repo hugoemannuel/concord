@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"gin-quickstart/backend/internal/bot"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/database"
 	"gin-quickstart/backend/internal/platform/ratelimit"
@@ -198,6 +199,20 @@ func TestCountOnlineIgnoresOfflineAndInvisible(t *testing.T) {
 	}
 	if got := countOnline([]string{"a"}, nil); got != 0 {
 		t.Errorf("sem presença: countOnline = %d, want 0", got)
+	}
+}
+
+// O Maestro aparece online, mas a prévia do convite conta só pessoas.
+func TestCountOnlineIgnoresBots(t *testing.T) {
+	presence := func(ids []string) map[string]string {
+		out := map[string]string{}
+		for _, id := range ids {
+			out[id] = "online"
+		}
+		return out
+	}
+	if got := countOnline([]string{"a", bot.UserID}, presence); got != 1 {
+		t.Errorf("countOnline = %d, want 1", got)
 	}
 }
 

@@ -100,8 +100,7 @@ export const MemberRow = memo(function MemberRow({
           decorationUrl={look.decorationUrl}
           active={hover.active}
           size={32}
-          // O Maestro não tem websocket: está sempre online.
-          status={isBot ? 'online' : status}
+          status={status}
           cutoutColor="var(--bg-members)"
           fallbackClassName={colorClass}
         />
@@ -170,19 +169,15 @@ export function ServerMemberGroups({ server }: { server: Server }): React.JSX.El
   const roles = useServerStore((s) => s.roles)
   const presence = useChatStore((s) => s.presence)
 
-  // O Maestro não tem websocket: está sempre online.
-  const botIds = useMemo(
-    () => new Set(currentMembers.filter((m) => m.is_bot).map((m) => m.user_id)),
-    [currentMembers]
-  )
+  // Os bots o servidor já manda online na presença.
   const memberGroups = useMemo(
     () =>
       groupMembers({
         members: currentMembers,
         roles,
-        isOnline: (userId) => Boolean(presence[userId]) || botIds.has(userId)
+        isOnline: (userId) => Boolean(presence[userId])
       }),
-    [currentMembers, roles, presence, botIds]
+    [currentMembers, roles, presence]
   )
 
   return (

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/audit"
+	"gin-quickstart/backend/internal/bot"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/user"
 
@@ -154,14 +155,15 @@ func validInviteCode(code string) bool {
 	return true
 }
 
-// countOnline conta quem os outros veem como online (invisível não conta).
+// countOnline conta quem os outros veem como online (invisível não conta). Os
+// bots aparecem sempre online, mas a prévia conta só pessoas.
 func countOnline(userIDs []string, presence PresenceLookup) int {
 	if presence == nil || len(userIDs) == 0 {
 		return 0
 	}
 	online := 0
-	for _, status := range presence(userIDs) {
-		if status != user.StatusOffline {
+	for id, status := range presence(userIDs) {
+		if status != user.StatusOffline && !bot.IsBot(id) {
 			online++
 		}
 	}
