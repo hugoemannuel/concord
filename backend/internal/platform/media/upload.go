@@ -19,22 +19,20 @@ type UploadSpec struct {
 	// Cap: também corta a leitura em Limit (http.MaxBytesReader), para o
 	// corpo sem Content-Length não passar do limite.
 	Cap bool
+	// SizeFirst: confere o Content-Length antes do espaço em disco.
+	SizeFirst bool
+	// FixedRoom: reserva sempre Room no disco, mesmo com Content-Length.
+	FixedRoom bool
 }
 
 // OpenUpload confere o corpo de r antes de lê-lo e devolve o leitor das
 // partes. Recusas, nesta ordem: syscall.ENOSPC (o Content-Length, ou
 // spec.Room sem ele, não cabe no disco), ErrTooLarge (Content-Length acima de
-// spec.Limit) e ErrNotMultipart.
+// spec.Limit) e ErrNotMultipart. spec.SizeFirst e spec.FixedRoom mudam as
+// duas primeiras.
 func OpenUpload(w http.ResponseWriter, r *http.Request, space Room, spec UploadSpec) (*multipart.Reader, error) {
-	incoming := r.ContentLength
-	if incoming < 0 {
-		incoming = spec.Room
-	}
-	if !space.HasRoom(incoming) {
-		return nil, syscall.ENOSPC
-	}
-	if r.ContentLength > spec.Limit {
-		return nil, ErrTooLarge
+	if err := spec.checkBody(r.ContentLength, space); err != nil {
+		return nil, err
 	}
 	if spec.Cap {
 		r.Body = http.MaxBytesReader(w, r.Body, spec.Limit)
@@ -44,6 +42,30 @@ func OpenUpload(w http.ResponseWriter, r *http.Request, space Room, spec UploadS
 		return nil, ErrNotMultipart
 	}
 	return reader, nil
+}
+
+// checkBody: o corpo de length bytes cabe no limite e no disco?
+func (spec UploadSpec) checkBody(length int64, space Room) error {
+	tooLarge := length > spec.Limit
+	if spec.SizeFirst && tooLarge {
+		return ErrTooLarge
+	}
+	if !space.HasRoom(spec.room(length)) {
+		return syscall.ENOSPC
+	}
+	if tooLarge {
+		return ErrTooLarge
+	}
+	return nil
+}
+
+// room: quanto reservar no disco para um corpo de length bytes (-1 = sem
+// Content-Length).
+func (spec UploadSpec) room(length int64) int64 {
+	if length < 0 || spec.FixedRoom {
+		return spec.Room
+	}
+	return length
 }
 
 // UploadErrors é a resposta de cada recusa conhecida de um upload (do
