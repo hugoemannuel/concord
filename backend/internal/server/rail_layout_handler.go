@@ -16,25 +16,6 @@ func NewRailLayoutHandler(service *RailLayoutService) *RailLayoutHandler {
 	return &RailLayoutHandler{service: service}
 }
 
-func (h *Handler) railLayoutService() *RailLayoutService {
-	var pub UserEventPublisher
-	if h.service != nil {
-		if p, ok := h.service.publisher.(UserEventPublisher); ok {
-			pub = p
-		}
-		return NewRailLayoutService(h.service.repository, pub)
-	}
-	return nil
-}
-
-func (h *Handler) GetRailLayout(c *gin.Context) {
-	NewRailLayoutHandler(h.railLayoutService()).Get(c)
-}
-
-func (h *Handler) SetRailLayout(c *gin.Context) {
-	NewRailLayoutHandler(h.railLayoutService()).Put(c)
-}
-
 // Get: GET /users/me/server-layout
 func (h *RailLayoutHandler) Get(c *gin.Context) {
 	items, err := h.service.Get(c.Request.Context(), c.GetString("userID"))

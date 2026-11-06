@@ -2,7 +2,6 @@ package badge
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sort"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -202,7 +202,7 @@ func (s *Service) announce(userID string, saved []Unlock) {
 	sort.SliceStable(ev.Unlocks, func(i, j int) bool {
 		return rarityRank(ev.Unlocks[i].Rarity) > rarityRank(ev.Unlocks[j].Rarity)
 	})
-	s.publisher.SendToUser(userID, marshalEvent("badge:unlock", ev))
+	s.publisher.SendToUser(userID, wsevent.Marshal("badge:unlock", ev))
 }
 
 func rarityRank(r string) int {
@@ -319,15 +319,4 @@ func (s *Service) tick(ctx context.Context, now time.Time) {
 		touched[userID] = true
 	}
 	s.syncAll(ctx, touched)
-}
-
-func marshalEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/audit"
+	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,19 +25,18 @@ func (h *Handler) Move(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
 	from, _ := h.moderator.VoiceLocationOf(input.UserID)
-	call, err := h.moderator.MoveToChannel(c.Request.Context(), userID.(string), input.UserID, input.ChannelID)
+	call, err := h.moderator.MoveToChannel(c.Request.Context(), userID, input.UserID, input.ChannelID)
 	if err != nil {
 		c.JSON(mapMoveError(err), gin.H{"error": err.Error()})
 		return
 	}
-	h.recordMove(c.Request.Context(), userID.(string), input.UserID, from, call)
+	h.recordMove(c.Request.Context(), userID, input.UserID, from, call)
 
 	c.JSON(http.StatusOK, call)
 }
@@ -101,34 +101,32 @@ func (h *Handler) serverVoice(c *gin.Context, action audit.Action, field string,
 	} else {
 		on = *input.Deafened
 	}
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 	callID, targetID := c.Param("id"), c.Param("userId")
-	if err := apply(c.Request.Context(), callID, userID.(string), targetID, on); err != nil {
+	if err := apply(c.Request.Context(), callID, userID, targetID, on); err != nil {
 		respondModeration(c, err)
 		return
 	}
-	h.recordVoice(c.Request.Context(), userID.(string), callID, targetID, action, audit.Change{Field: field, After: on})
+	h.recordVoice(c.Request.Context(), userID, callID, targetID, action, audit.Change{Field: field, After: on})
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // Disconnect: DELETE /calls/:id/participants/:userId (MOVE_MEMBERS).
 func (h *Handler) Disconnect(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 	callID, targetID := c.Param("id"), c.Param("userId")
 	// O lugar sai antes: depois de desconectar, a pessoa não está mais na call.
 	loc, inCall := h.callLocation(callID, targetID)
-	if err := h.moderator.DisconnectParticipant(c.Request.Context(), callID, userID.(string), targetID); err != nil {
+	if err := h.moderator.DisconnectParticipant(c.Request.Context(), callID, userID, targetID); err != nil {
 		respondModeration(c, err)
 		return
 	}
-	h.recordAt(c.Request.Context(), userID.(string), targetID, audit.VoiceDisconnect, loc, inCall)
+	h.recordAt(c.Request.Context(), userID, targetID, audit.VoiceDisconnect, loc, inCall)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

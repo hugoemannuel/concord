@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 	_ "time/tzdata" // fuso de Brasília também no Windows e em contêineres sem tzdata
+
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -170,7 +172,7 @@ func (s *Scheduler) announce(serverID, eventID string) {
 	if s.pub == nil {
 		return
 	}
-	s.pub.BroadcastToRoom("server:"+serverID, marshalEvent("event:update", map[string]string{
+	s.pub.BroadcastToRoom("server:"+serverID, wsevent.Marshal("event:update", map[string]string{
 		"server_id": serverID,
 		"event_id":  eventID,
 	}))

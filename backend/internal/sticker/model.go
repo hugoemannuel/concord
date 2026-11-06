@@ -1,7 +1,6 @@
 package sticker
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -79,15 +78,4 @@ func sanitizeName(raw string) (string, error) {
 		return "", ErrInvalidName
 	}
 	return clean, nil
-}
-
-func marshalEvent(typ string, payload any) []byte {
-	data, err := json.Marshal(map[string]any{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
 }

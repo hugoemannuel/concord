@@ -10,26 +10,12 @@ import MessageAttachments from './MessageAttachments'
 import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
 import { PinnedListSkeleton } from '../../../shared/ui/skeleton/layouts'
+import { formatMessageDateTime } from '../lib/messageDateTime'
 
 interface PinnedMessagesPopoverProps {
   channelId: string
   canModerate: boolean
   onClose: () => void
-}
-
-function formatDateTime(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return iso
-  }
 }
 
 function PinnedMessageItem({
@@ -77,7 +63,7 @@ function PinnedMessageItem({
           >
             {authorName}
           </span>
-          <span className="text-ds-xs text-faint">{formatDateTime(pin.created_at)}</span>
+          <span className="text-ds-xs text-faint">{formatMessageDateTime(pin.created_at)}</span>
         </div>
 
         <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
@@ -133,7 +119,7 @@ function PinnedMessageItem({
         <PinIcon className="h-3 w-3 text-warning/80" />
         <span>
           Fixado por <strong className="text-muted">{pinnedByName}</strong> em{' '}
-          {formatDateTime(pin.pinned_at)}
+          {formatMessageDateTime(pin.pinned_at)}
         </span>
       </div>
     </div>

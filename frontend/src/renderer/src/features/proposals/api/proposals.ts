@@ -1,7 +1,6 @@
-import { API_BASE_URL } from '../../../shared/lib/config'
-import { useAuthStore } from '../../auth/store/authStore'
-import { uploadTo, type UploadMeta, type UploadOptions as MediaUploadOptions } from '../../chat/api/attachments'
-import { ApiError, refreshTokens, request } from '../../../shared/api/client'
+import { uploadMedia, type UploadMeta } from '../../chat/api/attachments'
+import { request } from '../../../shared/api/client'
+import { uploadTo, type UploadOptions } from '../../../shared/api/upload'
 import type { Attachment } from '../../chat/api/messages'
 
 export type ProposalStatus = 'voting' | 'proposed' | 'in_progress' | 'done' | 'rejected'
@@ -225,9 +224,9 @@ export function unreactProposalComment(
 export function uploadCommentAttachment(
   file: Blob,
   meta: UploadMeta,
-  opts: MediaUploadOptions = {}
+  opts: UploadOptions = {}
 ): Promise<ProposalAttachment> {
-  return uploadTo<ProposalAttachment>('/proposal-comment-media', file, meta, opts)
+  return uploadMedia<ProposalAttachment>('/proposal-comment-media', file, meta, opts)
 }
 
 export function updateProposalComment(
@@ -258,80 +257,14 @@ export function markProposalMentionsSeen(proposalId?: string): Promise<void> {
   })
 }
 
-interface UploadOptions {
-  onProgress?: (fraction: number) => void
-  signal?: AbortSignal
-}
-
 /**
  * Sobe uma imagem (fica "pendente" até a proposta ser criada ou editada com o
- * id dela). XMLHttpRequest pelo progresso de envio, como em uploadAttachment.
+ * id dela). Progresso, cancelamento e renovação do token: ver uploadTo.
  */
-export async function uploadProposalImage(
+export function uploadProposalImage(
   file: Blob,
   filename: string,
   opts: UploadOptions = {}
 ): Promise<ProposalImage> {
-  const token = useAuthStore.getState().accessToken
-  try {
-    return await sendUpload(file, filename, opts, token)
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401 && token && (await refreshTokens(token))) {
-      return sendUpload(file, filename, opts, useAuthStore.getState().accessToken)
-    }
-    throw err
-  }
-}
-
-function sendUpload(
-  file: Blob,
-  filename: string,
-  { onProgress, signal }: UploadOptions,
-  token: string | null
-): Promise<ProposalImage> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new ApiError(0, 'aborted'))
-      return
-    }
-
-    const form = new FormData()
-    form.append('file', file, filename)
-
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${API_BASE_URL}/proposal-media`)
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-
-    const onAbort = (): void => xhr.abort()
-    signal?.addEventListener('abort', onAbort)
-    const done = (): void => signal?.removeEventListener('abort', onAbort)
-
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable && e.total > 0) onProgress?.(e.loaded / e.total)
-    })
-    xhr.onload = () => {
-      done()
-      let body: unknown = {}
-      try {
-        body = JSON.parse(xhr.responseText)
-      } catch {
-        // corpo vazio ou não-JSON
-      }
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body as ProposalImage)
-      } else {
-        const { error, code } = body as { error?: string; code?: string }
-        reject(new ApiError(xhr.status, error ?? 'Upload failed', code))
-      }
-    }
-    xhr.onerror = () => {
-      done()
-      reject(new ApiError(0, 'Network error'))
-    }
-    xhr.onabort = () => {
-      done()
-      reject(new ApiError(0, 'aborted'))
-    }
-    xhr.send(form)
-  })
+  return uploadTo<ProposalImage>('/proposal-media', { files: [{ field: 'file', blob: file, filename }] }, opts)
 }

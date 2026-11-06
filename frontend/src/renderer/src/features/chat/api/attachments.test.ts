@@ -3,64 +3,7 @@ import { API_BASE_URL } from '../../../shared/lib/config'
 import { useAuthStore } from '../../auth/store/authStore'
 import { uploadAttachment } from './attachments'
 import { ApiError } from '../../../shared/api/client'
-
-/** XMLHttpRequest de mentira: guarda o pedido e responde quando o teste mandar. */
-class FakeXhr {
-  static last: FakeXhr | null = null
-  method = ''
-  url = ''
-  headers: Record<string, string> = {}
-  body: FormData | null = null
-  status = 0
-  responseText = ''
-  onload: (() => void) | null = null
-  onerror: (() => void) | null = null
-  onabort: (() => void) | null = null
-  private progressListeners: ((e: {
-    lengthComputable: boolean
-    loaded: number
-    total: number
-  }) => void)[] = []
-  upload = {
-    addEventListener: (
-      _type: string,
-      fn: (e: { lengthComputable: boolean; loaded: number; total: number }) => void
-    ) => {
-      this.progressListeners.push(fn)
-    }
-  }
-
-  constructor() {
-    FakeXhr.last = this
-  }
-
-  open(method: string, url: string): void {
-    this.method = method
-    this.url = url
-  }
-
-  setRequestHeader(name: string, value: string): void {
-    this.headers[name] = value
-  }
-
-  send(body: FormData): void {
-    this.body = body
-  }
-
-  abort(): void {
-    this.onabort?.()
-  }
-
-  respond(status: number, body: unknown): void {
-    this.status = status
-    this.responseText = JSON.stringify(body)
-    this.onload?.()
-  }
-
-  progress(loaded: number, total: number): void {
-    for (const fn of this.progressListeners) fn({ lengthComputable: true, loaded, total })
-  }
-}
+import { FakeXhr } from '../../../shared/api/fakeXhr'
 
 describe('uploadAttachment', () => {
   beforeEach(() => {

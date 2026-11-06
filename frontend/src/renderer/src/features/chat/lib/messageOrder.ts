@@ -40,8 +40,33 @@ export function compareMessages(a: OrderedMessage, b: OrderedMessage): number {
  */
 export function mergeMessages<T extends OrderedMessage>(existing: T[], incoming: T[]): T[] {
   if (incoming.length === 0) return existing
+  const fast = incoming.length === 1 ? mergeOne(existing, incoming[0]) : null
+  if (fast) return fast
   const byId = new Map<string, T>()
   for (const m of existing) byId.set(m.id, m)
   for (const m of incoming) byId.set(m.id, m)
   return [...byId.values()].sort(compareMessages)
+}
+
+/** Posição do id na lista, procurando do fim (repetidas costumam ser recentes); -1 se não está. */
+function lastIndexOfId(list: OrderedMessage[], id: string): number {
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].id === id) return i
+  }
+  return -1
+}
+
+/**
+ * Atalhos do caso comum, uma mensagem ao vivo, sem Map nem sort da sala toda:
+ * cópia idêntica de uma que já está (o evento do canal chega duas vezes) devolve
+ * a mesma lista; nova e depois da última vai para o fim. Fora disso, null.
+ */
+function mergeOne<T extends OrderedMessage>(existing: T[], msg: T): T[] | null {
+  const at = lastIndexOfId(existing, msg.id)
+  if (at >= 0) {
+    const same = existing[at] === msg || JSON.stringify(existing[at]) === JSON.stringify(msg)
+    return same ? existing : null
+  }
+  const last = existing[existing.length - 1]
+  return !last || compareMessages(last, msg) < 0 ? [...existing, msg] : null
 }

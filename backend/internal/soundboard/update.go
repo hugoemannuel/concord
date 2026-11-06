@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/audit"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/gin-gonic/gin"
 )
@@ -59,7 +60,7 @@ func updateErrorStatus(err error) int {
 
 func (h *Handler) publishUpdate(c *gin.Context, actorID string, before, after *Sound) {
 	if h.publisher != nil {
-		h.publisher.BroadcastToRoom("server:"+after.ServerID, marshalEvent("soundboard:updated", UpdatedEvent{ServerID: after.ServerID, Sound: *after}))
+		h.publisher.BroadcastToRoom("server:"+after.ServerID, wsevent.Marshal("soundboard:updated", UpdatedEvent{ServerID: after.ServerID, Sound: *after}))
 	}
 	changes := audit.Diff(nil, "name", before.Name, after.Name)
 	changes = audit.DiffPtr(changes, "emoji", before.Emoji, after.Emoji)

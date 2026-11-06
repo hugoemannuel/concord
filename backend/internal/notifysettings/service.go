@@ -2,11 +2,11 @@ package notifysettings
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"time"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 type store interface {
@@ -100,10 +100,7 @@ func (s *Service) publish(userID, scope, id string, settings Settings) {
 	if s.publisher == nil {
 		return
 	}
-	data, err := json.Marshal(map[string]any{
-		"type":    "notification-settings:update",
-		"payload": map[string]any{"scope": scope, "id": id, "settings": settings},
-	})
+	data, err := wsevent.Encode("notification-settings:update", map[string]any{"scope": scope, "id": id, "settings": settings})
 	if err != nil {
 		log.Printf("[notifysettings] publish: %v", err)
 		return

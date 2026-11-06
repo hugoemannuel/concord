@@ -8,7 +8,9 @@ import (
 	"mime"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/gin-gonic/gin"
 )
@@ -79,15 +81,14 @@ func NewHandler(
 }
 
 func (h *Handler) List(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 	serverID := c.Param("id")
 	ctx := c.Request.Context()
 
-	isMember, err := h.servers.IsMember(ctx, serverID, userID.(string))
+	isMember, err := h.servers.IsMember(ctx, serverID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check membership"})
 		return
@@ -144,7 +145,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	if h.publisher != nil {
-		h.publisher.BroadcastToRoom("server:"+serverID, marshalEvent("sticker:deleted", DeletedEvent{
+		h.publisher.BroadcastToRoom("server:"+serverID, wsevent.Marshal("sticker:deleted", DeletedEvent{
 			ServerID:  serverID,
 			StickerID: stk.ID,
 		}))

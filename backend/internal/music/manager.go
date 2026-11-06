@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -13,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -135,10 +136,8 @@ func binariesPresent(cfg Config) bool {
 
 func (m *Manager) Available() bool { return m.available }
 
-func event(typ string, payload any) []byte {
-	b, _ := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	return b
-}
+// event monta o envelope dos eventos (platform/wsevent).
+var event = wsevent.Marshal
 
 func (m *Manager) reply(userID, textChannelID, text string) {
 	m.deps.SendToUser(userID, event("music:reply", map[string]string{"channel_id": textChannelID, "text": text}))

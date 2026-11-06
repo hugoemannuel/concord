@@ -208,7 +208,7 @@ Notas:
 
 O app avisa o renderer do foco/visibilidade da janela pelo IPC `window:activity`
 (com o throttling desligado em chamada a própria página não sabe), guardado no
-`shared/store/windowActivityStore.ts` (`useInBackground`, `useWindowHidden`).
+`shared/store/windowActivityStore.ts` (`useInBackground`).
 Código novo que desenha em laço (canvas, rAF, vídeo) deve consultar esse store.
 
 ## Ficou de fora

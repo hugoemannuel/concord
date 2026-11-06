@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/audit"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/google/uuid"
 )
@@ -212,7 +213,7 @@ func (s *Service) requireMember(ctx context.Context, serverID, userID string) er
 
 func (s *Service) broadcast(serverID, typ string, payload any) {
 	if s.pub != nil {
-		s.pub.BroadcastToRoom("server:"+serverID, marshalEvent(typ, payload))
+		s.pub.BroadcastToRoom("server:"+serverID, wsevent.Marshal(typ, payload))
 	}
 }
 

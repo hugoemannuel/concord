@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -22,13 +24,12 @@ func LevelHandler(service *Service) *Handler {
 
 // GetMe devolve o nível de quem está logado.
 func (h *Handler) GetMe(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	id := userID.(string)
+	id := userID
 	levels, err := h.service.FindByUserIDs(c.Request.Context(), []string{id})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load level"})

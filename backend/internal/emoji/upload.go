@@ -8,7 +8,6 @@ import (
 	"gin-quickstart/backend/internal/audit"
 	"log"
 	"net/http"
-	"syscall"
 
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/media"
@@ -109,10 +108,10 @@ func (h *Handler) checkUploader(ctx context.Context, serverID, userID string) *u
 // checkBody recusa corpo grande demais ou sem espaço em disco.
 func (h *Handler) checkBody(c *gin.Context) *uploadErr {
 	if c.Request.ContentLength > MaxEmojiBytes+multipartOverhead {
-		return fail(http.StatusRequestEntityTooLarge, ErrTooLarge)
+		return formErrors.TooLarge
 	}
 	if !h.space.HasRoom(MaxEmojiBytes) {
-		return fail(http.StatusInsufficientStorage, errors.New("server out of space"))
+		return formErrors.NoSpace
 	}
 	return nil
 }
@@ -120,7 +119,7 @@ func (h *Handler) checkBody(c *gin.Context) *uploadErr {
 func (h *Handler) readForm(c *gin.Context, id string) (media.Form, *uploadErr) {
 	reader, err := c.Request.MultipartReader()
 	if err != nil {
-		return media.Form{}, fail(http.StatusBadRequest, errors.New("multipart/form-data required"))
+		return media.Form{}, formErrors.NotMultipart
 	}
 	form, err := h.store.ReadForm(reader, media.FormSpec{
 		ID:       id,
@@ -134,20 +133,21 @@ func (h *Handler) readForm(c *gin.Context, id string) (media.Form, *uploadErr) {
 	return form, nil
 }
 
+// formErrors: a resposta de cada recusa do upload.
+var formErrors = media.UploadErrors[*uploadErr]{
+	MissingFile:  fail(http.StatusBadRequest, errors.New("image file is required")),
+	BadForm:      fail(http.StatusBadRequest, errors.New("invalid multipart body")),
+	NotMultipart: fail(http.StatusBadRequest, errors.New("multipart/form-data required")),
+	TooLarge:     fail(http.StatusRequestEntityTooLarge, ErrTooLarge),
+	NoSpace:      fail(http.StatusInsufficientStorage, errors.New("server out of space")),
+}
+
 func formError(err error) *uploadErr {
-	switch {
-	case errors.Is(err, media.ErrMissingFile):
-		return fail(http.StatusBadRequest, errors.New("image file is required"))
-	case errors.Is(err, media.ErrBadForm):
-		return fail(http.StatusBadRequest, errors.New("invalid multipart body"))
-	case errors.Is(err, media.ErrTooLarge):
-		return fail(http.StatusRequestEntityTooLarge, ErrTooLarge)
-	case errors.Is(err, syscall.ENOSPC):
-		return fail(http.StatusInsufficientStorage, errors.New("server out of space"))
-	default:
-		log.Printf("emoji save failed: %v", err)
-		return fail(http.StatusInternalServerError, errors.New("failed to save file"))
+	if ue, ok := formErrors.For(err); ok {
+		return ue
 	}
+	log.Printf("emoji save failed: %v", err)
+	return fail(http.StatusInternalServerError, errors.New("failed to save file"))
 }
 
 // fillEmoji valida o nome e o tipo da imagem e preenche o emoji.

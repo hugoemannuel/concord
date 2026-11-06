@@ -93,14 +93,3 @@ func TestRailLayoutHandlerGetAndPut(t *testing.T) {
 		t.Errorf("PUT erro store code = %d, want 500", w.Code)
 	}
 }
-
-func TestServerRoutesRegistersRailLayout(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	pass := func(c *gin.Context) { c.Next() }
-	h := &Handler{service: &Service{}}
-	ServerRoutes(r.Group("/api"), h, pass, pass, pass)
-	if h.railLayoutService() == nil {
-		t.Fatal("railLayoutService deve existir quando h.service != nil")
-	}
-}

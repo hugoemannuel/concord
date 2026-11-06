@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"gin-quickstart/backend/internal/platform/database"
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/database"
 	"gin-quickstart/backend/internal/platform/ratelimit"
 
 	"github.com/gin-gonic/gin"
@@ -49,7 +49,7 @@ func previewRouter(previewer InvitePreviewer, limiter *ratelimit.Limiter) *gin.E
 	gin.SetMode(gin.TestMode)
 	h := &Handler{previews: previewer}
 	router := gin.New()
-	router.GET("/invites/:id/preview", limitByIP(limiter, "too many requests"), asUser, h.InvitePreview)
+	router.GET("/invites/:id/preview", ratelimit.ByIP(limiter, "too many requests"), asUser, h.InvitePreview)
 	return router
 }
 

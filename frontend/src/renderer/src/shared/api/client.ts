@@ -32,26 +32,28 @@ export class ApiError extends Error {
   }
 }
 
-async function rawRequest<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+export interface RequestOptions extends RequestInit {
+  /** Limite do pedido em ms (padrão 15 s); 0 tira o limite (upload grande). */
+  timeoutMs?: number
+}
+
+const REQUEST_TIMEOUT_MS = 15_000
+
+/** JSON leva Content-Type; FormData não (o navegador põe o boundary do multipart). */
+function requestHeaders(options: RequestInit, token?: string): Record<string, string> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string> | undefined)
   }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return headers
+}
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 15000)
-
-  let response: Response
+  const timeout = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : undefined
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
-      headers,
-      signal: controller.signal
-    })
+    return await fetch(url, { ...init, signal: controller.signal })
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw new ApiError(0, 'Request timed out')
@@ -60,6 +62,12 @@ async function rawRequest<T>(path: string, options: RequestInit = {}, token?: st
   } finally {
     clearTimeout(timeout)
   }
+}
+
+async function rawRequest<T>(path: string, options: RequestOptions = {}, token?: string): Promise<T> {
+  const { timeoutMs = REQUEST_TIMEOUT_MS, ...init } = options
+  const headers = requestHeaders(init, token)
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, { ...init, headers }, timeoutMs)
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
@@ -182,7 +190,7 @@ function clearSession(): Promise<void> {
   return runExclusive(locks(), REFRESH_LOCK, async () => useAuthStore.getState().clear())
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { accessToken } = useAuthStore.getState()
 
   try {

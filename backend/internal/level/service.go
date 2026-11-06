@@ -2,12 +2,12 @@ package level
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sync"
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 // De quanto em quanto tempo o serviço olha quem está em call. O XP só é dado
@@ -158,13 +158,13 @@ func (s *Service) give(ctx context.Context, g grant) {
 	}
 
 	progress := newProgress(userID, totalXP, totalSeconds)
-	s.publisher.SendToUser(userID, marshalEvent("level:update", progress))
+	s.publisher.SendToUser(userID, wsevent.Marshal("level:update", progress))
 
 	previous, _, _ := FromXP(totalXP - xp)
 	if progress.Level == previous {
 		return
 	}
-	event := marshalEvent("level:up", LevelUpEvent{
+	event := wsevent.Marshal("level:up", LevelUpEvent{
 		UserID:        userID,
 		Level:         progress.Level,
 		PreviousLevel: previous,
@@ -203,21 +203,10 @@ func (s *Service) publishBoosts(boosts map[string]callBoost) {
 	s.mu.Unlock()
 
 	for _, e := range events {
-		s.publisher.BroadcastToCall(e.CallID, marshalEvent("voice:boost", e))
+		s.publisher.BroadcastToCall(e.CallID, wsevent.Marshal("voice:boost", e))
 	}
 }
 
 func (s *Service) FindByUserIDs(ctx context.Context, userIDs []string) (map[string]Progress, error) {
 	return s.repository.FindByUserIDs(ctx, userIDs)
-}
-
-func marshalEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
 }

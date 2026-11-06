@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useMemo, useState } from 'react'
 import type { SoundboardItem } from '../api/soundboard'
 import { useAuthStore } from '../../auth/store/authStore'
@@ -125,7 +126,7 @@ function SoundboardSoundsPanel({
 
   const handleToggleFavorite = (sound: SoundboardItem): void => {
     toggleFavorite(sound.id).catch((err) => {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível favoritar o som.')
+      showToast.error(errorMessage(err, 'Não foi possível favoritar o som.'))
     })
   }
 
@@ -134,7 +135,7 @@ function SoundboardSoundsPanel({
       await deleteSound(sound.server_id, sound.id)
       showToast.info(`Som "${sound.name}" removido.`)
     } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível excluir o som.')
+      showToast.error(errorMessage(err, 'Não foi possível excluir o som.'))
     }
   }
 

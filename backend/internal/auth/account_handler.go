@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/ratelimit"
 	"gin-quickstart/backend/internal/user"
 )
@@ -159,10 +160,8 @@ func wrongPassword(c *gin.Context) {
 // reservada antes do bcrypt (rajadas não passam inteiras); acertar zera e
 // falha nossa (banco, sem vaga) devolve. false = já respondeu.
 func (h *AccountHandler) ConfirmPassword(c *gin.Context, password string) (string, bool) {
-	id, _ := c.Get("userID")
-	userID, _ := id.(string)
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return "", false
 	}
 	if retry, ok := h.attempts.Reserve(userID); !ok {

@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/google/uuid"
 )
@@ -182,7 +183,7 @@ func (s *Service) SetEnabled(ctx context.Context, serverID, userID, pluginID str
 }
 
 func (s *Service) emit(room, serverID string) {
-	s.pub.BroadcastToRoom(room, marshalEvent(EventChanged, map[string]string{"server_id": serverID}))
+	s.pub.BroadcastToRoom(room, wsevent.Marshal(EventChanged, map[string]string{"server_id": serverID}))
 }
 
 // checkServerID trata id que não é UUID como servidor onde o usuário não está.

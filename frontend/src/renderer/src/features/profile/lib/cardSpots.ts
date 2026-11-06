@@ -21,7 +21,5 @@ export const SPOT_PLACEHOLDER = {
   links: 'Adicionar links'
 } as const
 
-export type SpotPlaceholders = typeof SPOT_PLACEHOLDER
-
 export const spotOpensFile = (spot: CardSpot): spot is 'avatar' | 'banner' =>
   spot === 'avatar' || spot === 'banner'

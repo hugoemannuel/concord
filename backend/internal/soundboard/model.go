@@ -1,7 +1,6 @@
 package soundboard
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -112,15 +111,4 @@ func sanitizeEmoji(raw string) *string {
 		clean = string(runes[:MaxEmojiRunes])
 	}
 	return &clean
-}
-
-func marshalEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
 }

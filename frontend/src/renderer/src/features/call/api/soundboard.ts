@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../../../shared/lib/config'
-import { useAuthStore } from '../../auth/store/authStore'
-import { ApiError, refreshTokens, request } from '../../../shared/api/client'
+import { request } from '../../../shared/api/client'
+import { uploadTo, type UploadMessages } from '../../../shared/api/upload'
 
 export const MAX_SOUNDBOARD_BYTES = 5 * 1024 * 1024 // 5 MB
 export const MIN_SOUNDBOARD_DURATION_MS = 100
@@ -54,56 +54,23 @@ export function soundFileUrl(soundId: string, mediaToken: string): string {
   return `${API_BASE_URL}/soundboard/${encodeURIComponent(soundId)}/file?token=${encodeURIComponent(mediaToken)}`
 }
 
-export async function uploadServerSound(
-  serverId: string,
-  file: Blob,
-  input: UploadSoundboardInput
-): Promise<SoundboardItem> {
-  const token = useAuthStore.getState().accessToken
-  try {
-    return await sendSoundUpload(serverId, file, input, token)
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401 && token && (await refreshTokens())) {
-      return sendSoundUpload(serverId, file, input, useAuthStore.getState().accessToken)
-    }
-    throw err
-  }
+const SOUND_UPLOAD_MESSAGES: UploadMessages = {
+  http: (_status, serverError) => serverError ?? 'Falha ao enviar áudio',
+  network: 'Erro de rede ao enviar áudio',
+  aborted: 'Envio cancelado'
 }
 
-function sendSoundUpload(
+export function uploadServerSound(
   serverId: string,
   file: Blob,
-  input: UploadSoundboardInput,
-  token: string | null
+  { name, emoji, duration_ms, filename = 'sound.mp3' }: UploadSoundboardInput
 ): Promise<SoundboardItem> {
-  return new Promise((resolve, reject) => {
-    const form = new FormData()
-    form.append('name', input.name.trim())
-    if (input.emoji?.trim()) {
-      form.append('emoji', input.emoji.trim())
-    }
-    form.append('duration_ms', String(Math.round(input.duration_ms)))
-    form.append('file', file, input.filename ?? 'sound.mp3')
-
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${API_BASE_URL}/servers/${encodeURIComponent(serverId)}/soundboard`)
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-
-    xhr.onload = () => {
-      let body: unknown = {}
-      try {
-        body = JSON.parse(xhr.responseText)
-      } catch {
-        // corpo vazio ou não-JSON
-      }
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body as SoundboardItem)
-      } else {
-        reject(new ApiError(xhr.status, (body as { error?: string }).error ?? 'Falha ao enviar áudio'))
-      }
-    }
-    xhr.onerror = () => reject(new ApiError(0, 'Erro de rede ao enviar áudio'))
-    xhr.onabort = () => reject(new ApiError(0, 'Envio cancelado'))
-    xhr.send(form)
-  })
+  return uploadTo<SoundboardItem>(
+    `/servers/${encodeURIComponent(serverId)}/soundboard`,
+    {
+      fields: { name: name.trim(), emoji: emoji?.trim() || undefined, duration_ms: Math.round(duration_ms) },
+      files: [{ field: 'file', blob: file, filename }]
+    },
+    { messages: SOUND_UPLOAD_MESSAGES }
+  )
 }

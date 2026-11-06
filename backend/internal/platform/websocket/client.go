@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"gin-quickstart/backend/internal/platform/wsevent"
+
 	"github.com/coder/websocket"
 )
 
@@ -167,13 +169,5 @@ func parseRoom(room string) (channelID string, conversationID string, serverID s
 	return "", "", "", "", ""
 }
 
-func writeEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
-}
+// writeEvent monta o envelope dos eventos (platform/wsevent).
+var writeEvent = wsevent.Marshal

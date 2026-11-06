@@ -22,6 +22,27 @@ export function memberColor(roles: Role[], roleIds: string[] | undefined): numbe
   return null
 }
 
+const colorMaps = new WeakMap<GroupableMember[], { roles: Role[]; map: Map<string, string> }>()
+
+/**
+ * userId -> cor CSS do cargo mais alto com cor (só quem tem cargo colorido).
+ * Calculado uma vez por par (membros, cargos): cada linha do chat consulta em O(1).
+ */
+export function memberColorMap(members: GroupableMember[], roles: Role[]): Map<string, string> {
+  const cached = colorMaps.get(members)
+  if (cached?.roles === roles) return cached.map
+  const map = new Map<string, string>()
+  const seen = new Set<string>()
+  for (const m of members) {
+    if (seen.has(m.user_id)) continue
+    seen.add(m.user_id)
+    const css = roleColorCss(memberColor(roles, m.role_ids))
+    if (css) map.set(m.user_id, css)
+  }
+  colorMaps.set(members, { roles, map })
+  return map
+}
+
 /**
  * Cor CSS (#rrggbb) do cargo mais alto com cor que a pessoa tem no servidor.
  * Devolve undefined fora de servidor, se o servidor não é o aberto, ou se o
@@ -36,9 +57,7 @@ export function serverMemberColorCss(opts: {
 }): string | undefined {
   const { serverId, currentServerId, userId, members, roles } = opts
   if (!serverId || !userId || currentServerId !== serverId) return undefined
-  const member = members.find((m) => m.user_id === userId)
-  if (!member) return undefined
-  return roleColorCss(memberColor(roles, member.role_ids))
+  return memberColorMap(members, roles).get(userId)
 }
 
 /**

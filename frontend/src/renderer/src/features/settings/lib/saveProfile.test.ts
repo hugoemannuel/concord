@@ -1,13 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { User } from '../../auth/store/authStore'
 import { draftFromProfile, type ProfileDraft } from '../../profile/lib/profileValidation'
-import {
-  previewMedia,
-  saveErrorMessage,
-  saveProfile,
-  saveProfileAndNotify,
-  type SaveProfileDeps
-} from './saveProfile'
+import { previewMedia, saveErrorMessage, saveProfile, type SaveProfileDeps } from './saveProfile'
 
 const user = (over: Partial<User> = {}): User =>
   ({ id: 'u1', username: 'ana', display_name: 'Ana', email: 'a@x.com', ...over }) as User
@@ -79,20 +73,6 @@ describe('saveProfile', () => {
     expect(state.draft.avatar.kind).toBe('keep')
     expect(state.draft.banner.kind).toBe('set')
     expect(deps.setProgress).toHaveBeenLastCalledWith(null)
-  })
-})
-
-describe('saveProfileAndNotify', () => {
-  it('avisa o sucesso e o erro', async () => {
-    const notify = { success: vi.fn(), error: vi.fn() }
-    const { deps } = setup(draftFromProfile(user()))
-    await saveProfileAndNotify(deps, notify)
-    expect(notify.success).toHaveBeenCalledWith('Perfil salvo!')
-    deps.savedUser = () => {
-      throw new Error('sem rede')
-    }
-    await saveProfileAndNotify(deps, notify)
-    expect(notify.error).toHaveBeenCalledWith('sem rede')
   })
 })
 

@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import router from '../../../app/router'
 import { getOrCreateConversationWith, hideConversation } from '../../chat/api/conversations'
 import { useProfileCardStore } from '../store/profileCardStore'
@@ -43,7 +44,7 @@ export async function closeDirectMessage(
       void router.navigate('/friends')
     }
   } catch (err) {
-    showToast.error(err instanceof Error ? err.message : 'Não foi possível fechar a DM.')
+    showToast.error(errorMessage(err, 'Não foi possível fechar a DM.'))
   }
 }
 
@@ -62,7 +63,7 @@ export async function startUserCall(
       display_name: displayName
     })
   } catch (err) {
-    showToast.error(err instanceof Error ? err.message : 'Não foi possível ligar.')
+    showToast.error(errorMessage(err, 'Não foi possível ligar.'))
   }
 }
 
@@ -90,7 +91,7 @@ export async function acceptUserFriendRequest(
   try {
     await accept(username)
   } catch (err) {
-    showToast.error(err instanceof Error ? err.message : 'Não foi possível aceitar.')
+    showToast.error(errorMessage(err, 'Não foi possível aceitar.'))
   }
 }
 
@@ -107,7 +108,7 @@ export function unblockUserTarget(
   unblock: (userId: string) => Promise<unknown>
 ): void {
   unblock(userId).catch((err) =>
-    showToast.error(err instanceof Error ? err.message : 'Não foi possível desbloquear.')
+    showToast.error(errorMessage(err, 'Não foi possível desbloquear.'))
   )
 }
 

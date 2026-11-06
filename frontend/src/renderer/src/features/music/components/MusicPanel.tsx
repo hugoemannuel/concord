@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useRef, useState } from 'react'
 import { removeQueueItem, skipMusic, swapQueueItems, type MusicItem } from '../api/music'
 import { canSwap, formatDuration, QUEUE_PREVIEW, T17, T20 } from '../lib/music'
@@ -10,7 +11,7 @@ import { useElapsed } from '../../call/lib/callUtils'
 import MusicVideo from './MusicVideo'
 
 function errorText(err: unknown): string {
-  return err instanceof Error ? err.message : 'Falha na operação.'
+  return errorMessage(err, 'Falha na operação.')
 }
 
 /** Painel "Tocando agora" da call: coluna que desliza da esquerda sobre a tela

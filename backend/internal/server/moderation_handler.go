@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,12 +38,11 @@ func respondModeration(c *gin.Context, err error) {
 
 // Kick: DELETE /servers/:id/members/:userId (KICK_MEMBERS + hierarquia).
 func (h *Handler) Kick(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	if err := h.moderation.Kick(c.Request.Context(), c.Param("id"), userID.(string), c.Param("userId")); err != nil {
+	if err := h.moderation.Kick(c.Request.Context(), c.Param("id"), userID, c.Param("userId")); err != nil {
 		respondModeration(c, err)
 		return
 	}
@@ -50,12 +51,11 @@ func (h *Handler) Kick(c *gin.Context) {
 
 // Leave: POST /servers/:id/leave.
 func (h *Handler) Leave(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	if err := h.moderation.Leave(c.Request.Context(), c.Param("id"), userID.(string)); err != nil {
+	if err := h.moderation.Leave(c.Request.Context(), c.Param("id"), userID); err != nil {
 		respondModeration(c, err)
 		return
 	}
@@ -85,12 +85,11 @@ func (h *Handler) Ban(c *gin.Context) {
 }
 
 func (h *Handler) Unban(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	if err := h.moderation.Unban(c.Request.Context(), c.Param("id"), userID.(string), c.Param("userId")); err != nil {
+	if err := h.moderation.Unban(c.Request.Context(), c.Param("id"), userID, c.Param("userId")); err != nil {
 		respondModeration(c, err)
 		return
 	}
@@ -98,12 +97,11 @@ func (h *Handler) Unban(c *gin.Context) {
 }
 
 func (h *Handler) ListBans(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	bans, err := h.moderation.ListBans(c.Request.Context(), c.Param("id"), userID.(string))
+	bans, err := h.moderation.ListBans(c.Request.Context(), c.Param("id"), userID)
 	if err != nil {
 		respondModeration(c, err)
 		return
@@ -122,9 +120,8 @@ func (h *Handler) SetNickname(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "code": "invalid"})
 		return
 	}
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 	raw := ""
@@ -132,7 +129,7 @@ func (h *Handler) SetNickname(c *gin.Context) {
 		raw = *input.Nickname
 	}
 	serverID, targetID := c.Param("id"), c.Param("userId")
-	nick, err := h.nicknames.Set(c.Request.Context(), serverID, userID.(string), targetID, raw)
+	nick, err := h.nicknames.Set(c.Request.Context(), serverID, userID, targetID, raw)
 	if err != nil {
 		respondModeration(c, err)
 		return

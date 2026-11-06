@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useState } from 'react'
 import InviteCodeBox from './InviteCodeBox'
 import { useServerStore } from '../store/serverStore'
@@ -36,7 +37,7 @@ function ServerInviteModal({ server }: { server: Server }): React.JSX.Element {
       setSentIds((prev) => new Set(prev).add(friendUserId))
       showToast.success(`Convite enviado para @${friendUsername}!`)
     } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Falha ao convidar amigo.')
+      showToast.error(errorMessage(err, 'Falha ao convidar amigo.'))
     } finally {
       setInvitingId(null)
     }

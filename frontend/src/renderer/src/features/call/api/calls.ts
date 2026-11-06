@@ -70,9 +70,6 @@ export interface CallStateResponse {
   }[]
 }
 
-/** Resposta 423 do POST /calls: a sala do canal está trancada. */
-export const CALL_LOCKED = 'call_locked'
-
 export interface StartCallInput {
   type: CallType
   conversation_id?: string
@@ -89,10 +86,6 @@ export function endCall(callId: string): Promise<{ message: string }> {
 
 export function getCallState(callId: string): Promise<CallStateResponse> {
   return request<CallStateResponse>(`/calls/${callId}/state`)
-}
-
-export function listActiveCalls(scope: CallType, id: string): Promise<CallStateResponse> {
-  return request<CallStateResponse>(`/calls/active?scope=${scope}&id=${encodeURIComponent(id)}`)
 }
 
 export function listActiveServerCalls(serverId: string): Promise<CallStateResponse[]> {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"syscall"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
 
 	"github.com/gin-gonic/gin"
@@ -42,14 +43,8 @@ func NewProfileHandler(service *ProfileService, store, static *media.Store, spac
 	}
 }
 
-func currentUser(c *gin.Context) (string, bool) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return "", false
-	}
-	return userID.(string), true
-}
+// currentUser: o usuário autenticado (platform/authctx).
+var currentUser = authctx.UserID
 
 func respondProfileError(c *gin.Context, err error) {
 	switch {

@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
 
 	"github.com/gin-gonic/gin"
@@ -230,12 +231,11 @@ func (h *AttachmentHandler) upload(c *gin.Context, room Room) {
 
 // MediaToken entrega o token curto que o app põe na URL dos arquivos.
 func (h *AttachmentHandler) MediaToken(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	token, expiresAt, err := h.tokens.GenerateMediaToken(userID.(string))
+	token, expiresAt, err := h.tokens.GenerateMediaToken(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create media token"})
 		return

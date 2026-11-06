@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useState } from 'react'
 import { readBackgroundFile } from '../lib/backgroundImage'
 
@@ -21,7 +22,7 @@ export function useBackgroundUpload(
         else onImage(read.dataUrl)
         setError(null)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Não foi possível ler a imagem.')
+        setError(errorMessage(err, 'Não foi possível ler a imagem.'))
       }
     })()
   }

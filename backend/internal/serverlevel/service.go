@@ -2,12 +2,12 @@ package serverlevel
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sync"
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -167,10 +167,10 @@ func (s *Service) syncRow(ctx context.Context, row levelRow) {
 	room := "server:" + row.serverID
 	if last, seen := s.lastXP[row.serverID]; !seen || last != row.xp {
 		s.lastXP[row.serverID] = row.xp
-		s.publisher.BroadcastToRoom(room, marshalEvent("server:level:update", progress))
+		s.publisher.BroadcastToRoom(room, wsevent.Marshal("server:level:update", progress))
 	}
 	if change.announce {
-		s.publisher.BroadcastToRoom(room, marshalEvent("server:level:up", LevelUpEvent{
+		s.publisher.BroadcastToRoom(room, wsevent.Marshal("server:level:up", LevelUpEvent{
 			ServerID:      row.serverID,
 			Level:         progress.Level,
 			PreviousLevel: *row.level,
@@ -206,9 +206,4 @@ func (s *Service) Detail(ctx context.Context, serverID string) (Detail, error) {
 		d.Week = append(d.Week, SourceXP{Source: source, XP: week[source]})
 	}
 	return d, nil
-}
-
-func marshalEvent(typ string, payload any) []byte {
-	data, _ := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	return data
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,7 +20,7 @@ func (h *Handler) SetVisitors(v visitorChecker) { h.visitors = v }
 
 // List: os sons do servidor, para membros e para quem é visitante lá.
 func (h *Handler) List(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

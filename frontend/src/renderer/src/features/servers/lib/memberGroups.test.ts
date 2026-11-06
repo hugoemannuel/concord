@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { groupMembers, memberColor, serverMemberColorCss, type MemberGroup } from './memberGroups'
+import {
+  groupMembers,
+  memberColor,
+  memberColorMap,
+  serverMemberColorCss,
+  type MemberGroup
+} from './memberGroups'
 import type { Role } from './permissions'
 
 const role = (id: string, position: number, extra: Partial<Role> = {}): Role => ({
@@ -200,5 +206,34 @@ describe('serverMemberColorCss', () => {
         roles
       })
     ).toBeUndefined()
+  })
+})
+
+describe('memberColorMap', () => {
+  it('mapeia cada membro com cargo colorido para a cor CSS do cargo mais alto com cor', () => {
+    const map = memberColorMap(members, roles)
+    expect(map.get('vipmod')).toBe('#00ff00')
+    expect(map.get('artista')).toBe('#0000ff')
+    expect(map.has('ana')).toBe(false)
+    expect(map.has('desconhecido')).toBe(false)
+  })
+
+  it('calcula uma vez por par (membros, cargos) e refaz quando um dos dois muda', () => {
+    const first = memberColorMap(members, roles)
+    expect(memberColorMap(members, roles)).toBe(first)
+    expect(memberColorMap([...members], roles)).not.toBe(first)
+    expect(memberColorMap(members, [...roles])).not.toBe(first)
+  })
+
+  it('com user_id repetido, vale o primeiro (como o find de antes)', () => {
+    const colored = role('cor', 9, { color: 0x123456 })
+    const map = memberColorMap(
+      [
+        { user_id: 'x', role_ids: ['cor'] },
+        { user_id: 'x', role_ids: [] }
+      ],
+      [colored]
+    )
+    expect(map.get('x')).toBe('#123456')
   })
 })

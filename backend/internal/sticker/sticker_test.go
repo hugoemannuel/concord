@@ -404,7 +404,7 @@ func TestStickerUploadRequiresAddStickers(t *testing.T) {
 	}
 }
 
-func TestFormErrorStatus(t *testing.T) {
+func TestFormError(t *testing.T) {
 	t.Parallel()
 	cases := map[error]int{
 		media.ErrMissingFile:                     http.StatusBadRequest,
@@ -414,7 +414,7 @@ func TestFormErrorStatus(t *testing.T) {
 		errors.New("disco quebrado"):             http.StatusInternalServerError,
 	}
 	for err, want := range cases {
-		if got, _ := formErrorStatus(err); got != want {
+		if got := formError(err).status; got != want {
 			t.Errorf("%v: status = %d, want %d", err, got, want)
 		}
 	}
