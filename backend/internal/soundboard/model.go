@@ -51,6 +51,15 @@ type Sound struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// ServerSounds: os sons de um servidor de que a pessoa é membro, com o que a
+// mesa mostra no trilho e no título da seção (nome e ícone do servidor).
+type ServerSounds struct {
+	ServerID      string  `json:"server_id"`
+	ServerName    string  `json:"server_name"`
+	ServerIconURL *string `json:"server_icon_url,omitempty"`
+	Sounds        []Sound `json:"sounds"`
+}
+
 // FavoriteSound é um som favorito, com o nome do servidor de onde ele é.
 type FavoriteSound struct {
 	Sound

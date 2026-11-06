@@ -14,6 +14,11 @@ func Routes(router *gin.RouterGroup, h *Handler, authMiddleware gin.HandlerFunc)
 		servers.DELETE("/:soundId", h.Delete)
 	}
 
+	// Os sons de todos os servidores da pessoa (a mesa mostra todos, como as figurinhas).
+	mine := router.Group("/soundboard")
+	mine.Use(authMiddleware)
+	mine.GET("", h.ListMine)
+
 	// Sem Bearer: o elemento <audio> envia o media token em ?token=.
 	router.GET("/soundboard/:soundId/file", h.ServeFile)
 }

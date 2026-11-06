@@ -27,11 +27,13 @@ type SoundInfo struct {
 	DurationMs int     `json:"duration_ms"`
 }
 
-// SoundLookup: de onde vêm os sons. Toca na chamada o som do servidor dela ou
-// um favorito de quem toca (de qualquer servidor).
+// SoundLookup: de onde vêm os sons. Toca na chamada o som do servidor dela, um
+// favorito de quem toca ou um som de servidor de que quem toca é membro
+// (docs/adr/0058-sons-de-outros-servidores-na-mesa.md).
 type SoundLookup interface {
 	FindSound(ctx context.Context, soundID string) (SoundInfo, error)
 	IsFavorite(ctx context.Context, userID, soundID string) (bool, error)
+	IsMember(ctx context.Context, serverID, userID string) (bool, error)
 }
 
 type SoundboardPayload struct {
@@ -138,19 +140,26 @@ func (s *Service) soundboardAllowed(ctx context.Context, t soundboardTarget, use
 	return permission.Has(got, permission.UseSoundboard)
 }
 
-// playable: o som existe e é do servidor da chamada ou favorito de quem toca.
+// playable: o som existe e é do servidor da chamada, favorito de quem toca ou
+// de um servidor de que quem toca é membro.
 func (t soundboardTarget) playable(ctx context.Context, userID, soundID string) (SoundInfo, error) {
 	sound, err := t.lookup.FindSound(ctx, soundID)
 	if err != nil {
 		return SoundInfo{}, ErrSoundNotFound
 	}
-	if sound.ServerID == t.serverID {
+	if sound.ServerID == t.serverID || t.reachable(ctx, userID, sound) {
 		return sound, nil
 	}
-	if fav, err := t.lookup.IsFavorite(ctx, userID, soundID); err != nil || !fav {
-		return SoundInfo{}, ErrSoundNotFound
+	return SoundInfo{}, ErrSoundNotFound
+}
+
+// reachable: som de fora que a pessoa pode tocar (favorito ou da origem). Erro numa checagem = não.
+func (t soundboardTarget) reachable(ctx context.Context, userID string, sound SoundInfo) bool {
+	if fav, err := t.lookup.IsFavorite(ctx, userID, sound.ID); err == nil && fav {
+		return true
 	}
-	return sound, nil
+	member, err := t.lookup.IsMember(ctx, sound.ServerID, userID)
+	return err == nil && member
 }
 
 func (s *Service) TriggerSoundboard(ctx context.Context, callID, userID, soundID string) error {

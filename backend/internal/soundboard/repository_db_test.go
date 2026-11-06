@@ -39,3 +39,38 @@ func TestRepositoryUpdate(t *testing.T) {
 		t.Fatalf("inexistente: %v", err)
 	}
 }
+
+// ListForUser: só os servidores de que a pessoa é membro, cada um com seus sons;
+// servidor sem som não vem.
+func TestListForUserDB(t *testing.T) {
+	db, ctx := favoritesDB(t)
+	repo := NewRepository(db)
+	me := dbUser(t, db)
+	other := dbUser(t, db)
+	alfa := dbServer(t, db, me, "Alfa")
+	beta := dbServer(t, db, me, "Beta")
+	vazio := dbServer(t, db, me, "Vazio")
+	alheio := dbServer(t, db, other, "Alheio")
+	for _, srv := range []string{alfa, beta, vazio} {
+		dbExec(t, db, `INSERT INTO server_members (server_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, srv, me)
+	}
+	a := dbSound(t, repo, alfa, me, "buzina")
+	b := dbSound(t, repo, beta, other, "apito")
+	dbSound(t, repo, alheio, other, "segredo")
+
+	groups, err := repo.ListForUser(ctx, me)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string][]string{}
+	for _, g := range groups {
+		got[g.ServerID] = ids(g.Sounds)
+	}
+	want := map[string][]string{alfa: {a.ID}, beta: {b.ID}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("grupos = %v, want %v", got, want)
+	}
+	if groups[0].ServerName != "Alfa" || groups[1].Sounds[0].UploaderName == "" {
+		t.Fatalf("nome do servidor/autor: %+v", groups)
+	}
+}
