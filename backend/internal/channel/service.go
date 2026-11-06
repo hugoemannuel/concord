@@ -61,13 +61,13 @@ func newService(repository store, publisher EventPublisher) *Service {
 // Create cria o canal já com as sobrescritas (canal privado). O canal de
 // sistema só nasce por CreateSystem/CreateNotices, nunca por pedido do cliente.
 func (s *Service) Create(ctx context.Context, ch *Channel, overwrites ...permission.Overwrite) error {
-	ch.IsSystem = false
+	ch.IsSystem, ch.SystemKind = false, nil
 	return s.create(ctx, ch, overwrites)
 }
 
 // CreateSystem cria o canal "musica" do servidor (usado na criação do servidor).
 func (s *Service) CreateSystem(ctx context.Context, serverID, createdBy string) (*Channel, error) {
-	ch := &Channel{ServerID: serverID, Name: SystemChannelName, Type: TypeText, CreatedBy: createdBy, IsSystem: true}
+	ch := systemChannel(serverID, SystemChannelName, SystemKindMaestro, createdBy)
 	if err := s.create(ctx, ch, nil); err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (s *Service) CreateSystem(ctx context.Context, serverID, createdBy string) 
 
 // CreateNotices cria o canal "avisos" do servidor (usado na criação do servidor).
 func (s *Service) CreateNotices(ctx context.Context, serverID, createdBy string) (*Channel, error) {
-	ch := &Channel{ServerID: serverID, Name: NoticesChannelName, Type: TypeText, CreatedBy: createdBy, IsSystem: true}
+	ch := systemChannel(serverID, NoticesChannelName, SystemKindNotices, createdBy)
 	if err := s.create(ctx, ch, nil); err != nil {
 		return nil, err
 	}

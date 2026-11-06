@@ -94,4 +94,5 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0055. Categorias como no Discord: padrões viram categorias reais, canais soltos numa lista só e categoria privada copiada nos canais](0055-categorias-normais-e-privadas.md)
 - [0057. Buscar o placar na API pública da ESPN, direto do navegador do plugin](0057-placar-com-a-api-publica-da-espn.md)
 - [0058. Sons de todos os servidores da pessoa na mesa de áudio](0058-sons-de-outros-servidores-na-mesa.md)
+- [0059. Tipo do canal de sistema em coluna própria](0059-tipo-do-canal-de-sistema.md)
 - [0056. Mostrar os plugins da comunidade como página do autor num iframe isolado](0056-plugins-em-iframe-isolado.md)

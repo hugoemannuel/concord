@@ -12,9 +12,9 @@ import (
 func (r *Repository) MaestroChannels(ctx context.Context) ([]Channel, error) {
 	rows, err := r.db.Query(
 		ctx,
-		`SELECT id, server_id, name FROM channels WHERE is_system AND type = $1 AND name = ANY($2)`,
+		`SELECT id, server_id, name FROM channels WHERE system_kind = $1 AND type = $2`,
+		SystemKindMaestro,
 		TypeText,
-		[]string{SystemChannelName, SystemChannelAltName},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listar canais do Maestro: %w", err)
@@ -27,7 +27,8 @@ func (r *Repository) MaestroChannels(ctx context.Context) ([]Channel, error) {
 }
 
 func scanMaestroChannel(row pgx.CollectableRow) (Channel, error) {
-	ch := Channel{Type: TypeText, IsSystem: true}
+	kind := SystemKindMaestro
+	ch := Channel{Type: TypeText, IsSystem: true, SystemKind: &kind}
 	err := row.Scan(&ch.ID, &ch.ServerID, &ch.Name)
 	return ch, err
 }
