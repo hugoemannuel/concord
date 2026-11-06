@@ -23,15 +23,22 @@ describe('MembersSheet (membros do servidor, como no Discord)', () => {
   beforeEach(() => {
     usePresenceStore.getState().reset()
     jest.mocked(getServerDetail).mockResolvedValue(detail)
-    jest.mocked(fetchPresence).mockResolvedValue({ 'u-dono': 'online', 'u-ana': 'idle', 'u-off': 'offline' })
+    // O servidor manda o Maestro sempre online, como qualquer pessoa conectada.
+    jest.mocked(fetchPresence).mockResolvedValue({ 'u-dono': 'online', 'u-ana': 'idle', 'u-off': 'offline', 'bot-1': 'online' })
   })
 
-  it('agrupa por cargo exibido, "Membros" e "Offline", com a contagem; o Maestro está sempre online', async () => {
+  it('agrupa por cargo exibido, "Membros" e "Offline", com a contagem; o Maestro vem online do servidor', async () => {
     await render(<MembersSheet serverId="s1" onClose={jest.fn()} onOpenProfile={jest.fn()} />)
     expect(await screen.findByText('Moderação — 1')).toBeOnTheScreen()
-    expect(screen.getByText('Membros — 2')).toBeOnTheScreen()
+    expect(await screen.findByText('Membros — 2')).toBeOnTheScreen()
     expect(screen.getByText('Offline — 1')).toBeOnTheScreen()
     expect(screen.getByText('BOT')).toBeOnTheScreen()
+  })
+
+  it('pede a presença de todos, bots inclusive (o app não força o bot online)', async () => {
+    await render(<MembersSheet serverId="s1" onClose={jest.fn()} onOpenProfile={jest.fn()} />)
+    expect(await screen.findByText('Moderação — 1')).toBeOnTheScreen()
+    expect(fetchPresence).toHaveBeenCalledWith(['u-dono', 'u-ana', 'u-off', 'bot-1'])
   })
 
   it('apelido ganha do nome; o dono tem a coroa; tocar abre o perfil', async () => {

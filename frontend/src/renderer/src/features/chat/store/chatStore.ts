@@ -37,7 +37,6 @@ import { useLevelStore } from '../../levels/store/levelStore'
 import { useBadgeStore } from '../../levels/store/badgeStore'
 import { useProposalStore } from '../../proposals/store/proposalStore'
 import { useNotifySettingsStore } from '../../notifications/store/notifySettingsStore'
-import { isBotUser } from '../../music/lib/bots'
 import { useTypingStore } from './typingStore'
 import { usePresenceActivityStore } from '../../activity/store/presenceActivityStore'
 import { useListeningStore } from '../../activity/store/listeningStore'
@@ -668,15 +667,14 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
 
 /**
  * Status para a bolinha do avatar: o que eu escolhi quando sou eu (invisível
- * inclusive); dos outros, o que chegou pela presença.
+ * inclusive); dos outros, o que chegou pela presença (os bots o servidor manda
+ * sempre online).
  */
 export function usePresenceStatus(userId: string | undefined): PresenceStatus {
   const mine = useAuthStore((s) => (userId && s.user?.id === userId ? s.user.status : undefined))
   const known = useChatStore((s) => (userId ? s.statuses[userId] : undefined))
   const online = useChatStore((s) => (userId ? Boolean(s.presence[userId]) : false))
   if (mine) return mine
-  // Bots não têm websocket: sempre online (como no cartão de perfil).
-  if (isBotUser(userId)) return 'online'
   if (!online) return 'offline'
   return known && known !== 'offline' ? known : 'online'
 }
