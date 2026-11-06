@@ -30,13 +30,35 @@ type levelRow struct {
 	level    *int
 }
 
-// Add soma xp da fonte (teto diário e conta real no banco).
-func (r *Repository) Add(ctx context.Context, serverID, userID, source string, xp int64) error {
-	_, err := r.db.Exec(ctx, `SELECT server_level_add($1, $2, $3, $4)`, serverID, userID, source, xp)
+// AddAll soma, numa escrita só, o xp de cada grant (teto diário e conta real
+// no banco, em server_level_add). Servidor ou pessoa que sumiu no meio da call
+// é pulado, para não derrubar o lote.
+func (r *Repository) AddAll(ctx context.Context, grants []grant) error {
+	if len(grants) == 0 {
+		return nil
+	}
+	servers, users, sources, xps := grantColumns(grants)
+	_, err := r.db.Exec(ctx, `
+		SELECT COUNT(server_level_add(x.server_id, x.user_id, x.source, x.xp::int))
+		FROM unnest($1::uuid[], $2::uuid[], $3::text[], $4::bigint[]) AS x(server_id, user_id, source, xp)
+		JOIN servers s ON s.id = x.server_id
+		JOIN users u ON u.id = x.user_id`,
+		servers, users, sources, xps)
 	if err != nil {
 		return fmt.Errorf("somar xp do servidor: %w", err)
 	}
 	return nil
+}
+
+// grantColumns: os grants em colunas, na ordem do unnest de AddAll.
+func grantColumns(grants []grant) (servers, users, sources []string, xps []int64) {
+	for _, g := range grants {
+		servers = append(servers, g.serverID)
+		users = append(users, g.userID)
+		sources = append(sources, g.source)
+		xps = append(xps, g.xp)
+	}
+	return servers, users, sources, xps
 }
 
 // GrantNewMembers dá o XP de membro novo a quem é conta real e ainda não

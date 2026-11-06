@@ -12,12 +12,18 @@ import (
 )
 
 type fakeStore struct {
-	xp map[string]int64
+	xp     map[string]int64
+	writes int
 }
 
-func (f *fakeStore) AddVoiceXP(_ context.Context, userID string, xp int64, seconds int64) (int64, int64, error) {
-	f.xp[userID] += xp
-	return f.xp[userID], 0, nil
+func (f *fakeStore) AddVoiceXP(_ context.Context, adds []voiceXP) (map[string]voiceTotals, error) {
+	f.writes++
+	totals := make(map[string]voiceTotals, len(adds))
+	for _, a := range adds {
+		f.xp[a.userID] += a.xp
+		totals[a.userID] = voiceTotals{xp: f.xp[a.userID]}
+	}
+	return totals, nil
 }
 
 type fakePublisher struct {
@@ -91,6 +97,15 @@ func TestXPOnlyForCompleteMinutes(t *testing.T) {
 	run(s, now, 1) // 60 s
 	if store.xp["ana"] != XPPerMinute {
 		t.Fatalf("xp after 60s = %d, want %d", store.xp["ana"], XPPerMinute)
+	}
+}
+
+// Quem fechou o minuto no mesmo tick é gravado numa escrita só.
+func TestXPForEveryoneInOneWrite(t *testing.T) {
+	s, store, _, _ := newTestService("ana", "bia")
+	run(s, t0, 6)
+	if store.writes != 1 || store.xp["ana"] != XPPerMinute || store.xp["bia"] != XPPerMinute {
+		t.Fatalf("escritas = %d, xp = %v; quer 1 com ana e bia", store.writes, store.xp)
 	}
 }
 
