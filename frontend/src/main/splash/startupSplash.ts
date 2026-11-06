@@ -25,6 +25,8 @@ export interface StartupSplashDeps {
   log: (message: string, error?: unknown) => void
   saveHiddenRelaunch: () => void
   clearHiddenRelaunch: () => void
+  /** cada fase mostrada (a janela principal escondida sai se uma versão nova vai instalar) */
+  onView: (view: StartupView) => void
 }
 
 export interface StartupSplash {
@@ -48,6 +50,7 @@ export function startSplash(deps: StartupSplashDeps): StartupSplash {
       show: (view) => {
         // O instalador do Windows reabre sem --hidden: a marca mantém na bandeja.
         if (view.phase === 'installing' && deps.hidden) deps.saveHiddenRelaunch()
+        deps.onView(view)
         window.show(view)
       },
       log: deps.log
