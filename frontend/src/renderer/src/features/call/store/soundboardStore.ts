@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
 import {
   deleteServerSound,
+  listMySounds,
   listServerSounds,
   uploadServerSound,
   type SoundboardItem,
@@ -114,6 +115,8 @@ interface SoundboardState {
   setVolume: (volume: number) => void
   setKeybind: (soundId: string, keybind: string | null) => void
   loadServerSounds: (serverId: string) => Promise<void>
+  /** Os sons de todos os servidores da pessoa (a mesa mostra todos, como as figurinhas). */
+  loadMine: () => Promise<void>
   uploadSound: (
     serverId: string,
     file: Blob,
@@ -268,6 +271,20 @@ export const useSoundboardStore = create<SoundboardState>()((set, get) => {
         // falha silenciosa; o usuário pode tentar abrir de novo
       } finally {
         set((s) => ({ loadingByServer: { ...s.loadingByServer, [serverId]: false } }))
+      }
+    },
+
+    loadMine: async () => {
+      try {
+        const groups = await listMySounds()
+        set((s) => ({
+          soundsByServer: {
+            ...s.soundsByServer,
+            ...Object.fromEntries(groups.map((g) => [g.server_id, g.sounds]))
+          }
+        }))
+      } catch {
+        // Sem rede: a mesa fica com o que já tinha carregado.
       }
     },
 

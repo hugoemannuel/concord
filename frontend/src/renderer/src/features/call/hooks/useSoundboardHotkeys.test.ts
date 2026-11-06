@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 
 const stores = vi.hoisted(() => ({
-  keybinds: { a1: 'F2', b1: 'Alt+1' } as Record<string, string>,
+  keybinds: { a1: 'F2', b1: 'Alt+1', c1: 'F4' } as Record<string, string>,
   server: [{ id: 'a1' }],
   favorites: [{ id: 'b1' }]
 }))
 vi.mock('../store/callStore', () => ({ useCallStore: vi.fn() }))
 vi.mock('../store/soundboardStore', () => ({
   useSoundboardStore: {
-    getState: () => ({ keybinds: stores.keybinds, soundsByServer: { 'srv-a': stores.server } })
+    getState: () => ({ keybinds: stores.keybinds, soundsByServer: { 'srv-c': [{ id: 'c1' }], 'srv-a': stores.server } })
   }
 }))
 vi.mock('../store/soundFavoritesStore', () => ({
@@ -53,6 +53,10 @@ describe('atalhos da mesa de áudio', () => {
   it('acha som do servidor e favorito de outro servidor', () => {
     expect(soundForKeyEvent(key('F2'), 'srv-a')?.id).toBe('a1')
     expect(soundForKeyEvent(key('1', { altKey: true }), 'srv-a')?.id).toBe('b1')
+  })
+
+  it('acha também o som de outro servidor da pessoa (não só favorito)', () => {
+    expect(soundForKeyEvent(key('F4'), 'srv-a')?.id).toBe('c1')
   })
 
   it('ignora repetição, campo de texto e tecla sem atalho', () => {

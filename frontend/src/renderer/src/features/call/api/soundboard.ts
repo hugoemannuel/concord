@@ -27,6 +27,19 @@ export interface UploadSoundboardInput {
   filename?: string
 }
 
+/** Os sons de um servidor de que a pessoa é membro (servidor sem som não vem). */
+export interface ServerSounds {
+  server_id: string
+  server_name: string
+  server_icon_url?: string | null
+  sounds: SoundboardItem[]
+}
+
+/** Os sons de todos os servidores da pessoa, numa consulta só (como as figurinhas). */
+export function listMySounds(): Promise<ServerSounds[]> {
+  return request<ServerSounds[]>('/soundboard')
+}
+
 export function listServerSounds(serverId: string): Promise<SoundboardItem[]> {
   return request<SoundboardItem[]>(`/servers/${serverId}/soundboard`)
 }
