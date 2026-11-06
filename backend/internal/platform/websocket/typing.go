@@ -223,9 +223,9 @@ func (t *Typing) name(ctx context.Context, userID string) (typingName, bool) {
 // participante (dica na lista de conversas).
 func typingRooms(job typingJob, participants []string) []string {
 	if job.channelID != "" {
-		return messageRooms(&job.channelID, "", nil, nil)
+		return []string{"channel:" + job.channelID}
 	}
-	return messageRooms(nil, "", &job.conversationID, participants)
+	return conversationRooms(job.conversationID, participants)
 }
 
 func shard(userID string, n int) int {
