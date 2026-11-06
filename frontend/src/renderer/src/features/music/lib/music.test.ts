@@ -153,13 +153,18 @@ describe('wantsVideo', () => {
 
 describe('canal do Maestro (#musica)', () => {
   it('o canal do Maestro é o de tipo "maestro" (o servidor manda system_kind); o nome não decide', () => {
-    expect(isMaestroChannel({ system_kind: 'maestro' })).toBe(true)
+    const channel = (name: string, system_kind?: string | null, is_system = true) => ({
+      name,
+      is_system,
+      system_kind
+    })
+    expect(isMaestroChannel(channel('musica', 'maestro'))).toBe(true)
     // mesmo renomeado, o tipo é o que vale
-    expect(isMaestroChannel({ name: 'som', system_kind: 'maestro' })).toBe(true)
-    // canal comum chamado musica, o de avisos e canal sem tipo não contam
-    expect(isMaestroChannel({ name: 'musica', is_system: true, system_kind: null })).toBe(false)
-    expect(isMaestroChannel({ name: 'musica' })).toBe(false)
-    expect(isMaestroChannel({ name: 'avisos', system_kind: 'notices' })).toBe(false)
+    expect(isMaestroChannel(channel('som', 'maestro'))).toBe(true)
+    // canal de sistema sem tipo, canal comum chamado musica e o de avisos não contam
+    expect(isMaestroChannel(channel('musica', null))).toBe(false)
+    expect(isMaestroChannel(channel('musica', undefined, false))).toBe(false)
+    expect(isMaestroChannel(channel('avisos', 'notices'))).toBe(false)
   })
 
   it('mensagens do Maestro e do canal #musica nunca avisam; as outras avisam', () => {
