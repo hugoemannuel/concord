@@ -4,7 +4,7 @@ import { useAuthStore } from '../../auth/store/authStore'
 import { useMusicStore } from '../store/musicStore'
 import { useMusicPanelDismiss } from '../hooks/useMusicPanelDismiss'
 import Switch from '../../../shared/ui/Switch'
-import { XIcon } from '../../../shared/ui/icons'
+import CloseButton from '../../../shared/ui/CloseButton'
 import MusicNowPlaying from './MusicNowPlaying'
 import MusicQueue from './MusicQueue'
 
@@ -37,15 +37,7 @@ function MusicPanel({ serverId }: { serverId: string }): React.JSX.Element | nul
     >
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">{T17.title}</h3>
-        <button
-          type="button"
-          onClick={closePanel}
-          aria-label="Fechar"
-          title="Fechar"
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-fg/10 text-gray-200 transition-colors hover:bg-fg/20 hover:text-strong"
-        >
-          <XIcon className="h-4 w-4" />
-        </button>
+        <CloseButton variant="filled" size="sm" onClick={closePanel} />
       </div>
       {state.now && (
         <MusicNowPlaying serverId={serverId} now={state.now} skip={state.skip} panelOpen={panelOpen} meId={meId} />

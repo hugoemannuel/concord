@@ -9,9 +9,9 @@ import {
   BlurIcon,
   CheckIcon,
   CircleSlashIcon,
-  ImageAddIcon,
-  XIcon
+  ImageAddIcon
 } from '../../../shared/ui/icons'
+import CloseButton from '../../../shared/ui/CloseButton'
 
 const BASE_TILE =
   'relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border-2 text-ds-xs font-medium transition-colors'
@@ -112,15 +112,13 @@ function BackgroundPicker({
                 )}
                 {selected && <Selected />}
               </button>
-              <button
-                type="button"
-                aria-label="Remover imagem"
-                title="Remover imagem"
+              <CloseButton
+                variant="media"
+                size="xs"
+                label="Remover imagem"
                 onClick={() => onRemoveCustom(c.id)}
-                className="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white [@media(hover:hover)]:opacity-0 transition-opacity hover:bg-danger-strong focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
-              >
-                <XIcon className="h-3 w-3" />
-              </button>
+                className="absolute right-1 top-1 [@media(hover:hover)]:opacity-0 focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
+              />
             </div>
           )
         })}

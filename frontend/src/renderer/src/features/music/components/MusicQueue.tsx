@@ -4,7 +4,7 @@ import { canSwap, formatDuration, QUEUE_PREVIEW, T17, T20 } from '../lib/music'
 import { visibleQueue } from '../lib/musicPanel'
 import { errorMessage } from '../../../shared/lib/errorMessage'
 import { showToast } from '../../../shared/store/toastStore'
-import { XIcon } from '../../../shared/ui/icons'
+import CloseButton from '../../../shared/ui/CloseButton'
 
 const failed = (err: unknown): void => {
   showToast.error(errorMessage(err, 'Falha na operação.'))
@@ -48,14 +48,7 @@ function MusicQueueItem({
         </span>
       </span>
       {mine && (
-        <button
-          type="button"
-          aria-label="Remover"
-          onClick={() => removeQueueItem(serverId, item.id).catch(failed)}
-          className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-fg/15 hover:text-strong"
-        >
-          <XIcon className="h-3.5 w-3.5" />
-        </button>
+        <CloseButton size="sm" label="Remover" onClick={() => removeQueueItem(serverId, item.id).catch(failed)} />
       )}
     </li>
   )

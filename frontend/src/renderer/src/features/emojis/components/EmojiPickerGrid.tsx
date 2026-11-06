@@ -25,7 +25,7 @@ import { useExternalAccess, type PickerDestination } from '../hooks/useExternalA
 import CustomEmoji from './CustomEmoji'
 import { emojiPreview } from './emojiPreview'
 import ExpressionPicker, { PickerSection, type PickerPreview, type PickerRailEntry } from './ExpressionPicker'
-import ServerBadge from './ServerBadge'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 
 /** No texto vai <:nome:id>; na reação, <:id>. */
 export type EmojiPickMode = 'message' | 'reaction'
@@ -216,7 +216,7 @@ export default function EmojiPickerGrid({
     ...sections.map((s) => ({
       sectionId: `emoji:${s.server.id}`,
       label: s.server.name,
-      icon: <ServerBadge name={s.server.name} iconUrl={s.server.icon_url} />
+      icon: <ServerIcon name={s.server.name} iconUrl={s.server.icon_url} lazy />
     })),
     ...(shownCategories.length
       ? [
@@ -260,7 +260,7 @@ export default function EmojiPickerGrid({
           key={section.server.id}
           id={`emoji:${section.server.id}`}
           title={section.server.name}
-          icon={<ServerBadge name={section.server.name} iconUrl={section.server.icon_url} size="xs" />}
+          icon={<ServerIcon name={section.server.name} iconUrl={section.server.icon_url} size="xs" lazy />}
           eager={searching || i < EAGER_SERVERS}
           estimatedHeight={sectionHeight(section.items.length)}
         >
