@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { copyImage } from '../lib/imageClipboard'
 import { useImageMenuStore } from '../store/imageMenuStore'
 import { showToast } from '../../../shared/store/toastStore'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 const MENU_WIDTH = 176
 
@@ -13,21 +15,7 @@ function ImageContextMenu(): React.JSX.Element | null {
   const close = useImageMenuStore((s) => s.close)
   const ref = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    if (!target) return
-    const onDown = (e: MouseEvent): void => {
-      if (!ref.current?.contains(e.target as Node)) close()
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') close()
-    }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [target, close])
+  useDismiss((node) => insideAny([ref.current], node), () => close(), { enabled: Boolean(target), on: 'window' })
 
   if (!target) return null
 

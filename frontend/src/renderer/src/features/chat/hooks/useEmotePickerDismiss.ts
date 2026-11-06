@@ -1,4 +1,6 @@
 import { useEffect, type RefObject } from 'react'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 /**
  * Fecha o seletor de emoji: clique fora (o botão que o abriu não conta, para
@@ -12,32 +14,25 @@ export function useEmotePickerDismiss(
   floating: boolean,
   onClose: () => void
 ): void {
-  useEffect(() => {
-    const inside = (e: Event): boolean =>
-      e.target instanceof Node && !!ref.current?.contains(e.target)
-    const onMouseDown = (e: MouseEvent): void => {
-      if (!inside(e) && !anchor?.contains(e.target as Node)) onClose()
-    }
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return
+  useDismiss(
+    (target) => insideAny([ref.current, anchor], target),
+    (reason) => {
       onClose()
-      if (anchor?.isConnected) anchor.focus()
+      if (reason === 'escape' && anchor?.isConnected) anchor.focus()
     }
+  )
+
+  useEffect(() => {
+    if (!floating) return
     // A rolagem da própria lista de emojis não fecha.
     const onScroll = (e: Event): void => {
-      if (!inside(e)) onClose()
+      if (!(e.target instanceof Node && ref.current?.contains(e.target))) onClose()
     }
-    document.addEventListener('mousedown', onMouseDown)
-    document.addEventListener('keydown', onKeyDown)
-    if (floating) {
-      window.addEventListener('scroll', onScroll, true)
-      window.addEventListener('resize', onClose)
-    }
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onClose)
     return () => {
-      document.removeEventListener('mousedown', onMouseDown)
-      document.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', onClose)
     }
-  }, [ref, anchor, floating, onClose])
+  }, [ref, floating, onClose])
 }

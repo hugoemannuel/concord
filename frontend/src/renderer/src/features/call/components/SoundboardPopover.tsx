@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useCallStore } from '../store/callStore'
 import { useVoiceModStore } from '../store/voiceModStore'
@@ -6,6 +6,8 @@ import { isVoiceModActive } from '../lib/voiceModPresets'
 import { MicIcon, SoundPadsIcon } from '../../../shared/ui/icons'
 import SoundboardSoundsPanel from './SoundboardSoundsPanel'
 import VoiceModPanel from './VoiceModPanel'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 const POPOVER_WIDTH = 480
 const GAP = 10
@@ -33,25 +35,7 @@ function SoundboardPopover({
   const [busy, setBusy] = useState(false)
   const handleBusy = useCallback((next: boolean) => setBusy(next), [])
 
-  useEffect(() => {
-    const onDown = (e: MouseEvent): void => {
-      if (busy) return
-      const target = e.target as Node
-      if (!ref.current?.contains(target) && !anchor.contains(target)) {
-        onClose()
-      }
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (busy) return
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [anchor, onClose, busy])
+  useDismiss((target) => insideAny([ref.current, anchor], target), () => onClose(), { enabled: !busy })
 
   if (!serverId) return null
 

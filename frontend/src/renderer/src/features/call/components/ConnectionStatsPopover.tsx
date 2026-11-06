@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { averagePing, pingSegments, type PingSample } from '../lib/connectionStats'
 import { useConnectionStats } from '../hooks/useConnectionStats'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 const WIDTH = 300
 const MARGIN = 8
@@ -138,32 +140,28 @@ function ConnectionStatsPopover({
   const left = Math.max(MARGIN, Math.min(rect.left, window.innerWidth - width - MARGIN))
   const bottom = window.innerHeight - rect.top + MARGIN
 
+  useDismiss(
+    (target) => insideAny([ref.current, anchor], target),
+    (reason, event) => {
+      if (reason === 'outside') return onClose()
+      event.preventDefault()
+      event.stopPropagation()
+      onClose()
+      anchor.focus({ preventScroll: true })
+    },
+    { event: 'pointerdown' }
+  )
+
   useEffect(() => {
     ref.current?.focus({ preventScroll: true })
-    const onDown = (event: PointerEvent): void => {
-      const target = event.target as Node
-      if (!ref.current?.contains(target) && !anchor.contains(target)) onClose()
-    }
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        event.stopPropagation()
-        onClose()
-        anchor.focus({ preventScroll: true })
-      }
-    }
     const onResize = (): void => resize((value) => value + 1)
-    document.addEventListener('pointerdown', onDown)
-    document.addEventListener('keydown', onKey)
     window.addEventListener('resize', onResize)
     window.addEventListener('scroll', onResize, true)
     return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', onResize)
       window.removeEventListener('scroll', onResize, true)
     }
-  }, [anchor, onClose])
+  }, [])
 
   const latest = stats.history.at(-1)?.ms ?? null
   const metricsAvailable = Boolean(window.api?.appMetrics)

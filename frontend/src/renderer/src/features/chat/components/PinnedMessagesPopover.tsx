@@ -11,6 +11,7 @@ import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
 import { PinnedListSkeleton } from '../../../shared/ui/skeleton/layouts'
 import { formatMessageDateTime } from '../lib/messageDateTime'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
 
 interface PinnedMessagesPopoverProps {
   channelId: string
@@ -146,26 +147,9 @@ export default function PinnedMessagesPopover({
   }, [channelId, loadPins])
 
   // Fecha ao clicar fora ou apertar Escape
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [onClose])
+  useDismiss((target) => !popoverRef.current || popoverRef.current.contains(target), () => onClose())
 
-  const handleJump = (messageId: string) => {
+  const handleJump = (messageId: string): void => {
     window.dispatchEvent(
       new CustomEvent('concord:jump-to-message', {
         detail: { messageId }
@@ -173,7 +157,7 @@ export default function PinnedMessagesPopover({
     )
   }
 
-  const handleUnpin = async (messageId: string) => {
+  const handleUnpin = async (messageId: string): Promise<void> => {
     try {
       await unpin(channelId, messageId)
     } catch {

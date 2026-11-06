@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNoiseSuppressionStore } from '../store/noiseSuppressionStore'
 import { useRnnoiseStatusStore } from '../store/rnnoiseStatusStore'
 import MicTest from './MicTest'
 import Switch from '../../../shared/ui/Switch'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 const RNNOISE_URL = 'https://jmvalin.ca/demo/rnnoise/'
 const POPOVER_WIDTH = 320
@@ -74,21 +76,7 @@ function NoiseSuppressionPopover({
   )
   const bottom = window.innerHeight - rect.top + GAP
 
-  useEffect(() => {
-    const onDown = (e: MouseEvent): void => {
-      const target = e.target as Node
-      if (!ref.current?.contains(target) && !anchor.contains(target)) onClose()
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [anchor, onClose])
+  useDismiss((target) => insideAny([ref.current, anchor], target), () => onClose())
 
   return createPortal(
     <div

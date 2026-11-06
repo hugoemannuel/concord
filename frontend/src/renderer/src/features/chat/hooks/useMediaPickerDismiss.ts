@@ -1,4 +1,5 @@
-import { useEffect, type RefObject } from 'react'
+import type { RefObject } from 'react'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
 import { insideElement } from '../lib/insideElement'
 
 /** O clique foi fora do seletor? */
@@ -16,18 +17,5 @@ export function useMediaPickerDismiss(
   blocked: boolean,
   onClose: () => void
 ): void {
-  useEffect(() => {
-    const onMouseDown = (e: MouseEvent): void => {
-      if (!blocked && isOutside(ref.current, e.target)) onClose()
-    }
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (!blocked && e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [ref, blocked, onClose])
+  useDismiss((target) => !isOutside(ref.current, target), () => onClose(), { enabled: !blocked })
 }
