@@ -28,10 +28,11 @@
 //   NOPORTAL_BUS=unix:abstract=salinha-noportal ...
 import { createRequire } from 'module'
 import { execFileSync } from 'child_process'
-import { mkdtempSync, readFileSync } from 'fs'
+import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
+import { createE2E } from './lib/e2e.mjs'
 
 const frontend = fileURLToPath(new URL('../frontend', import.meta.url))
 const require = createRequire(join(frontend, 'package.json'))
@@ -41,50 +42,12 @@ const API = process.env.API ?? 'http://127.0.0.1:8080/api'
 const APP = process.env.APP ?? 'http://localhost:5174/'
 const AUTO_PICK = process.env.PICK !== 'manual' && !!process.env.HYPRLAND_INSTANCE_SIGNATURE
 const run = Date.now().toString(36)
+const { api, makeUser } = createE2E({ api: API, run })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 if (process.env.XDG_SESSION_TYPE !== 'wayland' || !process.env.WAYLAND_DISPLAY) {
   console.error('Rode numa sessão Wayland (XDG_SESSION_TYPE=wayland e WAYLAND_DISPLAY).')
   process.exit(2)
-}
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-/** Confirma o e-mail pelo link que o backend sem SMTP escreve no log. */
-async function verifyEmail(email) {
-  if (!process.env.BACKEND_LOG) throw new Error('defina BACKEND_LOG (log do backend)')
-  const start = Date.now()
-  while (Date.now() - start < 10000) {
-    const log = readFileSync(process.env.BACKEND_LOG, 'utf8')
-    const at = log.lastIndexOf(`para ${email}`)
-    const token = at >= 0 && /\/verify-email\?token=([^\s&]+)/.exec(log.slice(at))?.[1]
-    if (token) {
-      await api('/auth/verify-email', { method: 'POST', body: { token: decodeURIComponent(token) } })
-      return
-    }
-    await sleep(100)
-  }
-  throw new Error(`e-mail de confirmação de ${email} não apareceu no log do backend`)
-}
-
-async function register(name) {
-  const user = { username: `${name}${run}`, email: `${name}-${run}@teste.dev`, password: 'senha-forte-123' }
-  const res = await api('/auth/register', {
-    method: 'POST',
-    body: { ...user, display_name: name }
-  })
-  await verifyEmail(user.email)
-  const me = await api('/users/me', { token: res.access_token })
-  return { ...user, token: res.access_token, id: me.id ?? me.user?.id }
 }
 
 const failures = []
@@ -152,8 +115,8 @@ async function closePicker() {
 
 // ─── Preparação ────────────────────────────────────────────────────────────
 
-const ana = await register('ana')
-const bia = await register('bia')
+const ana = await makeUser('ana')
+const bia = await makeUser('bia')
 await api('/friends/request', { token: ana.token, method: 'POST', body: { username: bia.username } })
 await api(`/friends/${ana.username}/accept`, { token: bia.token, method: 'PUT' })
 const server = await api('/servers', { token: ana.token, method: 'POST', body: { name: `Tela ${run}` } })

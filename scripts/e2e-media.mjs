@@ -3,11 +3,12 @@
 // Uso: igual ao scripts/e2e-invite.mjs (backend rodando + renderer buildado com
 // VITE_SERVER_URL e servido em APP). UPLOADS_DIR é a pasta de mídia do backend
 // (padrão backend/uploads, o padrão de `go run ./cmd` dentro de backend/).
-//   API=http://localhost:8080/api APP=http://localhost:5174/ node scripts/e2e-media.mjs
+//   API=http://localhost:8080/api APP=http://localhost:5174/ BACKEND_LOG=<saída do backend> node scripts/e2e-media.mjs
 import { createRequire } from 'module'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
@@ -17,6 +18,7 @@ const UPLOADS_DIR = resolve(
   process.env.UPLOADS_DIR ?? join(fileURLToPath(new URL('..', import.meta.url)), 'backend', 'uploads')
 )
 const run = Date.now().toString(36)
+const { request: api, makeUser } = createE2E({ api: API, run })
 
 // PNG 1×1 válido e um "ogg" (só a assinatura importa para o backend).
 const PNG = Buffer.from(
@@ -24,18 +26,6 @@ const PNG = Buffer.from(
   'base64'
 )
 const OGG = Buffer.concat([Buffer.from('OggS\x00\x02'), Buffer.alloc(200)])
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  let parsed = null
-  try { parsed = text ? JSON.parse(text) : null } catch { parsed = text }
-  return { status: res.status, body: parsed }
-}
 
 async function upload(token, roomPath, name, type, bytes, fields = {}) {
   const form = new FormData()
@@ -60,17 +50,6 @@ async function fetchFile(id, mediaToken) {
   const res = await fetch(`${API}/media/${id}${query}`)
   const bytes = Buffer.from(await res.arrayBuffer())
   return { status: res.status, type: res.headers.get('content-type'), bytes }
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { body } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  const me = (await api('/users/me', { token: body.access_token })).body
-  return { email, password, token: body.access_token, name, id: me.id }
 }
 
 const mediaToken = async (user) => (await api('/media/token', { token: user.token })).body.token

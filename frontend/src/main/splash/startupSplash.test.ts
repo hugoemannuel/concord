@@ -44,6 +44,7 @@ function setup(hidden = false): {
   deps: {
     saveHiddenRelaunch: ReturnType<typeof vi.fn>
     clearHiddenRelaunch: ReturnType<typeof vi.fn>
+    onView: ReturnType<typeof vi.fn>
   }
 } {
   const window = fakeWindow()
@@ -52,7 +53,8 @@ function setup(hidden = false): {
     window,
     log: vi.fn(),
     saveHiddenRelaunch: vi.fn(),
-    clearHiddenRelaunch: vi.fn()
+    clearHiddenRelaunch: vi.fn(),
+    onView: vi.fn()
   }
   return { splash: startSplash(deps), window, deps }
 }
@@ -99,6 +101,19 @@ describe('startSplash', () => {
     await settle()
     expect(opened).toBe(true)
     expect(update.state.watcher).toBeNull()
+  })
+
+  it('avisa quem abre a janela principal de cada fase mostrada', async () => {
+    const { splash, deps } = setup()
+    const update = fakeUpdate(true)
+    void splash.update(update)
+    await settle()
+    update.state.watcher?.verifying()
+    expect(deps.onView.mock.calls.map(([view]) => view.phase)).toEqual([
+      'checking',
+      'downloading',
+      'installing'
+    ])
   })
 
   it('aberto pelo login e instalando: marca para reabrir escondido', async () => {
