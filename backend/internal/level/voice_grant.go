@@ -7,22 +7,45 @@ import (
 	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
-func (s *Service) give(ctx context.Context, g grant) {
-	userID := g.activity.UserID
-	xp := g.xp
-	if xp == 0 {
+// giveAll grava o XP de todos que fecharam minuto numa escrita só e avisa
+// cada um (progresso e, se subiu, a subida). Se a escrita falhar, o XP do
+// minuto se perde, como antes.
+func (s *Service) giveAll(ctx context.Context, grants []grant) {
+	adds := voiceAdds(grants)
+	if len(adds) == 0 {
 		return
 	}
-	totalXP, totalSeconds, err := s.store.AddVoiceXP(ctx, userID, xp, g.minutes*60)
+	totals, err := s.store.AddVoiceXP(ctx, adds)
 	if err != nil {
-		log.Printf("[level] add xp for %s: %v", userID, err)
+		log.Printf("[level] add xp (%d pessoas): %v", len(adds), err)
 		return
 	}
+	for _, g := range grants {
+		if t, ok := totals[g.activity.UserID]; ok {
+			s.announce(g, t)
+		}
+	}
+}
 
-	progress := newProgress(userID, totalXP, totalSeconds)
+// voiceAdds: as somas a gravar; minuto que rendeu 0 XP fica de fora.
+func voiceAdds(grants []grant) []voiceXP {
+	var adds []voiceXP
+	for _, g := range grants {
+		if g.xp != 0 {
+			adds = append(adds, voiceXP{userID: g.activity.UserID, xp: g.xp, seconds: g.minutes * 60})
+		}
+	}
+	return adds
+}
+
+// announce avisa o progresso novo à pessoa e, se ela subiu de nível, a
+// chamada, o servidor e ela mesma.
+func (s *Service) announce(g grant, t voiceTotals) {
+	userID := g.activity.UserID
+	progress := newProgress(userID, t.xp, t.seconds)
 	s.publisher.SendToUser(userID, wsevent.Marshal("level:update", progress))
 
-	previous, _, _ := FromXP(totalXP - xp)
+	previous, _, _ := FromXP(t.xp - g.xp)
 	if progress.Level == previous {
 		return
 	}

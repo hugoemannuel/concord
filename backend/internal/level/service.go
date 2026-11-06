@@ -26,7 +26,7 @@ type VoiceSource interface {
 }
 
 type xpStore interface {
-	AddVoiceXP(ctx context.Context, userID string, xp int64, seconds int64) (int64, int64, error)
+	AddVoiceXP(ctx context.Context, adds []voiceXP) (map[string]voiceTotals, error)
 }
 
 // grant é XP pronto para ser gravado.
@@ -90,9 +90,7 @@ func (s *Service) tick(ctx context.Context, now time.Time) {
 	// O aviso do buff vai antes das gravações: ele é o batimento que mantém o
 	// buff vivo no cliente e não pode atrasar junto com o banco.
 	s.publishBoosts(boosts)
-	for _, g := range s.accrue(active, boosts, now) {
-		s.give(ctx, g)
-	}
+	s.giveAll(ctx, s.accrue(active, boosts, now))
 }
 
 // accrue soma o tempo desde o último tick para quem está elegível agora e
