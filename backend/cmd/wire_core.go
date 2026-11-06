@@ -48,7 +48,8 @@ func (a *app) wireCore() {
 	a.authService.OnSessionsRevoked(a.hub.DisconnectUser)
 	a.mobileApps = websocket.NewMobileApps()
 	a.hub.SetStatusLookup(a.userRepository.GetStatus)
-	a.hub.SetAudience(websocket.NewSQLAudience(a.db))
+	// Público da atividade com cache curto: troca de música/jogo não consulta o banco toda vez.
+	a.hub.SetAudience(websocket.NewCachedAudience(websocket.NewSQLAudience(a.db)))
 
 	// Permissões (cargos, @everyone, sobrescritas por canal)
 	a.permissionService = permission.PermissionService(permission.PermissionRepository(a.db))
