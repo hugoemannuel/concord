@@ -166,3 +166,11 @@ func parseRoom(room string) (channelID string, conversationID string, serverID s
 	}
 	return "", "", "", "", ""
 }
+
+// trySend entrega o evento sem bloquear: cliente lento perde o evento.
+func (c *Client) trySend(event []byte) {
+	select {
+	case c.send <- event:
+	default:
+	}
+}
