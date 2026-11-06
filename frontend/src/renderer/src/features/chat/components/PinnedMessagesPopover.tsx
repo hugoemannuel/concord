@@ -3,7 +3,7 @@ import { usePinStore, selectPins } from '../store/pinStore'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useServerMemberColor, useServerNicknames } from '../../servers/hooks/useServerNames'
 import { serverDisplayName } from '../../servers/lib/serverNames'
-import { PinIcon, XIcon } from '../../../shared/ui/icons'
+import { PinIcon } from '../../../shared/ui/icons'
 import Avatar from '../../../shared/ui/Avatar'
 import type { PinnedMessage } from '../api/messages'
 import MessageAttachments from './MessageAttachments'
@@ -12,6 +12,7 @@ import MessageGif from './MessageGif'
 import { PinnedListSkeleton } from '../../../shared/ui/skeleton/layouts'
 import { formatMessageDateTime } from '../lib/messageDateTime'
 import { useDismiss } from '../../../shared/hooks/useDismiss'
+import CloseButton from '../../../shared/ui/CloseButton'
 
 interface PinnedMessagesPopoverProps {
   channelId: string
@@ -179,14 +180,7 @@ export default function PinnedMessagesPopover({
             {pins.length}/50
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          title="Fechar"
-          className="rounded p-1 text-muted hover:bg-fg/10 hover:text-strong"
-        >
-          <XIcon className="h-4 w-4" />
-        </button>
+        <CloseButton size="sm" onClick={onClose} />
       </div>
 
       {/* Conteúdo */}
