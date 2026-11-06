@@ -14,6 +14,7 @@ import { useProfileStore } from './profileStore'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useSettingsStore } from '../../settings/store/settingsStore'
 import { showToast } from '../../../shared/store/toastStore'
+import { errorMessage } from '../../../shared/lib/errorMessage'
 
 // Ações da própria pessoa usadas pela barra de baixo, pelo cartão de perfil e
 // pelas Configurações.
@@ -62,19 +63,23 @@ export async function endLocalSession(): Promise<void> {
   await resetLocalSession()
 }
 
+/** Põe o status no usuário logado agora (se ainda houver um). */
+function patchMyStatus(status: ChosenStatus | undefined): void {
+  const { user, setUser } = useAuthStore.getState()
+  if (user) setUser({ ...user, status })
+}
+
 /** Troca o status na hora e desfaz se o servidor recusar. */
 export async function changeMyStatus(status: ChosenStatus): Promise<void> {
-  const { user, setUser } = useAuthStore.getState()
+  const user = useAuthStore.getState().user
   if (!user || user.status === status) return
   const previous = user.status
-  setUser({ ...user, status })
+  patchMyStatus(status)
   try {
     const saved = await setStatus(status)
-    const current = useAuthStore.getState().user
-    if (current) setUser({ ...current, status: saved.status ?? status })
+    patchMyStatus(saved.status ?? status)
   } catch (err) {
-    const current = useAuthStore.getState().user
-    if (current) setUser({ ...current, status: previous })
-    showToast.error(err instanceof Error ? err.message : 'Não foi possível mudar o status.')
+    patchMyStatus(previous)
+    showToast.error(errorMessage(err, 'Não foi possível mudar o status.'))
   }
 }
