@@ -7,7 +7,8 @@
 //   APP=http://localhost:4173/ BACKEND_LOG=/tmp/backend.log SHOTS=./shots CHROME=<chromium> \
 //     node scripts/e2e-chat-edit.mjs
 import { createRequire } from 'module'
-import { mkdirSync, readFileSync } from 'fs'
+import { mkdirSync } from 'fs'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
@@ -16,49 +17,7 @@ const SHOTS = process.env.SHOTS ?? './shots'
 mkdirSync(SHOTS, { recursive: true })
 const API = new URL('api', APP).toString()
 const run = Date.now().toString(36)
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-/**
- * Confirma o e-mail como o usuário faria: sem SMTP o backend imprime o e-mail
- * no log (LogMailer), e o link traz o token.
- */
-async function verifyEmail(email) {
-  if (!process.env.BACKEND_LOG) throw new Error('defina BACKEND_LOG (saída do backend) para confirmar o e-mail')
-  const start = Date.now()
-  while (Date.now() - start < 10000) {
-    const log = readFileSync(process.env.BACKEND_LOG, 'utf8')
-    const at = log.lastIndexOf(`para ${email}`)
-    const token = at >= 0 && /\/verify-email\?token=([^\s&]+)/.exec(log.slice(at))?.[1]
-    if (token) {
-      await api('/auth/verify-email', { method: 'POST', body: { token: decodeURIComponent(token) } })
-      return
-    }
-    await new Promise((r) => setTimeout(r, 100))
-  }
-  throw new Error(`e-mail de confirmação de ${email} não apareceu no log do backend`)
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { access_token } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  await verifyEmail(email)
-  const me = await api('/users/me', { token: access_token })
-  return { email, password, token: access_token, id: me.id ?? me.user?.id, username: `${name}${run}` }
-}
+const { api, makeUser } = createE2E({ api: API, run })
 
 function check(desc, ok, detail) {
   if (!ok) throw new Error(`FAIL ${desc}: ${JSON.stringify(detail)}`)

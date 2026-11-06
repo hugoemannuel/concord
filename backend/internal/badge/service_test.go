@@ -22,6 +22,7 @@ type fakeStore struct {
 	savedSessions map[string]int64
 	loadSessions  map[string]int64
 	failAdd       bool
+	addCalls      int
 	// Contadores por categoria (DJ, Barulhento).
 	counts map[string]map[string]int64
 	// Dias de uso gravados ("id@dia") e falha na gravação (Sequência).
@@ -96,13 +97,16 @@ func (f *fakeStore) SaveUnlocks(_ context.Context, userID string, unlocks []Unlo
 	return saved, nil
 }
 
-func (f *fakeStore) AddCallStats(_ context.Context, userID string, d Delta) error {
+func (f *fakeStore) AddCallStats(_ context.Context, deltas map[string]Delta) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.addCalls++
 	if f.failAdd {
 		return errors.New("db down")
 	}
-	f.deltas[userID] = d
+	for userID, d := range deltas {
+		f.deltas[userID] = d
+	}
 	return nil
 }
 
@@ -416,5 +420,21 @@ func TestFailedFlushIsRetried(t *testing.T) {
 	}
 	if got := st.deltas["ana"].Stream; got != 60 {
 		t.Fatalf("stream after retry = %d, want the 60 s from the failed flush", got)
+	}
+}
+
+// Um flush grava todo mundo numa escrita só.
+func TestFlushWritesEveryoneAtOnce(t *testing.T) {
+	s, st, _, calls, _ := newTestService()
+	calls.snaps = []call.CallSnapshot{{
+		CallID: "c1", Participants: []string{"ana", "bia"}, Listeners: []string{"ana", "bia"}, ScreenSharers: []string{"ana"},
+	}}
+	at := t0
+	for i := 0; i < flushEvery; i++ {
+		at = at.Add(tickInterval)
+		s.tick(context.Background(), at)
+	}
+	if _, bia := st.deltas["bia"]; st.addCalls != 1 || st.deltas["ana"].Stream != 60 || !bia {
+		t.Fatalf("escritas = %d, deltas = %+v; quer 1 com ana e bia", st.addCalls, st.deltas)
 	}
 }

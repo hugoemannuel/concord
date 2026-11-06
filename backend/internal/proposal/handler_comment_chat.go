@@ -1,9 +1,7 @@
 package proposal
 
 import (
-	"errors"
 	"io"
-	"log"
 	"net/http"
 	"path"
 	"strconv"
@@ -68,105 +66,46 @@ func (h *Handler) Unreact(c *gin.Context) {
 // opcionalmente width, height e duration_ms) e o deixa pendente até o
 // comentário ser criado com a id dele.
 func (h *Handler) UploadCommentMedia(c *gin.Context) {
-	limit := media.MaxFileBytes + multipartOverhead
-	incoming := c.Request.ContentLength
-	if incoming < 0 {
-		incoming = limit
-	}
-	if !h.space.HasRoom(incoming) {
-		c.JSON(http.StatusInsufficientStorage, gin.H{"error": "server out of space"})
-		return
-	}
-	if c.Request.ContentLength > limit {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large"})
-		return
-	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
-
-	reader, err := c.Request.MultipartReader()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-		return
-	}
-
-	row := CommentAttachmentRow{UploaderID: c.GetString("userID")}
-	saved, keep := false, false
-	var head []byte
-	var declared string
-	// Qualquer saída antes do 201 apaga o arquivo que já foi para o disco.
-	defer func() {
-		if saved && !keep {
-			if err := h.images.Remove(row.ID); err != nil {
-				log.Printf("[proposal] remove rejected attachment %s: %v", row.ID, err)
-			}
-		}
-	}()
-
+	id := uuid.NewString()
 	// Os campos podem vir antes ou depois do arquivo, que vai direto para o disco.
-	for {
-		part, err := reader.NextPart()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			status, msg := uploadStatus(err)
-			c.JSON(status, gin.H{"error": msg})
-			return
-		}
-		switch part.FormName() {
-		case "file":
-			if saved {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-				return
-			}
-			row.ID = uuid.NewString()
-			row.Filename = sanitizeFilename(part.FileName())
-			declared = part.Header.Get("Content-Type")
-			row.SizeBytes, head, err = h.images.Save(row.ID, part, media.MaxFileBytes)
-			if err != nil {
-				status, msg := uploadStatus(err)
-				c.JSON(status, gin.H{"error": msg})
-				return
-			}
-			saved = true
-		case "width", "height", "duration_ms":
-			raw, err := io.ReadAll(io.LimitReader(part, 32))
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-				return
-			}
-			switch part.FormName() {
-			case "width":
-				row.Width = parseOptionalPositive(string(raw), maxMediaDimension)
-			case "height":
-				row.Height = parseOptionalPositive(string(raw), maxMediaDimension)
-			default:
-				row.DurationMs = parseOptionalPositive(string(raw), maxDurationMs)
-			}
-		default:
-			io.Copy(io.Discard, part)
-		}
-		part.Close()
-	}
-	if !saved {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
+	form, err := h.readUpload(c, id, media.MaxFileBytes, "width", "height", "duration_ms")
+	if err != nil {
+		respondUploadError(c, err)
 		return
 	}
-
-	kind, contentType, ok := media.Sniff(head, declared)
+	row, ok := commentAttachmentRow(id, c.GetString("userID"), form)
 	if !ok {
+		h.discardUpload(id)
 		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "unsupported file type"})
 		return
 	}
-	row.Kind, row.ContentType = string(kind), contentType
-
 	attachment, err := h.service.RegisterCommentAttachment(c.Request.Context(), row)
 	if err != nil {
+		h.discardUpload(id)
 		h.fail(c, err)
 		return
 	}
-	keep = true
 	c.JSON(http.StatusCreated, attachment)
+}
+
+// commentAttachmentRow monta o anexo pendente do upload; false se o tipo do
+// arquivo não é aceito.
+func commentAttachmentRow(id, uploaderID string, form media.Form) (CommentAttachmentRow, bool) {
+	kind, contentType, ok := media.Sniff(form.Head, form.Declared)
+	if !ok {
+		return CommentAttachmentRow{}, false
+	}
+	return CommentAttachmentRow{
+		ID:          id,
+		UploaderID:  uploaderID,
+		Kind:        string(kind),
+		ContentType: contentType,
+		Filename:    sanitizeFilename(form.Filename),
+		SizeBytes:   form.Size,
+		Width:       parseOptionalPositive(form.Fields["width"], maxMediaDimension),
+		Height:      parseOptionalPositive(form.Fields["height"], maxMediaDimension),
+		DurationMs:  parseOptionalPositive(form.Fields["duration_ms"], maxDurationMs),
+	}, true
 }
 
 // ServeCommentMedia entrega o anexo de um comentário sem token (<img>, <video> e

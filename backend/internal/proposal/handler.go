@@ -5,17 +5,12 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"gin-quickstart/backend/internal/platform/media"
 )
-
-// multipartOverhead é a folga do multipart (cabeçalhos das partes) sobre o
-// limite do arquivo.
-const multipartOverhead = 1 << 20
 
 type Handler struct {
 	service *Service
@@ -312,96 +307,26 @@ func (h *Handler) DeleteComment(c *gin.Context) {
 
 // --- imagens ---
 
-func uploadStatus(err error) (int, string) {
-	var maxBytes *http.MaxBytesError
-	switch {
-	case errors.Is(err, media.ErrTooLarge), errors.As(err, &maxBytes):
-		return http.StatusRequestEntityTooLarge, "file too large"
-	case errors.Is(err, syscall.ENOSPC):
-		return http.StatusInsufficientStorage, "server out of space"
-	default:
-		return http.StatusBadRequest, "invalid upload"
-	}
-}
-
 // UploadImage recebe uma imagem (multipart, campo "file") e a deixa pendente
 // até a proposta ser criada ou editada com a id dela.
 func (h *Handler) UploadImage(c *gin.Context) {
-	limit := MaxImageBytes + multipartOverhead
-	incoming := c.Request.ContentLength
-	if incoming < 0 {
-		incoming = limit
-	}
-	if !h.space.HasRoom(incoming) {
-		c.JSON(http.StatusInsufficientStorage, gin.H{"error": "server out of space"})
-		return
-	}
-	if c.Request.ContentLength > limit {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large"})
-		return
-	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
-
-	reader, err := c.Request.MultipartReader()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-		return
-	}
-
 	id := uuid.NewString()
-	saved, keep := false, false
-	defer func() {
-		if saved && !keep {
-			if err := h.images.Remove(id); err != nil {
-				log.Printf("[proposal] remove image %s: %v", id, err)
-			}
-		}
-	}()
-
-	var size int64
-	var contentType string
-	for {
-		part, err := reader.NextPart()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			status, msg := uploadStatus(err)
-			c.JSON(status, gin.H{"error": msg})
-			return
-		}
-		if part.FormName() != "file" {
-			part.Close()
-			continue
-		}
-		if saved {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-			return
-		}
-		n, head, err := h.images.Save(id, part, MaxImageBytes)
-		if err != nil {
-			status, msg := uploadStatus(err)
-			c.JSON(status, gin.H{"error": msg})
-			return
-		}
-		saved, size = true, n
-		kind, ct, ok := media.Sniff(head, "")
-		if !ok || kind != media.KindImage {
-			c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "unsupported file type"})
-			return
-		}
-		contentType = ct
-	}
-	if !saved {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
+	form, err := h.readUpload(c, id, MaxImageBytes)
+	if err != nil {
+		respondUploadError(c, err)
 		return
 	}
-
-	if err := h.service.RegisterImage(c.Request.Context(), id, c.GetString("userID"), contentType, size); err != nil {
+	kind, contentType, ok := media.Sniff(form.Head, "")
+	if !ok || kind != media.KindImage {
+		h.discardUpload(id)
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "unsupported file type"})
+		return
+	}
+	if err := h.service.RegisterImage(c.Request.Context(), id, c.GetString("userID"), contentType, form.Size); err != nil {
+		h.discardUpload(id)
 		h.fail(c, err)
 		return
 	}
-	keep = true
 	c.JSON(http.StatusCreated, Image{ID: id, URL: imageURL(id), ContentType: contentType})
 }
 

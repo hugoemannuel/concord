@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/message"
+	"gin-quickstart/backend/internal/platform/wsevent"
 	"gin-quickstart/backend/internal/user"
 )
 
@@ -176,7 +177,7 @@ func (t *Typing) process(job typingJob) {
 		out["username"] = name.username
 	}
 
-	t.hub.BroadcastToRoomsExcept(typingRooms(job, entry.participants), job.userID, writeEvent(job.evType, out))
+	t.hub.BroadcastToRoomsExcept(typingRooms(job, entry.participants), job.userID, wsevent.Marshal(job.evType, out))
 }
 
 // roomAccess: mesma regra de quem pode escrever mensagem, guardada por pouco

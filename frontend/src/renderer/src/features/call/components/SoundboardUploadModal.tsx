@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MAX_SOUNDBOARD_NAME_LEN } from '../api/soundboard'
 import { selectSoundFile } from '../lib/soundUpload'
+import { submitSound, toggleSoundPreview } from '../lib/soundUploadForm'
 import { useSoundboardStore } from '../store/soundboardStore'
 import { showToast } from '../../../shared/store/toastStore'
 import { useObjectUrl } from '../../../shared/hooks/useObjectUrl'
@@ -67,47 +68,16 @@ function SoundboardUploadModal({
     })
   }
 
-  const togglePreview = (): void => {
-    const el = previewAudioRef.current
-    if (!el || !previewUrl) return
-    if (previewPlaying) {
-      el.pause()
-      el.currentTime = 0
-      setPreviewPlaying(false)
-    } else {
-      el.currentTime = 0
-      void el
-        .play()
-        .then(() => setPreviewPlaying(true))
-        .catch(() => setPreviewPlaying(false))
-    }
-  }
+  const togglePreview = (): void =>
+    toggleSoundPreview(previewAudioRef.current, previewUrl, previewPlaying, setPreviewPlaying)
 
-  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+  const handleSubmit = (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
-    if (!file || !durationMs || submitting) return
-    const trimmedName = name.trim()
-    if (!trimmedName) {
-      setError('Digite um nome para o som.')
-      return
-    }
-
-    setSubmitting(true)
-    setError(null)
-    try {
-      await uploadSound(serverId, file, {
-        name: trimmedName,
-        emoji: emoji.trim() || undefined,
-        duration_ms: durationMs,
-        filename: file.name
-      })
-      showToast.success('Som adicionado à mesa de áudio!')
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível enviar o áudio.')
-    } finally {
-      setSubmitting(false)
-    }
+    return submitSound(
+      { file, durationMs, name, emoji, submitting },
+      (picked, input) => uploadSound(serverId, picked, input),
+      { setSubmitting, setError, success: showToast.success, done: onClose }
+    )
   }
 
   return (

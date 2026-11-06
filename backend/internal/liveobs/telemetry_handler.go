@@ -19,8 +19,10 @@ const (
 	limiterKeys  = 10_000
 )
 
+// reportSaver grava os relatórios de um pedido de uma vez; sessão de outra
+// pessoa é pulada.
 type reportSaver interface {
-	Save(ctx context.Context, userID string, r Report) error
+	SaveAll(ctx context.Context, userID string, reports []Report) error
 }
 
 // TelemetryHandler recebe a telemetria das lives e calls.
@@ -50,7 +52,7 @@ func (h *TelemetryHandler) Ingest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.saveAll(c.Request.Context(), userID, batch); err != nil {
+	if err := h.store.SaveAll(c.Request.Context(), userID, batch.Reports); err != nil {
 		log.Printf("[liveobs] telemetria de %s: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save"})
 		return
@@ -65,13 +67,4 @@ func decodeBatch(c *gin.Context) (Batch, error) {
 		return b, errors.New("invalid body")
 	}
 	return b, b.Validate()
-}
-
-func (h *TelemetryHandler) saveAll(ctx context.Context, userID string, b Batch) error {
-	for _, r := range b.Reports {
-		if err := h.store.Save(ctx, userID, r); err != nil && !errors.Is(err, ErrNotOwner) {
-			return err
-		}
-	}
-	return nil
 }

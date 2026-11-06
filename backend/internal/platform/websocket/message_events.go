@@ -3,6 +3,7 @@ package websocket
 import (
 	"gin-quickstart/backend/internal/message"
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 // publishMessage entrega a mensagem do canal ou da DM.
@@ -55,54 +56,54 @@ func (h *Hub) publishToChannel(serverID, channelID string, data []byte) {
 }
 
 func (h *Hub) PublishMessageCreate(event message.CreateEvent) {
-	h.publishMessage(writeEvent("message:create", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
+	h.publishMessage(wsevent.Marshal("message:create", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
 }
 
 // PublishMessageUpdate (mensagem editada) vai pelas mesmas salas do create.
 func (h *Hub) PublishMessageUpdate(event message.UpdateEvent) {
-	h.publishMessage(writeEvent("message:update", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
+	h.publishMessage(wsevent.Marshal("message:update", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
 }
 
 func (h *Hub) PublishMessageDelete(event message.DeleteEvent) {
-	h.publishMessage(writeEvent("message:delete", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
+	h.publishMessage(wsevent.Marshal("message:delete", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
 }
 
 func (h *Hub) PublishMessagePin(event message.PinEvent) {
-	h.publishMessage(writeEvent("channel:pin:add", event), &event.ChannelID, event.ServerID, nil, nil)
+	h.publishMessage(wsevent.Marshal("channel:pin:add", event), &event.ChannelID, event.ServerID, nil, nil)
 }
 
 func (h *Hub) PublishMessageUnpin(event message.UnpinEvent) {
-	h.publishMessage(writeEvent("channel:pin:remove", event), &event.ChannelID, event.ServerID, nil, nil)
+	h.publishMessage(wsevent.Marshal("channel:pin:remove", event), &event.ChannelID, event.ServerID, nil, nil)
 }
 
 // PublishPollUpdate vai só para a sala da conversa/canal: quem não está com a
 // sala aberta recebe a enquete atualizada ao carregar as mensagens.
 func (h *Hub) PublishPollUpdate(event message.PollUpdateEvent) {
 	if event.ChannelID != nil {
-		h.BroadcastToRoom("channel:"+*event.ChannelID, writeEvent("message:poll:update", event))
+		h.BroadcastToRoom("channel:"+*event.ChannelID, wsevent.Marshal("message:poll:update", event))
 		return
 	}
 	if event.ConversationID != nil {
-		h.BroadcastToRoom("conversation:"+*event.ConversationID, writeEvent("message:poll:update", event))
+		h.BroadcastToRoom("conversation:"+*event.ConversationID, wsevent.Marshal("message:poll:update", event))
 	}
 }
 
 func (h *Hub) PublishReactionAdd(event message.ReactionEvent) {
 	if event.ChannelID != nil {
-		h.BroadcastToRoom("channel:"+*event.ChannelID, writeEvent("message:reaction:add", event))
+		h.BroadcastToRoom("channel:"+*event.ChannelID, wsevent.Marshal("message:reaction:add", event))
 		return
 	}
 	if event.ConversationID != nil {
-		h.BroadcastToRoom("conversation:"+*event.ConversationID, writeEvent("message:reaction:add", event))
+		h.BroadcastToRoom("conversation:"+*event.ConversationID, wsevent.Marshal("message:reaction:add", event))
 	}
 }
 
 func (h *Hub) PublishReactionRemove(event message.ReactionEvent) {
 	if event.ChannelID != nil {
-		h.BroadcastToRoom("channel:"+*event.ChannelID, writeEvent("message:reaction:remove", event))
+		h.BroadcastToRoom("channel:"+*event.ChannelID, wsevent.Marshal("message:reaction:remove", event))
 		return
 	}
 	if event.ConversationID != nil {
-		h.BroadcastToRoom("conversation:"+*event.ConversationID, writeEvent("message:reaction:remove", event))
+		h.BroadcastToRoom("conversation:"+*event.ConversationID, wsevent.Marshal("message:reaction:remove", event))
 	}
 }

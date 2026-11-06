@@ -77,6 +77,14 @@ describe('uploadTo', () => {
     expect(err.body).toEqual({ error: 'formato', code: 'unsupported_image' })
   })
 
+  it('erro sem code mantém o corpo', async () => {
+    const promise = uploadTo('/rota', { files: [] })
+    FakeXhr.last!.respond(409, { error: 'limite', max: 50 })
+    const err = (await promise.catch((e) => e)) as ApiError
+    expect(err.code).toBeUndefined()
+    expect(err.body).toEqual({ error: 'limite', max: 50 })
+  })
+
   it('sem mensagem no corpo (ou corpo que não é JSON) vale o texto padrão', async () => {
     const vazio = uploadTo('/rota', { files: [] })
     FakeXhr.last!.respond(500, 'quebrado')

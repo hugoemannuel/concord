@@ -22,19 +22,42 @@ func NewTelemetryRepository(db *pgxpool.Pool) *TelemetryRepository {
 	return &TelemetryRepository{db: db}
 }
 
-// Save grava um relatório numa transação: cria ou renova a sessão (só quem a
-// criou), a amostra e os eventos; início e fim viram eventos do servidor.
+// SaveAll grava os relatórios de um pedido numa transação só: as sessões
+// (cria ou renova, só quem a criou) numa ida ao banco e as amostras e os
+// eventos noutra; início e fim viram eventos do servidor. Sessão de outra
+// pessoa é pulada.
+func (r *TelemetryRepository) SaveAll(ctx context.Context, userID string, reps []Report) error {
+	_, err := r.saveAll(ctx, userID, reps)
+	return err
+}
+
+// Save grava um relatório; sessão de outra pessoa = ErrNotOwner.
 func (r *TelemetryRepository) Save(ctx context.Context, userID string, rep Report) error {
-	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
-		inserted, err := upsertSession(ctx, tx, userID, rep)
+	owned, err := r.saveAll(ctx, userID, []Report{rep})
+	if err == nil && owned == 0 {
+		return ErrNotOwner
+	}
+	return err
+}
+
+// saveAll devolve quantos relatórios eram de sessões da pessoa.
+func (r *TelemetryRepository) saveAll(ctx context.Context, userID string, reps []Report) (int, error) {
+	var owned int
+	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		saved, err := upsertSessions(ctx, tx, userID, reps)
 		if err != nil {
 			return err
 		}
-		if err := insertSample(ctx, tx, rep.SessionID, rep.Sample); err != nil {
-			return err
-		}
-		return insertEvents(ctx, tx, rep.SessionID, sessionEvents(rep, inserted))
+		owned = len(saved)
+		return insertDetails(ctx, tx, saved)
 	})
+	return owned, err
+}
+
+// ownedReport: relatório de uma sessão da pessoa e se a sessão é nova.
+type ownedReport struct {
+	rep      Report
+	inserted bool
 }
 
 // sessionEvents: os do app, com o início (sessão nova) e o fim do servidor.
@@ -56,11 +79,34 @@ func nullable(s string) any {
 	return s
 }
 
-// upsertSession devolve se a sessão é nova; de outra pessoa = ErrNotOwner.
-func upsertSession(ctx context.Context, tx pgx.Tx, userID string, rep Report) (bool, error) {
+// upsertSessions cria ou renova as sessões numa ida ao banco e devolve os
+// relatórios das que são da pessoa (as de outra pessoa ficam de fora).
+func upsertSessions(ctx context.Context, tx pgx.Tx, userID string, reps []Report) ([]ownedReport, error) {
+	batch := &pgx.Batch{}
+	for _, rep := range reps {
+		queueUpsertSession(batch, userID, rep)
+	}
+	results := tx.SendBatch(ctx, batch)
+	defer results.Close()
+	owned := make([]ownedReport, 0, len(reps))
+	for _, rep := range reps {
+		var inserted bool
+		err := results.QueryRow().Scan(&inserted)
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("gravar live_sessions: %w", err)
+		}
+		owned = append(owned, ownedReport{rep: rep, inserted: inserted})
+	}
+	return owned, results.Close()
+}
+
+// queueUpsertSession: sem linha de volta = a sessão é de outra pessoa.
+func queueUpsertSession(batch *pgx.Batch, userID string, rep Report) {
 	c := rep.Context
-	var inserted bool
-	err := tx.QueryRow(ctx, `INSERT INTO live_sessions
+	batch.Queue(`INSERT INTO live_sessions
 			(id, user_id, kind, call_id, streamer_id, os, app_version, target, gpu, network, cores, ended_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN $12 THEN NOW() END)
 		ON CONFLICT (id) DO UPDATE SET
@@ -71,21 +117,46 @@ func upsertSession(ctx context.Context, tx pgx.Tx, userID string, rep Report) (b
 		RETURNING (xmax = 0)`,
 		rep.SessionID, userID, rep.Kind, nullable(rep.CallID), nullable(rep.StreamerID),
 		c.OS, c.AppVersion, c.Target, c.GPU, c.Network, c.Cores, rep.Ended,
-	).Scan(&inserted)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, ErrNotOwner
-	}
-	if err != nil {
-		return false, fmt.Errorf("gravar live_sessions: %w", err)
-	}
-	return inserted, nil
+	)
 }
 
-func insertSample(ctx context.Context, tx pgx.Tx, sessionID string, s *Sample) error {
-	if s == nil {
+// insertDetails grava as amostras e os eventos numa ida ao banco (os eventos
+// num INSERT só, na ordem).
+func insertDetails(ctx context.Context, tx pgx.Tx, owned []ownedReport) error {
+	batch := &pgx.Batch{}
+	for _, o := range owned {
+		queueSample(batch, o.rep.SessionID, o.rep.Sample)
+	}
+	if sessions, types, details := eventColumns(owned); len(sessions) > 0 {
+		batch.Queue(`INSERT INTO live_events (session_id, type, detail)
+			SELECT * FROM unnest($1::uuid[], $2::text[], $3::text[])`, sessions, types, details)
+	}
+	if batch.Len() == 0 {
 		return nil
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO live_samples
+	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
+		return fmt.Errorf("gravar amostras e eventos: %w", err)
+	}
+	return nil
+}
+
+// eventColumns: os eventos de todas as sessões em colunas, na ordem.
+func eventColumns(owned []ownedReport) (sessions, types, details []string) {
+	for _, o := range owned {
+		for _, e := range sessionEvents(o.rep, o.inserted) {
+			sessions = append(sessions, o.rep.SessionID)
+			types = append(types, e.Type)
+			details = append(details, e.Detail)
+		}
+	}
+	return sessions, types, details
+}
+
+func queueSample(batch *pgx.Batch, sessionID string, s *Sample) {
+	if s == nil {
+		return
+	}
+	batch.Queue(`INSERT INTO live_samples
 		(session_id, seconds, codec, hardware, width, height, fps, target_height, target_fps,
 		 bitrate_kbps, limitation, step, step_changes, layers, backup, loss_pct, jitter_ms, rtt_ms,
 		 freezes, freeze_ms, frames_dropped, key_frames, pli, nack, transport, paused,
@@ -96,20 +167,6 @@ func insertSample(ctx context.Context, tx pgx.Tx, sessionID string, s *Sample) e
 		s.BitrateKbps, s.Limitation, s.Step, s.StepChanges, s.Layers, s.Backup, s.LossPct, s.JitterMs, s.RTTMs,
 		s.Freezes, s.FreezeMs, s.Dropped, s.KeyFrames, s.PLI, s.NACK, s.Transport, s.Paused,
 		s.CaptureFPS, s.RecvFPS, s.CodecMs, s.ConcealedPct, s.RecvLossPct, s.ConnectMs)
-	if err != nil {
-		return fmt.Errorf("gravar live_samples: %w", err)
-	}
-	return nil
-}
-
-func insertEvents(ctx context.Context, tx pgx.Tx, sessionID string, events []Event) error {
-	for _, e := range events {
-		if _, err := tx.Exec(ctx, `INSERT INTO live_events (session_id, type, detail) VALUES ($1, $2, $3)`,
-			sessionID, e.Type, e.Detail); err != nil {
-			return fmt.Errorf("gravar live_events: %w", err)
-		}
-	}
-	return nil
 }
 
 // Prune apaga as sessões vistas pela última vez antes de before (amostras e

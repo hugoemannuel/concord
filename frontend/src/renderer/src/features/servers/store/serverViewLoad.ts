@@ -2,6 +2,7 @@ import type { StoreApi } from 'zustand'
 import { getServer } from '../api/servers'
 import { listChannels as apiListChannels } from '../api/channels'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { sortRoles } from '../lib/roleList'
 import { nicknameMap } from '../lib/serverNames'
 import { serverViewCache } from '../lib/serverViewCache'
@@ -14,9 +15,6 @@ import type { ServerState } from './serverStore'
 let selectSeq = 0
 /** Idem para a busca de canais (a resposta velha chega depois da nova). */
 let channelsSeq = 0
-
-export const isSameSession = (tokenAtStart: string | null): boolean =>
-  useAuthStore.getState().accessToken === tokenAtStart
 
 type Set = StoreApi<ServerState>['setState']
 type Get = StoreApi<ServerState>['getState']
@@ -71,7 +69,7 @@ export function serverViewActions(
 ): Pick<ServerState, 'selectServer' | 'refreshServer' | 'fetchChannels'> {
   return {
     selectServer: async (id: string) => {
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       const seq = ++selectSeq
       // Já é o servidor na tela, ou ele já foi visto: mostra o que há e
       // busca por baixo. O "carregando" (que tira a tela toda, modal junto) é
@@ -83,7 +81,7 @@ export function serverViewActions(
       }
       try {
         const res = await getServer(id)
-        if (!isSameSession(token) || seq !== selectSeq) return
+        if (!sameSession() || seq !== selectSeq) return
         loadedFresh(id)
         set({
           currentServer: res.server,
@@ -92,7 +90,7 @@ export function serverViewActions(
           nicknames: { ...get().nicknames, [id]: nicknameMap(res.members) }
         })
       } catch (err) {
-        if (!isSameSession(token) || seq !== selectSeq) return
+        if (!sameSession() || seq !== selectSeq) return
         serverViewCache.forget(id)
         if (!refreshing) set({ currentServer: null, currentMembers: [], roles: [] })
         throw err
@@ -101,10 +99,10 @@ export function serverViewActions(
       }
     },
     refreshServer: async (serverId: string) => {
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       try {
         const [res, channels] = await Promise.all([getServer(serverId), apiListChannels(serverId)])
-        if (!isSameSession(token) || get().currentServer?.id !== serverId) return
+        if (!sameSession() || get().currentServer?.id !== serverId) return
         loadedFresh(serverId)
         set({
           currentServer: res.server,
@@ -120,14 +118,14 @@ export function serverViewActions(
       }
     },
     fetchChannels: async (serverId: string) => {
-      const token = useAuthStore.getState().accessToken
+      const sameSession = sessionGuard()
       const seq = ++channelsSeq
       try {
         const channels = await apiListChannels(serverId)
-        if (!isSameSession(token) || seq !== channelsSeq) return
+        if (!sameSession() || seq !== channelsSeq) return
         set({ channels: Array.isArray(channels) ? channels : [], channelsLoadedFor: serverId })
       } catch {
-        if (isSameSession(token) && seq === channelsSeq) {
+        if (sameSession() && seq === channelsSeq) {
           set({ channels: [], channelsLoadedFor: serverId })
         }
       }

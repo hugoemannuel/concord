@@ -19,69 +19,16 @@
 //     node scripts/e2e-silenciar-servidor.mjs
 import { createRequire } from 'module'
 import { createHmac } from 'crypto'
+import { createE2E, writeToneWav } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
-const { readFileSync, writeFileSync } = require('fs')
 const { tmpdir } = require('os')
 const { join } = require('path')
 
 const API = process.env.API ?? 'http://localhost:8080/api'
 const APP = process.env.APP ?? 'http://localhost:5174/'
 const run = Date.now().toString(36)
-
-// Tom contínuo como microfone (com o DTX, silêncio não manda pacote).
-function writeToneWav(path, hz, seconds = 60, rate = 48000) {
-  const samples = seconds * rate
-  const buf = Buffer.alloc(44 + samples * 2)
-  buf.write('RIFF', 0); buf.writeUInt32LE(36 + samples * 2, 4); buf.write('WAVE', 8)
-  buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22)
-  buf.writeUInt32LE(rate, 24); buf.writeUInt32LE(rate * 2, 28); buf.writeUInt16LE(2, 32); buf.writeUInt16LE(16, 34)
-  buf.write('data', 36); buf.writeUInt32LE(samples * 2, 40)
-  for (let i = 0; i < samples; i++) {
-    buf.writeInt16LE(Math.round(12000 * Math.sin((2 * Math.PI * hz * i) / rate)), 44 + i * 2)
-  }
-  writeFileSync(path, buf)
-}
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-/** Confirma o e-mail pelo link que o backend imprime no log (LogMailer). */
-async function verifyEmail(email) {
-  if (!process.env.BACKEND_LOG) throw new Error('defina BACKEND_LOG (saída do backend) para confirmar o e-mail')
-  const start = Date.now()
-  while (Date.now() - start < 10000) {
-    const log = readFileSync(process.env.BACKEND_LOG, 'utf8')
-    const at = log.lastIndexOf(`para ${email}`)
-    const token = at >= 0 && /\/verify-email\?token=([^\s&]+)/.exec(log.slice(at))?.[1]
-    if (token) {
-      await api('/auth/verify-email', { method: 'POST', body: { token: decodeURIComponent(token) } })
-      return
-    }
-    await new Promise((r) => setTimeout(r, 100))
-  }
-  throw new Error(`e-mail de confirmação de ${email} não apareceu no log do backend`)
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { access_token } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  await verifyEmail(email)
-  const me = await api('/users/me', { token: access_token })
-  return { name, email, password, token: access_token, id: me.id ?? me.user?.id, username: `${name}${run}` }
-}
+const { api, makeUser } = createE2E({ api: API, run })
 
 // Diagnóstico: trilhas publicadas no LiveKit (RoomService/ListParticipants).
 const b64url = (v) => Buffer.from(typeof v === 'string' ? v : JSON.stringify(v)).toString('base64url')
@@ -130,7 +77,8 @@ const browsers = []
 
 async function openClient(user) {
   const tone = join(tmpdir(), `concord-e2e-silenciar-${user.name}.wav`)
-  writeToneWav(tone, TONES[user.name])
+  // Tom contínuo como microfone (com o DTX, silêncio não manda pacote).
+  writeToneWav(tone, { hz: TONES[user.name], seconds: 60 })
   const browser = await chromium.launch({
     executablePath: process.env.CHROME,
     args: [
