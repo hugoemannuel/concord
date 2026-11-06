@@ -109,9 +109,6 @@ func (h *BannerHandler) receive(c *gin.Context, serverID, userID, id string) *up
 	if !actions.Has(ActionCreate) && !actions.Has(ActionEdit) {
 		return refuse(http.StatusForbidden, "missing_permission", ErrMissingPermission)
 	}
-	if ue := h.checkBody(c); ue != nil {
-		return ue
-	}
 	form, ue := h.readForm(c, id)
 	if ue != nil {
 		return ue
@@ -123,21 +120,17 @@ func (h *BannerHandler) receive(c *gin.Context, serverID, userID, id string) *up
 	return nil
 }
 
-// checkBody recusa corpo grande demais ou sem espaço em disco.
-func (h *BannerHandler) checkBody(c *gin.Context) *uploadErr {
-	if c.Request.ContentLength > MaxBannerBytes+multipartOverhead {
-		return formErrors.TooLarge
-	}
-	if !h.space.HasRoom(MaxBannerBytes) {
-		return formErrors.NoSpace
-	}
-	return nil
-}
-
+// readForm confere o corpo (tamanho antes do espaço em disco, que reserva o
+// máximo do banner) e lê o upload.
 func (h *BannerHandler) readForm(c *gin.Context, id string) (media.Form, *uploadErr) {
-	reader, err := c.Request.MultipartReader()
+	reader, err := media.OpenUpload(c.Writer, c.Request, h.space, media.UploadSpec{
+		Limit:     MaxBannerBytes + multipartOverhead,
+		Room:      MaxBannerBytes,
+		SizeFirst: true,
+		FixedRoom: true,
+	})
 	if err != nil {
-		return media.Form{}, formErrors.NotMultipart
+		return media.Form{}, formError(err)
 	}
 	form, err := h.store.ReadForm(reader, media.FormSpec{ID: id, MaxFile: MaxBannerBytes, MaxField: 256})
 	if err != nil {

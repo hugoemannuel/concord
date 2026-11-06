@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gin-quickstart/backend/internal/expression"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
@@ -65,34 +66,22 @@ func (h *Handler) receiveSound(c *gin.Context, sound *Sound) *apiErr {
 }
 
 func (h *Handler) checkUploader(ctx context.Context, serverID, userID string) *apiErr {
-	isMember, err := h.servers.IsMember(ctx, serverID, userID)
-	if err != nil {
-		return fail(http.StatusInternalServerError, "failed to check membership")
-	}
-	if !isMember {
-		return fail(http.StatusForbidden, ErrNotServerMember.Error())
-	}
-	perms, err := h.permissions.ServerPerms(ctx, serverID, userID)
-	if err != nil {
-		return fail(http.StatusInternalServerError, "failed to check permissions")
-	}
-	if !permission.Has(perms, permission.AddSounds) {
-		return &apiErr{status: http.StatusForbidden, body: gin.H{
-			"error": ErrCannotAddSound.Error(), "code": "missing_permission",
-		}}
-	}
-	return h.checkServerRoom(ctx, serverID)
+	return expression.CheckUploader(ctx, expression.Uploader{
+		Members: h.servers, Perms: h.permissions, Counter: h.repo,
+		Permission: permission.AddSounds, Max: h.maxPerServer,
+	}, serverID, userID, uploaderErrors)
 }
 
-func (h *Handler) checkServerRoom(ctx context.Context, serverID string) *apiErr {
-	count, err := h.repo.CountByServer(ctx, serverID)
-	if err != nil {
-		return fail(http.StatusInternalServerError, "failed to check server soundboard limit")
-	}
-	if count >= h.maxPerServer {
-		return fail(http.StatusConflict, ErrServerFull.Error())
-	}
-	return nil
+// uploaderErrors: a resposta de cada recusa de quem envia.
+var uploaderErrors = expression.UploaderErrors[*apiErr]{
+	MemberCheck: fail(http.StatusInternalServerError, "failed to check membership"),
+	NotMember:   fail(http.StatusForbidden, ErrNotServerMember.Error()),
+	PermsCheck:  fail(http.StatusInternalServerError, "failed to check permissions"),
+	MissingPermission: &apiErr{status: http.StatusForbidden, body: gin.H{
+		"error": ErrCannotAddSound.Error(), "code": "missing_permission",
+	}},
+	CountCheck: fail(http.StatusInternalServerError, "failed to check server soundboard limit"),
+	Full:       fail(http.StatusConflict, ErrServerFull.Error()),
 }
 
 // readSoundForm confere o corpo (espaço em disco e tamanho), limita a
