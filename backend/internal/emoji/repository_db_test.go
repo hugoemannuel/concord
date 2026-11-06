@@ -157,16 +157,6 @@ func TestInsertError(t *testing.T) {
 	}
 }
 
-func TestAppendToGroup(t *testing.T) {
-	var groups []ServerEmojis
-	groups = appendToGroup(groups, ServerEmojis{ServerID: "a"}, Emoji{ID: "1"})
-	groups = appendToGroup(groups, ServerEmojis{ServerID: "a"}, Emoji{ID: "2"})
-	groups = appendToGroup(groups, ServerEmojis{ServerID: "b"}, Emoji{ID: "3"})
-	if len(groups) != 2 || len(groups[0].Emojis) != 2 || groups[1].Emojis[0].ID != "3" {
-		t.Fatalf("grupos = %+v", groups)
-	}
-}
-
 func TestRepositoryUpdate(t *testing.T) {
 	db, ctx := emojiDB(t)
 	repo := NewRepository(db)

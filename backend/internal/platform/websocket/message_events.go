@@ -2,41 +2,56 @@ package websocket
 
 import (
 	"gin-quickstart/backend/internal/message"
+	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
-// messageRooms são as salas por onde chegam message:create, message:update e
-// message:delete:
-// o canal e o servidor dele, ou a DM e a sala pessoal de cada participante.
-func messageRooms(channelID *string, serverID string, conversationID *string, userIDs []string) []string {
-	var rooms []string
+// publishMessage entrega a mensagem do canal ou da DM.
+func (h *Hub) publishMessage(data []byte, channelID *string, serverID string, conversationID *string, userIDs []string) {
 	if channelID != nil {
-		rooms = append(rooms, "channel:"+*channelID)
-		if serverID != "" {
-			rooms = append(rooms, "server:"+serverID)
-		}
-		return rooms
+		h.publishToChannel(serverID, *channelID, data)
+		return
 	}
 	if conversationID != nil {
-		rooms = append(rooms, "conversation:"+*conversationID)
-		for _, userID := range userIDs {
-			if userID != "" {
-				rooms = append(rooms, "user:"+userID)
-			}
+		h.BroadcastToRoomsExcept(conversationRooms(*conversationID, userIDs), "", data)
+	}
+}
+
+// conversationRooms são a sala da DM e a sala pessoal de cada participante
+// (quem está com a DM fechada também recebe).
+func conversationRooms(conversationID string, userIDs []string) []string {
+	rooms := []string{"conversation:" + conversationID}
+	for _, userID := range userIDs {
+		if userID != "" {
+			rooms = append(rooms, "user:"+userID)
 		}
 	}
 	return rooms
 }
 
-// publishMessage entrega a mensagem nas salas do canal ou da DM. A sala do
-// servidor (usada para não lidas) só recebe quem vê o canal: canal privado não
-// vaza para o resto do servidor.
-func (h *Hub) publishMessage(data []byte, channelID *string, serverID string, conversationID *string, userIDs []string) {
-	for _, room := range messageRooms(channelID, "", conversationID, userIDs) {
-		h.BroadcastToRoom(room, data)
+// publishToChannel entrega uma vez por conexão: primeiro a quem está com o canal
+// aberto, depois à sala do servidor (usada para não lidas e menções) pulando
+// quem já recebeu e quem não vê o canal (canal privado não vaza). Sem
+// permissões do servidor, a sala do servidor não recebe nada.
+func (h *Hub) publishToChannel(serverID, channelID string, data []byte) {
+	var snap *permission.Snapshot
+	if serverID != "" {
+		snap = h.snapshot(serverID)
 	}
-	if channelID != nil && serverID != "" {
-		h.BroadcastToServerChannel(serverID, *channelID, data)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	opened := h.rooms["channel:"+channelID]
+	for client := range opened {
+		client.trySend(data)
+	}
+	if snap == nil {
+		return
+	}
+	for client := range h.rooms["server:"+serverID] {
+		if _, sent := opened[client]; sent || !snap.CanView(channelID, client.userID) {
+			continue
+		}
+		client.trySend(data)
 	}
 }
 

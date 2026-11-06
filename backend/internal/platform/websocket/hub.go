@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/wsevent"
 	"gin-quickstart/backend/internal/role"
 	"gin-quickstart/backend/internal/server"
 	"gin-quickstart/backend/internal/user"
-	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/coder/websocket"
 )
@@ -211,7 +211,6 @@ func (h *Hub) ShuttingDown() bool {
 	return h.shuttingDown
 }
 
-
 // PublishUserUpdate manda o perfil novo (nome, avatar, banner, bio...) para
 // todo mundo, como a presença.
 func (h *Hub) PublishUserUpdate(profile user.PublicProfile) {
@@ -381,7 +380,6 @@ func (h *Hub) PublishAppUpdate(file, version string) {
 		"version": version,
 	}))
 }
-
 
 // Canal novo ou alterado só aparece para quem o vê.
 func (h *Hub) PublishServerUpdate(event server.UpdateEvent) {
