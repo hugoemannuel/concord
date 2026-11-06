@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,7 +47,7 @@ func (h *TTSHandler) SendToChannel(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	userID, ok := requestUserID(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -65,7 +66,7 @@ func (h *TTSHandler) SendToConversation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	userID, ok := requestUserID(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

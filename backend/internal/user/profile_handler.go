@@ -43,9 +43,6 @@ func NewProfileHandler(service *ProfileService, store, static *media.Store, spac
 	}
 }
 
-// currentUser: o usuário autenticado (platform/authctx).
-var currentUser = authctx.UserID
-
 func respondProfileError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrInvalidProfile), errors.Is(err, ErrInvalidStatus):
@@ -60,7 +57,7 @@ func respondProfileError(c *gin.Context, err error) {
 
 // GetProfile devolve o cartão de perfil de alguém.
 func (h *ProfileHandler) GetProfile(c *gin.Context) {
-	viewerID, ok := currentUser(c)
+	viewerID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -78,7 +75,7 @@ func (h *ProfileHandler) GetProfile(c *gin.Context) {
 }
 
 func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -96,7 +93,7 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 }
 
 func (h *ProfileHandler) SetStatus(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -168,7 +165,7 @@ type ImageApply func(ctx context.Context, userID string, url *string) (old *stri
 // primeiro quadro, gerado pelo app) e passa a URL para apply. Qualquer erro
 // apaga o que já foi para o disco.
 func (h *ProfileHandler) UploadImage(c *gin.Context, apply ImageApply) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -275,7 +272,7 @@ func (h *ProfileHandler) RemoveMediaURL(url *string) {
 }
 
 func (h *ProfileHandler) remove(c *gin.Context, set mediaSetter) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

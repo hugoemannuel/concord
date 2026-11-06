@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,7 @@ func NewEntranceSoundHandler(service *ProfileService, store *media.Store, space 
 
 // Upload: POST /users/me/entrance-sound?duration_ms=N com o áudio no corpo.
 func (h *EntranceSoundHandler) Upload(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -57,7 +58,7 @@ func (h *EntranceSoundHandler) Upload(c *gin.Context) {
 
 // Delete volta ao som padrão e apaga o arquivo.
 func (h *EntranceSoundHandler) Delete(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
