@@ -10,13 +10,15 @@ const (
 	TypeText  = "text"
 	TypeVoice = "voice"
 
-	// SystemChannelName: nome do canal de sistema do Maestro.
+	// SystemChannelName: nome com que nasce o canal de sistema do Maestro.
 	SystemChannelName = "musica"
-	// SystemChannelAltName: nome do canal do Maestro quando o servidor já tinha
-	// outro canal chamado "musica" (migration 000116).
-	SystemChannelAltName = "musica-maestro"
-	// NoticesChannelName: nome do canal de sistema de avisos e boas-vindas.
+	// NoticesChannelName: nome com que nasce o canal de sistema de avisos e boas-vindas.
 	NoticesChannelName = "avisos"
+
+	// SystemKindMaestro e SystemKindNotices: o tipo (channels.system_kind) que
+	// identifica cada canal de sistema; o nome não decide nada (ADR 0059).
+	SystemKindMaestro = "maestro"
+	SystemKindNotices = "notices"
 )
 
 type Channel struct {
@@ -29,6 +31,8 @@ type Channel struct {
 	CategoryID *string `json:"category_id,omitempty"`
 	// IsSystem: canal fixo do servidor ("musica" e "avisos"); não pode ser editado nem removido, só movido.
 	IsSystem bool `json:"is_system"`
+	// SystemKind: qual canal de sistema é ("maestro" ou "notices"); null nos demais.
+	SystemKind *string `json:"system_kind"`
 	// Managed: canal de uma sala de evento. Só o evento o cria e o apaga; o app não o edita.
 	Managed   bool      `json:"managed"`
 	CreatedBy string    `json:"created_by"`
@@ -56,4 +60,9 @@ type ReorderEvent struct {
 	Type       string   `json:"type"`
 	ChannelIDs []string `json:"channel_ids"`
 	RequestID  string   `json:"request_id,omitempty"`
+}
+
+// systemChannel: o canal fixo (#musica ou #avisos) que nasce com o servidor.
+func systemChannel(serverID, name, kind, createdBy string) *Channel {
+	return &Channel{ServerID: serverID, Name: name, Type: TypeText, CreatedBy: createdBy, IsSystem: true, SystemKind: &kind}
 }

@@ -7,6 +7,7 @@ import { pickerChoice } from '../lib/screenPickerChoice'
 import { loadScreenQuality, saveScreenQuality } from '../lib/screenShareQuality'
 import ScreenQualityControls from './ScreenQualityControls'
 import { trapTab } from '../../../shared/lib/focusTrap'
+import { useModalBehavior } from '../../../shared/hooks/useModalBehavior'
 import { ScreenPickerTabs, ScreenSourceGrid, type ScreenPickerTab } from './ScreenSourceGrid'
 
 /**
@@ -81,20 +82,8 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
     close()
   }, [screenPicker, chosen, close, quality])
 
-  useEffect(() => {
-    if (!open) return
-    const previousFocus = document.activeElement as HTMLElement | null
-    dialogRef.current?.focus()
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') cancel()
-      trapTab(e, dialogRef.current)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      previousFocus?.focus()
-    }
-  }, [open, cancel])
+  // Foco entra e volta, Esc cancela (o Tab fica preso no onKeyDown do diálogo).
+  useModalBehavior(open, cancel, dialogRef)
 
   if (!open) return null
 
@@ -111,6 +100,7 @@ function ScreenSharePickerModal(): React.JSX.Element | null {
         tabIndex={-1}
         aria-modal="true"
         aria-label="Compartilhe sua tela"
+        onKeyDown={(e) => trapTab(e, dialogRef.current)}
         className="rounded-xl border border-subtle bg-modal shadow-2xl shadow-black/70 max-h-[95vh] w-full max-w-2xl overflow-y-auto p-6"
       >
         <h2 className="text-ds-lg font-bold text-strong">Compartilhe sua tela</h2>

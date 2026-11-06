@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/platform/media"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/gin-gonic/gin"
 )
@@ -105,7 +106,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	if h.publisher != nil {
-		h.publisher.BroadcastToRoom("server:"+serverID, marshalEvent("soundboard:deleted", DeletedEvent{
+		h.publisher.BroadcastToRoom("server:"+serverID, wsevent.Marshal("soundboard:deleted", DeletedEvent{
 			ServerID: serverID,
 			SoundID:  sound.ID,
 		}))

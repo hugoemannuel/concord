@@ -80,6 +80,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 			type,
 			position,
 			is_system,
+			system_kind,
 			managed,
 			created_by,
 			created_at,
@@ -95,6 +96,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 		&ch.Type,
 		&ch.Position,
 		&ch.IsSystem,
+		&ch.SystemKind,
 		&ch.Managed,
 		&ch.CreatedBy,
 		&ch.CreatedAt,
@@ -106,14 +108,14 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 	return ch, nil
 }
 
-// FindSystemByName: canal de sistema do servidor pelo nome ("musica" ou "avisos").
-func (r *Repository) FindSystemByName(ctx context.Context, serverID string, names ...string) (*Channel, error) {
+// FindSystemByKind: canal de sistema do servidor pelo tipo ("maestro" ou "notices").
+func (r *Repository) FindSystemByKind(ctx context.Context, serverID, kind string) (*Channel, error) {
 	var id string
 	err := r.db.QueryRow(
 		ctx,
-		`SELECT id FROM channels WHERE server_id = $1 AND is_system AND name = ANY($2) LIMIT 1`,
+		`SELECT id FROM channels WHERE server_id = $1 AND system_kind = $2 LIMIT 1`,
 		serverID,
-		names,
+		kind,
 	).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrChannelNotFound
@@ -126,12 +128,12 @@ func (r *Repository) FindSystemByName(ctx context.Context, serverID string, name
 
 // FindSystemByServerID: o canal de sistema ("musica") do servidor; ErrChannelNotFound se não tem.
 func (r *Repository) FindSystemByServerID(ctx context.Context, serverID string) (*Channel, error) {
-	return r.FindSystemByName(ctx, serverID, SystemChannelName, SystemChannelAltName)
+	return r.FindSystemByKind(ctx, serverID, SystemKindMaestro)
 }
 
 // FindNoticesByServerID: o canal de sistema ("avisos") do servidor; ErrChannelNotFound se não tem.
 func (r *Repository) FindNoticesByServerID(ctx context.Context, serverID string) (*Channel, error) {
-	return r.FindSystemByName(ctx, serverID, NoticesChannelName, "avisos-sistema")
+	return r.FindSystemByKind(ctx, serverID, SystemKindNotices)
 }
 
 // IsSystemChannel diz se o canal é de sistema ("musica" ou "avisos").
@@ -191,6 +193,7 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			type,
 			position,
 			is_system,
+			system_kind,
 			managed,
 			created_by,
 			created_at,
@@ -216,7 +219,8 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			&ch.Type,
 			&ch.Position,
 			&ch.IsSystem,
-		&ch.Managed,
+			&ch.SystemKind,
+			&ch.Managed,
 			&ch.CreatedBy,
 			&ch.CreatedAt,
 			&ch.UpdatedAt,

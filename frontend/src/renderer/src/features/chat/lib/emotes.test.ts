@@ -3,7 +3,6 @@ import {
   applyReactionAdd,
   applyReactionRemove,
   clearDeletedReplyTarget,
-  filterEmoteCategories,
   hasUserReacted
 } from './emotes'
 import type { Message } from '../api/messages'
@@ -61,11 +60,5 @@ describe('emotes & reactions helpers', () => {
     const updated = clearDeletedReplyTarget(msgs, 'm1')
     expect(updated[1].reply_to_id).toBeNull()
     expect(updated[1].reply_to).toBeNull()
-  })
-
-  it('filtra categorias de emotes por palavra-chave em português', () => {
-    const filtered = filterEmoteCategories('foguete')
-    expect(filtered.length).toBeGreaterThan(0)
-    expect(filtered[0].items.some((i) => i.emoji === '🚀')).toBe(true)
   })
 })

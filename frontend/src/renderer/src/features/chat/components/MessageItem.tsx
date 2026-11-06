@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { Message } from '../api/messages'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useFriendStore } from '../../friends/store/friendStore'
@@ -278,4 +278,4 @@ function MessageItem(props: MessageItemProps): React.JSX.Element {
   return <MessageRow item={props} author={author} actions={actions} />
 }
 
-export default MessageItem
+export default memo(MessageItem)

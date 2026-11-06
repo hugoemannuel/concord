@@ -1,7 +1,7 @@
 import type { CallStateResponse } from '../api/calls'
 
 // Selo LIVE na lista do canal de voz: quem está transmitindo, atualizado na
-// hora pelo evento call:live (o polling de 10 s continua corrigindo).
+// hora pelo evento call:live.
 
 export interface LivePayload {
   call_id: string
@@ -38,12 +38,12 @@ export interface LiveRecord {
   at: number
 }
 
-/** Quanto tempo um call:live vale por cima do polling (uma ida e volta folgada). */
+/** Quanto tempo um call:live vale por cima da lista lida (uma ida e volta folgada). */
 export const LIVE_GRACE_MS = 5000
 
 /**
- * Reaplica sobre o resultado do polling os call:live recentes, na ordem: um
- * polling que saiu antes do evento e voltou depois traria o selo velho.
+ * Reaplica sobre a lista lida do servidor os call:live recentes, na ordem: uma
+ * leitura que saiu antes do evento e voltou depois traria o selo velho.
  */
 export function reapplyRecentLive(
   serverCalls: Record<string, CallStateResponse>,

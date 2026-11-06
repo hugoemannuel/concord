@@ -6,6 +6,7 @@ import type { Message, PinnedMessage } from '../api/messages'
 import { serverDisplayName } from '../../servers/lib/serverNames'
 import { sendDeniedReason, type ChatPermissions } from './chatPermissions'
 import { mentionSuggestions, type MentionSuggestion, type UserSuggestionInput } from './mentions'
+import type { User } from '../../auth/store/authStore'
 import { MUSIC_COMMANDS, type SlashSuggestion } from '../../music/lib/music'
 import { TTS_SUGGESTION } from '../../tts/lib/ttsCommand'
 import { textPreview, type Preview } from './preview'
@@ -137,4 +138,28 @@ export function submitLabel(uploading: boolean, sending: boolean): string {
 /** Comandos do "/" no campo: Maestro só em canal de servidor; /tts com a permissão. */
 export function composerCommands(isChannel: boolean, canSendTTS: boolean): SlashSuggestion[] {
   return [...(isChannel ? MUSIC_COMMANDS : []), ...(canSendTTS ? [TTS_SUGGESTION] : [])]
+}
+
+type Nicknames = Record<string, string> | undefined
+type Person = { username: string; display_name: string; nickname?: string | null }
+
+function mePerson(me: Pick<User, 'id' | 'username' | 'display_name'> | null, nicknames: Nicknames): Person[] {
+  return me ? [{ username: me.username, display_name: me.display_name, nickname: nicknames?.[me.id] }] : []
+}
+
+function authorPeople(messages: Message[], nicknames: Nicknames): Person[] {
+  return messages.flatMap((m) => (m.author ? [{ ...m.author, nickname: nicknames?.[m.author_id] }] : []))
+}
+
+/**
+ * Quem os chips de menção sabem nomear: quem está no chat, eu e os autores da
+ * lista (que podem ter saído do servidor). Em servidor vale o apelido; em DM, o nome.
+ */
+export function mentionPeople(
+  mentionable: Person[],
+  me: Pick<User, 'id' | 'username' | 'display_name'> | null,
+  messages: Message[],
+  nicknames: Nicknames
+): Person[] {
+  return [...mentionable, ...mePerson(me, nicknames), ...authorPeople(messages, nicknames)]
 }

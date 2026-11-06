@@ -148,9 +148,8 @@ export function cardProfileOf(
   }
 }
 
-export function cardStatusOf(input: CardViewInput, isMe: boolean, isBot: boolean): PresenceStatus {
-  // O Maestro não tem websocket: está sempre online.
-  if (isBot) return 'online'
+export function cardStatusOf(input: CardViewInput, isMe: boolean): PresenceStatus {
+  // Os bots não têm websocket, mas o servidor já os manda online (presença e perfil).
   if (isMe) return input.me?.status ?? 'online'
   return input.knownStatus ?? input.profile?.status ?? (input.online ? 'online' : 'offline')
 }
@@ -210,7 +209,7 @@ export function profileCardView(input: CardViewInput): ProfileCardView {
     stranger,
     card,
     shownName: context.nickname || card.display_name,
-    status: cardStatusOf(input, isMe, isBot),
+    status: cardStatusOf(input, isMe),
     fallbackBanner: `linear-gradient(135deg, ${context.role.color}, ${info.tier?.color ?? context.role.color})`,
     profileLoading: !isMe && !profile && input.profileSettled !== target.userId,
     info

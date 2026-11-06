@@ -3,6 +3,8 @@ import type { ChannelOverwrite, OverwriteTarget } from '../lib/permissions'
 
 export type ChannelType = 'text' | 'voice'
 
+export type SystemChannelKind = 'maestro' | 'notices'
+
 export interface Channel {
   id: string
   server_id: string
@@ -10,8 +12,10 @@ export interface Channel {
   type: ChannelType
   /** Ordem dentro da seção (texto ou voz); a lista já vem ordenada. */
   position?: number
-  /** Canal do Maestro ("musica"): não pode ser editado nem removido, só movido. */
+  /** Canal de sistema (#musica e #avisos): não pode ser editado nem removido, só movido. */
   is_system?: boolean
+  /** Qual canal de sistema é: "maestro" (#musica) ou "notices" (#avisos); null nos demais. */
+  system_kind?: SystemChannelKind | null
   /** Canal da sala de um evento: só o evento o cria e apaga. */
   managed?: boolean
   created_by: string

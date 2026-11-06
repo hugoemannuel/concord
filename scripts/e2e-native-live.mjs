@@ -6,13 +6,14 @@
 // Precisa: backend + LiveKit locais, `electron-vite build` com VITE_SERVER_URL
 // (out/main, out/preload, out/renderer servido em APP), o helper em
 // frontend/resources/linux/concord-live, sessão Hyprland (xdg-desktop-portal-hyprland).
-// PG_CONTAINER: container do Postgres do teste (marca os e-mails como verificados).
-//   API=http://localhost:18080/api APP=http://localhost:5175/ PG_CONTAINER=pg SECONDS=30 node scripts/e2e-native-live.mjs
+// BACKEND_LOG: saída do backend sem SMTP (o link de confirmação do e-mail sai lá).
+//   API=http://localhost:18080/api APP=http://localhost:5175/ BACKEND_LOG=backend.log SECONDS=30 node scripts/e2e-native-live.mjs
 import { createRequire } from 'module'
 import { execFileSync } from 'child_process'
 import { mkdtempSync, readFileSync, readdirSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium, _electron } = require('playwright')
 
@@ -21,28 +22,7 @@ const APP = process.env.APP ?? 'http://localhost:5175/'
 const MEASURE_S = Number(process.env.SECONDS ?? 30)
 const FRONTEND = new URL('../frontend/', import.meta.url).pathname
 const run = Date.now().toString(36)
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { access_token } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  const me = await api('/users/me', { token: access_token })
-  return { email, password, token: access_token, id: me.id ?? me.user?.id, username: `${name}${run}` }
-}
+const { api, makeUser } = createE2E({ api: API, run })
 
 function check(desc, ok, detail) {
   if (!ok) throw new Error(`FAIL ${desc}: ${JSON.stringify(detail)}`)
@@ -121,10 +101,6 @@ async function measureCpu(desc, match) {
 
 const ana = await makeUser('ana')
 const bia = await makeUser('bia')
-if (process.env.PG_CONTAINER) {
-  execFileSync('docker', ['exec', process.env.PG_CONTAINER, 'psql', '-U', 'postgres', '-d', 'concord', '-c',
-    `UPDATE users SET email_verified_at = now() WHERE id IN ('${ana.id}', '${bia.id}')`])
-}
 const server = await api('/servers', { token: ana.token, method: 'POST', body: { name: `E2E ${run}` } })
 const serverId = server.id ?? server.server?.id
 await api(`/servers/${serverId}/channels`, { token: ana.token, method: 'POST', body: { name: 'voz-e2e', type: 'voice' } })

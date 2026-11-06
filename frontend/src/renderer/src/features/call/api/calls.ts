@@ -70,9 +70,6 @@ export interface CallStateResponse {
   }[]
 }
 
-/** Resposta 423 do POST /calls: a sala do canal está trancada. */
-export const CALL_LOCKED = 'call_locked'
-
 export interface StartCallInput {
   type: CallType
   conversation_id?: string
@@ -91,14 +88,15 @@ export function getCallState(callId: string): Promise<CallStateResponse> {
   return request<CallStateResponse>(`/calls/${callId}/state`)
 }
 
-export function listActiveCalls(scope: CallType, id: string): Promise<CallStateResponse> {
-  return request<CallStateResponse>(`/calls/active?scope=${scope}&id=${encodeURIComponent(id)}`)
-}
-
 export function listActiveServerCalls(serverId: string): Promise<CallStateResponse[]> {
   return request<CallStateResponse[]>(
     `/calls/active?scope=server&id=${encodeURIComponent(serverId)}`
   )
+}
+
+/** Atende a DM que está tocando; resolve depois de o servidor registrar a entrada. */
+export function acceptCall(callId: string): Promise<void> {
+  return request<void>(`/calls/${callId}/accept`, { method: 'POST' })
 }
 
 /** Token do LiveKit para entrar na sala de mídia da chamada (só participantes). */

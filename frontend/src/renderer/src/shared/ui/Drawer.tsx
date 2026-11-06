@@ -2,7 +2,7 @@ import { useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useModalBehavior } from '../hooks/useModalBehavior'
 import { trapTab } from '../lib/focusTrap'
-import { XIcon } from './icons'
+import CloseButton from './CloseButton'
 
 interface DrawerProps {
   open: boolean
@@ -40,14 +40,7 @@ function Drawer({ open, onClose, label, className = '', children }: DrawerProps)
       >
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-subtle pl-4 pr-1">
           <h2 className="truncate text-ds-md font-semibold text-strong">{label}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={`Fechar ${label.toLowerCase()}`}
-            className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-fg/10 hover:text-strong focus-ring"
-          >
-            <XIcon className="size-4" />
-          </button>
+          <CloseButton label={`Fechar ${label.toLowerCase()}`} onClick={onClose} />
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           {children}

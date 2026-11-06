@@ -1,22 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Modal from '../../../shared/ui/Modal'
 import Button from '../../../shared/ui/Button'
 import Input from '../../../shared/ui/Input'
 import { EMOJI_ACCEPT } from '../api/emojis'
 import { useEmojiStore } from '../store/emojiStore'
 import { pickEmojiFile, sendEmoji } from '../lib/emojiUpload'
-
-/** Prévia do arquivo escolhido (a URL é liberada ao trocar ou fechar). */
-function usePreview(file: File | null): string | null {
-  const [url, setUrl] = useState<string | null>(null)
-  useEffect(() => {
-    if (!file) return setUrl(null)
-    const next = URL.createObjectURL(file)
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
-  }, [file])
-  return url
-}
+import { useObjectUrl } from '../../../shared/hooks/useObjectUrl'
 
 /** "Novo emoji": imagem + nome, enviado ao servidor aberto. */
 export default function EmojiUploadModal({
@@ -31,7 +20,7 @@ export default function EmojiUploadModal({
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const preview = usePreview(file)
+  const preview = useObjectUrl(file)
 
   const pick = (selected: File | undefined): void => {
     const picked = pickEmojiFile(selected, name)

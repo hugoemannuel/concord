@@ -56,7 +56,8 @@ function render(): string {
 
 describe('ServerMemberList', () => {
   beforeEach(() => {
-    chat.presence = { dono: true, ana: true }
+    // O servidor manda o Maestro sempre online, como qualquer pessoa conectada.
+    chat.presence = { dono: true, ana: true, maestro: true }
     chat.activity = ''
     chat.listening = ''
     useAuthStore.setState({ user: { id: 'eu', username: 'eu', display_name: 'Eu' } as never })
@@ -96,10 +97,17 @@ describe('ServerMemberList', () => {
     expect(html).toContain('opacity-70')
   })
 
-  it('o bot está sempre online e tem a etiqueta no lugar do nível', () => {
+  it('o bot tem o status da presença (o servidor o manda online) e a etiqueta no lugar do nível', () => {
     const html = render()
     expect(html).toMatch(/data-status="online" data-cor="bg-brand"/)
     expect(html).not.toContain('Membros — 0')
+  })
+
+  it('o app não força o bot online: sem presença ele cai no offline', () => {
+    chat.presence = { dono: true, ana: true }
+    const html = render()
+    expect(html).toContain('Membros — 1')
+    expect(html).toContain('Offline — 2')
   })
 
   it('apelido ganha do nome; sem atividade mostra o @, com atividade a linha dela', () => {

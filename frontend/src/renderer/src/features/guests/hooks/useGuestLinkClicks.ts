@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { IS_WEB } from '../../../shared/lib/config'
+import { serverOrigins } from '../../servers/lib/appInviteLink'
 import { guestTokenFromClick } from '../lib/guestLink'
 import { useGuestLinkStore } from '../store/guestLinkStore'
 
@@ -10,7 +10,7 @@ import { useGuestLinkStore } from '../store/guestLinkStore'
  */
 export function useGuestLinkClicks(): void {
   useEffect(() => {
-    const origins = [IS_WEB ? location.origin : import.meta.env.VITE_SERVER_URL]
+    const origins = serverOrigins()
     const onClick = (e: MouseEvent): void => {
       const anchor = (e.target as Element | null)?.closest?.<HTMLAnchorElement>('a[href]')
       const href = anchor?.href ?? null

@@ -75,13 +75,3 @@ func TestCallLookupIsMember(t *testing.T) {
 		t.Fatal("quem não é membro não pode")
 	}
 }
-
-func TestAddToGroupKeepsServerOrder(t *testing.T) {
-	var groups []ServerSounds
-	groups = addToGroup(groups, ServerSounds{ServerID: "a"}, Sound{ID: "1"})
-	groups = addToGroup(groups, ServerSounds{ServerID: "a"}, Sound{ID: "2"})
-	groups = addToGroup(groups, ServerSounds{ServerID: "b"}, Sound{ID: "3"})
-	if len(groups) != 2 || len(groups[0].Sounds) != 2 || groups[1].Sounds[0].ID != "3" {
-		t.Fatalf("groups = %+v", groups)
-	}
-}

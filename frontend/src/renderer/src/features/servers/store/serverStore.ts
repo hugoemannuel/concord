@@ -3,6 +3,7 @@ import type { Server, ServerMember } from '../api/servers'
 import type { Channel, ChannelType, CreateChannelOptions } from '../api/channels'
 import type { Role } from '../lib/permissions'
 import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import {
   listServers,
   createServer as apiCreateServer,
@@ -39,8 +40,9 @@ import {
 } from '../lib/channelReorderQueue'
 import { removeRole, sortRoles, stripRoleFromMembers, upsertRole } from '../lib/roleList'
 import { withNickname } from '../lib/serverNames'
-import { isSameSession, serverViewActions, stashCurrentView } from './serverViewLoad'
+import { serverViewActions, stashCurrentView } from './serverViewLoad'
 import { serverViewCache } from '../lib/serverViewCache'
+import { IDLE_SERVERS } from './serverIdle'
 
 export interface ServerState {
   servers: Server[]
@@ -152,23 +154,15 @@ function putNickname(serverId: string, userId: string, nickname: string | null):
 }
 
 export const useServerStore = create<ServerState>()((set, get) => ({
-  servers: [],
-  currentServer: null,
-  currentMembers: [],
-  roles: [],
-  channels: [],
-  nicknames: {},
-  loading: false,
-  serversLoaded: false,
-  channelsLoadedFor: null,
+  ...IDLE_SERVERS,
   fetchServers: async () => {
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     try {
       const servers = await listServers()
-      if (!isSameSession(token)) return
+      if (!sameSession()) return
       set({ servers: Array.isArray(servers) ? servers : [], serversLoaded: true })
     } catch {
-      if (isSameSession(token)) set({ servers: [], serversLoaded: true })
+      if (sameSession()) set({ servers: [], serversLoaded: true })
     }
   },
   ...serverViewActions(set, get),
@@ -385,16 +379,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
   },
   reset: () => {
     serverViewCache.clear()
-    set({
-      servers: [],
-      currentServer: null,
-      currentMembers: [],
-      roles: [],
-      channels: [],
-      nicknames: {},
-      loading: false,
-      serversLoaded: false,
-      channelsLoadedFor: null
-    })
+    set(IDLE_SERVERS)
   }
 }))

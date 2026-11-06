@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
 )
@@ -78,12 +79,11 @@ func primaryChannelStatus(err error) int {
 // requireManageServer confere a permissão de editar o servidor antes de
 // qualquer upload (false se já respondeu).
 func (h *Handler) requireManageServer(c *gin.Context) bool {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return false
 	}
-	if err := h.perms.Require(c.Request.Context(), c.Param("id"), userID.(string), permission.ManageServer); err != nil {
+	if err := h.perms.Require(c.Request.Context(), c.Param("id"), userID, permission.ManageServer); err != nil {
 		if !respondPermission(c, err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "server not found"})
 		}
@@ -130,12 +130,11 @@ func (h *Handler) EnableMusicBot(c *gin.Context)  { h.setMusicBot(c, true) }
 func (h *Handler) DisableMusicBot(c *gin.Context) { h.setMusicBot(c, false) }
 
 func (h *Handler) setMusicBot(c *gin.Context, enabled bool) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	if err := h.settings.SetMusicBot(c.Request.Context(), c.Param("id"), userID.(string), enabled); err != nil {
+	if err := h.settings.SetMusicBot(c.Request.Context(), c.Param("id"), userID, enabled); err != nil {
 		if errors.Is(err, ErrOnlyOwnerBot) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
@@ -143,6 +142,6 @@ func (h *Handler) setMusicBot(c *gin.Context, enabled bool) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "server not found"})
 		return
 	}
-	h.recordMusicBot(c.Request.Context(), c.Param("id"), userID.(string), enabled)
+	h.recordMusicBot(c.Request.Context(), c.Param("id"), userID, enabled)
 	c.Status(http.StatusNoContent)
 }

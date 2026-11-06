@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { create } from 'zustand'
 import {
   type PinnedMessage,
@@ -58,8 +59,7 @@ export const usePinStore = create<PinState>((set, get) => ({
       get().onPinAdd(channelId, pinned)
       showToast.success('Mensagem fixada com sucesso!')
     } catch (err: unknown) {
-      const errorMsg =
-        err instanceof Error ? err.message : 'Falha ao fixar mensagem. Verifique suas permissões.'
+      const errorMsg = errorMessage(err, 'Falha ao fixar mensagem. Verifique suas permissões.')
       showToast.error(errorMsg)
       throw err
     }
@@ -71,7 +71,7 @@ export const usePinStore = create<PinState>((set, get) => ({
       get().onPinRemove(channelId, messageId)
       showToast.info('Mensagem desafixada.')
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : 'Falha ao desafixar mensagem.'
+      const errorMsg = errorMessage(err, 'Falha ao desafixar mensagem.')
       showToast.error(errorMsg)
       throw err
     }

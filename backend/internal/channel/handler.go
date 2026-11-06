@@ -7,6 +7,7 @@ import (
 
 	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
 )
@@ -59,24 +60,23 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	snap, herr := h.requireServer(c.Request.Context(), serverID, userID.(string), permission.ManageChannels)
+	snap, herr := h.requireServer(c.Request.Context(), serverID, userID, permission.ManageChannels)
 	if herr != nil {
 		herr.respond(c)
 		return
 	}
 
-	if hiddenCategory(snap, input.CategoryID, userID.(string)) {
+	if hiddenCategory(snap, input.CategoryID, userID) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "categoria não encontrada neste servidor", "code": "category_not_found"})
 		return
 	}
 
-	overwrites, err := creationOverwrites(snap, input.Private, input.Type, userID.(string), input.RoleIDs)
+	overwrites, err := creationOverwrites(snap, input.Private, input.Type, userID, input.RoleIDs)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_target"})
 		return
@@ -86,7 +86,7 @@ func (h *Handler) Create(c *gin.Context) {
 		ServerID:   serverID,
 		Name:       input.Name,
 		Type:       input.Type,
-		CreatedBy:  userID.(string),
+		CreatedBy:  userID,
 		CategoryID: input.CategoryID,
 	}
 
@@ -154,13 +154,12 @@ func PrivateOverwrites(snap *permission.Snapshot, chType string, creatorID strin
 func (h *Handler) ListByServer(c *gin.Context) {
 	serverID := c.Param("id")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	snap, herr := h.requireServer(c.Request.Context(), serverID, userID.(string), 0)
+	snap, herr := h.requireServer(c.Request.Context(), serverID, userID, 0)
 	if herr != nil {
 		herr.respond(c)
 		return
@@ -172,7 +171,7 @@ func (h *Handler) ListByServer(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, VisibleChannels(snap, userID.(string), channels))
+	c.JSON(http.StatusOK, VisibleChannels(snap, userID, channels))
 }
 
 // VisibleChannels filtra os canais que userID vê e preenche as sobrescritas.
@@ -207,13 +206,12 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	snap, current, herr := h.requireChannel(c.Request.Context(), serverID, channelID, userID.(string), permission.ManageChannels)
+	snap, current, herr := h.requireChannel(c.Request.Context(), serverID, channelID, userID, permission.ManageChannels)
 	if herr != nil {
 		herr.respond(c)
 		return
@@ -232,7 +230,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	updated.Overwrites = OverwritesOf(snap, channelID)
-	h.recordUpdate(c.Request.Context(), userID.(string), current, updated)
+	h.recordUpdate(c.Request.Context(), userID, current, updated)
 
 	c.JSON(http.StatusOK, updated)
 }
@@ -241,13 +239,12 @@ func (h *Handler) Delete(c *gin.Context) {
 	serverID := c.Param("id")
 	channelID := c.Param("channelId")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	_, current, herr := h.requireChannel(c.Request.Context(), serverID, channelID, userID.(string), permission.ManageChannels)
+	_, current, herr := h.requireChannel(c.Request.Context(), serverID, channelID, userID, permission.ManageChannels)
 	if herr != nil {
 		herr.respond(c)
 		return
@@ -264,7 +261,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete channel"})
 		return
 	}
-	h.record(c.Request.Context(), channelEvent(audit.ChannelDelete, userID.(string), current, nil))
+	h.record(c.Request.Context(), channelEvent(audit.ChannelDelete, userID, current, nil))
 
 	c.JSON(http.StatusOK, gin.H{"message": "channel deleted"})
 }
@@ -285,13 +282,12 @@ func (h *Handler) Reorder(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if _, herr := h.requireServer(c.Request.Context(), serverID, userID.(string), permission.ManageChannels); herr != nil {
+	if _, herr := h.requireServer(c.Request.Context(), serverID, userID, permission.ManageChannels); herr != nil {
 		herr.respond(c)
 		return
 	}
@@ -306,7 +302,7 @@ func (h *Handler) Reorder(c *gin.Context) {
 		return
 	}
 	h.record(c.Request.Context(), audit.Event{
-		ServerID: serverID, ActorID: userID.(string), Action: audit.ChannelReorder,
+		ServerID: serverID, ActorID: userID, Action: audit.ChannelReorder,
 		Changes: []audit.Change{{Field: "type", After: input.Type}},
 	})
 

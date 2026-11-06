@@ -160,6 +160,15 @@ func TestUploadBannerWithoutDiskRoomIs507(t *testing.T) {
 	}
 }
 
+// O tamanho vem antes do espaço em disco: grande demais é 413 mesmo sem espaço.
+func TestUploadBannerTooLargeIs413EvenWithoutDiskRoom(t *testing.T) {
+	r, _ := bannerRouter(t, "mod", fakeFinder{}, false)
+	body, ct := uploadBody(t, bytes.Repeat([]byte{0}, int(MaxBannerBytes+multipartOverhead)))
+	if w := postBanner(r, body, ct); w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d", w.Code)
+	}
+}
+
 func serveBanner(r *gin.Engine, id, token string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, "/api/event-banners/"+id+"?token="+token, nil)
 	w := httptest.NewRecorder()

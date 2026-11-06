@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,13 +42,12 @@ func (h *Handler) changeOverwrite(c *gin.Context, next *permission.Overwrite) {
 	serverID, channelID := c.Param("id"), c.Param("channelId")
 	targetType, targetID := c.Param("type"), c.Param("targetId")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	snap, ch, herr := h.requireChannel(c.Request.Context(), serverID, channelID, userID.(string), permission.ManageRoles)
+	snap, ch, herr := h.requireChannel(c.Request.Context(), serverID, channelID, userID, permission.ManageRoles)
 	if herr != nil {
 		herr.respond(c)
 		return
@@ -56,7 +56,7 @@ func (h *Handler) changeOverwrite(c *gin.Context, next *permission.Overwrite) {
 		return
 	}
 
-	current, err := CheckOverwrite(snap, channelID, userID.(string), targetType, targetID, next)
+	current, err := CheckOverwrite(snap, channelID, userID, targetType, targetID, next)
 	if err != nil {
 		status, code := http.StatusBadRequest, "invalid"
 		switch {
@@ -82,7 +82,7 @@ func (h *Handler) changeOverwrite(c *gin.Context, next *permission.Overwrite) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to change permissions"})
 		return
 	}
-	h.recordOverwrite(c.Request.Context(), userID.(string), ch, targetType, targetID, current, next)
+	h.recordOverwrite(c.Request.Context(), userID, ch, targetType, targetID, current, next)
 
 	if next == nil {
 		c.JSON(http.StatusOK, gin.H{"message": "overwrite deleted", "previous": current})

@@ -1,21 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import Button from '../../../shared/ui/Button'
 import { ImageAddIcon, TrashIcon } from '../../../shared/ui/icons'
 import { BANNER_ACCEPT } from '../api/events'
 import { uploadBanner } from '../lib/bannerUpload'
 import EventBanner from './EventBanner'
-
-/** Prévia local do arquivo escolhido (a URL é liberada ao trocar ou fechar). */
-function useLocalPreview(file: File | null): string | null {
-  const [url, setUrl] = useState<string | null>(null)
-  useEffect(() => {
-    if (!file) return setUrl(null)
-    const next = URL.createObjectURL(file)
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
-  }, [file])
-  return url
-}
+import { useObjectUrl } from '../../../shared/hooks/useObjectUrl'
 
 /** Escolhe a imagem do banner: envia na hora e guarda só o id do arquivo no formulário. */
 export default function BannerField({
@@ -32,7 +21,7 @@ export default function BannerField({
   const inputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  const preview = useLocalPreview(file)
+  const preview = useObjectUrl(file)
 
   const pick = async (picked: File | undefined): Promise<void> => {
     if (!picked) return

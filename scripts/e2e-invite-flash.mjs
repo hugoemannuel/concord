@@ -4,10 +4,11 @@
 // que fazia a tela toda piscar).
 // Uso: backend rodando + app web servido com o proxy do backend:
 //   (frontend) WEB_BACKEND_URL=http://localhost:8080 yarn dev:web
-//   APP=http://localhost:5175/ node scripts/e2e-invite-flash.mjs
+//   APP=http://localhost:5175/ BACKEND_LOG=<saída do backend> node scripts/e2e-invite-flash.mjs
 // LATENCY_MS (padrão 150) atrasa as respostas do GET /servers/:id, como numa
 // rede de verdade — no localhost o carregando dura um frame só.
 import { createRequire } from 'module'
+import { createE2E } from './lib/e2e.mjs'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { chromium } = require('playwright')
 
@@ -15,28 +16,7 @@ const APP = process.env.APP ?? 'http://localhost:5175/'
 const API = new URL('api', APP).toString()
 const LATENCY_MS = Number(process.env.LATENCY_MS ?? 150)
 const run = Date.now().toString(36)
-
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`)
-  return text ? JSON.parse(text) : null
-}
-
-async function makeUser(name) {
-  const email = `${name}-${run}@teste.dev`
-  const password = 'senha-forte-123'
-  const { access_token } = await api('/auth/register', {
-    method: 'POST',
-    body: { username: `${name}${run}`, display_name: name, email, password }
-  })
-  const me = await api('/users/me', { token: access_token })
-  return { email, password, token: access_token, id: me.id ?? me.user?.id, username: `${name}${run}` }
-}
+const { api, makeUser } = createE2E({ api: API, run })
 
 let failed = false
 function check(desc, ok, detail) {

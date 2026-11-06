@@ -1,7 +1,5 @@
 import type { MusicItem } from '../api/music'
 
-// Mesmo UUID da migration 000045 (backend/internal/bot).
-export const MAESTRO_USER_ID = '4d414553-5452-4f00-8000-000000000001'
 export const MAESTRO_NAME = 'Maestro'
 
 /** O Maestro entra na sala de mídia com a identidade `bot-music:<canal>` (bot.Identity no backend). */

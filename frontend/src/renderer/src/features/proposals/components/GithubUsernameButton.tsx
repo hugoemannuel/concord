@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { githubUsernameError } from '../lib/proposals'
 import { useProposalStore } from '../store/proposalStore'
 import { showToast } from '../../../shared/store/toastStore'
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import Button from '../../../shared/ui/Button'
 import Input from '../../../shared/ui/Input'
 import Modal from '../../../shared/ui/Modal'
@@ -26,7 +27,7 @@ function GithubUsernameButton(): React.JSX.Element {
       await save(value)
       setOpen(false)
     } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível salvar.')
+      showToast.error(errorMessage(err, 'Não foi possível salvar.'))
     } finally {
       setSaving(false)
     }

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useNow } from '../../../shared/hooks/useNow'
+import { useState } from 'react'
 import type { Poll } from '../api/messages'
 import { isPollClosed, pollHint, pollPercent, pollTimeLeft, pollWinners, votesLabel } from '../lib/polls'
 import { showToast } from '../../../shared/store/toastStore'
@@ -11,16 +12,6 @@ interface PollCardProps {
   isAuthor: boolean
   onVote: (answerIds: number[]) => Promise<void>
   onEnd: () => Promise<void>
-}
-
-/** Re-renderiza a cada 30 s para atualizar o "Faltam…" e encerrar no prazo. */
-function useNow(): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 30_000)
-    return () => window.clearInterval(id)
-  }, [])
-  return now
 }
 
 function PollCard({ poll, isAuthor, onVote, onEnd }: PollCardProps): React.JSX.Element {

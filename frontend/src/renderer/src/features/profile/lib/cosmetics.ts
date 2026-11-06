@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import { profileMediaSrc } from './profileMedia'
 
 // Faixa (imagem atrás do nome nas listas) e moldura do avatar (#482). Os modos
@@ -28,21 +27,6 @@ export function decorationBox(size: number): {
     offset: -Math.round((side - size) / 2),
     borderRadius: size >= 64 ? 16 : 8,
     holeRadius: Math.round(size / 2)
-  }
-}
-
-/** Estilo da moldura: fica somente em volta da área demarcada do avatar e com cantos arredondados. */
-export function decorationStyle(size: number): CSSProperties {
-  const { side, offset, borderRadius, holeRadius } = decorationBox(size)
-  const maskImage = `radial-gradient(circle, transparent ${holeRadius - 0.5}px, #000 ${holeRadius}px)`
-  return {
-    width: side,
-    height: side,
-    left: offset,
-    top: offset,
-    borderRadius,
-    maskImage,
-    WebkitMaskImage: maskImage
   }
 }
 

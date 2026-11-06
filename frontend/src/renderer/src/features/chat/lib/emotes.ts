@@ -77,21 +77,6 @@ export const EMOTE_CATEGORIES: EmoteCategory[] = [
   }
 ]
 
-export function filterEmoteCategories(query: string): EmoteCategory[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return EMOTE_CATEGORIES
-
-  return EMOTE_CATEGORIES.map((cat) => ({
-    ...cat,
-    items: cat.items.filter(
-      (item) =>
-        item.emoji.includes(q) ||
-        item.label.toLowerCase().includes(q) ||
-        item.keywords.some((k) => k.toLowerCase().includes(q))
-    )
-  })).filter((cat) => cat.items.length > 0)
-}
-
 export function hasUserReacted(reactions: ReactionSummary[] | undefined, emoji: string, userId: string): boolean {
   if (!reactions || !userId) return false
   const found = reactions.find((r) => r.emoji === emoji)

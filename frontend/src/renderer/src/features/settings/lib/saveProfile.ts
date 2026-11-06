@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import type { User } from '../../auth/store/authStore'
 import type { ProfileImageKind } from '../../profile/api/users'
 import {
@@ -76,19 +77,6 @@ export async function saveProfile(deps: SaveProfileDeps): Promise<void> {
   }
 }
 
-/** Salva e avisa com um toast (sucesso ou o erro do passo que falhou). */
-export async function saveProfileAndNotify(
-  deps: SaveProfileDeps,
-  notify: { success: (msg: string) => void; error: (msg: string) => void }
-): Promise<void> {
-  try {
-    await saveProfile(deps)
-    notify.success('Perfil salvo!')
-  } catch (err) {
-    notify.error(saveErrorMessage(err))
-  }
-}
-
 /** URL do avatar/banner mostrada na prévia: o rascunho por cima do salvo. */
 export function previewMedia(change: MediaChange, saved: string | null | undefined): string | null {
   if (change.kind === 'set') return change.previewUrl
@@ -98,6 +86,6 @@ export function previewMedia(change: MediaChange, saved: string | null | undefin
 
 /** Mensagem do erro ao salvar. */
 export function saveErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : 'Não foi possível salvar o perfil.'
+  return errorMessage(err, 'Não foi possível salvar o perfil.')
 }
 

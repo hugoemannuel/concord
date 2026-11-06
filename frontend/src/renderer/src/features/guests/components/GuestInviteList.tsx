@@ -1,19 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useNow } from '../../../shared/hooks/useNow'
 import Button from '../../../shared/ui/Button'
 import { GUEST_COPY } from '../lib/guestCopy'
 import { timeLeftLabel } from '../lib/guestTime'
 import type { GuestInviteSummary } from '../api/guestInvites'
 import type { GuestInvitesState } from '../hooks/useGuestInvites'
-
-/** Relógio que anda de minuto em minuto (o "termina em"). */
-function useMinuteClock(): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000)
-    return () => clearInterval(id)
-  }, [])
-  return now
-}
 
 function InviteRow({
   invite,
@@ -67,7 +57,7 @@ function InviteRow({
 
 /** Os links ativos do canal, com quem entrou por cada um. */
 function GuestInviteList({ state }: { state: GuestInvitesState }): React.JSX.Element {
-  const now = useMinuteClock()
+  const now = useNow()
   return (
     <section aria-label={GUEST_COPY.activeTitle} className="flex flex-col gap-2">
       <h3 className="text-ds-sm font-semibold text-secondary">{GUEST_COPY.activeTitle}</h3>

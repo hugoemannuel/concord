@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
 )
@@ -60,17 +61,8 @@ func respondError(c *gin.Context, err error) {
 	c.JSON(status, gin.H{"error": msg, "code": code})
 }
 
-func currentUser(c *gin.Context) (string, bool) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return "", false
-	}
-	return userID.(string), true
-}
-
 func (h *Handler) List(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -83,7 +75,7 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -101,7 +93,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -119,7 +111,7 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -132,7 +124,7 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Reorder: PUT /servers/:id/roles/order {role_ids} do mais alto para o mais baixo.
 func (h *Handler) Reorder(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -160,7 +152,7 @@ func (h *Handler) RemoveMemberRole(c *gin.Context) {
 }
 
 func (h *Handler) setMemberRole(c *gin.Context, add bool) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

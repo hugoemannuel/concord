@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { showToast } from '../../../shared/store/toastStore'
@@ -14,7 +15,7 @@ export function enterVisitCall(channelId: string): Promise<void> {
     .getState()
     .joinVoiceChannel(channelId)
     .catch((err: unknown) => {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível entrar na call.')
+      showToast.error(errorMessage(err, 'Não foi possível entrar na call.'))
     })
 }
 

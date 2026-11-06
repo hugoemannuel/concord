@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+
+	"github.com/google/uuid"
 )
 
 func TestCameraTiers(t *testing.T) {
@@ -118,13 +120,42 @@ func TestCameraDB(t *testing.T) {
 	d := newTestDB(t)
 	ana, _ := d.user()
 	repo := BadgeRepository(d.db)
-	if err := repo.AddCallStats(d.ctx, ana, Delta{Camera: 30}); err != nil {
+	if err := repo.AddCallStats(d.ctx, map[string]Delta{ana: {Camera: 30}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.AddCallStats(d.ctx, ana, Delta{Camera: 15, Stream: 5}); err != nil {
+	if err := repo.AddCallStats(d.ctx, map[string]Delta{ana: {Camera: 15, Stream: 5}}); err != nil {
 		t.Fatal(err)
 	}
 	if s, err := repo.Stats(d.ctx, ana); err != nil || s.CameraSeconds != 45 || s.StreamSeconds != 5 {
 		t.Fatalf("camera = %d stream = %d, %v", s.CameraSeconds, s.StreamSeconds, err)
+	}
+}
+
+// Várias pessoas numa escrita; quem não existe mais (conta apagada no meio da
+// call) é pulado sem derrubar as outras.
+func TestAddCallStatsEmLote(t *testing.T) {
+	d := newTestDB(t)
+	ana, _ := d.user()
+	bia, _ := d.user()
+	repo := BadgeRepository(d.db)
+	gone := uuid.NewString()
+	if err := repo.AddCallStats(d.ctx, map[string]Delta{
+		ana: {Stream: 30, PeakCallSize: 3}, bia: {Watch: 20, LongestSession: 90}, gone: {Stream: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.AddCallStats(d.ctx, map[string]Delta{ana: {Stream: 10, PeakCallSize: 2}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.AddCallStats(d.ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	a, err := repo.Stats(d.ctx, ana)
+	if err != nil || a.StreamSeconds != 40 || a.PeakCallSize != 3 {
+		t.Fatalf("ana = stream %d pico %d, %v", a.StreamSeconds, a.PeakCallSize, err)
+	}
+	b, err := repo.Stats(d.ctx, bia)
+	if err != nil || b.WatchSeconds != 20 || b.LongestSessionSeconds != 90 {
+		t.Fatalf("bia = watch %d sessão %d, %v", b.WatchSeconds, b.LongestSessionSeconds, err)
 	}
 }

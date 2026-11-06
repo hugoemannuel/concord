@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -45,19 +47,9 @@ func falha(c *gin.Context, err error) {
 	}
 }
 
-func idDeQuemChama(c *gin.Context) (string, bool) {
-	v, ok := c.Get("userID")
-	id, _ := v.(string)
-	if !ok || id == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return "", false
-	}
-	return id, true
-}
-
 // Get: GET /users/me/enquetes, as enquetes que a pessoa pode e ainda não respondeu.
 func (h *Handler) Get(c *gin.Context) {
-	id, ok := idDeQuemChama(c)
+	id, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -71,7 +63,7 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Post: POST /users/me/enquetes/:id {"opcao": "l"}. Resposta única.
 func (h *Handler) Post(c *gin.Context) {
-	id, ok := idDeQuemChama(c)
+	id, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

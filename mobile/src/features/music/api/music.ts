@@ -78,7 +78,3 @@ export function skipMusic(serverId: string): Promise<{ kind: 'nothing' | 'done' 
 export function removeQueueItem(serverId: string, itemId: string): Promise<void> {
   return request<void>(`/servers/${serverId}/music/queue/${itemId}`, { method: 'DELETE' })
 }
-
-export function swapQueueItems(serverId: string, a: string, b: string): Promise<void> {
-  return request<void>(`/servers/${serverId}/music/queue/swap`, { method: 'POST', body: JSON.stringify({ a, b }) })
-}

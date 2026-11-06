@@ -1,6 +1,7 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useCallStore } from '../store/callStore'
 import { useMusicStore } from '../../music/store/musicStore'
-import { MAESTRO_NAME } from '../../music/lib/music'
+import { MAESTRO_NAME, maestroIdentity } from '../../music/lib/music'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useServerNicknames } from '../../servers/hooks/useServerNames'
 import { serverDisplayName } from '../../servers/lib/serverNames'
@@ -14,7 +15,7 @@ function JoinVoiceButton({ channelId }: { channelId: string }): React.JSX.Elemen
   const joinVoiceChannel = useCallStore((s) => s.joinVoiceChannel)
   const handleJoin = (): void => {
     joinVoiceChannel(channelId).catch((err) => {
-      showToast.error(err instanceof Error ? err.message : 'Falha ao entrar no canal de voz.')
+      showToast.error(errorMessage(err, 'Falha ao entrar no canal de voz.'))
     })
   }
   return (
@@ -75,7 +76,7 @@ function VoiceLobby({
       {maestroHere && (
         <ParticipantTile
           user={{
-            id: 'bot-music:' + channelId,
+            id: maestroIdentity(channelId),
             username: '',
             display_name: MAESTRO_NAME,
             avatar_url: null

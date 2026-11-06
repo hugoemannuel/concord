@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"gin-quickstart/backend/internal/platform/media"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/gin-gonic/gin"
 )
@@ -121,7 +122,7 @@ func deleteErrorStatus(err error) int {
 
 func (h *Handler) broadcast(serverID, typ string, payload any) {
 	if h.publisher != nil {
-		h.publisher.BroadcastToRoom("server:"+serverID, marshalEvent(typ, payload))
+		h.publisher.BroadcastToRoom("server:"+serverID, wsevent.Marshal(typ, payload))
 	}
 }
 

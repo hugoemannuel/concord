@@ -30,11 +30,6 @@ export function levelTier(level: number): LevelTier {
   return TIERS[Math.max(0, Math.floor(level / 10))] ?? TIERS[0]
 }
 
-/** Nível redondo (10, 20, 30…): ganha a animação de marco. */
-export function isMilestone(level: number): boolean {
-  return level > 1 && level % 10 === 0
-}
-
 /** Arco-íris da faixa Lendária (badge, aurora, fogos). */
 export const RAINBOW = ['#f472b6', '#facc15', '#34d399', '#60a5fa', '#c084fc']
 
@@ -121,11 +116,6 @@ export const INTENSITY_CAPS: NumericIntensity = fromPower(1.25)
 
 export function levelIntensity(level: number): LevelIntensity {
   return fromPower(levelPower(level))
-}
-
-/** Quantas faíscas a animação solta: cresce a cada nível, com teto. */
-export function sparkCount(level: number): number {
-  return levelIntensity(level).sparks
 }
 
 /**

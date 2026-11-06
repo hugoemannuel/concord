@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"gin-quickstart/backend/internal/expression"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -77,29 +79,20 @@ func (r *Repository) ListForUser(ctx context.Context, userID string) ([]ServerEm
 
 // scanGroups: as linhas vêm ordenadas por servidor; cada uma vai para o grupo dele.
 func scanGroups(rows pgx.Rows) ([]ServerEmojis, error) {
-	groups := make([]ServerEmojis, 0)
-	for rows.Next() {
+	return expression.ScanGroups(rows, func() (ServerEmojis, Emoji, error) {
 		var g ServerEmojis
 		var e Emoji
-		if err := rows.Scan(&g.ServerID, &g.ServerName, &g.ServerIconURL,
-			&e.ID, &e.UploaderID, &e.Name, &e.ContentType, &e.SizeBytes, &e.CreatedAt); err != nil {
-			return nil, err
-		}
+		err := rows.Scan(&g.ServerID, &g.ServerName, &g.ServerIconURL,
+			&e.ID, &e.UploaderID, &e.Name, &e.ContentType, &e.SizeBytes, &e.CreatedAt)
 		e.ServerID = g.ServerID
-		groups = appendToGroup(groups, g, e)
-	}
-	return groups, rows.Err()
+		return g, e, err
+	}, byServer)
 }
 
-// appendToGroup: as linhas vêm ordenadas por servidor, então o emoji é do
-// último grupo ou abre um novo.
-func appendToGroup(groups []ServerEmojis, g ServerEmojis, e Emoji) []ServerEmojis {
-	if n := len(groups); n > 0 && groups[n-1].ServerID == g.ServerID {
-		groups[n-1].Emojis = append(groups[n-1].Emojis, e)
-		return groups
-	}
-	g.Emojis = []Emoji{e}
-	return append(groups, g)
+// byServer: os emojis de cada grupo, pelo servidor.
+var byServer = expression.Grouping[ServerEmojis, Emoji]{
+	Key:   func(g *ServerEmojis) string { return g.ServerID },
+	Items: func(g *ServerEmojis) *[]Emoji { return &g.Emojis },
 }
 
 func (r *Repository) FindByID(ctx context.Context, id string) (*Emoji, error) {

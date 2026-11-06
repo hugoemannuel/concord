@@ -481,17 +481,14 @@ func TestTypingStop(t *testing.T) {
 	}
 }
 
-func TestMessageRooms(t *testing.T) {
-	ch, conv := "c1", "d1"
+func TestTypingRooms(t *testing.T) {
 	cases := []struct {
 		name string
 		got  []string
 		want []string
 	}{
-		{"canal com servidor", messageRooms(&ch, "s1", nil, nil), []string{"channel:c1", "server:s1"}},
-		{"canal sem servidor", messageRooms(&ch, "", nil, nil), []string{"channel:c1"}},
-		{"dm", messageRooms(nil, "", &conv, []string{"ana", "", "bia"}), []string{"conversation:d1", "user:ana", "user:bia"}},
-		{"nada", messageRooms(nil, "", nil, nil), nil},
+		{"canal", typingRooms(typingJob{channelID: "c1"}, nil), []string{"channel:c1"}},
+		{"dm", typingRooms(typingJob{conversationID: "d1"}, []string{"ana", "", "bia"}), []string{"conversation:d1", "user:ana", "user:bia"}},
 	}
 	for _, tc := range cases {
 		if !reflect.DeepEqual(tc.got, tc.want) {

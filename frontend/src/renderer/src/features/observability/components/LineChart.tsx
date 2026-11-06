@@ -1,3 +1,4 @@
+import { timeLabel } from '../lib/timeLabel'
 import { useState } from 'react'
 import { chartPath, nearestIndex, niceMax, numberLabel } from '../lib/reportFormat'
 import './liveChart.css'
@@ -18,14 +19,6 @@ interface Props {
 
 const W = 600
 const H = 160
-
-const timeLabel = (iso: string): string =>
-  new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 
 function Legend({
   series,

@@ -106,10 +106,6 @@ export function setVideoWatching(serverId: string, watching: boolean): Promise<v
   })
 }
 
-export function enableMaestro(serverId: string): Promise<void> {
-  return request<void>(`/servers/${serverId}/music-bot`, { method: 'POST' })
-}
-
 export function disableMaestro(serverId: string): Promise<void> {
   return request<void>(`/servers/${serverId}/music-bot`, { method: 'DELETE' })
 }

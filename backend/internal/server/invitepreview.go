@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/audit"
+	"gin-quickstart/backend/internal/bot"
 	"gin-quickstart/backend/internal/permission"
-	"gin-quickstart/backend/internal/platform/ratelimit"
 	"gin-quickstart/backend/internal/user"
 
 	"github.com/gin-gonic/gin"
@@ -155,14 +155,15 @@ func validInviteCode(code string) bool {
 	return true
 }
 
-// countOnline conta quem os outros veem como online (invisível não conta).
+// countOnline conta quem os outros veem como online (invisível não conta). Os
+// bots aparecem sempre online, mas a prévia conta só pessoas.
 func countOnline(userIDs []string, presence PresenceLookup) int {
 	if presence == nil || len(userIDs) == 0 {
 		return 0
 	}
 	online := 0
-	for _, status := range presence(userIDs) {
-		if status != user.StatusOffline {
+	for id, status := range presence(userIDs) {
+		if status != user.StatusOffline && !bot.IsBot(id) {
 			online++
 		}
 	}
@@ -282,17 +283,4 @@ func (h *Handler) RotateInviteCode(c *gin.Context) {
 		ServerID: serverID, ActorID: userID, Action: audit.InviteReset, TargetType: audit.TargetInvite,
 	})
 	c.JSON(http.StatusOK, gin.H{"code": code})
-}
-
-// limitByIP: no máximo o limite do limiter por IP (IPv6 por /64); passou, 429
-// com Retry-After.
-func limitByIP(limiter *ratelimit.Limiter, message string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if retry, ok := limiter.Allow(ratelimit.IPKey(c.ClientIP())); !ok {
-			c.Header("Retry-After", ratelimit.RetryAfterSeconds(retry))
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": message})
-			return
-		}
-		c.Next()
-	}
 }

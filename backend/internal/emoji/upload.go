@@ -8,8 +8,8 @@ import (
 	"gin-quickstart/backend/internal/audit"
 	"log"
 	"net/http"
-	"syscall"
 
+	"gin-quickstart/backend/internal/expression"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/platform/media"
 
@@ -55,9 +55,6 @@ func (h *Handler) receiveEmoji(c *gin.Context, e *Emoji) *uploadErr {
 	if ue := h.checkUploader(ctx, e.ServerID, e.UploaderID); ue != nil {
 		return ue
 	}
-	if ue := h.checkBody(c); ue != nil {
-		return ue
-	}
 	form, ue := h.readForm(c, e.ID)
 	if ue != nil {
 		return ue
@@ -82,45 +79,33 @@ func createError(err error) *uploadErr {
 }
 
 func (h *Handler) checkUploader(ctx context.Context, serverID, userID string) *uploadErr {
-	isMember, err := h.servers.IsMember(ctx, serverID, userID)
-	if err != nil {
-		return fail(http.StatusInternalServerError, errors.New("failed to check membership"))
-	}
-	if !isMember {
-		return fail(http.StatusForbidden, ErrNotServerMember)
-	}
-	perms, err := h.permissions.ServerPerms(ctx, serverID, userID)
-	if err != nil {
-		return fail(http.StatusInternalServerError, errors.New("failed to check permissions"))
-	}
-	if !permission.Has(perms, permission.AddEmojis) {
-		return fail(http.StatusForbidden, ErrCannotAddEmoji)
-	}
-	count, err := h.repo.CountByServer(ctx, serverID)
-	if err != nil {
-		return fail(http.StatusInternalServerError, errors.New("failed to check server emoji limit"))
-	}
-	if count >= MaxEmojisPerServer {
-		return fail(http.StatusConflict, ErrServerFull)
-	}
-	return nil
+	return expression.CheckUploader(ctx, expression.Uploader{
+		Members: h.servers, Perms: h.permissions, Counter: h.repo,
+		Permission: permission.AddEmojis, Max: MaxEmojisPerServer,
+	}, serverID, userID, uploaderErrors)
 }
 
-// checkBody recusa corpo grande demais ou sem espaço em disco.
-func (h *Handler) checkBody(c *gin.Context) *uploadErr {
-	if c.Request.ContentLength > MaxEmojiBytes+multipartOverhead {
-		return fail(http.StatusRequestEntityTooLarge, ErrTooLarge)
-	}
-	if !h.space.HasRoom(MaxEmojiBytes) {
-		return fail(http.StatusInsufficientStorage, errors.New("server out of space"))
-	}
-	return nil
+// uploaderErrors: a resposta de cada recusa de quem envia.
+var uploaderErrors = expression.UploaderErrors[*uploadErr]{
+	MemberCheck:       fail(http.StatusInternalServerError, errors.New("failed to check membership")),
+	NotMember:         fail(http.StatusForbidden, ErrNotServerMember),
+	PermsCheck:        fail(http.StatusInternalServerError, errors.New("failed to check permissions")),
+	MissingPermission: fail(http.StatusForbidden, ErrCannotAddEmoji),
+	CountCheck:        fail(http.StatusInternalServerError, errors.New("failed to check server emoji limit")),
+	Full:              fail(http.StatusConflict, ErrServerFull),
 }
 
+// readForm confere o corpo (tamanho antes do espaço em disco, que reserva o
+// máximo do emoji) e lê o upload.
 func (h *Handler) readForm(c *gin.Context, id string) (media.Form, *uploadErr) {
-	reader, err := c.Request.MultipartReader()
+	reader, err := media.OpenUpload(c.Writer, c.Request, h.space, media.UploadSpec{
+		Limit:     MaxEmojiBytes + multipartOverhead,
+		Room:      MaxEmojiBytes,
+		SizeFirst: true,
+		FixedRoom: true,
+	})
 	if err != nil {
-		return media.Form{}, fail(http.StatusBadRequest, errors.New("multipart/form-data required"))
+		return media.Form{}, formError(err)
 	}
 	form, err := h.store.ReadForm(reader, media.FormSpec{
 		ID:       id,
@@ -134,20 +119,21 @@ func (h *Handler) readForm(c *gin.Context, id string) (media.Form, *uploadErr) {
 	return form, nil
 }
 
+// formErrors: a resposta de cada recusa do upload.
+var formErrors = media.UploadErrors[*uploadErr]{
+	MissingFile:  fail(http.StatusBadRequest, errors.New("image file is required")),
+	BadForm:      fail(http.StatusBadRequest, errors.New("invalid multipart body")),
+	NotMultipart: fail(http.StatusBadRequest, errors.New("multipart/form-data required")),
+	TooLarge:     fail(http.StatusRequestEntityTooLarge, ErrTooLarge),
+	NoSpace:      fail(http.StatusInsufficientStorage, errors.New("server out of space")),
+}
+
 func formError(err error) *uploadErr {
-	switch {
-	case errors.Is(err, media.ErrMissingFile):
-		return fail(http.StatusBadRequest, errors.New("image file is required"))
-	case errors.Is(err, media.ErrBadForm):
-		return fail(http.StatusBadRequest, errors.New("invalid multipart body"))
-	case errors.Is(err, media.ErrTooLarge):
-		return fail(http.StatusRequestEntityTooLarge, ErrTooLarge)
-	case errors.Is(err, syscall.ENOSPC):
-		return fail(http.StatusInsufficientStorage, errors.New("server out of space"))
-	default:
-		log.Printf("emoji save failed: %v", err)
-		return fail(http.StatusInternalServerError, errors.New("failed to save file"))
+	if ue, ok := formErrors.For(err); ok {
+		return ue
 	}
+	log.Printf("emoji save failed: %v", err)
+	return fail(http.StatusInternalServerError, errors.New("failed to save file"))
 }
 
 // fillEmoji valida o nome e o tipo da imagem e preenche o emoji.

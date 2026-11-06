@@ -1,6 +1,6 @@
 package savedprofile
 
-import "encoding/json"
+import "gin-quickstart/backend/internal/platform/wsevent"
 
 // EventChanged: a lista de perfis salvos da pessoa mudou (salvou, aplicou,
 // renomeou, atualizou ou excluiu). Vai para a sala user:<id>; o app recarrega
@@ -14,12 +14,8 @@ type userNotifier interface {
 }
 
 func notifyChanged(n userNotifier, userID string) {
-	data, err := json.Marshal(map[string]any{
-		"type":    EventChanged,
-		"payload": map[string]string{"user_id": userID},
-	})
-	if err != nil || userID == "" {
+	if userID == "" {
 		return
 	}
-	n.SendToUser(userID, data)
+	n.SendToUser(userID, wsevent.Marshal(EventChanged, map[string]string{"user_id": userID}))
 }

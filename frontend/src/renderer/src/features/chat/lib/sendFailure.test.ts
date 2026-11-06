@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Message } from '../api/messages'
-import { reportSendFailure, type SendFailureEnv, type SentMessage } from './sendFailure'
+import { ApiError } from '../../../shared/api/client'
+import { reportSendFailure, sendErrorText, type SendFailureEnv, type SentMessage } from './sendFailure'
 
 const reply = { id: 'm1' } as Message
 
@@ -111,5 +112,24 @@ describe('reportSendFailure', () => {
     const t = setup({ mounted: () => false })
     reportSendFailure('falhou', sent(' '), t.env)
     expect(t.env.error).toHaveBeenCalledWith('falhou', 10000, undefined)
+  })
+})
+
+describe('sendErrorText', () => {
+  it('erro de rede ou desconhecido vira o aviso genérico', () => {
+    expect(sendErrorText(new Error('x'))).toBe('Falha ao enviar mensagem.')
+  })
+
+  it('erro da API usa a mensagem dela', () => {
+    expect(sendErrorText(new ApiError(500, 'caiu'))).toBe('caiu')
+    expect(sendErrorText(new ApiError(400, 'invalid attachment'))).toBe(
+      'Um dos arquivos expirou; anexe de novo.'
+    )
+  })
+
+  it('erro de permissão conhecido usa o texto da permissão', () => {
+    expect(sendErrorText(new ApiError(403, 'forbidden', 'missing_permission'))).toBe(
+      'Você não tem permissão para isso.'
+    )
   })
 })

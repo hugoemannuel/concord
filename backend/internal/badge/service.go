@@ -2,7 +2,6 @@ package badge
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sort"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -29,7 +29,7 @@ type store interface {
 	Stats(ctx context.Context, userID string) (Stats, error)
 	Unlocks(ctx context.Context, userID string) (Unlocks, error)
 	SaveUnlocks(ctx context.Context, userID string, unlocks []Unlock) ([]Unlock, error)
-	AddCallStats(ctx context.Context, userID string, d Delta) error
+	AddCallStats(ctx context.Context, deltas map[string]Delta) error
 	SaveSessions(ctx context.Context, sessions map[string]int64) error
 	LoadSessions(ctx context.Context, maxAge time.Duration) (map[string]int64, error)
 	AddCount(ctx context.Context, userID, category string, n int64) (int64, error)
@@ -202,7 +202,7 @@ func (s *Service) announce(userID string, saved []Unlock) {
 	sort.SliceStable(ev.Unlocks, func(i, j int) bool {
 		return rarityRank(ev.Unlocks[i].Rarity) > rarityRank(ev.Unlocks[j].Rarity)
 	})
-	s.publisher.SendToUser(userID, marshalEvent("badge:unlock", ev))
+	s.publisher.SendToUser(userID, wsevent.Marshal("badge:unlock", ev))
 }
 
 func rarityRank(r string) int {
@@ -274,22 +274,6 @@ func (s *Service) shutdown() {
 	}
 }
 
-// flush grava os deltas; o que falhar volta para o tracker e vai no próximo.
-func (s *Service) flush(ctx context.Context, deltas map[string]Delta) map[string]bool {
-	written := make(map[string]bool, len(deltas))
-	for userID, d := range deltas {
-		if err := s.store.AddCallStats(ctx, userID, d); err != nil {
-			log.Printf("[badge] add call stats for %s: %v", userID, err)
-			s.mu.Lock()
-			s.tracker.restore(userID, d)
-			s.mu.Unlock()
-			continue
-		}
-		written[userID] = true
-	}
-	return written
-}
-
 func (s *Service) tick(ctx context.Context, now time.Time) {
 	snaps := s.calls.CallSnapshots()
 	cams := s.camerasOn(ctx, snaps)
@@ -319,15 +303,4 @@ func (s *Service) tick(ctx context.Context, now time.Time) {
 		touched[userID] = true
 	}
 	s.syncAll(ctx, touched)
-}
-
-func marshalEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
 }

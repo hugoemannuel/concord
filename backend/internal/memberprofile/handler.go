@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/user"
 
 	"github.com/gin-gonic/gin"
@@ -44,9 +45,8 @@ func respondError(c *gin.Context, err error) {
 // target: o servidor da rota e quem está logado. Id que não é UUID é o mesmo
 // que um servidor de que a pessoa não faz parte.
 func target(c *gin.Context) (serverID, userID string, ok bool) {
-	raw, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok = authctx.UserID(c)
+	if !ok {
 		return "", "", false
 	}
 	serverID = c.Param("id")
@@ -54,7 +54,7 @@ func target(c *gin.Context) (serverID, userID string, ok bool) {
 		respondError(c, ErrNotMember)
 		return "", "", false
 	}
-	return serverID, raw.(string), true
+	return serverID, userID, true
 }
 
 // Get: GET /servers/:id/my-profile.

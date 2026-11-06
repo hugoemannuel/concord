@@ -1,7 +1,6 @@
 package serverprofile
 
 import (
-	"net/http"
 	"time"
 
 	"gin-quickstart/backend/internal/platform/ratelimit"
@@ -16,21 +15,10 @@ const (
 	cardMaxKeys = 10000
 )
 
-func limitByIP(limiter *ratelimit.Limiter) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if retry, ok := limiter.Allow(ratelimit.IPKey(c.ClientIP())); !ok {
-			c.Header("Retry-After", ratelimit.RetryAfterSeconds(retry))
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "too many requests"})
-			return
-		}
-		c.Next()
-	}
-}
-
 // Routes registra o perfil, as imagens e a tag. optionalAuth: a prévia do
 // convite abre antes do login.
 func Routes(router *gin.RouterGroup, h *Handler, tags *TagHandler, images *ImageHandler, authMiddleware, optionalAuth gin.HandlerFunc) {
-	limit := limitByIP(ratelimit.New(cardPerIP, cardWindow, cardMaxKeys))
+	limit := ratelimit.ByIP(ratelimit.New(cardPerIP, cardWindow, cardMaxKeys), "too many requests")
 
 	servers := router.Group("/servers/:id", authMiddleware)
 	servers.GET("/card", limit, h.GetCard)

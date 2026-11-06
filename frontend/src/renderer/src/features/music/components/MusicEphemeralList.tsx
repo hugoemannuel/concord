@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ApiError } from '../../../shared/api/client'
 import { pickSearchResult } from '../api/music'
 import { formatDuration, MAESTRO_NAME, T14_DISMISS, T14_LABEL, T16_TITLE } from '../lib/music'
+import { runSearchPick } from '../lib/searchPick'
 import { useMusicStore, type MusicEphemeral } from '../store/musicStore'
 import { showToast } from '../../../shared/store/toastStore'
 import { EyeIcon, SearchIcon } from '../../../shared/ui/icons'
@@ -29,11 +29,12 @@ function SearchPicker({ e, serverId }: { e: MusicEphemeral; serverId: string }):
   const pick = async (index: number): Promise<void> => {
     setBusy(true)
     try {
-      await pickSearchResult(serverId, search.token, index)
-      dismiss(e.id)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 410) markExpired(e.id)
-      else showToast.error(err instanceof Error ? err.message : 'Falha na operação.')
+      await runSearchPick({
+        pick: () => pickSearchResult(serverId, search.token, index),
+        dismiss: () => dismiss(e.id),
+        markExpired: () => markExpired(e.id),
+        error: showToast.error
+      })
     } finally {
       setBusy(false)
     }

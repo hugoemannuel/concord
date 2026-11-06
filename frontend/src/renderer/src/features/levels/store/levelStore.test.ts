@@ -5,6 +5,7 @@ vi.mock('../api/levels', () => ({ fetchLevels: vi.fn(), fetchMyLevel: vi.fn() })
 import { levelUpEffects, milestoneFor } from '../lib/levels'
 import { REPLAY_COOLDOWN_MS } from '../lib/levelAttention'
 import { useAuthStore } from '../../auth/store/authStore'
+import * as levelsApi from '../api/levels'
 import { useLevelStore } from './levelStore'
 
 const levelUp = (user_id: string, level: number, previous_level = level - 1): void =>
@@ -243,5 +244,63 @@ describe('levelStore: clique no selo do cartão', () => {
     vi.advanceTimersByTime(1)
     useLevelStore.getState().replayLevelUp('ana')
     expect(useLevelStore.getState().showcase?.key).not.toBe(first)
+  })
+})
+
+describe('levelStore: ensureLevels', () => {
+  const fetchLevels = vi.mocked(levelsApi.fetchLevels)
+  const progress = (level: number) => ({ level }) as never
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    fetchLevels.mockReset()
+    useLevelStore.getState().reset()
+    useAuthStore.getState().clear()
+    useAuthStore.getState().setTokens('A', 'R1')
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('junta os pedidos numa busca só, sem repetir quem já foi pedido', async () => {
+    fetchLevels.mockResolvedValue({ ana: progress(3), bia: progress(7) })
+    useLevelStore.getState().ensureLevels(['ana', '', 'bia'])
+    useLevelStore.getState().ensureLevels(['ana'])
+    await vi.advanceTimersByTimeAsync(50)
+    expect(fetchLevels).toHaveBeenCalledTimes(1)
+    expect(fetchLevels).toHaveBeenCalledWith(['ana', 'bia'])
+    expect(useLevelStore.getState().levels).toMatchObject({ ana: 3, bia: 7 })
+
+    useLevelStore.getState().ensureLevels(['ana'])
+    await vi.advanceTimersByTimeAsync(50)
+    expect(fetchLevels).toHaveBeenCalledTimes(1)
+  })
+
+  it('renovar o token no meio vale; sair da conta descarta', async () => {
+    fetchLevels.mockImplementationOnce(async () => {
+      useAuthStore.getState().setTokens('B', 'R2')
+      return { ana: progress(3) }
+    })
+    useLevelStore.getState().ensureLevels(['ana'])
+    await vi.advanceTimersByTimeAsync(50)
+    expect(useLevelStore.getState().levels.ana).toBe(3)
+
+    fetchLevels.mockImplementationOnce(async () => {
+      useAuthStore.getState().clear()
+      return { bia: progress(7) }
+    })
+    useLevelStore.getState().ensureLevels(['bia'])
+    await vi.advanceTimersByTimeAsync(50)
+    expect(useLevelStore.getState().levels.bia).toBeUndefined()
+  })
+
+  it('erro: quem falhou pode ser pedido de novo', async () => {
+    fetchLevels.mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce({ ana: progress(2) })
+    useLevelStore.getState().ensureLevels(['ana'])
+    await vi.advanceTimersByTimeAsync(50)
+    useLevelStore.getState().ensureLevels(['ana'])
+    await vi.advanceTimersByTimeAsync(50)
+    expect(fetchLevels).toHaveBeenCalledTimes(2)
+    expect(useLevelStore.getState().levels.ana).toBe(2)
   })
 })

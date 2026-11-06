@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -50,7 +52,7 @@ func AuthMiddleware(service *Service) gin.HandlerFunc {
 		case !sessionValid(c, service, claims):
 			return
 		}
-		c.Set("userID", claims.UserID)
+		c.Set(authctx.UserIDKey, claims.UserID)
 		c.Next()
 	}
 }
@@ -87,7 +89,7 @@ func MemberOrGuestMiddleware(service *Service) gin.HandlerFunc {
 		if !sessionValid(c, service, claims) {
 			return
 		}
-		c.Set("userID", claims.UserID)
+		c.Set(authctx.UserIDKey, claims.UserID)
 		c.Set("guest", claims.Type == TokenGuest)
 		c.Next()
 	}
@@ -102,7 +104,7 @@ func OptionalAuthMiddleware(service *Service) gin.HandlerFunc {
 		if len(parts) == 2 && parts[0] == "Bearer" {
 			if claims, err := service.ValidateToken(parts[1]); err == nil && claims.Type == "access" &&
 				service.CheckSession(c.Request.Context(), claims) == nil {
-				c.Set("userID", claims.UserID)
+				c.Set(authctx.UserIDKey, claims.UserID)
 			}
 		}
 		c.Next()

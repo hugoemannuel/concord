@@ -2,7 +2,6 @@ package guest
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"gin-quickstart/backend/internal/call"
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/google/uuid"
 )
@@ -145,14 +145,12 @@ func (s *Service) end(ctx context.Context, p Pass, reason string) {
 // o trilho de visitas e a tela da call se atualizam em todos eles.
 func (s *Service) announce(ctx context.Context, p Pass) PassView {
 	view := s.passView(ctx, p)
-	data, _ := json.Marshal(map[string]any{"type": "guest:pass", "payload": view})
-	s.notify.SendToUser(p.UserID, data)
+	s.notify.SendToUser(p.UserID, wsevent.Marshal("guest:pass", view))
 	return view
 }
 
 func endedEvent(serverID, reason string) []byte {
-	data, _ := json.Marshal(map[string]any{"type": "guest:ended", "payload": EndedEvent{ServerID: serverID, Reason: reason}})
-	return data
+	return wsevent.Marshal("guest:ended", EndedEvent{ServerID: serverID, Reason: reason})
 }
 
 // Sweep encerra os acessos vencidos e apaga os usuários de visitante que já

@@ -1,9 +1,5 @@
 import { useState } from 'react'
 import { API_BASE_URL } from '../lib/config'
-import { MAESTRO_USER_ID } from '../../features/music/lib/music'
-import { SALINHA_BOT_USER_ID } from '../../features/music/lib/bots'
-import MaestroImage from '../../features/music/components/MaestroImage'
-import { SalinhaMarkIcon } from './icons'
 import { isAnimatedMedia, profileMediaSrc } from '../../features/profile/lib/profileMedia'
 import { decorationBox, mediaLayers } from '../../features/profile/lib/cosmetics'
 import { STATUS_META, type PresenceStatus } from '../../features/friends/lib/presenceStatus'
@@ -156,7 +152,6 @@ function sanitizeAvatarRing(
 }
 
 interface AvatarBodyProps {
-  userId?: string
   name: string
   avatarUrl?: string | null
   animate: AvatarAnimate
@@ -165,7 +160,6 @@ interface AvatarBodyProps {
 }
 
 function AvatarBody({
-  userId,
   name,
   avatarUrl,
   animate,
@@ -179,16 +173,6 @@ function AvatarBody({
     animated && animate === 'hover' ? profileMediaSrc(avatarUrl, API_BASE_URL) : null
   const showImage = Boolean(still && failedSrc !== still)
 
-  if (userId === MAESTRO_USER_ID && !showImage) {
-    return <MaestroImage className="h-full w-full rounded-full bg-accent object-cover" />
-  }
-  if (userId === SALINHA_BOT_USER_ID && !showImage) {
-    return (
-      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-brand text-white">
-        <SalinhaMarkIcon className="h-[72%] w-[72%]" />
-      </div>
-    )
-  }
   if (showImage && still) {
     return (
       <>
@@ -197,7 +181,7 @@ function AvatarBody({
           alt=""
           draggable={false}
           onError={() => setFailedSrc(still)}
-          className={`h-full w-full rounded-full object-cover ${moving ? 'group-hover:invisible group-focus-within:invisible' : ''}`}
+          className={`h-full w-full rounded-full bg-accent object-cover ${moving ? 'group-hover:invisible group-focus-within:invisible' : ''}`}
         />
         {moving && (
           <img
@@ -205,7 +189,7 @@ function AvatarBody({
             alt=""
             draggable={false}
             loading="lazy"
-            className="invisible absolute inset-0 h-full w-full rounded-full object-cover group-hover:visible group-focus-within:visible"
+            className="invisible absolute inset-0 h-full w-full rounded-full bg-accent object-cover group-hover:visible group-focus-within:visible"
           />
         )}
       </>
@@ -242,7 +226,6 @@ function Avatar({
   return (
     <div className={`group relative shrink-0 ${cleanClassName}`} style={{ width: size, height: size }}>
       <AvatarBody
-        userId={userId}
         name={look.name}
         avatarUrl={look.avatarUrl}
         animate={animate}

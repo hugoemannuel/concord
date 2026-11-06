@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -44,14 +46,14 @@ func FavoriteRoutes(router *gin.RouterGroup, h *FavoritesHandler, authMiddleware
 }
 
 func (h *FavoritesHandler) List(c *gin.Context) {
-	if userID, ok := currentUser(c); ok {
+	if userID, ok := authctx.UserID(c); ok {
 		h.respondList(c, userID)
 	}
 }
 
 // Add favorita e responde com a lista nova.
 func (h *FavoritesHandler) Add(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}
@@ -75,7 +77,7 @@ func (h *FavoritesHandler) Add(c *gin.Context) {
 // Remove tira dos favoritos (mesmo de servidor de que já saiu) e responde com
 // a lista nova.
 func (h *FavoritesHandler) Remove(c *gin.Context) {
-	userID, ok := currentUser(c)
+	userID, ok := authctx.UserID(c)
 	if !ok {
 		return
 	}

@@ -29,14 +29,3 @@ export interface VoiceFlags {
   serverMuted?: boolean
   serverDeafened?: boolean
 }
-
-/** Mudo/ensurdecido que os outros veem: o da própria pessoa somado ao imposto pelo servidor. */
-export function effectiveVoiceFlags(flags: VoiceFlags | undefined): {
-  muted: boolean
-  deafened: boolean
-} {
-  return {
-    muted: Boolean(flags?.muted || flags?.serverMuted || flags?.serverDeafened),
-    deafened: Boolean(flags?.deafened || flags?.serverDeafened)
-  }
-}

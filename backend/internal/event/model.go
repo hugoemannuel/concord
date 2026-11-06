@@ -1,7 +1,6 @@
 package event
 
 import (
-	"encoding/json"
 	"errors"
 	"time"
 )
@@ -97,12 +96,4 @@ type Input struct {
 	RecurrenceCount *int       `json:"recurrence_count"`
 	// nil = padrão [10, 5]; lista vazia = só o aviso na hora.
 	ReminderOffsets []int `json:"reminder_offsets"`
-}
-
-func marshalEvent(typ string, payload any) []byte {
-	data, err := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	if err != nil {
-		return nil
-	}
-	return data
 }

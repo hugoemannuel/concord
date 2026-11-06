@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useMemo, useState } from 'react'
 import type { SoundboardItem } from '../api/soundboard'
 import { useAuthStore } from '../../auth/store/authStore'
@@ -16,7 +17,7 @@ import ExpressionPicker, {
   type PickerPreview,
   type PickerRailEntry
 } from '../../emojis/components/ExpressionPicker'
-import ServerBadge from '../../emojis/components/ServerBadge'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import type { PickerServer } from '../../emojis/lib/pickerSections'
 import { soundPreview } from './soundPreview'
 import SoundboardUploadModal from './SoundboardUploadModal'
@@ -125,7 +126,7 @@ function SoundboardSoundsPanel({
 
   const handleToggleFavorite = (sound: SoundboardItem): void => {
     toggleFavorite(sound.id).catch((err) => {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível favoritar o som.')
+      showToast.error(errorMessage(err, 'Não foi possível favoritar o som.'))
     })
   }
 
@@ -134,7 +135,7 @@ function SoundboardSoundsPanel({
       await deleteSound(sound.server_id, sound.id)
       showToast.info(`Som "${sound.name}" removido.`)
     } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível excluir o som.')
+      showToast.error(errorMessage(err, 'Não foi possível excluir o som.'))
     }
   }
 
@@ -163,7 +164,7 @@ function SoundboardSoundsPanel({
     ...data.sections.map((s) => ({
       sectionId: sectionId(s.server.id),
       label: s.server.name,
-      icon: <ServerBadge name={s.server.name} iconUrl={s.server.icon_url} />
+      icon: <ServerIcon name={s.server.name} iconUrl={s.server.icon_url} lazy />
     }))
   ]
 
@@ -206,7 +207,7 @@ function SoundboardSoundsPanel({
                   key={section.server.id}
                   id={sectionId(section.server.id)}
                   title={section.server.name}
-                  icon={<ServerBadge name={section.server.name} iconUrl={section.server.icon_url} size="xs" />}
+                  icon={<ServerIcon name={section.server.name} iconUrl={section.server.icon_url} size="xs" lazy />}
                   eager={query.trim() !== '' || i < EAGER_SECTIONS}
                   estimatedHeight={sectionHeight(section.items.length)}
                 >

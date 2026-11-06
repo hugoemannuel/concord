@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import { userMenuHandler } from '../../profile/store/userMenuStore'
 import { profileCardHandler } from '../../profile/store/profileCardStore'
 import { useServerStore } from '../store/serverStore'
@@ -48,7 +49,9 @@ interface MemberRowProps {
   isOwner?: boolean
 }
 
-export function MemberRow({
+// memo: as props são primitivos (e o name_style do próprio membro); presença e
+// atividade a linha lê dos stores, então a lista refaz só as linhas que mudaram.
+export const MemberRow = memo(function MemberRow({
   userId,
   displayName,
   nickname,
@@ -97,8 +100,7 @@ export function MemberRow({
           decorationUrl={look.decorationUrl}
           active={hover.active}
           size={32}
-          // O Maestro não tem websocket: está sempre online.
-          status={isBot ? 'online' : status}
+          status={status}
           cutoutColor="var(--bg-members)"
           fallbackClassName={colorClass}
         />
@@ -140,7 +142,7 @@ export function MemberRow({
       </div>
     </div>
   )
-}
+})
 
 /** Lista de membros à direita, com a borda de dentro arrastável. */
 export function MembersAside({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -167,13 +169,16 @@ export function ServerMemberGroups({ server }: { server: Server }): React.JSX.El
   const roles = useServerStore((s) => s.roles)
   const presence = useChatStore((s) => s.presence)
 
-  const memberGroups = groupMembers({
-    members: currentMembers,
-    roles,
-    // O Maestro não tem websocket: está sempre online.
-    isOnline: (userId) =>
-      Boolean(presence[userId]) || currentMembers.some((m) => m.user_id === userId && m.is_bot)
-  })
+  // Os bots o servidor já manda online na presença.
+  const memberGroups = useMemo(
+    () =>
+      groupMembers({
+        members: currentMembers,
+        roles,
+        isOnline: (userId) => Boolean(presence[userId])
+      }),
+    [currentMembers, roles, presence]
+  )
 
   return (
     <>

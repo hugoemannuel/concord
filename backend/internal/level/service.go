@@ -2,12 +2,11 @@ package level
 
 import (
 	"context"
-	"encoding/json"
-	"log"
 	"sync"
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 // De quanto em quanto tempo o serviço olha quem está em call. O XP só é dado
@@ -27,7 +26,7 @@ type VoiceSource interface {
 }
 
 type xpStore interface {
-	AddVoiceXP(ctx context.Context, userID string, xp int64, seconds int64) (int64, int64, error)
+	AddVoiceXP(ctx context.Context, adds []voiceXP) (map[string]voiceTotals, error)
 }
 
 // grant é XP pronto para ser gravado.
@@ -91,9 +90,7 @@ func (s *Service) tick(ctx context.Context, now time.Time) {
 	// O aviso do buff vai antes das gravações: ele é o batimento que mantém o
 	// buff vivo no cliente e não pode atrasar junto com o banco.
 	s.publishBoosts(boosts)
-	for _, g := range s.accrue(active, boosts, now) {
-		s.give(ctx, g)
-	}
+	s.giveAll(ctx, s.accrue(active, boosts, now))
 }
 
 // accrue soma o tempo desde o último tick para quem está elegível agora e
@@ -145,39 +142,6 @@ func (s *Service) accrue(active []call.VoiceActivity, boosts map[string]callBoos
 	return grants
 }
 
-func (s *Service) give(ctx context.Context, g grant) {
-	userID := g.activity.UserID
-	xp := g.xp
-	if xp == 0 {
-		return
-	}
-	totalXP, totalSeconds, err := s.store.AddVoiceXP(ctx, userID, xp, g.minutes*60)
-	if err != nil {
-		log.Printf("[level] add xp for %s: %v", userID, err)
-		return
-	}
-
-	progress := newProgress(userID, totalXP, totalSeconds)
-	s.publisher.SendToUser(userID, marshalEvent("level:update", progress))
-
-	previous, _, _ := FromXP(totalXP - xp)
-	if progress.Level == previous {
-		return
-	}
-	event := marshalEvent("level:up", LevelUpEvent{
-		UserID:        userID,
-		Level:         progress.Level,
-		PreviousLevel: previous,
-		CallID:        g.activity.CallID,
-		ServerID:      g.activity.ServerID,
-	})
-	s.publisher.BroadcastToCall(g.activity.CallID, event)
-	if g.activity.ServerID != nil {
-		s.publisher.BroadcastToRoom("server:"+*g.activity.ServerID, event)
-	}
-	s.publisher.SendToUser(userID, event)
-}
-
 // publishBoosts avisa cada call com buff (a cada tick) e, uma única vez, as que
 // perderam o buff ou sumiram. Calls que nunca tiveram buff não recebem nada.
 func (s *Service) publishBoosts(boosts map[string]callBoost) {
@@ -203,21 +167,10 @@ func (s *Service) publishBoosts(boosts map[string]callBoost) {
 	s.mu.Unlock()
 
 	for _, e := range events {
-		s.publisher.BroadcastToCall(e.CallID, marshalEvent("voice:boost", e))
+		s.publisher.BroadcastToCall(e.CallID, wsevent.Marshal("voice:boost", e))
 	}
 }
 
 func (s *Service) FindByUserIDs(ctx context.Context, userIDs []string) (map[string]Progress, error) {
 	return s.repository.FindByUserIDs(ctx, userIDs)
-}
-
-func marshalEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
-	}
-	return data
 }

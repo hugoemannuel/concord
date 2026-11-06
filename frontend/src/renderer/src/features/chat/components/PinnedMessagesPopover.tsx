@@ -3,33 +3,21 @@ import { usePinStore, selectPins } from '../store/pinStore'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useServerMemberColor, useServerNicknames } from '../../servers/hooks/useServerNames'
 import { serverDisplayName } from '../../servers/lib/serverNames'
-import { PinIcon, XIcon } from '../../../shared/ui/icons'
+import { PinIcon } from '../../../shared/ui/icons'
 import Avatar from '../../../shared/ui/Avatar'
 import type { PinnedMessage } from '../api/messages'
 import MessageAttachments from './MessageAttachments'
 import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
 import { PinnedListSkeleton } from '../../../shared/ui/skeleton/layouts'
+import { formatMessageDateTime } from '../lib/messageDateTime'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import CloseButton from '../../../shared/ui/CloseButton'
 
 interface PinnedMessagesPopoverProps {
   channelId: string
   canModerate: boolean
   onClose: () => void
-}
-
-function formatDateTime(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return iso
-  }
 }
 
 function PinnedMessageItem({
@@ -77,7 +65,7 @@ function PinnedMessageItem({
           >
             {authorName}
           </span>
-          <span className="text-ds-xs text-faint">{formatDateTime(pin.created_at)}</span>
+          <span className="text-ds-xs text-faint">{formatMessageDateTime(pin.created_at)}</span>
         </div>
 
         <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
@@ -133,7 +121,7 @@ function PinnedMessageItem({
         <PinIcon className="h-3 w-3 text-warning/80" />
         <span>
           Fixado por <strong className="text-muted">{pinnedByName}</strong> em{' '}
-          {formatDateTime(pin.pinned_at)}
+          {formatMessageDateTime(pin.pinned_at)}
         </span>
       </div>
     </div>
@@ -160,26 +148,9 @@ export default function PinnedMessagesPopover({
   }, [channelId, loadPins])
 
   // Fecha ao clicar fora ou apertar Escape
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [onClose])
+  useDismiss((target) => !popoverRef.current || popoverRef.current.contains(target), () => onClose())
 
-  const handleJump = (messageId: string) => {
+  const handleJump = (messageId: string): void => {
     window.dispatchEvent(
       new CustomEvent('concord:jump-to-message', {
         detail: { messageId }
@@ -187,7 +158,7 @@ export default function PinnedMessagesPopover({
     )
   }
 
-  const handleUnpin = async (messageId: string) => {
+  const handleUnpin = async (messageId: string): Promise<void> => {
     try {
       await unpin(channelId, messageId)
     } catch {
@@ -209,14 +180,7 @@ export default function PinnedMessagesPopover({
             {pins.length}/50
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          title="Fechar"
-          className="rounded p-1 text-muted hover:bg-fg/10 hover:text-strong"
-        >
-          <XIcon className="h-4 w-4" />
-        </button>
+        <CloseButton size="sm" onClick={onClose} />
       </div>
 
       {/* Conteúdo */}

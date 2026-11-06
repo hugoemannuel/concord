@@ -57,7 +57,7 @@ func TestReadFormSavesFileAndWantedFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if form.Size != 3 || string(form.Head) != "abc" || form.Declared != "application/octet-stream" {
+	if form.Size != 3 || string(form.Head) != "abc" || form.Declared != "application/octet-stream" || form.Filename != "a.bin" {
 		t.Errorf("form = %+v", form)
 	}
 	// Campo cortado em MaxField; campo não pedido some.

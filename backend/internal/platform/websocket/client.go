@@ -167,13 +167,10 @@ func parseRoom(room string) (channelID string, conversationID string, serverID s
 	return "", "", "", "", ""
 }
 
-func writeEvent(typ string, payload interface{}) []byte {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    typ,
-		"payload": payload,
-	})
-	if err != nil {
-		return nil
+// trySend entrega o evento sem bloquear: cliente lento perde o evento.
+func (c *Client) trySend(event []byte) {
+	select {
+	case c.send <- event:
+	default:
 	}
-	return data
 }

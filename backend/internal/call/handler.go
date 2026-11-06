@@ -1,10 +1,12 @@
 package call
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/livekit"
 
 	"github.com/gin-gonic/gin"
@@ -26,135 +28,177 @@ func CallHandler(service *Service, tokens *livekit.TokenIssuer) *Handler {
 	}
 }
 
-func (h *Handler) Create(c *gin.Context) {
-	var input struct {
-		Type           string `json:"type"`
-		ConversationID string `json:"conversation_id"`
-		ChannelID      string `json:"channel_id"`
-	}
+// startInput é o pedido de início de chamada (POST /calls).
+type startInput struct {
+	Type           string `json:"type"`
+	ConversationID string `json:"conversation_id"`
+	ChannelID      string `json:"channel_id"`
+}
 
+// missing devolve o erro de um pedido incompleto, ou "" se dá para começar.
+func (in startInput) missing() string {
+	switch in.Type {
+	case TypeDM:
+		if in.ConversationID == "" {
+			return "conversation_id is required"
+		}
+	case TypeChannel:
+		if in.ChannelID == "" {
+			return "channel_id is required"
+		}
+	default:
+		return ErrInvalidType.Error()
+	}
+	return ""
+}
+
+func (h *Handler) Create(c *gin.Context) {
+	var input startInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-
-	ctx := c.Request.Context()
-
-	switch input.Type {
-	case TypeDM:
-		if input.ConversationID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "conversation_id is required"})
-			return
-		}
-		call, err := h.service.StartDM(ctx, userID.(string), input.ConversationID)
-		if err != nil {
-			c.JSON(mapStartError(err), gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusCreated, call)
-	case TypeChannel:
-		if input.ChannelID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "channel_id is required"})
-			return
-		}
-		call, err := h.service.StartChannel(ctx, userID.(string), input.ChannelID)
-		if errors.Is(err, ErrLocked) && call != nil {
-			// Sala trancada: o cliente usa o call_id para pedir para entrar.
-			c.JSON(http.StatusLocked, gin.H{"error": ErrLocked.Error(), "call_id": call.ID})
-			return
-		}
-		if err != nil {
-			c.JSON(mapStartError(err), gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusCreated, call)
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidType.Error()})
+	if msg := input.missing(); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
 	}
+	call, err := h.start(c.Request.Context(), userID, input)
+	respondStart(c, call, err)
+}
+
+func (h *Handler) start(ctx context.Context, userID string, in startInput) (*Call, error) {
+	if in.Type == TypeDM {
+		return h.service.StartDM(ctx, userID, in.ConversationID)
+	}
+	return h.service.StartChannel(ctx, userID, in.ChannelID)
+}
+
+func respondStart(c *gin.Context, call *Call, err error) {
+	if errors.Is(err, ErrLocked) && call != nil {
+		// Sala trancada: o cliente usa o call_id para pedir para entrar.
+		c.JSON(http.StatusLocked, gin.H{"error": ErrLocked.Error(), "call_id": call.ID})
+		return
+	}
+	if err != nil {
+		c.JSON(mapStartError(err), gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, call)
+}
+
+// scopeServer: GET /calls/active?scope=server lista as chamadas do servidor.
+const scopeServer = "server"
+
+// activeQueryError devolve o erro da consulta de chamada ativa, ou "".
+func activeQueryError(scope, id string) string {
+	if scope != TypeDM && scope != TypeChannel && scope != scopeServer {
+		return "scope must be dm, channel or server"
+	}
+	if id == "" {
+		return "id query is required"
+	}
+	return ""
 }
 
 func (h *Handler) Active(c *gin.Context) {
-	scope := c.Query("scope")
-	id := c.Query("id")
-
-	if scope != TypeDM && scope != TypeChannel && scope != "server" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "scope must be dm, channel or server"})
+	scope, id := c.Query("scope"), c.Query("id")
+	if msg := activeQueryError(scope, id); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		return
 	}
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id query is required"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	if !h.canSeeScope(c, scope, id, userID) {
 		return
 	}
+	if scope == scopeServer {
+		h.respondServerActive(c, id, userID)
+		return
+	}
+	h.respondScopeActive(c, scope, id)
+}
 
+// canSeeScope confere se a pessoa vê a DM, o servidor ou o canal; se não,
+// já respondeu.
+func (h *Handler) canSeeScope(c *gin.Context, scope, id, userID string) bool {
+	switch scope {
+	case TypeDM:
+		return h.dmVisible(c, id, userID)
+	case scopeServer:
+		return h.serverVisible(c, id, userID)
+	default:
+		return h.channelVisible(c, id, userID)
+	}
+}
+
+func (h *Handler) dmVisible(c *gin.Context, conversationID, userID string) bool {
+	isParticipant, err := h.service.conversationService.IsParticipant(c.Request.Context(), conversationID, userID)
+	if err != nil || !isParticipant {
+		c.JSON(http.StatusForbidden, gin.H{"error": ErrNotParticipant.Error()})
+		return false
+	}
+	return true
+}
+
+func (h *Handler) serverVisible(c *gin.Context, serverID, userID string) bool {
+	isMember, err := h.service.serverService.IsMember(c.Request.Context(), serverID, userID)
+	if err != nil || !isMember {
+		c.JSON(http.StatusForbidden, gin.H{"error": ErrNotMember.Error()})
+		return false
+	}
+	return true
+}
+
+func (h *Handler) channelVisible(c *gin.Context, channelID, userID string) bool {
 	ctx := c.Request.Context()
-
-	if scope == TypeDM {
-		isParticipant, err := h.service.conversationService.IsParticipant(ctx, id, userID.(string))
-		if err != nil || !isParticipant {
-			c.JSON(http.StatusForbidden, gin.H{"error": ErrNotParticipant.Error()})
-			return
-		}
-	} else if scope == "server" {
-		isMember, err := h.service.serverService.IsMember(ctx, id, userID.(string))
-		if err != nil || !isMember {
-			c.JSON(http.StatusForbidden, gin.H{"error": ErrNotMember.Error()})
-			return
-		}
-
-		states, err := h.service.ListActiveByServer(ctx, id)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list active calls"})
-			return
-		}
-
-		// Só os canais de voz que a pessoa vê.
-		c.JSON(http.StatusOK, h.service.VisibleStates(ctx, id, userID.(string), states))
-		return
-	} else {
-		ch, err := h.service.channelService.FindByID(ctx, id)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "channel not found"})
-			return
-		}
-		if !h.service.CanViewChannel(ctx, ch.ID, userID.(string)) {
-			c.JSON(http.StatusForbidden, gin.H{"error": ErrNotMember.Error()})
-			return
-		}
+	ch, err := h.service.channelService.FindByID(ctx, channelID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "channel not found"})
+		return false
 	}
+	if !h.service.CanViewChannel(ctx, ch.ID, userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": ErrNotMember.Error()})
+		return false
+	}
+	return true
+}
 
+func (h *Handler) respondServerActive(c *gin.Context, serverID, userID string) {
+	ctx := c.Request.Context()
+	states, err := h.service.ListActiveByServer(ctx, serverID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list active calls"})
+		return
+	}
+	// Só os canais de voz que a pessoa vê.
+	c.JSON(http.StatusOK, h.service.VisibleStates(ctx, serverID, userID, states))
+}
+
+func (h *Handler) respondScopeActive(c *gin.Context, scope, id string) {
 	call, err := h.service.FindActiveByScope(scope, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": ErrNotFound.Error()})
 		return
 	}
-
-	state, err := h.service.GetState(ctx, call.ID)
+	state, err := h.service.GetState(c.Request.Context(), call.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load call state"})
 		return
 	}
-
 	c.JSON(http.StatusOK, state)
 }
 
 func (h *Handler) State(c *gin.Context) {
 	callID := c.Param("id")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
@@ -166,7 +210,7 @@ func (h *Handler) State(c *gin.Context) {
 
 	allowed := false
 	for _, p := range state.Participants {
-		if p.UserID == userID.(string) {
+		if p.UserID == userID {
 			allowed = true
 			break
 		}
@@ -178,32 +222,31 @@ func (h *Handler) State(c *gin.Context) {
 	state.JoinRequests = h.service.joinRequestsOf(callID)
 
 	// Só aqui (participante conferido): quem entra depois já vê a atividade.
-	state.Activity = h.service.ActivityFor(callID, userID.(string))
+	state.Activity = h.service.ActivityFor(callID, userID)
 	c.JSON(http.StatusOK, state)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	callID := c.Param("id")
-
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-
-	if err := h.service.EndByUser(c.Request.Context(), callID, userID.(string)); err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, ErrNotFound):
-			status = http.StatusNotFound
-		case errors.Is(err, ErrNotAllowed):
-			status = http.StatusForbidden
-		}
-		c.JSON(status, gin.H{"error": err.Error()})
+	if err := h.service.EndByUser(c.Request.Context(), c.Param("id"), userID); err != nil {
+		c.JSON(endStatus(err), gin.H{"error": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"message": "call ended"})
+}
+
+func endStatus(err error) int {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, ErrNotAllowed):
+		return http.StatusForbidden
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 // Token emite o JWT do LiveKit para a sala da chamada. Só participantes
@@ -211,22 +254,21 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) Token(c *gin.Context) {
 	callID := c.Param("id")
 
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 
-	if !h.service.IsParticipant(callID, userID.(string)) {
+	if !h.service.IsParticipant(callID, userID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": ErrNotAllowed.Error()})
 		return
 	}
 
 	// O nome vai no token para quem está só na mídia (fora da lista do
 	// backend, ex.: queda do WS) aparecer com nome e não como "Usuário".
-	name := h.service.mediaName(c.Request.Context(), userID.(string))
+	name := h.service.mediaName(c.Request.Context(), userID)
 
-	token, err := h.tokens.Issue(callID, userID.(string), name, h.service.GrantFor(c.Request.Context(), callID, userID.(string)))
+	token, err := h.tokens.Issue(callID, userID, name, h.service.GrantFor(c.Request.Context(), callID, userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue media token"})
 		return
@@ -276,9 +318,8 @@ func respondScreenPreview(c *gin.Context, err error) {
 // PutScreenPreview: PUT /calls/:id/screen-preview {image: base64 do JPEG}.
 // Quem transmite manda a miniatura quando o servidor pede.
 func (h *Handler) PutScreenPreview(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, screenPreviewBodyLimit)
@@ -290,7 +331,7 @@ func (h *Handler) PutScreenPreview(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidPreview.Error()})
 		return
 	}
-	if err := h.service.SaveScreenPreview(c.Param("id"), userID.(string), input.Image, time.Now()); err != nil {
+	if err := h.service.SaveScreenPreview(c.Param("id"), userID, input.Image, time.Now()); err != nil {
 		respondScreenPreview(c, err)
 		return
 	}
@@ -300,12 +341,11 @@ func (h *Handler) PutScreenPreview(c *gin.Context) {
 // GetScreenPreview: GET /calls/:id/screen-preview/:userId. image null = a
 // miniatura foi pedida e ainda não chegou (tentar de novo em instantes).
 func (h *Handler) GetScreenPreview(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	result, err := h.service.ScreenPreview(c.Request.Context(), c.Param("id"), c.Param("userId"), userID.(string), time.Now())
+	result, err := h.service.ScreenPreview(c.Request.Context(), c.Param("id"), c.Param("userId"), userID, time.Now())
 	if err != nil {
 		respondScreenPreview(c, err)
 		return

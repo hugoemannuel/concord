@@ -3,13 +3,13 @@ package message
 import (
 	"context"
 	"errors"
-	"io"
 	"log"
 	"mime"
 	"net/http"
 	"syscall"
 	"time"
 
+	"gin-quickstart/backend/internal/platform/authctx"
 	"gin-quickstart/backend/internal/platform/media"
 
 	"github.com/gin-gonic/gin"
@@ -98,144 +98,95 @@ func saveErrorStatus(err error) (int, string) {
 }
 
 func (h *AttachmentHandler) upload(c *gin.Context, room Room) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	uploaderID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	uploaderID := userID.(string)
 	ctx := c.Request.Context()
-
 	if err := h.access.CanWrite(ctx, room, uploaderID); err != nil {
 		respondRoomError(c, err)
 		return
 	}
-
-	incoming := c.Request.ContentLength
-	if incoming < 0 {
-		incoming = h.maxFileBytes
-	}
-	if !h.space.HasRoom(incoming) {
-		c.JSON(http.StatusInsufficientStorage, gin.H{"error": "server out of space"})
-		return
-	}
-	if c.Request.ContentLength > h.maxFileBytes+multipartOverhead {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large"})
-		return
-	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, h.maxFileBytes+multipartOverhead)
-
-	reader, err := c.Request.MultipartReader()
+	a := newStoredAttachment(uploaderID, room)
+	form, err := h.readForm(c, a.ID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
+		status, msg := saveErrorStatus(err)
+		c.JSON(status, gin.H{"error": msg})
 		return
 	}
+	if status, msg := h.register(ctx, a, form); status != http.StatusCreated {
+		// Qualquer saída antes do 201 apaga o arquivo que já foi para o disco.
+		h.discard(a.ID)
+		c.JSON(status, gin.H{"error": msg})
+		return
+	}
+	c.JSON(http.StatusCreated, a.Attachment)
+}
 
-	a := &storedAttachment{UploaderID: uploaderID}
+// newStoredAttachment: o anexo novo de uploaderID na sala, ainda sem arquivo.
+func newStoredAttachment(uploaderID string, room Room) *storedAttachment {
+	a := &storedAttachment{Attachment: Attachment{ID: uuid.NewString()}, UploaderID: uploaderID}
 	if room.ChannelID != "" {
 		a.ChannelID = &room.ChannelID
 	} else {
 		a.ConversationID = &room.ConversationID
 	}
+	return a
+}
 
-	var (
-		saved    bool
-		keep     bool
-		head     []byte
-		declared string
-	)
-	// Qualquer saída antes do 201 apaga o arquivo que já foi para o disco.
-	defer func() {
-		if saved && !keep {
-			if err := h.store.Remove(a.ID); err != nil {
-				log.Printf("failed to remove rejected upload %s: %v", a.ID, err)
-			}
-		}
-	}()
-
-	// Os campos podem vir antes ou depois do arquivo; o arquivo vai direto
-	// para o disco, sem passar pela memória.
-	for {
-		part, err := reader.NextPart()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			if isTooLarge(err) {
-				c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large"})
-			} else {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-			}
-			return
-		}
-
-		switch part.FormName() {
-		case "file":
-			if saved {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-				return
-			}
-			a.ID = uuid.NewString()
-			a.Filename = sanitizeFilename(part.FileName())
-			declared = part.Header.Get("Content-Type")
-			a.SizeBytes, head, err = h.store.Save(a.ID, part, h.maxFileBytes)
-			if err != nil {
-				status, msg := saveErrorStatus(err)
-				c.JSON(status, gin.H{"error": msg})
-				return
-			}
-			saved = true
-		case "width", "height", "duration_ms":
-			raw, err := io.ReadAll(io.LimitReader(part, 32))
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-				return
-			}
-			switch part.FormName() {
-			case "width":
-				a.Width = parseOptionalPositive(string(raw), maxMediaDimension)
-			case "height":
-				a.Height = parseOptionalPositive(string(raw), maxMediaDimension)
-			default:
-				a.DurationMs = parseOptionalPositive(string(raw), maxDurationMs)
-			}
-		default:
-			io.Copy(io.Discard, part)
-		}
-		part.Close()
+// readForm confere o corpo (espaço em disco e tamanho) e salva o arquivo em
+// id. Os campos podem vir antes ou depois do arquivo; o arquivo vai direto
+// para o disco, sem passar pela memória.
+func (h *AttachmentHandler) readForm(c *gin.Context, id string) (media.Form, error) {
+	reader, err := media.OpenUpload(c.Writer, c.Request, h.space, media.UploadSpec{
+		Limit: h.maxFileBytes + multipartOverhead,
+		Room:  h.maxFileBytes,
+		Cap:   true,
+	})
+	if err != nil {
+		return media.Form{}, err
 	}
+	return h.store.ReadForm(reader, media.FormSpec{
+		ID:       id,
+		MaxFile:  h.maxFileBytes,
+		MaxField: 32,
+		Fields:   []string{"width", "height", "duration_ms"},
+	})
+}
 
-	if !saved {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid upload"})
-		return
-	}
-
-	kind, contentType, ok := media.Sniff(head, declared)
+// register confere o tipo do arquivo e grava o anexo pendente; devolve 201
+// ou o status e a mensagem da recusa.
+func (h *AttachmentHandler) register(ctx context.Context, a *storedAttachment, form media.Form) (int, string) {
+	kind, contentType, ok := media.Sniff(form.Head, form.Declared)
 	if !ok {
-		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "unsupported file type"})
-		return
+		return http.StatusUnsupportedMediaType, "unsupported file type"
 	}
-	a.Kind = string(kind)
-	a.ContentType = contentType
-
+	a.Kind, a.ContentType = string(kind), contentType
+	a.Filename = sanitizeFilename(form.Filename)
+	a.SizeBytes = form.Size
+	a.Width = parseOptionalPositive(form.Fields["width"], maxMediaDimension)
+	a.Height = parseOptionalPositive(form.Fields["height"], maxMediaDimension)
+	a.DurationMs = parseOptionalPositive(form.Fields["duration_ms"], maxDurationMs)
 	if err := h.repo.CreatePendingAttachment(ctx, a); err != nil {
 		log.Printf("failed to save attachment %s: %v", a.ID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save attachment"})
-		return
+		return http.StatusInternalServerError, "failed to save attachment"
 	}
-	keep = true
+	return http.StatusCreated, ""
+}
 
-	c.JSON(http.StatusCreated, a.Attachment)
+func (h *AttachmentHandler) discard(id string) {
+	if err := h.store.Remove(id); err != nil {
+		log.Printf("failed to remove rejected upload %s: %v", id, err)
+	}
 }
 
 // MediaToken entrega o token curto que o app põe na URL dos arquivos.
 func (h *AttachmentHandler) MediaToken(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
-	token, expiresAt, err := h.tokens.GenerateMediaToken(userID.(string))
+	token, expiresAt, err := h.tokens.GenerateMediaToken(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create media token"})
 		return

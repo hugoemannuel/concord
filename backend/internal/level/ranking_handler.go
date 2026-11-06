@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"gin-quickstart/backend/internal/platform/authctx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,14 +19,13 @@ func LevelRankingHandler(service *RankingService) *RankingHandler {
 
 // Get devolve o ranking global: GET /levels/ranking?limit=100.
 func (h *RankingHandler) Get(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	userID, ok := authctx.UserID(c)
+	if !ok {
 		return
 	}
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	ranking, err := h.service.Get(c.Request.Context(), userID.(string), limit)
+	ranking, err := h.service.Get(c.Request.Context(), userID, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load ranking"})
 		return

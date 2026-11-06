@@ -119,6 +119,7 @@ const api = vi.hoisted(() => ({
   endCall: vi.fn(async () => ({ message: 'ok' })),
   getCallState: vi.fn(async () => ({ call: null, participants: [] })),
   getCallToken: vi.fn(async () => ({ token: 'tok' })),
+  acceptCall: vi.fn(async () => undefined),
   putScreenPreview: vi.fn(async () => {})
 }))
 vi.mock('../api/calls', () => api)
@@ -458,6 +459,20 @@ describe('callStore — mídia via LiveKit', () => {
       await useCallStore.getState().startChannelCall('canal-1', resume, abort.signal)
       expect(chat.sendEvent).toHaveBeenCalledWith('call:leave', { call_id: 'call-1' })
       expect(useCallStore.getState().status).toBe('idle')
+    })
+  })
+
+  it('sair da chamada volta ao estado inicial, guardando o que vale entre chamadas', async () => {
+    const data = (s: object): Record<string, unknown> =>
+      Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== 'function'))
+    const initial = data(useCallStore.getInitialState())
+    await joinChannel()
+    useCallStore.setState({ stageVisible: true, muted: true, inputDeviceId: 'mic-2' })
+    useCallStore.getState().endCall()
+    expect(data(useCallStore.getState())).toEqual({
+      ...initial,
+      stageVisible: true,
+      inputDeviceId: 'mic-2'
     })
   })
 
@@ -931,7 +946,7 @@ describe('callStore — mídia via LiveKit', () => {
 
   it('mostra quem está mudo/ensurdecido a partir do evento call:voice', async () => {
     await joinChannel()
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': {
         call: { id: 'call-1' } as never,
         participants: [{ call_id: 'call-1', user_id: 'ana', role: 'member', joined_at: '' }]
@@ -957,7 +972,7 @@ describe('callStore — mídia via LiveKit', () => {
 
   it('mostra o que um moderador impôs (silenciar/ensurdecer no servidor)', async () => {
     await joinChannel()
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': {
         call: { id: 'call-1' } as never,
         participants: [{ call_id: 'call-1', user_id: 'ana', role: 'member', joined_at: '' }]
@@ -1168,6 +1183,84 @@ describe('callStore — mídia via LiveKit', () => {
   })
 })
 
+describe('callStore — atender DM', () => {
+  function ringing(): void {
+    useCallStore.getState().handleWsEvent({
+      type: 'call:invite',
+      payload: { call_id: 'dm-1', type: 'dm', initiator: { id: 'ana', username: 'ana', display_name: 'Ana' } }
+    })
+  }
+
+  it('só pede o token depois de o servidor confirmar o aceite', async () => {
+    const accepted = deferred<undefined>()
+    api.acceptCall.mockReturnValueOnce(accepted.promise)
+    ringing()
+
+    const accepting = useCallStore.getState().acceptCall()
+    await flush()
+    expect(api.acceptCall).toHaveBeenCalledWith('dm-1')
+    expect(api.getCallToken).not.toHaveBeenCalled()
+    expect(chat.subscribeRoom).not.toHaveBeenCalled()
+    expect(chat.sendEvent).not.toHaveBeenCalledWith('call:accept', expect.anything())
+    // Ainda não sou participante: segue tocando (um call:voice agora seria recusado).
+    expect(useCallStore.getState().status).toBe('ringing')
+
+    accepted.resolve(undefined)
+    await accepting
+    await flush()
+    expect(useCallStore.getState().status).toBe('active')
+    expect(chat.subscribeRoom).toHaveBeenCalledWith('call:dm-1')
+    expect(api.getCallToken).toHaveBeenCalledWith('dm-1')
+  })
+
+  it('403 no token é "sem permissão" na hora, sem tentar de novo', async () => {
+    api.getCallToken.mockRejectedValueOnce(
+      Object.assign(new ApiError(403, 'not allowed'), { status: 403 }) as never
+    )
+    ringing()
+
+    await useCallStore.getState().acceptCall()
+    await flush()
+    await flush()
+
+    expect(api.getCallToken).toHaveBeenCalledTimes(1)
+    expect(useCallStore.getState().connection.phase).toBe('failed')
+  })
+
+  it('aceite recusado pelo servidor (a chamada acabou): avisa e volta ao ocioso, sem mídia', async () => {
+    api.acceptCall.mockRejectedValueOnce(
+      Object.assign(new ApiError(404, 'call not found'), { status: 404 }) as never
+    )
+    ringing()
+
+    await useCallStore.getState().acceptCall()
+    await flush()
+
+    expect(showToast.error).toHaveBeenCalled()
+    expect(useCallStore.getState().status).toBe('idle')
+    expect(api.getCallToken).not.toHaveBeenCalled()
+  })
+
+  it('desligou enquanto o aceite ia ao servidor: sai da chamada que acabou de entrar', async () => {
+    const accepted = deferred<undefined>()
+    api.acceptCall.mockReturnValueOnce(accepted.promise)
+    ringing()
+
+    const accepting = useCallStore.getState().acceptCall()
+    await flush()
+    useCallStore.getState().endCall()
+    chat.sendEvent.mockClear()
+    accepted.resolve(undefined)
+    await accepting
+    await flush()
+
+    // O call:leave do desligar pode ter chegado antes do aceite: manda de novo.
+    expect(chat.sendEvent).toHaveBeenCalledWith('call:leave', { call_id: 'dm-1' })
+    expect(api.getCallToken).not.toHaveBeenCalled()
+    expect(useCallStore.getState().status).toBe('idle')
+  })
+})
+
 describe('callStore — reentrada após queda do WS', () => {
   const participant = (id: string): Record<string, unknown> => ({
     user_id: id,
@@ -1322,25 +1415,26 @@ describe('callStore — reentrada após queda do WS', () => {
     }
   })
 
-  it('canal: um 404 passageiro não troca de sala', async () => {
+  it('canal: 404 ao reconectar (sala de mídia vazia) segue na chamada nova na hora, sem sondar de novo', async () => {
     await joinChannel()
     api.startCall.mockClear()
-    vi.useFakeTimers()
-    try {
-      api.getCallState.mockRejectedValueOnce(
-        Object.assign(new ApiError(404, 'call not found'), { status: 404 }) as never
-      )
+    api.getCallState.mockClear()
+    api.getCallState.mockRejectedValueOnce(
+      Object.assign(new ApiError(404, 'call not found'), { status: 404 }) as never
+    )
+    api.startCall.mockResolvedValueOnce({ id: 'call-2' })
 
-      useCallStore.getState().handleWsReconnect()
-      await vi.advanceTimersByTimeAsync(10_000)
+    useCallStore.getState().handleWsReconnect()
+    await flush()
+    await flush()
 
-      // Passado o 404, segue como sempre: reentra na mesma chamada, mídia intacta.
-      expect(api.startCall).toHaveBeenCalledTimes(1)
-      expect(media.instances[0].disconnect).not.toHaveBeenCalled()
-      expect(useCallStore.getState().callId).toBe('call-1')
-    } finally {
-      vi.useRealTimers()
-    }
+    // O servidor só atende depois de recarregar as chamadas: o 404 é de verdade.
+    expect(api.startCall).toHaveBeenCalledTimes(1)
+    expect(useCallStore.getState().callId).toBe('call-2')
+    expect(media.instances[0].disconnect).toHaveBeenCalled()
+    expect(api.getCallState).toHaveBeenNthCalledWith(1, 'call-1')
+    const probes = (api.getCallState.mock.calls as unknown[][]).filter((c) => c[0] === 'call-1')
+    expect(probes).toHaveLength(1)
   })
 
   it('não faz nada ao reconectar o WS fora de chamada', async () => {
@@ -1408,44 +1502,21 @@ describe('callStore — DM após queda do WS', () => {
 
   const notFound = (): Error => Object.assign(new ApiError(404, 'call not found'), { status: 404 })
 
-  it('DM que acabou durante a queda fecha a chamada (404 confirmado e a outra pessoa fora da mídia)', async () => {
+  it('DM que acabou durante a queda fecha na hora (404 e a outra pessoa fora da mídia)', async () => {
     await inDmWithAna()
-    vi.useFakeTimers()
-    try {
-      api.getCallState.mockRejectedValue(notFound() as never)
+    api.getCallState.mockClear()
+    api.getCallState.mockRejectedValueOnce(notFound() as never)
 
-      useCallStore.getState().handleWsReconnect()
-      await vi.advanceTimersByTimeAsync(10_000)
+    useCallStore.getState().handleWsReconnect()
+    await flush()
+    await flush()
 
-      expect(useCallStore.getState().status).toBe('idle')
-      expect(useCallStore.getState().callId).toBeNull()
-    } finally {
-      api.getCallState.mockReset()
-      api.getCallState.mockImplementation(async () => ({ call: null, participants: [] }))
-      vi.useRealTimers()
-    }
+    expect(useCallStore.getState().status).toBe('idle')
+    expect(useCallStore.getState().callId).toBeNull()
+    expect(api.getCallState).toHaveBeenCalledTimes(1)
   })
 
-  it('um 404 passageiro (servidor acabando de subir) não derruba a DM', async () => {
-    await inDmWithAna()
-    vi.useFakeTimers()
-    try {
-      api.getCallState.mockRejectedValueOnce(notFound() as never)
-      chat.sendEvent.mockClear()
-
-      useCallStore.getState().handleWsReconnect()
-      await vi.advanceTimersByTimeAsync(10_000)
-
-      expect(useCallStore.getState().status).toBe('active')
-      expect(media.instances[0].disconnect).not.toHaveBeenCalled()
-      // E reenvia o próprio estado como numa reconexão normal.
-      expect(chat.sendEvent).toHaveBeenCalledWith('call:screen', { call_id: 'dm-1', active: false })
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('404 repetido mas a outra pessoa ainda na sala de mídia: a DM continua', async () => {
+  it('404 mas a outra pessoa ainda na sala de mídia: a DM continua', async () => {
     await inDmWithAna()
     onRemoteMedia({ ...empty, mediaPeers: { ana: 'Ana' } })
     vi.useFakeTimers()
@@ -1745,7 +1816,7 @@ describe('callStore — prévia da transmissão no perfil', () => {
 
 describe('callStore — selo LIVE', () => {
   it('call:live atualiza o selo da lista do servidor mesmo fora da call', () => {
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': { call: { id: 'call-9' } as never, participants: [] }
     })
 
@@ -1764,8 +1835,8 @@ describe('callStore — selo LIVE', () => {
 })
 
 describe('callStore — selo LIVE em dia', () => {
-  it('polling atrasado não apaga um call:live recém-chegado', () => {
-    useCallStore.getState().setServerCalls({
+  it('lista lida com atraso não apaga um call:live recém-chegado', () => {
+    useCallStore.getState().setServerCalls('s1', {
       'canal-2': { call: { id: 'call-7' } as never, participants: [] }
     })
     useCallStore.getState().handleWsEvent({
@@ -1773,24 +1844,46 @@ describe('callStore — selo LIVE em dia', () => {
       payload: { call_id: 'call-7', user_id: 'bia', active: true }
     })
 
-    // Resposta de um polling que saiu antes do evento.
-    useCallStore.getState().setServerCalls({
+    // Resposta de uma leitura que saiu antes do evento.
+    useCallStore.getState().setServerCalls('s1', {
       'canal-2': { call: { id: 'call-7' } as never, participants: [], screen_sharing: [] }
     })
 
     expect(useCallStore.getState().serverCalls['canal-2'].screen_sharing).toEqual(['bia'])
   })
+})
 
-  it('call:live de chamada que a lista ainda não conhece recarrega a lista', () => {
-    useCallStore.getState().setServerCalls({})
-    const before = useCallStore.getState().listVersion
+describe('callStore — lista dos canais de voz pelos eventos do servidor', () => {
+  const callInfo = { id: 'call-5', type: 'channel', channel_id: 'canal-5', server_id: 's2' }
+  const person = (user_id: string): object => ({ call_id: 'call-5', user_id, role: 'member', joined_at: '' })
 
+  it('entrar, sair e o fim da chamada mudam a lista sem ler o servidor', () => {
+    const event = (type: string, payload: object): void =>
+      useCallStore.getState().handleWsEvent({ type, payload })
+
+    event('call:channel_joined', { call: callInfo, participant: person('ana') })
+    event('call:channel_joined', { call: callInfo, participant: person('bia') })
+    const ids = (): string[] =>
+      useCallStore.getState().serverCalls['canal-5'].participants.map((p) => p.user_id)
+    expect(ids()).toEqual(['ana', 'bia'])
+
+    event('call:channel_left', { call_id: 'call-5', channel_id: 'canal-5', user_id: 'ana' })
+    expect(ids()).toEqual(['bia'])
+
+    event('call:channel_ended', { call_id: 'call-5', channel_id: 'canal-5' })
+    expect(useCallStore.getState().serverCalls['canal-5']).toBeUndefined()
+    expect(api.getCallState).not.toHaveBeenCalled()
+  })
+
+  it('a lista lida de um servidor não apaga a dos outros', () => {
     useCallStore.getState().handleWsEvent({
-      type: 'call:live',
-      payload: { call_id: 'call-nova', user_id: 'ana', active: true }
+      type: 'call:channel_joined',
+      payload: { call: callInfo, participant: person('ana') }
     })
 
-    expect(useCallStore.getState().listVersion).toBe(before + 1)
+    useCallStore.getState().setServerCalls('s1', {})
+
+    expect(useCallStore.getState().serverCalls['canal-5'].participants).toHaveLength(1)
   })
 })
 
@@ -2147,7 +2240,7 @@ describe('callStore — salas trancadas e pedidos de entrada', () => {
   })
 
   it('evento call:lock atualiza o estado local e serverCalls', () => {
-    useCallStore.getState().setServerCalls({
+    useCallStore.getState().setServerCalls('s1', {
       'canal-1': {
         call: {
           id: 'call-1',

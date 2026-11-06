@@ -5,6 +5,7 @@ import ScreenQualityControls from './ScreenQualityControls'
 import NativeLiveToggle from './NativeLiveToggle'
 import Button from '../../../shared/ui/Button'
 import { trapTab } from '../../../shared/lib/focusTrap'
+import { useModalBehavior } from '../../../shared/hooks/useModalBehavior'
 
 export default function ScreenQualityModal(): React.JSX.Element | null {
   const request = useScreenQualityStore((s) => s.request)
@@ -20,18 +21,12 @@ function QualityDialog({
   const [quality, setQuality] = useState(loadScreenQuality)
   const mounted = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
+  // Foco entra e volta, Esc cancela (o Tab fica preso no onKeyDown do diálogo).
+  useModalBehavior(true, () => request.resolve(null), dialogRef)
+  // Desmontou sem escolher (ex.: a chamada caiu): cancela o pedido.
   useEffect(() => {
     mounted.current = true
-    const previousFocus = document.activeElement as HTMLElement | null
-    dialogRef.current?.focus()
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') request.resolve(null)
-      trapTab(event, dialogRef.current)
-    }
-    window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('keydown', onKey)
-      previousFocus?.focus()
       mounted.current = false
       queueMicrotask(() => {
         if (!mounted.current) request.resolve(null)
@@ -46,6 +41,7 @@ function QualityDialog({
         tabIndex={-1}
         aria-modal="true"
         aria-labelledby="screen-quality-title"
+        onKeyDown={(e) => trapTab(e, dialogRef.current)}
         className="rounded-xl border border-subtle bg-modal shadow-2xl shadow-black/70 w-full max-w-xl p-6"
       >
         <h2 id="screen-quality-title" className="text-ds-lg font-bold text-strong">

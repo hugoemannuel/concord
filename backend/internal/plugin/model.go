@@ -3,7 +3,6 @@
 package plugin
 
 import (
-	"encoding/json"
 	"errors"
 	"net/url"
 	"strings"
@@ -154,12 +153,4 @@ func normalizePanelURL(raw string) (string, error) {
 		return "", ErrInvalidURL
 	}
 	return u.String(), nil
-}
-
-func marshalEvent(typ string, payload any) []byte {
-	data, err := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	if err != nil {
-		return nil
-	}
-	return data
 }

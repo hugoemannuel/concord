@@ -25,6 +25,3 @@ export const useWindowActivityStore = create<WindowActivityState>((set, get) => 
 /** true com a janela sem foco, minimizada ou na bandeja. */
 export const useInBackground = (): boolean =>
   useWindowActivityStore((s) => inBackground(s.activity))
-
-/** true só com a janela fora da tela (minimizada ou na bandeja). */
-export const useWindowHidden = (): boolean => useWindowActivityStore((s) => !s.activity.visible)

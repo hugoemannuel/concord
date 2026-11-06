@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 export const MONTHS = [
   'Janeiro',
   'Fevereiro',
@@ -83,6 +84,6 @@ export async function trySaveBirthday<T extends BirthdayValue>(
   try {
     return { saved: await send(next) }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Não foi possível salvar o aniversário.' }
+    return { error: errorMessage(err, 'Não foi possível salvar o aniversário.') }
   }
 }

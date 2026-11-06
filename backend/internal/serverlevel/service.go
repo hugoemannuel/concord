@@ -2,12 +2,12 @@ package serverlevel
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sync"
 	"time"
 
 	"gin-quickstart/backend/internal/call"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 const (
@@ -37,7 +37,7 @@ type EventPublisher interface {
 }
 
 type store interface {
-	Add(ctx context.Context, serverID, userID, source string, xp int64) error
+	AddAll(ctx context.Context, grants []grant) error
 	GrantNewMembers(ctx context.Context) error
 	Recent(ctx context.Context) ([]levelRow, error)
 	SetLevel(ctx context.Context, serverID string, level int) error
@@ -120,26 +120,23 @@ func serverParticipants(snaps []call.CallSnapshot) []string {
 	return ids
 }
 
-// flush grava os minutos fechados; o que falhar volta para o próximo.
+// flush grava os minutos fechados numa escrita só; se falhar, tudo volta
+// para o próximo.
 func (s *Service) flush(ctx context.Context) {
 	s.mu.Lock()
 	grants := s.tracker.drain()
 	s.mu.Unlock()
-	var failed []grant
-	for _, g := range grants {
-		if err := s.store.Add(ctx, g.serverID, g.userID, g.source, g.xp); err != nil {
-			log.Printf("[serverlevel] %v", err)
-			failed = append(failed, g)
-		}
-	}
-	if len(failed) == 0 {
+	if len(grants) == 0 {
 		return
 	}
-	s.mu.Lock()
-	for _, g := range failed {
-		s.tracker.restore(g)
+	if err := s.store.AddAll(ctx, grants); err != nil {
+		log.Printf("[serverlevel] %v", err)
+		s.mu.Lock()
+		for _, g := range grants {
+			s.tracker.restore(g)
+		}
+		s.mu.Unlock()
 	}
-	s.mu.Unlock()
 }
 
 // sync acerta o nível dos servidores que mudaram: avisa o progresso novo e,
@@ -167,10 +164,10 @@ func (s *Service) syncRow(ctx context.Context, row levelRow) {
 	room := "server:" + row.serverID
 	if last, seen := s.lastXP[row.serverID]; !seen || last != row.xp {
 		s.lastXP[row.serverID] = row.xp
-		s.publisher.BroadcastToRoom(room, marshalEvent("server:level:update", progress))
+		s.publisher.BroadcastToRoom(room, wsevent.Marshal("server:level:update", progress))
 	}
 	if change.announce {
-		s.publisher.BroadcastToRoom(room, marshalEvent("server:level:up", LevelUpEvent{
+		s.publisher.BroadcastToRoom(room, wsevent.Marshal("server:level:up", LevelUpEvent{
 			ServerID:      row.serverID,
 			Level:         progress.Level,
 			PreviousLevel: *row.level,
@@ -206,9 +203,4 @@ func (s *Service) Detail(ctx context.Context, serverID string) (Detail, error) {
 		d.Week = append(d.Week, SourceXP{Source: source, XP: week[source]})
 	}
 	return d, nil
-}
-
-func marshalEvent(typ string, payload any) []byte {
-	data, _ := json.Marshal(map[string]any{"type": typ, "payload": payload})
-	return data
 }
