@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
 import {
+  acceptCall as acceptCallApi,
   startCall as startCallApi,
   endCall as endCallApi,
   getCallState,
@@ -48,7 +49,6 @@ import { watchLocalSpeaking } from '../lib/localSpeaking'
 import { mergeLocalSpeaking, sameIds } from '../lib/voiceActivity'
 import { voiceServerId } from '../lib/voiceServer'
 import { LIVEKIT_URL } from '../../../shared/lib/config'
-import { retry } from '../../../shared/lib/retry'
 import { micBlockReason, streamBlockReason } from '../lib/voicePermissions'
 import { addWatched, miniPlayerOnly, pruneWatched, resolveFocus } from '../lib/screenWatch'
 import { createPreviewSender } from '../lib/screenPreviewFlow'
@@ -63,6 +63,8 @@ import {
 import { callNotification, notifyDesktop } from '../../notifications/lib/notifications'
 import { playSound, setSoundOutput } from '../lib/sounds'
 import { createKnockEventHandlers } from './knockWsEvents'
+import { createVoiceListEventHandlers } from './voiceListWsEvents'
+import { replaceServerCalls } from '../lib/voiceList'
 import { playOwnJoinSound } from '../lib/entranceSoundOwn'
 import { channelJoinState } from '../lib/channelJoinState'
 import { staleOwnLive, syncCallState } from '../lib/callStateSync'
@@ -193,9 +195,7 @@ export interface CallState {
   startedAt: number | null
   /** Mute de antes de ensurdecer — volta a ele ao desensurdecer. */
   mutedBeforeDeafen: boolean
-  /** incrementa a cada evento call:* relevante — usado pela UI p/ revalidar listas */
-  listVersion: number
-  /** chamadas ativas por canal do servidor aberto (polling da sidebar) */
+  /** chamadas ativas por canal de voz, dos servidores abertos (lib/voiceList) */
   serverCalls: Record<string, CallStateResponse>
   /** a sala de voz em que estou está trancada */
   locked: boolean
@@ -247,7 +247,8 @@ export interface CallState {
   setDmMinimized: (minimized: boolean) => void
   /** Clique na miniatura: põe em destaque uma transmissão que estou assistindo. */
   focusWatchedScreen: (userId: string) => void
-  setServerCalls: (map: Record<string, CallStateResponse>) => void
+  /** Lista lida de um servidor: substitui só as chamadas dele. */
+  setServerCalls: (serverId: string, map: Record<string, CallStateResponse>) => void
   joinVoiceChannel: (channelId: string) => Promise<void>
   /** WS de chat (re)conectou: ressincroniza a chamada (canal ou DM) e as listas de voz. */
   handleWsReconnect: () => void
@@ -322,15 +323,8 @@ let cameraQueue: Promise<void> = Promise.resolve()
 // Publicação da câmera em andamento: trocar o stream antes dela terminar não acharia a track
 let cameraPublish: Promise<void> = Promise.resolve()
 
-/** call:live recentes, reaplicados sobre o polling da lista do servidor. */
+/** call:live recentes, reaplicados sobre a lista do servidor lida há pouco. */
 let recentLive: LiveRecord[] = []
-
-/** Ao reconectar, um 404 só fecha/troca a chamada se repetir (ver confirmGone). */
-const GONE_CHECKS = 3
-const GONE_CHECK_INTERVAL_MS = 2000
-
-const TOKEN_ATTEMPTS = 10
-const TOKEN_RETRY_DELAY_MS = 400
 
 /** Tira o stream da sala (se houver) e só então para as tracks. */
 function releaseStream(stream: MediaStream): void {
@@ -464,10 +458,6 @@ export function getCallMicrophone(): MicHandle | null {
 }
 
 export const useCallStore = create<CallState>()((set, get) => {
-  const bumpList = (): void => {
-    set((s) => ({ listVersion: s.listVersion + 1 }))
-  }
-
   /**
    * Junta servidor (os outros) e detecção local (eu). Mudo nunca está
    * falando — nem quando a detecção local caiu e o servidor ainda me lista
@@ -587,7 +577,6 @@ export const useCallStore = create<CallState>()((set, get) => {
   const replacedByOtherDevice = (): void => {
     showToast.info(describeDisconnect(LK_DISCONNECT.DUPLICATE_IDENTITY, true))
     cleanup()
-    bumpList()
   }
 
   /** Reações da sala de mídia; só valem enquanto `self` ainda é a conexão da chamada. */
@@ -632,14 +621,29 @@ export const useCallStore = create<CallState>()((set, get) => {
     }
   }
 
+  /**
+   * Atende a DM e espera o servidor registrar a entrada. false = não deu
+   * (avisado) ou a pessoa desligou nesse meio-tempo (sai da chamada de novo:
+   * o call:leave do desligar pode ter chegado antes do aceite).
+   */
+  const acceptDm = async (callId: string): Promise<boolean> => {
+    try {
+      await acceptCallApi(callId)
+    } catch (err) {
+      if (get().callId !== callId) return false
+      showToast.error(err instanceof Error ? err.message : 'Não foi possível entrar na chamada.')
+      cleanup()
+      return false
+    }
+    if (get().callId === callId) return true
+    useChatStore.getState().sendEvent('call:leave', { call_id: callId })
+    return false
+  }
+
   /** Pede o token da sala; falha a conexão e devolve null se não der. */
   const fetchMediaToken = async (connection: CallMedia, callId: string): Promise<string | null> => {
     try {
-      const { token } = await retry(() => getCallToken(callId), {
-        attempts: TOKEN_ATTEMPTS,
-        delayMs: TOKEN_RETRY_DELAY_MS,
-        shouldRetry: (err) => err instanceof ApiError && err.status === 403
-      })
+      const { token } = await getCallToken(callId)
       return token
     } catch (err) {
       if (media !== connection) return null
@@ -693,8 +697,8 @@ export const useCallStore = create<CallState>()((set, get) => {
   }
 
   /**
-   * Entra na sala de mídia da chamada. O callee de DM pode pedir o token antes
-   * do backend processar o call:accept (403) — por isso o retry curto.
+   * Entra na sala de mídia da chamada. Só depois de o backend registrar a
+   * entrada (startCall, aceite da DM pela rota): antes disso o token é 403.
    */
   const connectMedia = async (callId: string): Promise<void> => {
     if (media || !localMic) return
@@ -876,26 +880,14 @@ export const useCallStore = create<CallState>()((set, get) => {
   }
 
   /**
-   * 404 ao reconectar só vale como "a chamada acabou" se repetir: um servidor
-   * que acabou de subir não pode derrubar a mídia de ninguém por engano.
-   */
-  const confirmGone = async (callId: string): Promise<boolean> => {
-    for (let i = 1; i < GONE_CHECKS; i++) {
-      await new Promise((r) => setTimeout(r, GONE_CHECK_INTERVAL_MS))
-      if (get().callId !== callId) return false
-      if ((await probeCall(callId)) !== 'gone') return false
-    }
-    return get().callId === callId
-  }
-
-  /**
    * O backend tira da chamada quem fica com o WS de chat caído além da
    * tolerância, mas a mídia (LiveKit) segue conectada — a pessoa continua
    * falando/transmitindo e some da lista de todo mundo. Ao reconectar (ou ao
    * saber que foi tirado), volta a se registrar na chamada do canal.
    *
-   * Nunca troca de sala por engano: se o servidor diz que a chamada não existe,
-   * só entra numa nova (desconectando a mídia) depois de confirmar o 404 e se
+   * Nunca troca de sala por engano: se o servidor diz que a chamada não existe
+   * (404 vale na hora: ele só atende depois de recarregar as chamadas, ver
+   * backend/cmd/wire_calls.go), só entra numa nova (desconectando a mídia) se
    * ninguém mais estiver na sala de mídia — senão separaria quem ainda conversa.
    */
   const resyncChannelCall = async (): Promise<void> => {
@@ -905,13 +897,8 @@ export const useCallStore = create<CallState>()((set, get) => {
     try {
       const probe = await probeCall(callId)
       if (probe === 'unknown') return // servidor indisponível: a próxima reconexão tenta
-      if (probe === 'gone') {
-        const gone = await confirmGone(callId)
-        if (get().callId !== callId) return
-        // Confirmado, mas ainda há gente na sala de mídia: não separa ninguém.
-        if (gone && Object.keys(get().mediaPeers).length > 0) return
-        // Não confirmado: a chamada existe de novo, segue o caminho normal.
-      }
+      // Acabou, mas ainda há gente na sala de mídia: não separa ninguém.
+      if (probe === 'gone' && Object.keys(get().mediaPeers).length > 0) return
       // Idempotente: se ainda estou na chamada, nada muda no backend.
       const call = await startCallApi({ type: 'channel', channel_id: channelId })
       if (get().callId !== callId) return
@@ -931,7 +918,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       if (get().callId !== call.id) return
       sendVoiceState()
       sendScreenState(call.id)
-      bumpList()
     } catch {
       // segue com a mídia; a próxima reconexão tenta de novo
     } finally {
@@ -942,29 +928,21 @@ export const useCallStore = create<CallState>()((set, get) => {
   /**
    * DM depois de o WS de chat reconectar (ex.: deploy do servidor): eventos da
    * queda se perderam. Atualiza o estado (mudo, tela) sem mexer na mídia e
-   * reenvia o meu. Só fecha a chamada se o servidor confirmar que ela acabou
-   * (404 repetido) e a outra pessoa já tiver saído da sala de mídia; o sinal
-   * normal de fim continua sendo o call:ended.
+   * reenvia o meu. Só fecha a chamada se o servidor disser que ela acabou
+   * (404) e a outra pessoa já tiver saído da sala de mídia; o sinal normal de
+   * fim continua sendo o call:ended.
    */
   const resyncDmCall = async (): Promise<void> => {
     const { status, type, callId } = get()
     if (type !== 'dm' || !callId || status === 'idle') return
     // Tocando, ainda não sou participante: o servidor responde 403 (nada muda)
     // ou 404 se a chamada acabou (o reinício encerra as que só tocavam).
-    let result = await loadCallState(callId, true)
+    const result = await loadCallState(callId, true)
     if (get().callId !== callId) return
     if (result === 'gone') {
-      if (await confirmGone(callId)) {
-        const peerInMedia = get().participants.some((p) => p.id in get().mediaPeers)
-        if (get().status === 'active' && peerInMedia) return
-        cleanup()
-        bumpList()
-        return
-      }
-      if (get().callId !== callId) return
-      // O 404 passou (servidor acabando de subir): lê o estado de novo.
-      result = await loadCallState(callId, true)
-      if (get().callId !== callId) return
+      const peerInMedia = get().participants.some((p) => p.id in get().mediaPeers)
+      if (get().status !== 'active' || !peerInMedia) cleanup()
+      return
     }
     if (result !== 'ok' || get().status !== 'active') return
     sendVoiceState()
@@ -1060,6 +1038,9 @@ export const useCallStore = create<CallState>()((set, get) => {
   }
 
   const knockHandlers = createKnockEventHandlers({ get, set })
+  const voiceListHandlers = createVoiceListEventHandlers({
+    update: (apply) => set((s) => ({ serverCalls: apply(s.serverCalls) }))
+  })
 
   const wsHandlers: Record<string, WsHandler> = {
     'call:invite': ({ payload }) => {
@@ -1209,10 +1190,7 @@ export const useCallStore = create<CallState>()((set, get) => {
         ...recentLive.filter((r) => now - r.at < LIVE_GRACE_MS),
         { payload: p, at: now }
       ]
-      const known = Object.values(get().serverCalls).some((e) => e.call?.id === p.call_id)
       set((s) => ({ serverCalls: applyLiveEvent(s.serverCalls, p) }))
-      // Chamada que começou depois do último polling: busca a lista agora.
-      if (!known) bumpList()
       return
     },
 
@@ -1223,7 +1201,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       if (current.type === 'channel') {
         if (current.status !== 'active' || !meId || p.user.id === meId) return
         set({ participants: upsertParticipant(current.participants, p.user) })
-        bumpList()
         return
       }
       if (current.status === 'outgoing') {
@@ -1258,7 +1235,6 @@ export const useCallStore = create<CallState>()((set, get) => {
             screenWatchers: nextWatchers
           }
         })
-        bumpList()
         return
       }
       // Na DM a saída do outro encerra a chamada: aqui o aviso faz falta.
@@ -1271,7 +1247,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       const p = payload as unknown as EndedPayload
       if (get().callId !== p.call_id) return
       cleanup()
-      bumpList()
       return
     },
 
@@ -1282,8 +1257,7 @@ export const useCallStore = create<CallState>()((set, get) => {
     },
 
     'call:moved': ({ payload, meId }) => {
-      // Um moderador moveu alguém de canal de voz: as listas mudam.
-      bumpList()
+      // As listas dos canais mudam pelos call:channel_* do servidor.
       const p = payload as unknown as {
         from_call_id: string
         channel_id: string
@@ -1327,7 +1301,6 @@ export const useCallStore = create<CallState>()((set, get) => {
     stageVisible: false,
     inputDeviceId: loadAudioPrefs().inputId,
     outputDeviceId: loadAudioPrefs().outputId,
-    listVersion: 0,
     serverCalls: {},
     knock: null,
     admittedChannelId: null,
@@ -1475,7 +1448,6 @@ export const useCallStore = create<CallState>()((set, get) => {
         void connectMedia(call.id)
 
         await loadCallState(call.id, false)
-        bumpList()
       } catch (err) {
         stopLocalStream()
         if (err instanceof ApiError && err.status === 423) {
@@ -1502,12 +1474,14 @@ export const useCallStore = create<CallState>()((set, get) => {
         return
       }
 
-      // Otimista: o broadcast de call:accept pode chegar antes da assinatura da room.
+      // Ativa só com a entrada registrada: antes disso o servidor recusaria o
+      // mudo (call:voice), a sala da chamada e o token da mídia.
+      const accepted = await acceptDm(callId)
+      transitioning = false
+      if (!accepted) return
       set({ status: 'active', startedAt: Date.now() })
       playSound('join')
-      useChatStore.getState().sendEvent('call:accept', { call_id: callId })
       useChatStore.getState().subscribeRoom(`call:${callId}`)
-      transitioning = false
       void connectMedia(callId)
     },
 
@@ -1535,7 +1509,6 @@ export const useCallStore = create<CallState>()((set, get) => {
         }
       }
       cleanup()
-      bumpList()
     },
 
     toggleMute: () => {
@@ -1859,8 +1832,14 @@ export const useCallStore = create<CallState>()((set, get) => {
         }
       }),
 
-    setServerCalls: (map) => {
-      set({ serverCalls: reapplyRecentLive(map, recentLive, Date.now()) })
+    setServerCalls: (serverId, map) => {
+      set((s) => ({
+        serverCalls: reapplyRecentLive(
+          replaceServerCalls(s.serverCalls, serverId, map),
+          recentLive,
+          Date.now()
+        )
+      }))
     },
 
     joinVoiceChannel: async (channelId) => {
@@ -1903,8 +1882,6 @@ export const useCallStore = create<CallState>()((set, get) => {
       if (get().status === 'active' && get().connection.phase === 'failed') get().retryConnection()
       void resyncChannelCall()
       void resyncDmCall()
-      // Listas dos canais de voz (quem está em cada um, LIVE) voltam a valer.
-      bumpList()
       const { knock } = get()
       if (knock && knock.status === 'pending') {
         useChatStore.getState().sendEvent('call:knock', { call_id: knock.callId })
@@ -1913,8 +1890,8 @@ export const useCallStore = create<CallState>()((set, get) => {
 
     handleWsEvent: (event) => {
       const payload = event.payload as Record<string, unknown>
-      const knock = knockHandlers[event.type]
-      if (knock) return knock(payload)
+      const byPayload = knockHandlers[event.type] ?? voiceListHandlers[event.type]
+      if (byPayload) return byPayload(payload)
       wsHandlers[event.type]?.({ payload, event, meId: useAuthStore.getState().user?.id })
     }
   }

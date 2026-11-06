@@ -103,7 +103,6 @@ describe('ServerSidebar', () => {
       knock: null,
       speakingIds: [],
       screenSharers: [],
-      listVersion: 0,
       admittedChannelId: null,
       clearAdmittedChannel: () => {},
       joinVoiceChannel: () => Promise.resolve(),

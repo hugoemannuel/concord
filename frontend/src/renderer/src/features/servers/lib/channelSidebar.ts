@@ -61,15 +61,6 @@ export function errorText(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback
 }
 
-/** Chamadas ativas do servidor indexadas pelo canal de voz. */
-export function callsByChannel(states: CallStateResponse[]): Record<string, CallStateResponse> {
-  const map: Record<string, CallStateResponse> = {}
-  for (const st of states) {
-    if (st.call?.channel_id) map[st.call.channel_id] = st
-  }
-  return map
-}
-
 /**
  * Todo mundo nos canais de voz, ordenado e numa chave só: os níveis vêm num
  * pedido só e a lista reordena uma vez quando chegam, não a cada selo.
