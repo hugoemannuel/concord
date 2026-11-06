@@ -133,7 +133,7 @@ func TestRepositoryContaNaoRealEBotNaoContam(t *testing.T) {
 
 	w.message(nova, "oi")
 	w.message(bot, "oi")
-	if err := NewRepository(w.db).Add(w.ctx, w.server, nova, SourceVoice, 10); err != nil {
+	if err := NewRepository(w.db).AddAll(w.ctx, []grant{{w.server, nova, SourceVoice, 10}}); err != nil {
 		t.Fatal(err)
 	}
 	if got := w.xp(); got != 0 {
@@ -145,19 +145,35 @@ func TestRepositoryTetoDiarioPorPessoaEPorFonte(t *testing.T) {
 	w := newWorld(t)
 	ana, bia := w.user(true), w.user(true)
 	repo := NewRepository(w.db)
-	for _, add := range []struct {
-		user string
-		xp   int64
-	}{{ana, 100}, {ana, 100}, {bia, 30}} {
-		if err := repo.Add(w.ctx, w.server, add.user, SourceVoice, add.xp); err != nil {
-			t.Fatal(err)
-		}
+	// Ana duas vezes (dois flushes) e bia junto com ela no primeiro.
+	if err := repo.AddAll(w.ctx, []grant{{w.server, ana, SourceVoice, 100}, {w.server, bia, SourceVoice, 30}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.AddAll(w.ctx, []grant{{w.server, ana, SourceVoice, 100}}); err != nil {
+		t.Fatal(err)
 	}
 	if got := w.xp(); got != 150 {
 		t.Errorf("xp = %d, quer 150 (ana no teto de 120 + bia 30)", got)
 	}
 	if got := w.week()[SourceVoice]; got != 150 {
 		t.Errorf("voz na semana = %d, quer 150", got)
+	}
+}
+
+// Servidor apagado no meio da call não derruba o lote dos outros; lote vazio
+// não vai ao banco.
+func TestRepositoryAddAllPulaServidorQueSumiu(t *testing.T) {
+	w := newWorld(t)
+	ana := w.user(true)
+	repo := NewRepository(w.db)
+	if err := repo.AddAll(w.ctx, []grant{{uuid.NewString(), ana, SourceVoice, 10}, {w.server, ana, SourceVoice, 20}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.AddAll(w.ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.xp(); got != 20 {
+		t.Errorf("xp = %d, quer 20", got)
 	}
 }
 
@@ -212,7 +228,7 @@ func TestRepositoryRecentESetLevel(t *testing.T) {
 	w := newWorld(t)
 	repo := NewRepository(w.db)
 	ana := w.user(true)
-	if err := repo.Add(w.ctx, w.server, ana, SourceVoice, 60); err != nil {
+	if err := repo.AddAll(w.ctx, []grant{{w.server, ana, SourceVoice, 60}}); err != nil {
 		t.Fatal(err)
 	}
 	row := findRow(t, repo, w)
