@@ -1336,25 +1336,25 @@ describe('callStore — reentrada após queda do WS', () => {
     }
   })
 
-  it('canal: um 404 passageiro não troca de sala', async () => {
+  it('canal: 404 ao reconectar (sala de mídia vazia) segue na chamada nova na hora, sem sondar de novo', async () => {
     await joinChannel()
     api.startCall.mockClear()
-    vi.useFakeTimers()
-    try {
-      api.getCallState.mockRejectedValueOnce(
-        Object.assign(new ApiError(404, 'call not found'), { status: 404 }) as never
-      )
+    api.getCallState.mockClear()
+    api.getCallState.mockRejectedValueOnce(
+      Object.assign(new ApiError(404, 'call not found'), { status: 404 }) as never
+    )
+    api.startCall.mockResolvedValueOnce({ id: 'call-2' })
 
-      useCallStore.getState().handleWsReconnect()
-      await vi.advanceTimersByTimeAsync(10_000)
+    useCallStore.getState().handleWsReconnect()
+    await flush()
+    await flush()
 
-      // Passado o 404, segue como sempre: reentra na mesma chamada, mídia intacta.
-      expect(api.startCall).toHaveBeenCalledTimes(1)
-      expect(media.instances[0].disconnect).not.toHaveBeenCalled()
-      expect(useCallStore.getState().callId).toBe('call-1')
-    } finally {
-      vi.useRealTimers()
-    }
+    // O servidor só atende depois de recarregar as chamadas: o 404 é de verdade.
+    expect(api.startCall).toHaveBeenCalledTimes(1)
+    expect(useCallStore.getState().callId).toBe('call-2')
+    expect(media.instances[0].disconnect).toHaveBeenCalled()
+    expect(api.getCallState.mock.calls[0]).toEqual(['call-1'])
+    expect(api.getCallState.mock.calls.filter(([id]) => id === 'call-1')).toHaveLength(1)
   })
 
   it('não faz nada ao reconectar o WS fora de chamada', async () => {
@@ -1422,44 +1422,21 @@ describe('callStore — DM após queda do WS', () => {
 
   const notFound = (): Error => Object.assign(new ApiError(404, 'call not found'), { status: 404 })
 
-  it('DM que acabou durante a queda fecha a chamada (404 confirmado e a outra pessoa fora da mídia)', async () => {
+  it('DM que acabou durante a queda fecha na hora (404 e a outra pessoa fora da mídia)', async () => {
     await inDmWithAna()
-    vi.useFakeTimers()
-    try {
-      api.getCallState.mockRejectedValue(notFound() as never)
+    api.getCallState.mockClear()
+    api.getCallState.mockRejectedValueOnce(notFound() as never)
 
-      useCallStore.getState().handleWsReconnect()
-      await vi.advanceTimersByTimeAsync(10_000)
+    useCallStore.getState().handleWsReconnect()
+    await flush()
+    await flush()
 
-      expect(useCallStore.getState().status).toBe('idle')
-      expect(useCallStore.getState().callId).toBeNull()
-    } finally {
-      api.getCallState.mockReset()
-      api.getCallState.mockImplementation(async () => ({ call: null, participants: [] }))
-      vi.useRealTimers()
-    }
+    expect(useCallStore.getState().status).toBe('idle')
+    expect(useCallStore.getState().callId).toBeNull()
+    expect(api.getCallState).toHaveBeenCalledTimes(1)
   })
 
-  it('um 404 passageiro (servidor acabando de subir) não derruba a DM', async () => {
-    await inDmWithAna()
-    vi.useFakeTimers()
-    try {
-      api.getCallState.mockRejectedValueOnce(notFound() as never)
-      chat.sendEvent.mockClear()
-
-      useCallStore.getState().handleWsReconnect()
-      await vi.advanceTimersByTimeAsync(10_000)
-
-      expect(useCallStore.getState().status).toBe('active')
-      expect(media.instances[0].disconnect).not.toHaveBeenCalled()
-      // E reenvia o próprio estado como numa reconexão normal.
-      expect(chat.sendEvent).toHaveBeenCalledWith('call:screen', { call_id: 'dm-1', active: false })
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('404 repetido mas a outra pessoa ainda na sala de mídia: a DM continua', async () => {
+  it('404 mas a outra pessoa ainda na sala de mídia: a DM continua', async () => {
     await inDmWithAna()
     onRemoteMedia({ ...empty, mediaPeers: { ana: 'Ana' } })
     vi.useFakeTimers()
