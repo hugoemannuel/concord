@@ -55,6 +55,7 @@ import { registerThemeHandlers } from './window/titleBarTheme'
 import { isSafeExternalUrl } from '../shared/externalUrl'
 import { fromWindow, parseSourceId } from './window/ipcGuard'
 import { guardNavigation } from './window/navigationGuard'
+import { loadRenderer } from './window/loadRenderer'
 import { contextMenuItems } from './window/contextMenu'
 import {
   audioLogPath,
@@ -65,6 +66,7 @@ import {
 } from './screen/screenAudio'
 import { setupNativeLive } from './nativeLive/setupNativeLive'
 import { openSplash } from './splash/openSplash'
+import { createMainWindowStartup } from './splash/mainWindowStartup'
 import { takeHiddenRelaunch } from './splash/splashMarks'
 
 let mainWindow: BrowserWindow | null = null
@@ -76,6 +78,16 @@ const screenFlow = screenShareFlow(process.platform, process.env)
 let launchHidden = false
 /** Servidor do Vite no dev (só lá): a única origem http liberada além dos servidores do build. */
 const devRendererUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined
+/** A janela principal carrega escondida durante a checagem de atualização e aparece depois. */
+const mainStartup = createMainWindowStartup({
+  create: () => createWindow(),
+  // destroy: sai sem o "fechar esconde na bandeja"
+  discard: () => mainWindow?.destroy(),
+  // Aberto pelo "Iniciar com o Windows": fica só na bandeja.
+  reveal: () => {
+    if (!launchHidden) mainWindow?.show()
+  }
+})
 
 // Picker de tela (Fase 3): o getDisplayMedia do renderer dispara este handler,
 // que pede ao renderer para abrir o modal de seleção e resolve com a fonte
@@ -231,10 +243,8 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => {
-    // Aberto pelo "Iniciar com o Windows": fica só na bandeja.
-    if (!launchHidden) mainWindow?.show()
-  })
+  mainStartup.dispatch('created')
+  mainWindow.on('ready-to-show', () => mainStartup.dispatch('ready'))
   attachCloseToTray(mainWindow)
   watchWindowActivity(mainWindow, { inCall: isInCall, onCallStateChange })
 
@@ -242,6 +252,7 @@ function createWindow(): void {
     pendingDisplay.deny()
     closeActivity()
     mainWindow = null
+    mainStartup.dispatch('closed')
   })
 
   // Link do chat (target="_blank") abre no navegador de fora. Só http/https:
@@ -283,16 +294,6 @@ function createWindow(): void {
   loadRenderer(mainWindow)
 }
 
-// HMR for renderer base on electron-vite cli.
-// Load the remote URL for development or the local html file for production.
-function loadRenderer(win: BrowserWindow): void {
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    void win.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    void win.loadFile(join(__dirname, '../renderer/index.html'))
-  }
-}
-
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -320,7 +321,7 @@ app.whenReady().then(() => {
   setupPerfLog(() => mainWindow)
   // A janelinha de abertura aparece já: atualiza (se houver) antes de abrir.
   launchHidden = startHidden() || takeHiddenRelaunch()
-  const splash = openSplash(launchHidden, icon)
+  const splash = openSplash(launchHidden, icon, (view) => mainStartup.splashPhase(view.phase))
   // Testa os endereços do servidor enquanto o resto inicia.
   const serverChoice = startServerChoice(__CONCORD_SERVER_URLS__)
   registerServerDiagnostics(serverChoice, __CONCORD_SERVER_URLS__)
@@ -364,9 +365,11 @@ app.whenReady().then(() => {
       feedUrl: updateFeedFor(__CONCORD_UPDATE_URL__, serverUrl),
       publicKeyPem: __CONCORD_UPDATE_PUBKEY__
     })
-    await splash.update(startupUpdate)
+    // A janela carrega escondida enquanto a janelinha checa a atualização.
     createWindow()
-    if (mainWindow) splash.handOff(mainWindow)
+    await splash.update(startupUpdate)
+    mainStartup.dispatch('released')
+    splash.handOff(mainStartup.handOffTarget())
   })
 
   app.on('activate', function () {
@@ -384,6 +387,3 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
