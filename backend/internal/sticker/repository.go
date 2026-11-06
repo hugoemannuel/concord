@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"gin-quickstart/backend/internal/expression"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -188,23 +190,20 @@ func (r *Repository) ListForUser(ctx context.Context, userID string) ([]ServerSt
 
 // scanGroups: as linhas vêm ordenadas por servidor; cada uma vai para o grupo dele.
 func scanGroups(rows pgx.Rows) ([]ServerStickers, error) {
-	groups := make([]ServerStickers, 0)
-	for rows.Next() {
+	return expression.ScanGroups(rows, func() (ServerStickers, Sticker, error) {
 		var g ServerStickers
 		var s Sticker
-		if err := rows.Scan(&g.ServerID, &g.ServerName, &g.ServerIconURL, &s.ID, &s.UploaderID, &s.UploaderName,
-			&s.Name, &s.ContentType, &s.SizeBytes, &s.CreatedAt); err != nil {
-			return nil, err
-		}
+		err := rows.Scan(&g.ServerID, &g.ServerName, &g.ServerIconURL, &s.ID, &s.UploaderID, &s.UploaderName,
+			&s.Name, &s.ContentType, &s.SizeBytes, &s.CreatedAt)
 		s.ServerID = g.ServerID
-		if n := len(groups); n > 0 && groups[n-1].ServerID == g.ServerID {
-			groups[n-1].Stickers = append(groups[n-1].Stickers, s)
-			continue
-		}
-		g.Stickers = []Sticker{s}
-		groups = append(groups, g)
-	}
-	return groups, rows.Err()
+		return g, s, err
+	}, byServer)
+}
+
+// byServer: as figurinhas de cada grupo, pelo servidor.
+var byServer = expression.Grouping[ServerStickers, Sticker]{
+	Key:   func(g *ServerStickers) string { return g.ServerID },
+	Items: func(g *ServerStickers) *[]Sticker { return &g.Stickers },
 }
 
 func updateNotFound(err error) error {

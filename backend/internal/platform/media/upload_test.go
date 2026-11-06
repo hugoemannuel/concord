@@ -60,6 +60,24 @@ func TestOpenUploadSemContentLengthReservaRoom(t *testing.T) {
 	}
 }
 
+// SizeFirst e FixedRoom (emoji e banner do evento): o tamanho vem antes do
+// espaço e o disco reserva sempre Room, mesmo com Content-Length.
+func TestOpenUploadSizeFirstEFixedRoom(t *testing.T) {
+	r := multipartRequest(t, "abc")
+	spec := UploadSpec{Limit: r.ContentLength - 1, Room: 99, SizeFirst: true, FixedRoom: true}
+	room := &askedRoom{}
+	if _, err := OpenUpload(httptest.NewRecorder(), r, room, spec); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("err = %v; quer ErrTooLarge (o tamanho vem antes do espaço)", err)
+	}
+	spec.Limit = 1 << 20
+	if _, err := OpenUpload(httptest.NewRecorder(), r, room, spec); !errors.Is(err, syscall.ENOSPC) {
+		t.Fatalf("err = %v; quer ENOSPC", err)
+	}
+	if room.asked != 99 {
+		t.Fatalf("pediu %d; quer o Room fixo 99", room.asked)
+	}
+}
+
 func TestOpenUploadRecusaCorpoGrandeENaoMultipart(t *testing.T) {
 	r := multipartRequest(t, "abc")
 	if _, err := OpenUpload(httptest.NewRecorder(), r, fakeRoom(true), UploadSpec{Limit: r.ContentLength - 1}); !errors.Is(err, ErrTooLarge) {
