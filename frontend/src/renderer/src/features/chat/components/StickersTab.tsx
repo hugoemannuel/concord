@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useMemo } from 'react'
 import type { ServerSticker } from '../api/stickers'
 import { useStickerStore } from '../store/stickerStore'
@@ -216,7 +217,7 @@ export default function StickersTab({
   }
   const handleDelete = (toDelete: ServerSticker): void => {
     deleteSticker(toDelete.server_id, toDelete.id).catch((err) => {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível excluir a figurinha.')
+      showToast.error(errorMessage(err, 'Não foi possível excluir a figurinha.'))
     })
   }
   const canDeleteSticker = (s: ServerSticker): boolean =>

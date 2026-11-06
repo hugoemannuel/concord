@@ -19,6 +19,7 @@ import { withReaction } from '../lib/reactionToggle'
 import { sendReaction } from '../api/reactions'
 import { mergeMissedMessages, newestMessage } from '../lib/missedMessages'
 import { mergeMessages } from '../lib/messageOrder'
+import { IDLE_CHAT } from './chatIdle'
 import { clearDeletedReplyTarget, replacePoll, withUpdatedMessage } from '../lib/roomMessages'
 import { dispatchWsEvent } from './wsEvents/dispatch'
 import type { ChatWsContext } from './wsEvents/context'
@@ -291,21 +292,7 @@ const wsDeps: Omit<ChatWsContext, 'set' | 'get'> = {
 }
 
 export const useChatStore = create<ChatState>()((set, get) => ({
-  messagesByRoom: {},
-  hasMoreByRoom: {},
-  loadingByRoom: {},
-  unreadByRoom: {},
-  unreadByServer: {},
-  mentionsByRoom: {},
-  mentionsByServer: {},
-  channelsByServer: {},
-  activeRoom: null,
-  presence: {},
-  statuses: {},
-  conversations: [],
-  conversationsLoading: false,
-  conversationsLoaded: false,
-  pendingByRoom: {},
+  ...IDLE_CHAT,
 
   connect: () => {
     useConnectionStore.getState().wsEvent({ type: 'connect' })
@@ -752,23 +739,7 @@ loadOlderUntil: async (room, messageId, maxPages = JUMP_MAX_PAGES) => {
     useTypingStore.getState().reset()
     usePresenceActivityStore.getState().reset()
     openRooms.clear()
-    set({
-      messagesByRoom: {},
-      hasMoreByRoom: {},
-      loadingByRoom: {},
-      unreadByRoom: {},
-      unreadByServer: {},
-      mentionsByRoom: {},
-      mentionsByServer: {},
-      channelsByServer: {},
-      activeRoom: null,
-      presence: {},
-      statuses: {},
-      conversations: [],
-      conversationsLoading: false,
-      conversationsLoaded: false,
-      pendingByRoom: {}
-    })
+    set(IDLE_CHAT)
   }
 }))
 

@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { EMOJI_ACCEPT, MAX_EMOJI_BYTES } from '../api/emojis'
 import { normalizeSearch } from './baseEmojis'
 import { isValidEmojiName } from './emojiToken'
@@ -20,7 +21,7 @@ const SERVER_ERRORS = new Set([
 
 /** Mensagem para quem envia: só texto aprovado (erros técnicos viram a genérica). */
 export function uploadErrorMessage(err: unknown): string {
-  const message = err instanceof Error ? err.message : ''
+  const message = errorMessage(err, '')
   if (SERVER_ERRORS.has(message)) return message
   const status = (err as { status?: number } | null)?.status
   if (status === 413) return ERROR_TOO_LARGE

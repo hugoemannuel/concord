@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../../shared/lib/errorMessage'
 import { useEffect, useState } from 'react'
 import {
   getPrivacy,
@@ -77,7 +78,7 @@ export function PrivacySection(): React.JSX.Element {
       setPrivacy(await updatePrivacy(next))
     } catch (err) {
       setPrivacy(previous)
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível salvar.')
+      showToast.error(errorMessage(err, 'Não foi possível salvar.'))
     } finally {
       setSaving(false)
     }

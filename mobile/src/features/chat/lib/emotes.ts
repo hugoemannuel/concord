@@ -10,8 +10,6 @@ export interface EmoteCategory {
   items: EmoteItem[]
 }
 
-export const QUICK_EMOTES = ['👍', '❤️', '😂', '🔥'] as const
-
 export const EMOTE_CATEGORIES: EmoteCategory[] = [
   {
     id: 'frequent',

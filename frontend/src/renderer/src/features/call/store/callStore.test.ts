@@ -461,6 +461,21 @@ describe('callStore — mídia via LiveKit', () => {
     })
   })
 
+  it('sair da chamada volta ao estado inicial, guardando o que vale entre chamadas', async () => {
+    const data = (s: object): Record<string, unknown> =>
+      Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== 'function'))
+    const initial = data(useCallStore.getInitialState())
+    await joinChannel()
+    useCallStore.setState({ stageVisible: true, muted: true, inputDeviceId: 'mic-2' })
+    useCallStore.getState().endCall()
+    expect(data(useCallStore.getState())).toEqual({
+      ...initial,
+      stageVisible: true,
+      inputDeviceId: 'mic-2',
+      listVersion: expect.any(Number)
+    })
+  })
+
   it('descarta a tela escolhida quando a chamada acabou com o seletor aberto', async () => {
     await joinChannel()
     const picked = deferred<MediaStream>()

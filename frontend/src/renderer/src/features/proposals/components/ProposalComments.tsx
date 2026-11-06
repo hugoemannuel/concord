@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../../shared/api/client'
 import type { ProposalComment } from '../api/proposals'
@@ -81,7 +82,7 @@ function CommentRow({
     try {
       await removeComment(proposalId, comment.id)
     } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível apagar o comentário.')
+      showToast.error(errorMessage(err, 'Não foi possível apagar o comentário.'))
       setBusy(false)
     }
   }

@@ -1,6 +1,5 @@
 import { API_BASE_URL } from '../../../shared/lib/config'
-import { useAuthStore } from '../../auth/store/authStore'
-import { ApiError, refreshTokens, request } from '../../../shared/api/client'
+import { ApiError, request } from '../../../shared/api/client'
 import type { Recurrence } from '../lib/recurrence'
 
 /** Evento do servidor, como o backend (internal/event) o manda. */
@@ -145,32 +144,14 @@ export function eventBannerUrl(bannerId: string, mediaToken: string): string {
 
 /** Envia o banner e devolve o id do arquivo, que o evento guarda em `banner_id`. */
 export async function uploadEventBanner(serverId: string, file: Blob): Promise<string> {
-  const token = useAuthStore.getState().accessToken
-  try {
-    return await sendBanner(serverId, file, token)
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401 && token && (await refreshTokens())) {
-      return sendBanner(serverId, file, useAuthStore.getState().accessToken)
-    }
-    throw err
-  }
-}
-
-async function sendBanner(serverId: string, file: Blob, token: string | null): Promise<string> {
   const form = new FormData()
   form.append('file', file, 'banner')
-  const res = await fetch(`${API_BASE_URL}${base(serverId)}/banner`, {
+  // Sem o limite de 15 s: até 10 MB numa conexão lenta demora.
+  const body = await request<{ banner_id?: string } | undefined>(`${base(serverId)}/banner`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    body: form
+    body: form,
+    timeoutMs: 0
   })
-  const body = (await res.json().catch(() => ({}))) as {
-    error?: string
-    code?: string
-    banner_id?: string
-  }
-  if (!res.ok || !body.banner_id) {
-    throw new ApiError(res.status, body.error ?? `Upload failed: ${res.status}`, body.code)
-  }
+  if (!body?.banner_id) throw new ApiError(0, 'Upload failed')
   return body.banner_id
 }

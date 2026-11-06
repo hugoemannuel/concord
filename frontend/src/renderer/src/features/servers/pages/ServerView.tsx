@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { useServerStore } from '../store/serverStore'
@@ -58,7 +59,7 @@ export function ServerView(): React.JSX.Element {
   useEffect(() => {
     if (id) {
       selectServer(id).catch((err) => {
-        showToast.error(err instanceof Error ? err.message : 'Falha ao carregar servidor.')
+        showToast.error(errorMessage(err, 'Falha ao carregar servidor.'))
       })
       fetchChannels(id)
       useMusicStore

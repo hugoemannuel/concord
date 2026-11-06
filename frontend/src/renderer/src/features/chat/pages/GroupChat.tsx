@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '../../auth/store/authStore'
@@ -196,7 +197,7 @@ function GroupChat(): React.JSX.Element {
             }))
             navigate('/friends')
           } catch (err) {
-            showToast.error(err instanceof Error ? err.message : 'Não foi possível sair do grupo.')
+            showToast.error(errorMessage(err, 'Não foi possível sair do grupo.'))
           }
         }}
       >
@@ -213,7 +214,7 @@ function GroupChat(): React.JSX.Element {
             await removeGroupMember(conv.id, removing.id)
             await fetchConversations()
           } catch (err) {
-            showToast.error(err instanceof Error ? err.message : 'Não foi possível remover.')
+            showToast.error(errorMessage(err, 'Não foi possível remover.'))
           }
         }}
       >
@@ -235,9 +236,7 @@ function GroupChat(): React.JSX.Element {
             uploadGroupIcon(conv.id, change.file, change.staticFrame)
               .then(() => fetchConversations())
               .catch((err) =>
-                showToast.error(
-                  err instanceof Error ? err.message : 'Não foi possível trocar o ícone.'
-                )
+                showToast.error(errorMessage(err, 'Não foi possível trocar o ícone.'))
               )
           }}
         />

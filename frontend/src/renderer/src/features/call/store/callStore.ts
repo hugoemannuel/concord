@@ -85,7 +85,6 @@ import {
   describeJoinError,
   LK_DISCONNECT,
   describeTokenError,
-  IDLE_CALL_CONNECTION,
   type CallConnection,
   type CallConnectionEvent
 } from '../lib/callConnection'
@@ -99,6 +98,7 @@ import { useSoundboardStore } from './soundboardStore'
 import { useBoostStore } from '../../levels/store/boostStore'
 import { useActivityStore } from '../../activity/store/activityStore'
 import { useAnnotationStore } from './annotationStore'
+import { EMPTY_MEDIA, IDLE_CALL } from './callIdle'
 import { stopAllSoundboardAudio } from '../lib/soundboardPlayer'
 import { setVoiceOutputDevice } from '../lib/voiceOutput'
 
@@ -456,15 +456,6 @@ async function addEffect(): Promise<void> {
 function stopLocalStream(): void {
   localMic?.stop()
   localMic = null
-}
-
-const EMPTY_MEDIA: RemoteMedia = {
-  streams: {},
-  screenStreams: {},
-  screenAudioStreams: {},
-  videoStreams: {},
-  mediaPeers: {},
-  availableScreens: []
 }
 
 /** Microfone da chamada em andamento (null fora dela), para o medidor de sensibilidade. */
@@ -1009,40 +1000,7 @@ export const useCallStore = create<CallState>()((set, get) => {
     cameraPipeline = null
     useSoundboardStore.getState().clearActivePlays()
     useAnnotationStore.getState().cleanup()
-    set({
-      status: 'idle',
-      callId: null,
-      type: null,
-      conversationId: null,
-      channelId: null,
-      serverId: null,
-      participants: [],
-      isInitiator: false,
-      ...EMPTY_MEDIA,
-      localScreenStream: null,
-      isScreenSharing: false,
-      screenShareQuality: null,
-      pendingScreenQuality: null,
-      localCameraStream: null,
-      screenSharers: [],
-      screenWatchers: {},
-      speakingIds: [],
-      voiceStates: {},
-      watchedScreenIds: [],
-      dmMinimized: false,
-      focusedScreenUserId: null,
-      muted: false,
-      deafened: false,
-      canSpeak: true,
-      canStream: true,
-      mutedBeforeDeafen: false,
-      startedAt: null,
-      locked: false,
-      joinRequests: [],
-      connection: IDLE_CALL_CONNECTION,
-      connectionQuality: {},
-      qualityDetails: {}
-    })
+    set(IDLE_CALL)
   }
 
   /**
@@ -1364,45 +1322,15 @@ export const useCallStore = create<CallState>()((set, get) => {
   }
 
   return {
-    status: 'idle',
-    callId: null,
-    type: null,
-    conversationId: null,
-    channelId: null,
-    serverId: null,
-    participants: [],
-    isInitiator: false,
-    ...EMPTY_MEDIA,
-    localScreenStream: null,
-    isScreenSharing: false,
-    screenShareQuality: null,
-    pendingScreenQuality: null,
-    localCameraStream: null,
-    screenSharers: [],
-    screenWatchers: {},
-    speakingIds: [],
-    voiceStates: {},
-    watchedScreenIds: [],
+    ...IDLE_CALL,
+    // O que o fim da chamada não zera.
     stageVisible: false,
-    dmMinimized: false,
     inputDeviceId: loadAudioPrefs().inputId,
     outputDeviceId: loadAudioPrefs().outputId,
-    focusedScreenUserId: null,
-    muted: false,
-    deafened: false,
-    canSpeak: true,
-    canStream: true,
-    mutedBeforeDeafen: false,
-    startedAt: null,
     listVersion: 0,
     serverCalls: {},
-    locked: false,
-    joinRequests: [],
     knock: null,
     admittedChannelId: null,
-    connection: IDLE_CALL_CONNECTION,
-    connectionQuality: {},
-    qualityDetails: {},
 
     retryConnection: () => {
       const { status, callId } = get()

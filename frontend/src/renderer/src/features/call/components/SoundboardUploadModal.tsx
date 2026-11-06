@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  MAX_SOUNDBOARD_BYTES,
-  MAX_SOUNDBOARD_DURATION_MS,
-  MAX_SOUNDBOARD_NAME_LEN,
-  MIN_SOUNDBOARD_DURATION_MS
-} from '../api/soundboard'
+import { MAX_SOUNDBOARD_NAME_LEN } from '../api/soundboard'
+import { selectSoundFile } from '../lib/soundUpload'
 import { useSoundboardStore } from '../store/soundboardStore'
 import { showToast } from '../../../shared/store/toastStore'
-import { readMediaMeta } from '../../chat/lib/readMediaMeta'
+import { useObjectUrl } from '../../../shared/hooks/useObjectUrl'
 import Input from '../../../shared/ui/Input'
 import Modal from '../../../shared/ui/Modal'
 import {
@@ -36,10 +32,10 @@ function SoundboardUploadModal({
   const [durationMs, setDurationMs] = useState<number | null>(null)
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState(DEFAULT_SOUND_EMOJI)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewPlaying, setPreviewPlaying] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const previewUrl = useObjectUrl(file)
 
   useEffect(() => {
     if (!open) {
@@ -52,44 +48,23 @@ function SoundboardUploadModal({
       setPreviewPlaying(false)
       setSubmitting(false)
       setError(null)
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
-        setPreviewUrl(null)
-      }
     }
-  }, [open, previewUrl])
+  }, [open])
 
   if (!open) return null
 
-  const handleSelectFile = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+  const handleSelectFile = (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const selected = e.target.files?.[0]
     e.target.value = ''
-    if (!selected) return
-
-    setError(null)
-    if (selected.size > MAX_SOUNDBOARD_BYTES) {
-      setError('O arquivo excede o limite de 5 MB.')
-      return
-    }
-
-    const meta = await readMediaMeta(selected, 'audio')
-    const dur = meta.duration_ms ?? 0
-    if (!dur || dur < MIN_SOUNDBOARD_DURATION_MS || dur > MAX_SOUNDBOARD_DURATION_MS) {
-      setError('O áudio precisa ser válido e ter entre 0,1s e 15s de duração.')
-      return
-    }
-
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    const nextUrl = URL.createObjectURL(selected)
-    setFile(selected)
-    setDurationMs(dur)
-    setPreviewUrl(nextUrl)
-    setPreviewPlaying(false)
-
-    if (!name.trim()) {
-      const baseName = selected.name.replace(/\.[^.]+$/, '').slice(0, MAX_SOUNDBOARD_NAME_LEN)
-      setName(baseName)
-    }
+    return selectSoundFile(selected, name, {
+      setError,
+      accept: (picked, duration) => {
+        setFile(picked)
+        setDurationMs(duration)
+        setPreviewPlaying(false)
+      },
+      suggestName: setName
+    })
   }
 
   const togglePreview = (): void => {

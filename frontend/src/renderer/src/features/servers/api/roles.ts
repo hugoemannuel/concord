@@ -14,10 +14,6 @@ export interface RoleInput {
   permissions?: number
 }
 
-export function listRoles(serverId: string): Promise<Role[]> {
-  return request<Role[]>(`/servers/${serverId}/roles`)
-}
-
 export function createRole(serverId: string, input: RoleInput): Promise<Role> {
   return request<Role>(`/servers/${serverId}/roles`, {
     method: 'POST',

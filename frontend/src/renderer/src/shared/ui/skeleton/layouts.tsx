@@ -327,32 +327,6 @@ export function ButtonSkeleton({ className = '' }: { className?: string }): Reac
 
 /* ------------------------------ Listas ------------------------------ */
 
-/** Convite pendente: p-3, ícone de 44px e duas linhas (sm + xs). */
-export function InviteListSkeleton({ count = 3 }: { count?: number }): React.JSX.Element {
-  return (
-    <SkeletonRegion label="Carregando convites…" className="flex flex-col gap-2">
-      {Array.from({ length: count }, (_, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between rounded-xl border border-subtle bg-fg/3 p-3"
-        >
-          <div className="flex items-center gap-3">
-            <Skeleton circle className="h-11 w-11" />
-            <div className="leading-tight">
-              <Skeleton className="h-3.5 w-32" />
-              <Skeleton className="mt-1.5 h-2.5 w-48" />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-20 rounded-lg" />
-            <Skeleton className="h-8 w-20 rounded-lg" />
-          </div>
-        </div>
-      ))}
-    </SkeletonRegion>
-  )
-}
-
 /** Banido: px-4 py-3, avatar de 32px, nome (20px) e motivo (16px). */
 export function BanListSkeleton({ count = 3 }: { count?: number }): React.JSX.Element {
   return (
@@ -520,30 +494,6 @@ export function SettingsSectionsSkeleton({
           </div>
         </div>
       ))}
-    </SkeletonRegion>
-  )
-}
-
-/** Cartão de configuração (aniversário): título, campos e interruptor. */
-export function SettingsCardSkeleton(): React.JSX.Element {
-  return (
-    <SkeletonRegion label="Carregando…" className="rounded-xl border border-subtle bg-fg/5 p-4">
-      <Skeleton className="mb-3 h-3 w-24" />
-      <div className="flex flex-col gap-3">
-        <div className="flex gap-2">
-          <Skeleton className="h-11 flex-1 rounded-lg" />
-          <Skeleton className="h-11 flex-1 rounded-lg" />
-          <Skeleton className="h-11 flex-1 rounded-lg" />
-        </div>
-        <Skeleton className="h-3 w-3/4" />
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <Skeleton className="h-3.5 w-2/3" />
-            <Skeleton className="mt-2 h-2.5 w-full" />
-          </div>
-          <Skeleton className="h-6 w-11 rounded-full" />
-        </div>
-      </div>
     </SkeletonRegion>
   )
 }

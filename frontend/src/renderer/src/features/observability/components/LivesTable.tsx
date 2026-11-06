@@ -1,14 +1,7 @@
+import { timeLabel } from '../lib/timeLabel'
 import type { LiveRow } from '../api/observability'
 import { durationLabel, numberLabel, pctLabel } from '../lib/reportFormat'
 import { Empty, Panel, ScrollTable } from './Panel'
-
-const when = (iso: string): string =>
-  new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 
 const HEAD = [
   'Quem',
@@ -43,7 +36,7 @@ export function LivesTable({ rows }: { rows: LiveRow[] }): React.JSX.Element {
           {rows.map((r) => (
             <tr key={r.id}>
               <td className="text-strong">{r.username || '—'}</td>
-              <td>{when(r.started_at)}</td>
+              <td>{timeLabel(r.started_at)}</td>
               <td>{durationLabel(r.duration_seconds)}</td>
               <td>{r.codec || '—'}</td>
               <td>{pctLabel(r.hardware_ratio)}</td>

@@ -1,7 +1,7 @@
 import { MAX_LINKS, linkError, normalizeLink } from './profileLinks'
 import { NAME_CHARS_MESSAGE, nameCharsError } from '../../auth/lib/nameChars'
 import { resolveNameStyle, type NameStyle } from './nameStyle'
-import { resolveProfileTheme, sameTheme, type ProfileTheme } from './profileTheme'
+import { resolveProfileTheme, type ProfileTheme } from './profileTheme'
 
 // Rascunho do editor de perfil (Configurações → Perfis). Os limites são os do
 // backend (internal/user/profile.go) e do Discord.
@@ -118,23 +118,6 @@ export function profilePayload(draft: ProfileFields): ProfileFields {
     name_style: resolveNameStyle(draft.name_style),
     profile_theme: resolveProfileTheme(draft.profile_theme)
   }
-}
-
-/** Campos de texto mudaram em relação ao salvo? */
-export function fieldsChanged(draft: ProfileFields, saved: ProfileFields): boolean {
-  const a = profilePayload(draft)
-  const b = profilePayload(saved)
-  return (
-    a.display_name !== b.display_name ||
-    a.pronouns !== b.pronouns ||
-    a.bio !== b.bio ||
-    a.status_text !== b.status_text ||
-    (a.banner_color ?? '') !== (b.banner_color ?? '') ||
-    a.links.length !== b.links.length ||
-    a.links.some((l, i) => l !== b.links[i]) ||
-    JSON.stringify(a.name_style) !== JSON.stringify(b.name_style) ||
-    !sameTheme(a.profile_theme, b.profile_theme)
-  )
 }
 
 /** Erro do arquivo escolhido para avatar/banner, ou null. */

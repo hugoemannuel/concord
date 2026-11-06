@@ -1,3 +1,4 @@
+import { formatMessageDateTime } from '../lib/messageDateTime'
 import type { Message, ReplyPreview } from '../api/messages'
 import type { MentionLabels } from '../lib/mentions'
 import { stickerUnavailable } from '../lib/messageItem'
@@ -25,13 +26,7 @@ import { textPreview, type Preview } from '../lib/preview'
 // Pedaços da linha de mensagem do chat (ver MessageItem).
 
 function formatEditedAt(iso: string): string {
-  const when = new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const when = formatMessageDateTime(iso)
   return `Editada em ${when}`
 }
 

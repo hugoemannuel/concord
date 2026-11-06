@@ -1,3 +1,4 @@
+import { errorMessage } from '../../../shared/lib/errorMessage'
 import { isMaestroIdentity, T18 } from '../../music/lib/music'
 import { useProfileCardStore } from '../store/profileCardStore'
 import { disableMaestro } from '../../music/api/music'
@@ -69,7 +70,7 @@ export function MaestroContextMenu({
     close()
     if (!server || !window.confirm(T18.confirm)) return
     disableMaestro(server.id).catch((err) =>
-      showToast.error(err instanceof Error ? err.message : 'Falha na operação.')
+      showToast.error(errorMessage(err, 'Falha na operação.'))
     )
   }
   const openMaestroProfile = (): void => {

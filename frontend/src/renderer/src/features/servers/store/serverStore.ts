@@ -41,6 +41,7 @@ import { removeRole, sortRoles, stripRoleFromMembers, upsertRole } from '../lib/
 import { withNickname } from '../lib/serverNames'
 import { isSameSession, serverViewActions, stashCurrentView } from './serverViewLoad'
 import { serverViewCache } from '../lib/serverViewCache'
+import { IDLE_SERVERS } from './serverIdle'
 
 export interface ServerState {
   servers: Server[]
@@ -152,15 +153,7 @@ function putNickname(serverId: string, userId: string, nickname: string | null):
 }
 
 export const useServerStore = create<ServerState>()((set, get) => ({
-  servers: [],
-  currentServer: null,
-  currentMembers: [],
-  roles: [],
-  channels: [],
-  nicknames: {},
-  loading: false,
-  serversLoaded: false,
-  channelsLoadedFor: null,
+  ...IDLE_SERVERS,
   fetchServers: async () => {
     const token = useAuthStore.getState().accessToken
     try {
@@ -385,16 +378,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
   },
   reset: () => {
     serverViewCache.clear()
-    set({
-      servers: [],
-      currentServer: null,
-      currentMembers: [],
-      roles: [],
-      channels: [],
-      nicknames: {},
-      loading: false,
-      serversLoaded: false,
-      channelsLoadedFor: null
-    })
+    set(IDLE_SERVERS)
   }
 }))

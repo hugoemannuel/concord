@@ -95,4 +95,42 @@ describe('mergeMessages', () => {
     const list = [m1, m2]
     expect(mergeMessages(list, [])).toBe(list)
   })
+
+  it('mensagem ao vivo mais nova que a última entra no fim, sem mexer nas outras', () => {
+    const list = [m1, m2]
+    const merged = mergeMessages(list, [m3])
+    expect(ids(merged)).toEqual(['f1', '0a', 'c3'])
+    expect(merged[0]).toBe(m1)
+    expect(merged[2]).toBe(m3)
+    expect(list).toHaveLength(2)
+  })
+
+  it('primeira mensagem numa sala vazia', () => {
+    expect(ids(mergeMessages([], [m1]))).toEqual(['f1'])
+  })
+
+  it('mesmo created_at da última: o id desempata (antes ou depois dela)', () => {
+    const t = m2.created_at
+    expect(ids(mergeMessages([m1, m2], [msg('ff', t)]))).toEqual(['f1', '0a', 'ff'])
+    expect(ids(mergeMessages([m1, m2], [msg('00', t)]))).toEqual(['f1', '00', '0a'])
+  })
+
+  it('cópia idêntica de uma que já está (canal + servidor) devolve a mesma lista', () => {
+    const list = [m1, m2, m3]
+    expect(mergeMessages(list, [m2])).toBe(list)
+    expect(mergeMessages(list, [{ ...m3 }])).toBe(list)
+  })
+
+  it('cópia diferente de uma que já está troca pela nova', () => {
+    const list = [m1, m2]
+    const merged = mergeMessages(list, [{ ...m2, content: 'editada' }])
+    expect(merged).not.toBe(list)
+    expect(ids(merged)).toEqual(['f1', '0a'])
+    expect(merged[1].content).toBe('editada')
+  })
+
+  it('mesmo id com created_at mais novo não duplica: a cópia nova vai para o lugar dela', () => {
+    const moved = { ...m1, created_at: '2026-10-25T12:00:09Z' }
+    expect(ids(mergeMessages([m1, m2], [moved]))).toEqual(['0a', 'f1'])
+  })
 })

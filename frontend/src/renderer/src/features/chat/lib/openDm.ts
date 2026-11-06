@@ -1,6 +1,8 @@
 // Abre (ou cria) a DM com uma pessoa. Quem chama diz se a tela já trocou de
 // pessoa (isCancelled) e recebe o resultado junto do id de quem foi pedido.
 
+import { errorMessage } from '../../../shared/lib/errorMessage'
+
 export interface OpenDmDeps {
   get: (userId: string) => Promise<{ id: string }>
   isCancelled: () => boolean
@@ -15,6 +17,6 @@ export async function openDm(userId: string, deps: OpenDmDeps): Promise<void> {
     deps.onOpened(userId, conv.id)
   } catch (err) {
     if (deps.isCancelled()) return
-    deps.onFailed(userId, err instanceof Error ? err.message : 'Falha ao abrir conversa.')
+    deps.onFailed(userId, errorMessage(err, 'Falha ao abrir conversa.'))
   }
 }

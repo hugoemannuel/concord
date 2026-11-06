@@ -1,6 +1,6 @@
-import { request, ApiError, refreshTokens } from '../../../shared/api/client'
-import { API_BASE_URL } from '../../../shared/lib/config'
-import { useAuthStore, type ProfileLink, type PublicUser, type User } from '../../auth/store/authStore'
+import { request } from '../../../shared/api/client'
+import { uploadTo, type UploadFile, type UploadMessages } from '../../../shared/api/upload'
+import type { ProfileLink, PublicUser, User } from '../../auth/store/authStore'
 import type { ChosenStatus, PresenceStatus } from '../../friends/lib/presenceStatus'
 import type { ProfileFields } from '../lib/profileValidation'
 import type { NameStyle } from '../lib/nameStyle'
@@ -102,75 +102,28 @@ export function setNameplateMode(mode: NameplateMode): Promise<User> {
   })
 }
 
-/** Mesmo upload do avatar, para o caminho dado (ícone do grupo também usa). */
-export async function uploadImage<T>(
-  path: string,
-  name: string,
-  file: Blob,
-  staticFrame?: Blob,
-  onProgress?: (fraction: number) => void
-): Promise<T> {
-  const token = useAuthStore.getState().accessToken
-  try {
-    return await sendImage<T>(path, name, file, staticFrame, onProgress, token)
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401 && token && (await refreshTokens(token))) {
-      return sendImage<T>(
-        path,
-        name,
-        file,
-        staticFrame,
-        onProgress,
-        useAuthStore.getState().accessToken
-      )
-    }
-    throw err
-  }
-}
-
 const UPLOAD_ERRORS: Record<number, string> = {
   413: 'A imagem pode ter até 10 MB.',
   415: 'Use uma imagem PNG, JPG, GIF ou WebP.',
   507: 'O servidor está sem espaço agora. Tente mais tarde.'
 }
 
-function sendImage<T>(
+const IMAGE_UPLOAD_MESSAGES: UploadMessages = {
+  http: (status, serverError) => UPLOAD_ERRORS[status] ?? serverError ?? 'Falha no envio',
+  network: 'Sem conexão com o servidor.'
+}
+
+/** Mesmo upload do avatar, para o caminho dado (ícone do grupo também usa). */
+export function uploadImage<T>(
   path: string,
   name: string,
   file: Blob,
-  staticFrame: Blob | undefined,
-  onProgress: ((fraction: number) => void) | undefined,
-  token: string | null
+  staticFrame?: Blob,
+  onProgress?: (fraction: number) => void
 ): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const form = new FormData()
-    form.append('file', file, name)
-    if (staticFrame) form.append('static', staticFrame, `${name}-static`)
-
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${API_BASE_URL}${path}`)
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable && e.total > 0) onProgress?.(e.loaded / e.total)
-    })
-    xhr.onload = () => {
-      let body: unknown = {}
-      try {
-        body = JSON.parse(xhr.responseText)
-      } catch {
-        // corpo vazio ou não-JSON
-      }
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body as T)
-      } else {
-        const message =
-          UPLOAD_ERRORS[xhr.status] ?? (body as { error?: string }).error ?? 'Falha no envio'
-        reject(new ApiError(xhr.status, message))
-      }
-    }
-    xhr.onerror = () => reject(new ApiError(0, 'Sem conexão com o servidor.'))
-    xhr.send(form)
-  })
+  const files: UploadFile[] = [{ field: 'file', blob: file, filename: name }]
+  if (staticFrame) files.push({ field: 'static', blob: staticFrame, filename: `${name}-static` })
+  return uploadTo<T>(path, { files }, { onProgress, messages: IMAGE_UPLOAD_MESSAGES })
 }
 
 /** Quem pode mandar pedido de amizade (Privacidade e segurança). */

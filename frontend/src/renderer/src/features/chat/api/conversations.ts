@@ -63,10 +63,6 @@ export function getOrCreateConversationWith(userId: string): Promise<Conversatio
   return request<Conversation>(`/conversations/with/${userId}`)
 }
 
-export function getConversation(id: string): Promise<ConversationDetail> {
-  return request<ConversationDetail>(`/conversations/${id}`)
-}
-
 /** Com um amigo só, o servidor devolve a DM 1:1. */
 export function createGroup(userIds: string[]): Promise<Conversation> {
   return request<Conversation>('/conversations/group', {
@@ -97,10 +93,6 @@ export function removeGroupMember(id: string, userId: string): Promise<{ message
 
 export function leaveGroup(id: string): Promise<{ message: string }> {
   return removeGroupMember(id, 'me')
-}
-
-export function removeGroupIcon(id: string): Promise<ConversationDetail> {
-  return request<ConversationDetail>(`/conversations/${id}/icon`, { method: 'DELETE' })
 }
 
 /** Fecha a DM 1:1 (volta quando chegar mensagem nova). */

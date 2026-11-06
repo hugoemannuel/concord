@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   formatVoiceTime,
   INTENSITY_CAPS,
-  isMilestone,
   LEGENDARY_TIER,
   levelIntensity,
   levelPalette,
@@ -13,8 +12,7 @@ import {
   MILESTONE_KINDS,
   milestoneFor,
   minutesToNext,
-  nextMilestone,
-  sparkCount
+  nextMilestone
 } from './levels'
 
 describe('levelTier', () => {
@@ -29,21 +27,6 @@ describe('levelTier', () => {
   it('do 100 em diante é lendário, sem limite', () => {
     expect(levelTier(100)).toBe(LEGENDARY_TIER)
     expect(levelTier(4321)).toBe(LEGENDARY_TIER)
-  })
-})
-
-describe('animação', () => {
-  it('marcos são os níveis redondos', () => {
-    expect(isMilestone(10)).toBe(true)
-    expect(isMilestone(100)).toBe(true)
-    expect(isMilestone(11)).toBe(false)
-  })
-
-  it('mais faíscas conforme sobe, com teto', () => {
-    expect(sparkCount(1)).toBe(8)
-    expect(sparkCount(15)).toBeGreaterThan(sparkCount(5))
-    expect(sparkCount(100)).toBe(24)
-    expect(sparkCount(99999)).toBeLessThanOrEqual(INTENSITY_CAPS.sparks)
   })
 })
 

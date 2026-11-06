@@ -2,8 +2,10 @@ import { useRef, useState } from 'react'
 import Modal from '../../../shared/ui/Modal'
 import Button from '../../../shared/ui/Button'
 import Input from '../../../shared/ui/Input'
-import { MAX_STICKER_BYTES, MAX_STICKER_NAME_LEN } from '../api/stickers'
+import { MAX_STICKER_NAME_LEN } from '../api/stickers'
+import { pickStickerFile } from '../lib/stickerUpload'
 import { useStickerStore } from '../store/stickerStore'
+import { useObjectUrl } from '../../../shared/hooks/useObjectUrl'
 import { showToast } from '../../../shared/store/toastStore'
 import { ImageIcon } from '../../../shared/ui/icons'
 
@@ -23,15 +25,13 @@ export default function StickerUploadModal({
 
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const previewUrl = useObjectUrl(file)
 
   const reset = (): void => {
     setFile(null)
     setName('')
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null)
     setError(null)
     setSubmitting(false)
   }
@@ -42,25 +42,12 @@ export default function StickerUploadModal({
   }
 
   const onSelectFile = (selected: File | undefined): void => {
-    if (!selected) return
-    if (selected.size > MAX_STICKER_BYTES) {
-      setError('A imagem deve ter no máximo 1 MB.')
-      return
-    }
-    const type = selected.type
-    if (type !== 'image/png' && type !== 'image/webp' && type !== 'image/gif') {
-      setError('Apenas imagens PNG, WebP ou GIF são suportadas.')
-      return
-    }
-
-    setError(null)
-    setFile(selected)
-    if (!name) {
-      const baseName = selected.name.replace(/\.[^/.]+$/, '').slice(0, MAX_STICKER_NAME_LEN)
-      setName(baseName)
-    }
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(URL.createObjectURL(selected))
+    const picked = pickStickerFile(selected, name)
+    if (!picked) return
+    setError(picked.error)
+    if (!picked.file) return
+    setFile(picked.file)
+    setName(picked.name)
   }
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
