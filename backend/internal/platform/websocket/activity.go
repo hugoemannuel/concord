@@ -227,9 +227,8 @@ func (h *Hub) publishActivity(userID string, entry ActivityEntry) {
 		log.Printf("[ws] activity audience of %s: %v", userID, err)
 		return
 	}
-	for _, id := range ids {
-		h.SendToUser(id, event)
-	}
+	// Uma passada só sob o RLock (cada conexão recebe uma vez), não um lock por destinatário.
+	h.BroadcastToRoomsExcept(userRooms(ids), "", event)
 }
 
 // ActivitiesFor devolve a atividade de cada id que viewerID pode ver (ele
