@@ -3,18 +3,19 @@ package websocket
 import (
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/wsevent"
 )
 
 func (h *Hub) PublishChannelCreate(event channel.CreateEvent) {
-	h.BroadcastToServerChannel(event.ServerID, event.Channel.ID, writeEvent("channel:create", event))
+	h.BroadcastToServerChannel(event.ServerID, event.Channel.ID, wsevent.Marshal("channel:create", event))
 }
 
 func (h *Hub) PublishChannelUpdate(event channel.CreateEvent) {
-	h.BroadcastToServerChannel(event.ServerID, event.Channel.ID, writeEvent("channel:update", event))
+	h.BroadcastToServerChannel(event.ServerID, event.Channel.ID, wsevent.Marshal("channel:update", event))
 }
 
 func (h *Hub) PublishChannelDelete(event channel.DeleteEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("channel:delete", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("channel:delete", event))
 }
 
 // PublishChannelReorder manda a cada um só os ids que ele vê: a ordem dos canais não
@@ -30,7 +31,7 @@ func (h *Hub) PublishChannelReorder(event channel.ReorderEvent) {
 	for client := range h.rooms["server:"+event.ServerID] {
 		payload, ready := payloads[client.userID]
 		if !ready {
-			payload = writeEvent("channel:reorder", reorderSeenBy(event, snap, client.userID))
+			payload = wsevent.Marshal("channel:reorder", reorderSeenBy(event, snap, client.userID))
 			payloads[client.userID] = payload
 		}
 		select {
