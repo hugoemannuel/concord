@@ -1,8 +1,8 @@
 import { API_BASE_URL } from '../../../shared/lib/config'
 import { LockIcon } from '../../../shared/ui/icons'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import GameIcon from '../../activity/components/GameIcon'
 import { formatInviteCount } from '../../servers/lib/invitePreview'
-import { serverIconSrc } from '../../servers/lib/serverIcon'
 import type { ServerArt, ServerCard, ServerGame, ServerTrait } from '../api/serverProfile'
 import { artBackground } from '../lib/serverArt'
 import { createdLabel } from '../lib/serverCardText'
@@ -10,12 +10,7 @@ import { ServerTagPreview } from './ServerTagChip'
 
 const NO_ART: ServerArt = { preset: '', image: '' }
 
-function CardIcon({ name, iconUrl, locked }: { name?: string; iconUrl?: string | null; locked: boolean }): React.JSX.Element {
-  const src = serverIconSrc(iconUrl)
-  if (locked) return <LockIcon size={24} />
-  if (src) return <img src={src} alt="" className="h-full w-full object-cover" />
-  return <span aria-hidden="true">{(name ?? '?').charAt(0).toUpperCase()}</span>
-}
+const CARD_ICON = 'relative -mt-8 ml-4 bg-gradient-brand font-bold text-white ring-4 ring-[var(--bg-floating)]'
 
 /** O banner com o ícone do servidor por cima. */
 function CardTop({
@@ -32,9 +27,13 @@ function CardTop({
   return (
     <>
       <div className="h-24 w-full" style={artBackground(art, API_BASE_URL)} aria-hidden="true" />
-      <div className="relative -mt-8 ml-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-gradient-brand text-ds-lg font-bold text-white ring-4 ring-[var(--bg-floating)]">
-        <CardIcon name={name} iconUrl={iconUrl} locked={locked} />
-      </div>
+      {locked ? (
+        <div className={`flex size-16 items-center justify-center overflow-hidden rounded-xl ${CARD_ICON}`}>
+          <LockIcon size={24} />
+        </div>
+      ) : (
+        <ServerIcon name={name ?? '?'} iconUrl={iconUrl} size="xl" shape="xl" className={CARD_ICON} fallbackClassName="" />
+      )}
     </>
   )
 }

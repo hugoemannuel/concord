@@ -17,7 +17,7 @@ import ExpressionPicker, {
   type PickerPreview,
   type PickerRailEntry
 } from '../../emojis/components/ExpressionPicker'
-import ServerBadge from '../../emojis/components/ServerBadge'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import type { PickerServer } from '../../emojis/lib/pickerSections'
 import { soundPreview } from './soundPreview'
 import SoundboardUploadModal from './SoundboardUploadModal'
@@ -164,7 +164,7 @@ function SoundboardSoundsPanel({
     ...data.sections.map((s) => ({
       sectionId: sectionId(s.server.id),
       label: s.server.name,
-      icon: <ServerBadge name={s.server.name} iconUrl={s.server.icon_url} />
+      icon: <ServerIcon name={s.server.name} iconUrl={s.server.icon_url} lazy />
     }))
   ]
 
@@ -207,7 +207,7 @@ function SoundboardSoundsPanel({
                   key={section.server.id}
                   id={sectionId(section.server.id)}
                   title={section.server.name}
-                  icon={<ServerBadge name={section.server.name} iconUrl={section.server.icon_url} size="xs" />}
+                  icon={<ServerIcon name={section.server.name} iconUrl={section.server.icon_url} size="xs" lazy />}
                   eager={query.trim() !== '' || i < EAGER_SECTIONS}
                   estimatedHeight={sectionHeight(section.items.length)}
                 >

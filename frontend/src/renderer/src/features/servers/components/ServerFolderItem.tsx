@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { Icon, VolumeIcon, type IconProps } from '../../../shared/ui/icons'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import type { Server } from '../api/servers'
-import { serverIconSrc } from '../lib/serverIcon'
 import { badgeText, voiceBadgeLabel } from '../lib/serverRailBadge'
 import type { RailDropZone } from '../lib/serverRailDrop'
 import type { ServerRailView } from '../lib/serverRailView'
@@ -37,21 +37,17 @@ function MiniServerGrid({ servers }: { servers: Server[] }): React.JSX.Element {
   return (
     <span className="pointer-events-none select-none grid h-full w-full grid-cols-2 grid-rows-2 gap-1 p-1.5">
       {preview.map((srv) => (
-        <span
+        <ServerIcon
           key={srv.id}
-          className="flex items-center justify-center overflow-hidden rounded-full bg-surface text-ds-xxs font-bold text-strong"
-        >
-          {srv.icon_url ? (
-            <img
-              src={serverIconSrc(srv.icon_url)}
-              alt=""
-              draggable={false}
-              className="pointer-events-none select-none h-full w-full object-cover"
-            />
-          ) : (
-            <span>{srv.name.charAt(0).toUpperCase()}</span>
-          )}
-        </span>
+          name={srv.name}
+          iconUrl={srv.icon_url}
+          size="fill"
+          shape="full"
+          text="xxs"
+          className="bg-surface font-bold text-strong"
+          fallbackClassName=""
+          pinned
+        />
       ))}
     </span>
   )

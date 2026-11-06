@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { showToast } from '../../../shared/store/toastStore'
 import { CheckIcon } from '../../../shared/ui/icons'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import { useAuthStore } from '../../auth/store/authStore'
-import { serverIconSrc } from '../../servers/lib/serverIcon'
 import { getMyServerTags, type ServerTag, type TagOption } from '../api/serverProfile'
 import { chooseMyTag } from '../lib/draftRequests'
 import { useServerTagStore } from '../store/serverTagStore'
@@ -13,11 +13,14 @@ const ROW =
 const rowState = (on: boolean): string => (on ? 'border-brand bg-fg/10' : 'border-subtle bg-fg/5')
 
 function OptionIcon({ option }: { option: TagOption }): React.JSX.Element {
-  const src = serverIconSrc(option.server_icon_url)
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-tertiary text-ds-sm font-bold text-strong">
-      {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : option.server_name.charAt(0).toUpperCase()}
-    </span>
+    <ServerIcon
+      name={option.server_name}
+      iconUrl={option.server_icon_url}
+      text="sm"
+      className="bg-tertiary font-bold text-strong"
+      fallbackClassName=""
+    />
   )
 }
 
