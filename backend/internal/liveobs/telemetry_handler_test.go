@@ -11,16 +11,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// fakeSaver grava o lote inteiro ou nada (como a transação); sessão de
+// outra pessoa (ErrNotOwner em errs) é pulada.
 type fakeSaver struct {
 	saved []Report
 	errs  map[string]error
+	calls int
 }
 
-func (f *fakeSaver) Save(_ context.Context, userID string, r Report) error {
-	if err := f.errs[r.SessionID]; err != nil {
-		return err
+func (f *fakeSaver) SaveAll(_ context.Context, userID string, reports []Report) error {
+	f.calls++
+	var owned []Report
+	for _, r := range reports {
+		err := f.errs[r.SessionID]
+		if errors.Is(err, ErrNotOwner) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		owned = append(owned, r)
 	}
-	f.saved = append(f.saved, r)
+	f.saved = append(f.saved, owned...)
 	return nil
 }
 
@@ -70,6 +82,9 @@ func TestTelemetryHandler(t *testing.T) {
 			}
 			if len(saver.saved) != tt.saved {
 				t.Errorf("gravados = %d, quer %d", len(saver.saved), tt.saved)
+			}
+			if saver.calls > 1 {
+				t.Errorf("gravações = %d, quer o pedido inteiro numa só", saver.calls)
 			}
 		})
 	}

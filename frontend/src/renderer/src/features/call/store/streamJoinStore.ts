@@ -5,6 +5,7 @@ import { needsLeaveConfirm, type LiveTarget } from '../lib/screenPreview'
 import { waitUntil } from '../lib/screenPreviewFlow'
 import { useCallStore } from './callStore'
 import { showToast } from '../../../shared/store/toastStore'
+import { errorMessage } from '../../../shared/lib/errorMessage'
 
 // "Entrar na transmissão" do cartão de perfil: assiste à tela da pessoa pelo
 // mesmo fluxo da call (watchScreen), entrando antes no canal de voz dela se
@@ -65,23 +66,26 @@ async function watchWhenReady(userId: string, channelId: string | null): Promise
   useCallStore.getState().focusWatchedScreen(userId)
 }
 
+/** Entra no canal de voz dela. false = falhou (já avisou) ou não ficou no canal. */
+async function joinStreamChannel(channelId: string): Promise<boolean> {
+  try {
+    const s = useCallStore.getState()
+    // Canal de voz trocando de canal já sai sozinho; DM precisa sair antes.
+    if (s.status !== 'idle' && s.type === 'dm') s.endCall()
+    await useCallStore.getState().joinVoiceChannel(channelId)
+  } catch (err) {
+    showToast.error(errorMessage(err, 'Falha ao entrar no canal de voz.'))
+    return false
+  }
+  const s = useCallStore.getState()
+  // Sala trancou no meio do caminho: virou pedido para entrar (a UI do pedido assume).
+  return s.status !== 'idle' && s.channelId === channelId
+}
+
 /** Faz o que o botão pede, sem perguntar nada. */
 export async function startWatchingStream(req: StreamJoinRequest): Promise<void> {
   const { target, userId } = req
-  if (target.kind === 'join') {
-    try {
-      const s = useCallStore.getState()
-      // Canal de voz trocando de canal já sai sozinho; DM precisa sair antes.
-      if (s.status !== 'idle' && s.type === 'dm') s.endCall()
-      await useCallStore.getState().joinVoiceChannel(target.channelId)
-    } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Falha ao entrar no canal de voz.')
-      return
-    }
-    const s = useCallStore.getState()
-    // Sala trancou no meio do caminho: virou pedido para entrar (a UI do pedido assume).
-    if (s.status === 'idle' || s.channelId !== target.channelId) return
-  }
+  if (target.kind === 'join' && !(await joinStreamChannel(target.channelId))) return
   openCallView()
   await watchWhenReady(userId, target.kind === 'join' ? target.channelId : null)
 }

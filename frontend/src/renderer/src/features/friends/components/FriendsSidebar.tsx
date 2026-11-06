@@ -9,15 +9,12 @@ import { typersIn } from '../../chat/lib/typing'
 import { useChatStore } from '../../chat/store/chatStore'
 import { showToast } from '../../../shared/store/toastStore'
 import SidebarFooter from '../../../app/SidebarFooter'
-import { FriendsIcon, PlusIcon } from '../../../shared/ui/icons'
 import ResizeHandle from '../../../shared/ui/ResizeHandle'
 import { useResizableWidth } from '../../../shared/hooks/useResizableWidth'
-import ConversationRow from './ConversationRow'
-import { conversationTitle } from '../../chat/lib/conversations'
 import CreateGroupModal from './CreateGroupModal'
 import { hideConversation, leaveGroup, type ConversationSummary } from '../../chat/api/conversations'
-import ConfirmModal from './ConfirmModal'
-import { DmListSkeleton } from '../../../shared/ui/skeleton/layouts'
+import { DirectMessagesList, FriendsNavButton, LeaveGroupConfirm } from './FriendsSidebarSections'
+import { dropConversation } from '../lib/dropConversation'
 
 export function FriendsSidebar(): React.JSX.Element {
   const navigate = useNavigate()
@@ -53,25 +50,35 @@ export function FriendsSidebar(): React.JSX.Element {
     fetchConversations()
   }, [loadAll, fetchConversations])
 
-  const onFriendsPage = location.pathname === '/' || location.pathname === '/friends'
-
   const isActive = (conv: ConversationSummary): boolean =>
     conv.type === 'group' ? conv.id === conversationId : conv.other_user?.id === userId
+
+  const drop = (
+    conv: ConversationSummary,
+    request: (id: string) => Promise<unknown>,
+    fallback: string
+  ): Promise<void> =>
+    dropConversation(
+      {
+        request,
+        removeLocal: (id) =>
+          useChatStore.setState((s) => ({
+            conversations: s.conversations.filter((c) => c.id !== id)
+          })),
+        isActive,
+        leave: () => navigate('/friends'),
+        error: showToast.error
+      },
+      conv,
+      fallback
+    )
 
   const closeConversation = async (conv: ConversationSummary): Promise<void> => {
     if (conv.type === 'group') {
       setLeaving(conv)
       return
     }
-    try {
-      await hideConversation(conv.id)
-      useChatStore.setState((s) => ({
-        conversations: s.conversations.filter((c) => c.id !== conv.id)
-      }))
-      if (isActive(conv)) navigate('/friends')
-    } catch (err) {
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível fechar a DM.')
-    }
+    await drop(conv, hideConversation, 'Não foi possível fechar a DM.')
   }
 
   return (
@@ -93,64 +100,25 @@ export function FriendsSidebar(): React.JSX.Element {
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-2 py-2">
-          <nav className="flex flex-col gap-0.5">
-            <button
-              type="button"
-              onClick={() => {
-                setFriendsTab('online')
-                navigate('/friends')
-              }}
-              className={`flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-ds-md font-medium transition-colors ${
-                onFriendsPage
-                  ? 'bg-fg/10 text-strong'
-                  : 'text-gray-400 hover:bg-fg/6 hover:text-gray-200'
-              }`}
-            >
-              <span className="flex items-center gap-3">
-                <FriendsIcon className="h-5 w-5" />
-                Amigos
-              </span>
-              {incomingCount > 0 && (
-                <span className="rounded-full bg-danger-strong px-1.5 text-[11px] font-bold text-white">
-                  {incomingCount}
-                </span>
-              )}
-            </button>
-          </nav>
+          <FriendsNavButton
+            pathname={location.pathname}
+            incomingCount={incomingCount}
+            onOpen={() => {
+              setFriendsTab('online')
+              navigate('/friends')
+            }}
+          />
 
-          <div>
-            <div className="group flex items-center justify-between px-2">
-              <p className="text-ds-sm font-medium text-gray-400 group-hover:text-gray-200">
-                Mensagens diretas
-              </p>
-              <button
-                type="button"
-                title="Criar DM"
-                aria-label="Criar DM"
-                onClick={() => setGroupOpen(true)}
-                className="cursor-pointer text-gray-400 hover:text-strong"
-              >
-                <PlusIcon className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-1 flex flex-col gap-0.5">
-              {!conversationsLoaded && conversations.length === 0 && <DmListSkeleton />}
-              {conversationsLoaded && conversations.length === 0 && (
-                <p className="px-2 py-1 text-ds-sm italic text-gray-500">Nenhuma conversa ainda.</p>
-              )}
-              {conversations.map((conv) => (
-                <ConversationRow
-                  key={conv.id}
-                  conv={conv}
-                  active={isActive(conv)}
-                  unread={unreadByRoom[`conversation:${conv.id}`] ?? 0}
-                  typing={typingDms.includes(`conversation:${conv.id}`)}
-                  meId={meId}
-                  onClose={closeConversation}
-                />
-              ))}
-            </div>
-          </div>
+          <DirectMessagesList
+            conversations={conversations}
+            loaded={conversationsLoaded}
+            unreadByRoom={unreadByRoom}
+            typingDms={typingDms}
+            meId={meId}
+            isActive={isActive}
+            onCreate={() => setGroupOpen(true)}
+            onClose={closeConversation}
+          />
         </div>
 
         {/* "Voz conectada" na chamada + a barra do usuário (igual em todas as telas) */}
@@ -158,26 +126,15 @@ export function FriendsSidebar(): React.JSX.Element {
       </aside>
 
       {groupOpen && <CreateGroupModal open onClose={() => setGroupOpen(false)} />}
-      <ConfirmModal
-        open={leaving !== null}
-        title={`Sair de '${leaving ? conversationTitle(leaving, meId) : ''}'`}
-        confirmLabel="Sair do grupo"
+      <LeaveGroupConfirm
+        leaving={leaving}
+        meId={meId}
         onClose={() => setLeaving(null)}
         onConfirm={async () => {
           if (!leaving) return
-          try {
-            await leaveGroup(leaving.id)
-            useChatStore.setState((s) => ({
-              conversations: s.conversations.filter((c) => c.id !== leaving.id)
-            }))
-            if (isActive(leaving)) navigate('/friends')
-          } catch (err) {
-            showToast.error(err instanceof Error ? err.message : 'Não foi possível sair do grupo.')
-          }
+          await drop(leaving, leaveGroup, 'Não foi possível sair do grupo.')
         }}
-      >
-        Tem certeza que quer sair do grupo? Você só volta se alguém te adicionar de novo.
-      </ConfirmModal>
+      />
     </>
   )
 }
