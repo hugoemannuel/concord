@@ -16,11 +16,11 @@ import {
 // lib/recentArrivals.
 
 interface RecentArrivalsStore extends ArrivalState {
-  /** Lista dos canais de voz do servidor aberto (polling/refetch). */
+  /** Lista dos canais de voz do servidor aberto (lida ao abrir o servidor). */
   ingest: (serverId: string, members: VoiceMembers, meId: string | undefined) => void
-  /** call:joined na minha call. */
+  /** call:joined na minha call ou call:channel_joined em qualquer canal. */
   join: (channelId: string, userId: string, meId: string | undefined) => void
-  /** call:left na minha call. */
+  /** call:left na minha call ou call:channel_left em qualquer canal. */
   leave: (channelId: string, userId: string) => void
   /** O WebSocket reconectou: a próxima lista é só base. */
   resetBaseline: () => void

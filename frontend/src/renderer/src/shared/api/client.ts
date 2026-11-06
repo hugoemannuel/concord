@@ -23,12 +23,11 @@ export class ApiError extends Error {
   constructor(status: number, message: string, codeOrBody?: string | Record<string, unknown>, body?: Record<string, unknown>) {
     super(message)
     this.status = status
-    if (typeof codeOrBody === 'string') {
-      this.code = codeOrBody
-      this.body = body ?? {}
-    } else {
-      this.body = codeOrBody ?? {}
-    }
+    // code indefinido (o servidor não mandou) não é "corpo no 3º argumento":
+    // o corpo do 4º argumento vale do mesmo jeito.
+    if (typeof codeOrBody === 'string') this.code = codeOrBody
+    const legacyBody = typeof codeOrBody === 'object' ? codeOrBody : undefined
+    this.body = body ?? legacyBody ?? {}
   }
 }
 

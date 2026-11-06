@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
-import { useAuthStore } from '../../auth/store/authStore'
+import { sessionGuard } from '../../auth/lib/sessionGuard'
 import { getServerLayout, saveServerLayout } from '../api/serverLayout'
 import type { RailLayoutItem } from '../lib/serverRailLayout'
 
@@ -59,13 +59,13 @@ export const useServerLayoutStore = create<ServerLayoutState>()((set, get) => ({
   folderModal: null,
 
   fetchLayout: async () => {
-    const token = useAuthStore.getState().accessToken
+    const sameSession = sessionGuard()
     try {
       const items = await getServerLayout()
-      if (useAuthStore.getState().accessToken !== token) return
+      if (!sameSession()) return
       set({ items, loaded: true })
     } catch {
-      if (useAuthStore.getState().accessToken === token) set({ loaded: true })
+      if (sameSession()) set({ loaded: true })
     }
   },
 

@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"gin-quickstart/backend/internal/message"
 	"gin-quickstart/backend/internal/permission"
 	"gin-quickstart/backend/internal/role"
 	"gin-quickstart/backend/internal/server"
 	"gin-quickstart/backend/internal/user"
+	"gin-quickstart/backend/internal/platform/wsevent"
 
 	"github.com/coder/websocket"
 )
@@ -215,7 +215,7 @@ func (h *Hub) ShuttingDown() bool {
 // PublishUserUpdate manda o perfil novo (nome, avatar, banner, bio...) para
 // todo mundo, como a presença.
 func (h *Hub) PublishUserUpdate(profile user.PublicProfile) {
-	h.BroadcastAll(writeEvent("user:update", map[string]interface{}{
+	h.BroadcastAll(wsevent.Marshal("user:update", map[string]interface{}{
 		"user": profile,
 	}))
 }
@@ -376,157 +376,69 @@ func (h *Hub) BroadcastAll(event []byte) {
 // PublishAppUpdate avisa todos os apps conectados que saiu versão nova
 // (manifesto do electron-updater mudou): eles checam na hora.
 func (h *Hub) PublishAppUpdate(file, version string) {
-	h.BroadcastAll(writeEvent("app:update", map[string]string{
+	h.BroadcastAll(wsevent.Marshal("app:update", map[string]string{
 		"file":    file,
 		"version": version,
 	}))
 }
 
 
-// messageRooms são as salas por onde chegam message:create, message:update e
-// message:delete:
-// o canal e o servidor dele, ou a DM e a sala pessoal de cada participante.
-func messageRooms(channelID *string, serverID string, conversationID *string, userIDs []string) []string {
-	var rooms []string
-	if channelID != nil {
-		rooms = append(rooms, "channel:"+*channelID)
-		if serverID != "" {
-			rooms = append(rooms, "server:"+serverID)
-		}
-		return rooms
-	}
-	if conversationID != nil {
-		rooms = append(rooms, "conversation:"+*conversationID)
-		for _, userID := range userIDs {
-			if userID != "" {
-				rooms = append(rooms, "user:"+userID)
-			}
-		}
-	}
-	return rooms
-}
-
-// publishMessage entrega a mensagem nas salas do canal ou da DM. A sala do
-// servidor (usada para não lidas) só recebe quem vê o canal: canal privado não
-// vaza para o resto do servidor.
-func (h *Hub) publishMessage(data []byte, channelID *string, serverID string, conversationID *string, userIDs []string) {
-	for _, room := range messageRooms(channelID, "", conversationID, userIDs) {
-		h.BroadcastToRoom(room, data)
-	}
-	if channelID != nil && serverID != "" {
-		h.BroadcastToServerChannel(serverID, *channelID, data)
-	}
-}
-
-func (h *Hub) PublishMessageCreate(event message.CreateEvent) {
-	h.publishMessage(writeEvent("message:create", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
-}
-
-// PublishMessageUpdate (mensagem editada) vai pelas mesmas salas do create.
-func (h *Hub) PublishMessageUpdate(event message.UpdateEvent) {
-	h.publishMessage(writeEvent("message:update", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
-}
-
-func (h *Hub) PublishMessageDelete(event message.DeleteEvent) {
-	h.publishMessage(writeEvent("message:delete", event), event.ChannelID, event.ServerID, event.ConversationID, event.UserIDs)
-}
-
-func (h *Hub) PublishMessagePin(event message.PinEvent) {
-	h.publishMessage(writeEvent("channel:pin:add", event), &event.ChannelID, event.ServerID, nil, nil)
-}
-
-func (h *Hub) PublishMessageUnpin(event message.UnpinEvent) {
-	h.publishMessage(writeEvent("channel:pin:remove", event), &event.ChannelID, event.ServerID, nil, nil)
-}
-
-// PublishPollUpdate vai só para a sala da conversa/canal: quem não está com a
-// sala aberta recebe a enquete atualizada ao carregar as mensagens.
-func (h *Hub) PublishPollUpdate(event message.PollUpdateEvent) {
-	if event.ChannelID != nil {
-		h.BroadcastToRoom("channel:"+*event.ChannelID, writeEvent("message:poll:update", event))
-		return
-	}
-	if event.ConversationID != nil {
-		h.BroadcastToRoom("conversation:"+*event.ConversationID, writeEvent("message:poll:update", event))
-	}
-}
-
-func (h *Hub) PublishReactionAdd(event message.ReactionEvent) {
-	if event.ChannelID != nil {
-		h.BroadcastToRoom("channel:"+*event.ChannelID, writeEvent("message:reaction:add", event))
-		return
-	}
-	if event.ConversationID != nil {
-		h.BroadcastToRoom("conversation:"+*event.ConversationID, writeEvent("message:reaction:add", event))
-	}
-}
-
-func (h *Hub) PublishReactionRemove(event message.ReactionEvent) {
-	if event.ChannelID != nil {
-		h.BroadcastToRoom("channel:"+*event.ChannelID, writeEvent("message:reaction:remove", event))
-		return
-	}
-	if event.ConversationID != nil {
-		h.BroadcastToRoom("conversation:"+*event.ConversationID, writeEvent("message:reaction:remove", event))
-	}
-}
-
 // Canal novo ou alterado só aparece para quem o vê.
 func (h *Hub) PublishServerUpdate(event server.UpdateEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:update", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:update", event))
 }
 
 func (h *Hub) PublishServerDelete(event server.DeleteEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:delete", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:delete", event))
 }
 
 func (h *Hub) PublishMemberUpdate(event server.MemberJoinEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:member:update", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:member:update", event))
 }
 
 // PublishMemberNickname: o apelido de alguém mudou; todo o servidor atualiza
 // o nome na hora (lista de membros, chat, voz).
 func (h *Hub) PublishMemberNickname(event server.NicknameEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:member:nickname", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:member:nickname", event))
 }
 
 func (h *Hub) PublishMemberJoin(event server.MemberJoinEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:member:join", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:member:join", event))
 }
 
 func (h *Hub) PublishMemberLeave(event server.MemberLeaveEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:member:leave", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:member:leave", event))
 }
 
 // PublishMemberRemoved: saiu, foi expulso ou banido. Os outros veem o membro
 // sair; quem saiu recebe server:removed e perde as salas do servidor.
 func (h *Hub) PublishMemberRemoved(event server.MemberRemovedEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:member:leave", server.MemberLeaveEvent{
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:member:leave", server.MemberLeaveEvent{
 		ServerID: event.ServerID,
 		UserID:   event.UserID,
 	}))
-	h.SendToUser(event.UserID, writeEvent("server:removed", event))
+	h.SendToUser(event.UserID, wsevent.Marshal("server:removed", event))
 	h.RevalidateServer(event.ServerID)
 }
 
 func (h *Hub) PublishRoleCreate(event role.RoleEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("role:create", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("role:create", event))
 }
 
 func (h *Hub) PublishRoleUpdate(event role.RoleEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("role:update", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("role:update", event))
 }
 
 func (h *Hub) PublishRoleDelete(event role.DeleteEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("role:delete", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("role:delete", event))
 }
 
 func (h *Hub) PublishRoleReorder(event role.ReorderEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("role:reorder", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("role:reorder", event))
 }
 
 func (h *Hub) PublishMemberRoles(event role.MemberRolesEvent) {
-	h.BroadcastToRoom("server:"+event.ServerID, writeEvent("server:member:roles", event))
+	h.BroadcastToRoom("server:"+event.ServerID, wsevent.Marshal("server:member:roles", event))
 }
 
 // PublishPermissionsChanged: cargos, cargos de membros ou sobrescritas de
@@ -534,7 +446,7 @@ func (h *Hub) PublishMemberRoles(event role.MemberRolesEvent) {
 // salas; as chamadas de voz são reajustadas (hook).
 func (h *Hub) PublishPermissionsChanged(serverID string) {
 	h.RevalidateServer(serverID)
-	h.BroadcastToRoom("server:"+serverID, writeEvent("server:permissions:invalidate", map[string]string{
+	h.BroadcastToRoom("server:"+serverID, wsevent.Marshal("server:permissions:invalidate", map[string]string{
 		"server_id": serverID,
 	}))
 
@@ -556,7 +468,7 @@ func (h *Hub) PublishInviteCode(serverID, code string) {
 	if snap == nil {
 		return
 	}
-	h.BroadcastToRoomFiltered("server:"+serverID, writeEvent("server:invite_code", map[string]string{
+	h.BroadcastToRoomFiltered("server:"+serverID, wsevent.Marshal("server:invite_code", map[string]string{
 		"server_id": serverID,
 		"code":      code,
 	}), func(userID string) bool {
@@ -606,7 +518,7 @@ func (h *Hub) PublishUserUnblocked(blockerID string, unblocked *user.User) {
 // PublishConversationEvent avisa cada participante (sala user:<id>) que a
 // conversa foi criada/alterada/removida/lida; o app recarrega o que precisa.
 func (h *Hub) PublishConversationEvent(eventType string, conversationID string, userIDs []string) {
-	event := writeEvent(eventType, map[string]string{"conversation_id": conversationID})
+	event := wsevent.Marshal(eventType, map[string]string{"conversation_id": conversationID})
 	for _, userID := range userIDs {
 		if userID != "" {
 			h.BroadcastToRoom("user:"+userID, event)
@@ -618,7 +530,7 @@ func (h *Hub) publishFriendEvent(eventType string, recipientID string, target *u
 	if recipientID == "" || target == nil {
 		return
 	}
-	h.BroadcastToRoom("user:"+recipientID, writeEvent(eventType, map[string]interface{}{
+	h.BroadcastToRoom("user:"+recipientID, wsevent.Marshal(eventType, map[string]interface{}{
 		"user_id": target.ID,
 		"user":    target,
 	}))

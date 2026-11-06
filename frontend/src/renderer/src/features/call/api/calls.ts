@@ -94,6 +94,11 @@ export function listActiveServerCalls(serverId: string): Promise<CallStateRespon
   )
 }
 
+/** Atende a DM que está tocando; resolve depois de o servidor registrar a entrada. */
+export function acceptCall(callId: string): Promise<void> {
+  return request<void>(`/calls/${callId}/accept`, { method: 'POST' })
+}
+
 /** Token do LiveKit para entrar na sala de mídia da chamada (só participantes). */
 export function getCallToken(callId: string): Promise<{ token: string }> {
   return request<{ token: string }>(`/calls/${callId}/token`, { method: 'POST' })
