@@ -1,6 +1,8 @@
 import type { ChangeEvent, RefObject } from 'react'
 import Button from '../../../shared/ui/Button'
 import { PauseIcon, PlayIcon } from '../../../shared/ui/icons'
+import { formatBytes } from '../../chat/lib/attachments'
+import { formatSoundDuration } from '../../expressions/lib/expressionRules'
 
 // Partes do formulário de "Adicionar som" (SoundboardUploadModal).
 
@@ -53,7 +55,7 @@ export function SoundFileField({
           <span className="truncate">{file ? file.name : 'Escolher arquivo (.mp3, .wav, .ogg, .m4a)'}</span>
           {durationMs !== null && file && (
             <span className="ml-2 shrink-0 rounded bg-fg/10 px-1.5 py-0.5 text-ds-xs font-semibold text-secondary">
-              {(durationMs / 1000).toFixed(1)}s · {(file.size / 1024).toFixed(0)} KB
+              {formatSoundDuration(durationMs)} · {formatBytes(file.size)}
             </span>
           )}
         </button>

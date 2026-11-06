@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { VolumeIcon } from '../../../shared/ui/icons'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import type { VoiceMember } from '../../call/lib/voiceServer'
-import { serverIconSrc } from '../lib/serverIcon'
 import { badgeText, voiceBadgeLabel } from '../lib/serverRailBadge'
 import type { RailDropZone } from '../lib/serverRailDrop'
 import type { ServerRailView } from '../lib/serverRailView'
@@ -99,16 +99,7 @@ function ServerRailItem({
         aria-describedby={anchor ? cardId : undefined}
         className={`group/btn relative flex h-12 w-12 items-center justify-center font-bold text-ds-md transition-all duration-200 cursor-pointer overflow-hidden ${itemButtonLook(isActive, view.dimmed, dropZone)}`}
       >
-        {iconUrl ? (
-          <img
-            src={serverIconSrc(iconUrl)}
-            alt=""
-            draggable={false}
-            className="pointer-events-none select-none h-full w-full object-cover"
-          />
-        ) : (
-          <span className="pointer-events-none select-none">{name.charAt(0).toUpperCase()}</span>
-        )}
+        <ServerIcon name={name} iconUrl={iconUrl} size="fill" fallbackClassName="" pinned />
       </button>
       {view.badge > 0 && (
         <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-ds-xxs font-bold text-white shadow-md">

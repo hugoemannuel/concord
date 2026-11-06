@@ -5,9 +5,9 @@ import { useServerStore } from '../store/serverStore'
 import { useMusicStore } from '../../music/store/musicStore'
 import { useFriendStore } from '../../friends/store/friendStore'
 import { useUIStore } from '../../../shared/store/uiStore'
-import { useChatStore } from '../../chat/store/chatStore'
 import { showToast } from '../../../shared/store/toastStore'
 import { useServerAccess } from '../hooks/useServerAccess'
+import { useMemberPresenceFetch } from '../hooks/useMemberPresenceFetch'
 import { chatPermissionsFor } from '../../chat/lib/chatPermissions'
 import { Perm } from '../lib/permissions'
 import {
@@ -33,14 +33,11 @@ export function ServerView(): React.JSX.Element {
   const { id, channelId } = useParams<{ id: string; channelId: string }>()
 
   const currentServer = useServerStore((s) => s.currentServer)
-  const currentMembers = useServerStore((s) => s.currentMembers)
   const access = useServerAccess()
   const channels = useServerStore((s) => s.channels)
   const loading = useServerStore((s) => s.loading)
   const selectServer = useServerStore((s) => s.selectServer)
   const fetchChannels = useServerStore((s) => s.fetchChannels)
-
-  const fetchPresenceFor = useChatStore((s) => s.fetchPresenceFor)
 
   const loadFriends = useFriendStore((s) => s.loadAll)
 
@@ -77,11 +74,7 @@ export function ServerView(): React.JSX.Element {
     if (ch && (ch.type ?? 'text') === 'text') rememberServerChannel(id, channelId)
   }, [id, channelId, channels])
 
-  useEffect(() => {
-    if (currentMembers.length > 0) {
-      fetchPresenceFor(currentMembers.map((m) => m.user_id))
-    }
-  }, [currentMembers, fetchPresenceFor])
+  useMemberPresenceFetch(id)
 
   useEffect(() => {
     loadFriends()

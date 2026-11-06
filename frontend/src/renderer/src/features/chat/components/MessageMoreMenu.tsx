@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   menuKeyAction,
@@ -7,6 +7,8 @@ import {
   type MessageMenuItem
 } from '../lib/messageMenu'
 import { useIsMobile } from '../../navigation/hooks/useIsMobile'
+import { useDismiss } from '../../../shared/hooks/useDismiss'
+import { insideAny } from '../../../shared/lib/dismiss'
 
 const MENU_WIDTH = 220
 const ITEM_SELECTOR = '[role="menuitem"]'
@@ -49,14 +51,8 @@ function MessageMoreMenu({
     menuItems(ref.current)[0]?.focus()
   }, [])
 
-  useEffect(() => {
-    const onDown = (e: PointerEvent): void => {
-      const target = e.target as Node
-      if (!ref.current?.contains(target) && !anchor.contains(target)) onClose()
-    }
-    document.addEventListener('pointerdown', onDown)
-    return () => document.removeEventListener('pointerdown', onDown)
-  }, [anchor, onClose])
+  // O Esc fica com a navegação do menu (onKeyDown), que devolve o foco ao "…".
+  useDismiss((target) => insideAny([ref.current, anchor], target), () => onClose(), { event: 'pointerdown', escape: false })
 
   const closeToAnchor = (): void => {
     onClose()

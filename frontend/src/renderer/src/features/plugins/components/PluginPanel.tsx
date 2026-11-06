@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, type RefObject } from 'react'
 import type { ServerPlugin } from '../api/plugins'
-import { attachDismiss } from '../lib/dismiss'
+import { attachDismiss } from '../../../shared/lib/dismiss'
 import {
   initialPanelState,
   panelReducer,

@@ -1,3 +1,4 @@
+import ServerIcon from '../../../shared/ui/ServerIcon'
 import type { Message } from '../api/messages'
 import { splitMentions } from '../lib/mentions'
 import { useServerStore } from '../../servers/store/serverStore'
@@ -32,9 +33,12 @@ function SystemMessage({ message }: { message: Message }): React.JSX.Element {
       id={`msg-${message.id}`}
       className="mx-2 my-1 flex gap-3 rounded-lg border border-warning/20 bg-gradient-to-r from-warning/10 to-transparent px-3 py-2.5"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-warning to-danger text-ds-md font-bold text-white shadow-md">
-        {serverName.charAt(0).toUpperCase()}
-      </div>
+      <ServerIcon
+        name={serverName}
+        size="lg"
+        shape="full"
+        fallbackClassName="bg-gradient-to-br from-warning to-danger font-bold text-white shadow-md"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="text-ds-chat font-medium text-warning">{serverName}</span>

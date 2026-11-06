@@ -5,7 +5,7 @@ import { useEmotePickerDismiss } from '../../chat/hooks/useEmotePickerDismiss'
 import { useExpressionOrigin } from '../hooks/useExpressionOrigin'
 import { originText } from '../lib/originText'
 import type { OriginKind } from '../store/expressionOrigins'
-import ServerBadge from './ServerBadge'
+import ServerIcon from '../../../shared/ui/ServerIcon'
 
 /** Ao clicar num emoji ou figurinha da mensagem: o que é e de que servidor veio. */
 export default function ExpressionOriginCard({
@@ -43,7 +43,7 @@ export default function ExpressionOriginCard({
       <div className="min-w-0">
         <p className="truncate text-ds-sm font-semibold text-strong">:{name}:</p>
         <p className="flex min-w-0 items-center gap-1 text-ds-xs text-muted">
-          {origin?.server_name && <ServerBadge name={origin.server_name} iconUrl={origin.server_icon_url} size="xs" />}
+          {origin?.server_name && <ServerIcon name={origin.server_name} iconUrl={origin.server_icon_url} size="xs" lazy />}
           <span className="min-w-0 truncate">{text}</span>
         </p>
       </div>
