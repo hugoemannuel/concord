@@ -19,12 +19,12 @@ func insertChannel(ctx context.Context, tx pgx.Tx, ch *Channel, overwrites []per
 
 func insertChannelRow(ctx context.Context, tx pgx.Tx, ch *Channel) error {
 	return tx.QueryRow(ctx, `
- INSERT INTO channels(id,server_id,name,type,created_by,is_system,managed,position)
- VALUES($1,$2,$3,$4::varchar,$5,$6,$7,
+ INSERT INTO channels(id,server_id,name,type,created_by,is_system,system_kind,managed,position)
+ VALUES($1,$2,$3,$4::varchar,$5,$6,$7,$8,
  (SELECT COALESCE(MAX(position)+1,0) FROM channels WHERE server_id=$2 AND type=$4::varchar))
- RETURNING id,server_id,name,type,position,is_system,managed,created_by,created_at,updated_at`,
-		ch.ID, ch.ServerID, ch.Name, ch.Type, ch.CreatedBy, ch.IsSystem, ch.Managed).Scan(
-		&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.IsSystem, &ch.Managed, &ch.CreatedBy, &ch.CreatedAt, &ch.UpdatedAt)
+ RETURNING id,server_id,name,type,position,is_system,system_kind,managed,created_by,created_at,updated_at`,
+		ch.ID, ch.ServerID, ch.Name, ch.Type, ch.CreatedBy, ch.IsSystem, ch.SystemKind, ch.Managed).Scan(
+		&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.IsSystem, &ch.SystemKind, &ch.Managed, &ch.CreatedBy, &ch.CreatedAt, &ch.UpdatedAt)
 }
 
 func insertChannelOverwrites(ctx context.Context, tx pgx.Tx, channelID string, overwrites []permission.Overwrite) error {

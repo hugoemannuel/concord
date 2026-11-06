@@ -2,7 +2,9 @@ package channel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"gin-quickstart/backend/internal/permission"
@@ -89,19 +91,20 @@ func TestCreateNeverMakesSystemChannel(t *testing.T) {
 	store := newSystemStore()
 	svc := newService(store, nil)
 
-	ch := &Channel{ServerID: "s1", Name: "x", IsSystem: true}
+	kind := SystemKindMaestro
+	ch := &Channel{ServerID: "s1", Name: "x", IsSystem: true, SystemKind: &kind}
 	if err := svc.Create(context.Background(), ch); err != nil {
 		t.Fatal(err)
 	}
-	if ch.IsSystem {
-		t.Fatal("Create must ignore is_system")
+	if ch.IsSystem || ch.SystemKind != nil {
+		t.Fatal("Create must ignore is_system e system_kind")
 	}
 
 	sys, err := svc.CreateSystem(context.Background(), "s1", "dono")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sys.IsSystem || sys.Name != SystemChannelName || sys.Type != TypeText {
+	if !sys.IsSystem || sys.Name != SystemChannelName || sys.Type != TypeText || kindOf(sys) != SystemKindMaestro {
 		t.Fatalf("CreateSystem = %+v", sys)
 	}
 
@@ -109,7 +112,32 @@ func TestCreateNeverMakesSystemChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !notices.IsSystem || notices.Name != NoticesChannelName || notices.Type != TypeText {
+	if !notices.IsSystem || notices.Name != NoticesChannelName || notices.Type != TypeText || kindOf(notices) != SystemKindNotices {
 		t.Fatalf("CreateNotices = %+v", notices)
+	}
+}
+
+func kindOf(ch *Channel) string {
+	if ch.SystemKind == nil {
+		return ""
+	}
+	return *ch.SystemKind
+}
+
+// O JSON do canal leva o tipo: os apps reconhecem o canal do Maestro por ele.
+func TestChannelJSONHasSystemKind(t *testing.T) {
+	svc := newService(newSystemStore(), nil)
+	sys, err := svc.CreateSystem(context.Background(), "s3", "dono")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for ch, want := range map[*Channel]string{sys: `"system_kind":"maestro"`, {Name: "geral"}: `"system_kind":null`} {
+		data, err := json.Marshal(ch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(data), want) {
+			t.Errorf("JSON = %s, want %s", data, want)
+		}
 	}
 }

@@ -97,7 +97,9 @@ func TestMigrationRenamesOnlyTheSystemBotChannel(t *testing.T) {
 		idAvisos:   "avisos",
 	})
 
-	// MaestroChannels acha o canal do Maestro pelos dois nomes e ignora o resto.
+	// O backfill do system_kind (000197) marca o canal do Maestro pelos dois
+	// nomes; MaestroChannels acha pelo tipo e ignora o resto.
+	exec(readFile(t, "../../migrations/000197_canal_de_sistema_tipo.up.sql"))
 	found := map[string]bool{}
 	list, err := ChannelRepository(db).MaestroChannels(ctx)
 	if err != nil {
