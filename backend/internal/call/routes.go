@@ -11,6 +11,7 @@ func CallRoutes(router *gin.RouterGroup, handler *Handler, authMiddleware, membe
 	{
 		member.POST("/move", handler.Move)
 		member.GET("/active", handler.Active)
+		member.POST("/:id/accept", handler.Accept)
 		member.POST("/:id/invites", handler.InviteFriends)
 		member.GET("/:id/invite", handler.InviteStatus)
 		member.POST("/:id/invites/open", handler.OpenFriendInvite)

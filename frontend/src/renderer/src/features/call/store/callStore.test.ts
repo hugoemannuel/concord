@@ -119,6 +119,7 @@ const api = vi.hoisted(() => ({
   endCall: vi.fn(async () => ({ message: 'ok' })),
   getCallState: vi.fn(async () => ({ call: null, participants: [] })),
   getCallToken: vi.fn(async () => ({ token: 'tok' })),
+  acceptCall: vi.fn(async () => undefined),
   putScreenPreview: vi.fn(async () => {})
 }))
 vi.mock('../api/calls', () => api)
@@ -1182,6 +1183,84 @@ describe('callStore — mídia via LiveKit', () => {
   })
 })
 
+describe('callStore — atender DM', () => {
+  function ringing(): void {
+    useCallStore.getState().handleWsEvent({
+      type: 'call:invite',
+      payload: { call_id: 'dm-1', type: 'dm', initiator: { id: 'ana', username: 'ana', display_name: 'Ana' } }
+    })
+  }
+
+  it('só pede o token depois de o servidor confirmar o aceite', async () => {
+    const accepted = deferred<undefined>()
+    api.acceptCall.mockReturnValueOnce(accepted.promise)
+    ringing()
+
+    const accepting = useCallStore.getState().acceptCall()
+    await flush()
+    expect(api.acceptCall).toHaveBeenCalledWith('dm-1')
+    expect(api.getCallToken).not.toHaveBeenCalled()
+    expect(chat.subscribeRoom).not.toHaveBeenCalled()
+    expect(chat.sendEvent).not.toHaveBeenCalledWith('call:accept', expect.anything())
+    // Ainda não sou participante: segue tocando (um call:voice agora seria recusado).
+    expect(useCallStore.getState().status).toBe('ringing')
+
+    accepted.resolve(undefined)
+    await accepting
+    await flush()
+    expect(useCallStore.getState().status).toBe('active')
+    expect(chat.subscribeRoom).toHaveBeenCalledWith('call:dm-1')
+    expect(api.getCallToken).toHaveBeenCalledWith('dm-1')
+  })
+
+  it('403 no token é "sem permissão" na hora, sem tentar de novo', async () => {
+    api.getCallToken.mockRejectedValueOnce(
+      Object.assign(new ApiError(403, 'not allowed'), { status: 403 }) as never
+    )
+    ringing()
+
+    await useCallStore.getState().acceptCall()
+    await flush()
+    await flush()
+
+    expect(api.getCallToken).toHaveBeenCalledTimes(1)
+    expect(useCallStore.getState().connection.phase).toBe('failed')
+  })
+
+  it('aceite recusado pelo servidor (a chamada acabou): avisa e volta ao ocioso, sem mídia', async () => {
+    api.acceptCall.mockRejectedValueOnce(
+      Object.assign(new ApiError(404, 'call not found'), { status: 404 }) as never
+    )
+    ringing()
+
+    await useCallStore.getState().acceptCall()
+    await flush()
+
+    expect(showToast.error).toHaveBeenCalled()
+    expect(useCallStore.getState().status).toBe('idle')
+    expect(api.getCallToken).not.toHaveBeenCalled()
+  })
+
+  it('desligou enquanto o aceite ia ao servidor: sai da chamada que acabou de entrar', async () => {
+    const accepted = deferred<undefined>()
+    api.acceptCall.mockReturnValueOnce(accepted.promise)
+    ringing()
+
+    const accepting = useCallStore.getState().acceptCall()
+    await flush()
+    useCallStore.getState().endCall()
+    chat.sendEvent.mockClear()
+    accepted.resolve(undefined)
+    await accepting
+    await flush()
+
+    // O call:leave do desligar pode ter chegado antes do aceite: manda de novo.
+    expect(chat.sendEvent).toHaveBeenCalledWith('call:leave', { call_id: 'dm-1' })
+    expect(api.getCallToken).not.toHaveBeenCalled()
+    expect(useCallStore.getState().status).toBe('idle')
+  })
+})
+
 describe('callStore — reentrada após queda do WS', () => {
   const participant = (id: string): Record<string, unknown> => ({
     user_id: id,
@@ -1353,8 +1432,9 @@ describe('callStore — reentrada após queda do WS', () => {
     expect(api.startCall).toHaveBeenCalledTimes(1)
     expect(useCallStore.getState().callId).toBe('call-2')
     expect(media.instances[0].disconnect).toHaveBeenCalled()
-    expect(api.getCallState.mock.calls[0]).toEqual(['call-1'])
-    expect(api.getCallState.mock.calls.filter(([id]) => id === 'call-1')).toHaveLength(1)
+    expect(api.getCallState).toHaveBeenNthCalledWith(1, 'call-1')
+    const probes = (api.getCallState.mock.calls as unknown[][]).filter((c) => c[0] === 'call-1')
+    expect(probes).toHaveLength(1)
   })
 
   it('não faz nada ao reconectar o WS fora de chamada', async () => {

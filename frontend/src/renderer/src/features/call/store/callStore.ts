@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
 import {
+  acceptCall as acceptCallApi,
   startCall as startCallApi,
   endCall as endCallApi,
   getCallState,
@@ -48,7 +49,6 @@ import { watchLocalSpeaking } from '../lib/localSpeaking'
 import { mergeLocalSpeaking, sameIds } from '../lib/voiceActivity'
 import { voiceServerId } from '../lib/voiceServer'
 import { LIVEKIT_URL } from '../../../shared/lib/config'
-import { retry } from '../../../shared/lib/retry'
 import { micBlockReason, streamBlockReason } from '../lib/voicePermissions'
 import { addWatched, miniPlayerOnly, pruneWatched, resolveFocus } from '../lib/screenWatch'
 import { createPreviewSender } from '../lib/screenPreviewFlow'
@@ -325,9 +325,6 @@ let cameraPublish: Promise<void> = Promise.resolve()
 
 /** call:live recentes, reaplicados sobre a lista do servidor lida há pouco. */
 let recentLive: LiveRecord[] = []
-
-const TOKEN_ATTEMPTS = 10
-const TOKEN_RETRY_DELAY_MS = 400
 
 /** Tira o stream da sala (se houver) e só então para as tracks. */
 function releaseStream(stream: MediaStream): void {
@@ -624,14 +621,29 @@ export const useCallStore = create<CallState>()((set, get) => {
     }
   }
 
+  /**
+   * Atende a DM e espera o servidor registrar a entrada. false = não deu
+   * (avisado) ou a pessoa desligou nesse meio-tempo (sai da chamada de novo:
+   * o call:leave do desligar pode ter chegado antes do aceite).
+   */
+  const acceptDm = async (callId: string): Promise<boolean> => {
+    try {
+      await acceptCallApi(callId)
+    } catch (err) {
+      if (get().callId !== callId) return false
+      showToast.error(err instanceof Error ? err.message : 'Não foi possível entrar na chamada.')
+      cleanup()
+      return false
+    }
+    if (get().callId === callId) return true
+    useChatStore.getState().sendEvent('call:leave', { call_id: callId })
+    return false
+  }
+
   /** Pede o token da sala; falha a conexão e devolve null se não der. */
   const fetchMediaToken = async (connection: CallMedia, callId: string): Promise<string | null> => {
     try {
-      const { token } = await retry(() => getCallToken(callId), {
-        attempts: TOKEN_ATTEMPTS,
-        delayMs: TOKEN_RETRY_DELAY_MS,
-        shouldRetry: (err) => err instanceof ApiError && err.status === 403
-      })
+      const { token } = await getCallToken(callId)
       return token
     } catch (err) {
       if (media !== connection) return null
@@ -685,8 +697,8 @@ export const useCallStore = create<CallState>()((set, get) => {
   }
 
   /**
-   * Entra na sala de mídia da chamada. O callee de DM pode pedir o token antes
-   * do backend processar o call:accept (403) — por isso o retry curto.
+   * Entra na sala de mídia da chamada. Só depois de o backend registrar a
+   * entrada (startCall, aceite da DM pela rota): antes disso o token é 403.
    */
   const connectMedia = async (callId: string): Promise<void> => {
     if (media || !localMic) return
@@ -1462,12 +1474,14 @@ export const useCallStore = create<CallState>()((set, get) => {
         return
       }
 
-      // Otimista: o broadcast de call:accept pode chegar antes da assinatura da room.
+      // Ativa só com a entrada registrada: antes disso o servidor recusaria o
+      // mudo (call:voice), a sala da chamada e o token da mídia.
+      const accepted = await acceptDm(callId)
+      transitioning = false
+      if (!accepted) return
       set({ status: 'active', startedAt: Date.now() })
       playSound('join')
-      useChatStore.getState().sendEvent('call:accept', { call_id: callId })
       useChatStore.getState().subscribeRoom(`call:${callId}`)
-      transitioning = false
       void connectMedia(callId)
     },
 
