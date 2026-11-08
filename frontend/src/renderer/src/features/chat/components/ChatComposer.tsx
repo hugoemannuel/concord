@@ -3,17 +3,17 @@ import type { Message } from '../api/messages'
 import { ACCEPT_ATTRIBUTE, type DraftAttachment } from '../lib/attachments'
 import type { ChatPermissions } from '../lib/chatPermissions'
 import { composerPlaceholder } from '../lib/chatPaneView'
-import { composerKeyAction, type ComposerKeyAction } from '../lib/composerKeys'
 import type { UserSuggestionInput } from '../lib/mentions'
 import type { ReplyState } from '../lib/sendFailure'
 import { useComposerSend } from '../hooks/useComposerSend'
 import { useFilePickerShortcut } from '../hooks/useFilePickerShortcut'
-import { useMentionMenu, type MentionMenu } from '../hooks/useMentionMenu'
+import { useMentionMenu } from '../hooks/useMentionMenu'
 import { useRoomDraft } from '../hooks/useRoomDraft'
 import { useRoomState } from '../hooks/useRoomState'
 import { useSendMedia } from '../hooks/useSendMedia'
 import { useTypingSender } from '../hooks/useTypingSender'
 import ComposerAttachments from './ComposerAttachments'
+import ComposerInput from './composer/ComposerInput'
 import MentionSuggestionList from './MentionSuggestionList'
 import {
   AttachButton,
@@ -52,31 +52,6 @@ export interface ChatComposerProps {
   /** ↑ no campo vazio: abre a última mensagem minha na edição (false se não há). */
   onEditLast: () => boolean
   onOpenPoll: () => void
-}
-
-type KeyHandlers = Record<ComposerKeyAction, (e: React.KeyboardEvent<HTMLInputElement>) => void>
-
-function keyHandlers(
-  menu: MentionMenu,
-  onEditLast: () => boolean,
-  cancelReply: () => void
-): KeyHandlers {
-  return {
-    'mention-step': (e) => {
-      e.preventDefault()
-      menu.step(e.key === 'ArrowDown' ? 1 : -1)
-    },
-    'mention-pick': (e) => {
-      e.preventDefault()
-      menu.pick(menu.suggestions[menu.highlight].username)
-    },
-    'mention-close': () => menu.close(),
-    'edit-last': (e) => {
-      if (onEditLast()) e.preventDefault()
-    },
-    'cancel-reply': cancelReply,
-    none: () => {}
-  }
 }
 
 /**
@@ -118,16 +93,6 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     setReplyState,
     followBottom: p.followBottom
   })
-  const keys = keyHandlers(menu, p.onEditLast, () => setReplyState(null))
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void =>
-    keys[
-      composerKeyAction(e, {
-        suggesting: menu.suggestions.length > 0,
-        highlighted: menu.highlight >= 0,
-        draftEmpty: draft === '',
-        replying: replyingTo !== null
-      })
-    ](e)
 
   return (
     <>
@@ -186,20 +151,20 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
               }}
             />
             <PollButton onClick={p.onOpenPoll} />
-            <input
-              ref={inputRef}
+            <ComposerInput
+              inputRef={inputRef}
               value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value)
-                typing.onDraftChange(e.target.value)
-                menu.onInput(e.target.value, e.target.selectionStart ?? 0)
-              }}
-              onKeyDown={handleKeyDown}
-              onPaste={p.onPaste}
-              onBlur={menu.close}
               placeholder={composerPlaceholder(replyingTo !== null, p.replyAuthor, p.placeholder)}
-              maxLength={2000}
-              className="min-w-0 flex-1 bg-transparent text-ds-chat text-strong placeholder:text-gray-500 outline-none"
+              menu={menu}
+              replying={replyingTo !== null}
+              onChange={(text, caret) => {
+                setDraft(text)
+                typing.onDraftChange(text)
+                menu.onInput(text, caret)
+              }}
+              onPaste={p.onPaste}
+              onEditLast={p.onEditLast}
+              onCancelReply={() => setReplyState(null)}
             />
             <MediaPickerButton onClick={() => setMediaPickerOpen((v) => !v)} />
             <VoiceButton
