@@ -445,3 +445,26 @@ func TestUploadRejectsEmptyFile(t *testing.T) {
 		t.Fatal("não deveria gravar linha")
 	}
 }
+
+// Linha no banco mas arquivo sumido do disco: 404, como se não existisse.
+func TestServeFileMissingOnDisk(t *testing.T) {
+	env := newAttachmentEnv(t, fakeAccess{}, fakeSpace{ok: true})
+	messageID := "m1"
+	id, _ := env.storedImage(t, &messageID)
+	if err := env.store.Remove(id); err != nil {
+		t.Fatal(err)
+	}
+	if rec := env.get("/api/media/"+id+"?token=bom", nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d", rec.Code)
+	}
+}
+
+// Erro ao conferir o acesso (não é "sem acesso"): 500.
+func TestServeFileAccessError(t *testing.T) {
+	env := newAttachmentEnv(t, fakeAccess{readErr: errors.New("banco fora")}, fakeSpace{ok: true})
+	messageID := "m1"
+	id, _ := env.storedImage(t, &messageID)
+	if rec := env.get("/api/media/"+id+"?token=bom", nil); rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d", rec.Code)
+	}
+}
