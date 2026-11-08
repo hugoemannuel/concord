@@ -93,6 +93,13 @@ type fakeRow struct {
 }
 
 func (r fakeRow) Scan(dest ...any) error {
+	// call_invite é a última coluna []byte (depois dela só vem embeds_suppressed).
+	lastBytes := -1
+	for i, d := range dest {
+		if _, ok := d.(*[]byte); ok {
+			lastBytes = i
+		}
+	}
 	for i, d := range dest {
 		switch p := d.(type) {
 		case *string:
@@ -100,7 +107,7 @@ func (r fakeRow) Scan(dest ...any) error {
 		case *bool:
 			*p = r.tts
 		case *[]byte:
-			if i == len(dest)-1 {
+			if i == lastBytes {
 				*p = r.invite
 			}
 		}

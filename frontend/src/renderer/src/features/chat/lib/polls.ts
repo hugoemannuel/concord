@@ -1,6 +1,6 @@
 import type { CreatePollInput, Message, Poll } from '../api/messages'
 import { attachmentPreview } from './attachments'
-import { textPreview, type Preview } from './preview'
+import { markdownPreview, textPreview, type Preview } from './preview'
 import { previewToText } from './previewEmoji'
 
 // Limites iguais aos do backend (e do Discord).
@@ -97,7 +97,7 @@ type PreviewSource = Pick<
 /** Prévia da mensagem dentro do app (barra de resposta, busca): texto e tipo. */
 export function messagePreviewParts(message: PreviewSource): Preview {
   if (message.poll) return { icon: 'poll', text: message.poll.question }
-  if (message.content) return textPreview(message.content)
+  if (message.content) return markdownPreview(message.content)
   if (message.sticker) return { icon: 'sticker', text: `Figurinha :${message.sticker.name}:` }
   if (message.sticker_id) return { icon: 'sticker', text: 'Figurinha' }
   if (message.deleted_sticker_name) return { icon: 'sticker', text: `Figurinha :${message.deleted_sticker_name}:` }

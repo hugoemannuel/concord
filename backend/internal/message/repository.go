@@ -53,7 +53,8 @@ var messageColumns = `
 	m.gif_metadata,
 	m.tts,
 	m.tts_voice_channel_id,
-	m.call_invite
+	m.call_invite,
+	m.embeds_suppressed
 `
 
 // messageProfileJoins: o perfil do servidor do autor e de quem foi respondido

@@ -43,7 +43,7 @@ export interface Poll {
   total_voters: number
 }
 
-export type AttachmentKind = 'image' | 'video' | 'audio'
+export type AttachmentKind = 'image' | 'video' | 'audio' | 'file'
 
 export interface Attachment {
   id: string
@@ -110,6 +110,8 @@ export interface Message {
   edited_at?: string | null
   /** Quando a mensagem foi fixada no canal; ausente = não fixada. */
   pinned_at?: string | null
+  /** O autor removeu as prévias de link (features/linkpreview): sem cartão. */
+  embeds_suppressed?: boolean
 }
 
 export interface PinnedMessage extends Message {

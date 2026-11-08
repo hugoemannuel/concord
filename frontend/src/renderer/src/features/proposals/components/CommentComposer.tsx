@@ -73,7 +73,7 @@ function CommentComposer({
   const picked = useRef(new Map<string, string>())
   const input = useRef<HTMLTextAreaElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
-  const { drafts, addFiles, remove, clear } = useAttachmentDraft(proposalId, uploadForComment)
+  const { drafts, addFiles, remove, clear } = useAttachmentDraft(proposalId, uploadForComment, 'media')
   const attachmentState = draftStatus(drafts)
 
   const query = useMemo(() => mentionQuery(text, caret), [text, caret])

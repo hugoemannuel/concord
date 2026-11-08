@@ -37,6 +37,15 @@ describe('replyPreview', () => {
     expect(replyPreview(originalComTexto, null)).toEqual({ icon: null, text: 'Mensagem de texto' })
   })
 
+  it('texto formatado aparece sem os símbolos, na original e no replyTo', () => {
+    const original: Message = { id: 'm3', author_id: 'u1', content: '# **oi**', created_at: '' }
+    expect(replyPreview(original, null)).toEqual({ icon: null, text: 'oi' })
+    expect(replyPreview(undefined, { id: 'm3', author_id: 'u1', content: '~~x~~ `y`' } as never)).toEqual({
+      icon: null,
+      text: 'x y'
+    })
+  })
+
   it('retorna o conteúdo de replyTo quando original não está disponível', () => {
     const replyTo: ReplyPreview = {
       id: 'm3',

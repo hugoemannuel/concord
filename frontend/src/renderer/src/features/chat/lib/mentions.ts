@@ -1,6 +1,7 @@
 import type { Message, MentionEveryone } from '../api/messages'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 import { serverDisplayName } from '../../servers/lib/serverNames'
+import { stripCode } from './markdown/stripCode'
 
 // Menções @nick no chat de texto, mais @all/@here (menção em massa num canal
 // de servidor). Quem decide se @all/@here pinga é o backend, no campo
@@ -55,10 +56,12 @@ function escape(text: string): string {
 
 /**
  * A mensagem menciona este @nick (sem diferenciar maiúsculas)? Quem se chama
- * all/here/everyone nunca é pingado pelo texto.
+ * all/here/everyone nunca é pingado pelo texto. Menção dentro de código
+ * (`trecho` ou bloco ```) não conta, como no Discord.
  */
-export function mentionsUser(content: string, username: string): boolean {
+export function mentionsUser(message: string, username: string): boolean {
   if (!username || isReserved(username)) return false
+  const content = stripCode(message)
   const re = new RegExp(`${OPENER}@${escape(username)}`, 'gi')
   for (let match = re.exec(content); match; match = re.exec(content)) {
     if (tokenEndsAt(content, match.index + match[0].length)) return true

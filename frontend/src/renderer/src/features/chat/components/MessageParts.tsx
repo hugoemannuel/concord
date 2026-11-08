@@ -17,11 +17,12 @@ import MessageInviteEmbeds from '../../servers/components/ServerInviteEmbed'
 import MessageAttachments from './MessageAttachments'
 import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
+import MessageEmbeds from '../../linkpreview/components/MessageEmbeds'
 import TTSBadge from '../../tts/components/TTSBadge'
 import { useChatStore } from '../store/chatStore'
 import UserServerTag from '../../serverprofile/components/ServerTagChip'
 import { messagePreviewParts } from '../lib/polls'
-import { textPreview, type Preview } from '../lib/preview'
+import { markdownPreview, type Preview } from '../lib/preview'
 
 // Pedaços da linha de mensagem do chat (ver MessageItem).
 
@@ -77,7 +78,7 @@ export function replyPreview(
   replyTo: ReplyPreview | null | undefined
 ): Preview {
   if (original) return messagePreviewParts(original)
-  return textPreview(replyTo?.content || '')
+  return markdownPreview(replyTo?.content || '')
 }
 
 /** "Respondendo a…" acima da mensagem, com o avatar, o apelido, a cor e a prévia do que foi respondido. */
@@ -224,7 +225,7 @@ function MessageStickerSlot({ message }: { message: Message }): React.JSX.Elemen
   )
 }
 
-/** Texto (ou o editor), cartão de convite, figurinha, GIF, anexos e enquete. */
+/** Texto (ou o editor), cartão de convite, figurinha, GIF, anexos, prévias de link e enquete. */
 export function MessageContent({
   message,
   mentionLabels,
@@ -275,6 +276,7 @@ export function MessageContent({
       {message.attachments?.length ? (
         <MessageAttachments attachments={message.attachments} copyImages />
       ) : null}
+      <MessageEmbeds message={message} />
       {message.poll && (
         <PollCard poll={message.poll} isAuthor={canEndPoll} onVote={onVote} onEnd={onEndPoll} />
       )}

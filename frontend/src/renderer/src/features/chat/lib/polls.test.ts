@@ -116,6 +116,13 @@ describe('messagePreview', () => {
   })
 })
 
+describe('messagePreview com Markdown', () => {
+  it('notificação e última mensagem da conversa vêm sem os símbolos e sem o spoiler', () => {
+    expect(messagePreview({ content: '**oi** _tudo_ ||bem||?' })).toBe('oi tudo ▮▮▮▮?')
+    expect(messagePreviewParts({ content: '> citação' })).toEqual({ icon: null, text: 'citação' })
+  })
+})
+
 describe('messagePreviewParts (dentro do app: o ícone é desenhado)', () => {
   it('enquete, figurinha, GIF e anexo levam o tipo; o texto vem sem emoji', () => {
     const audio = [{ kind: 'audio' }] as Attachment[]

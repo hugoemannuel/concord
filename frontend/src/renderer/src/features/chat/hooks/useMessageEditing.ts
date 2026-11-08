@@ -9,7 +9,7 @@ interface Options {
   room: string
   /** Sala atual, para uma edição que termina depois da troca de sala não fechar o editor da nova. */
   roomRef: { current: string }
-  inputRef: { current: HTMLInputElement | null }
+  inputRef: { current: HTMLTextAreaElement | null }
 }
 
 /** Edição de mensagem no chat: qual está aberta (por sala), salvar e fechar. */
