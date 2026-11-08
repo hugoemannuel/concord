@@ -70,6 +70,8 @@ type Message struct {
 	EditedAt *time.Time `json:"edited_at,omitempty"`
 	// Quando a mensagem foi fixada no canal; nil = não fixada.
 	PinnedAt *time.Time `json:"pinned_at,omitempty"`
+	// O autor tirou as prévias de link (suppress_embeds.go): o app não pede cartão.
+	EmbedsSuppressed bool `json:"embeds_suppressed,omitempty"`
 }
 
 type PinnedMessage struct {

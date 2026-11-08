@@ -96,6 +96,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 		&msg.TTS,
 		&msg.TTSVoiceChannelID,
 		&rawCallInvite,
+		&msg.EmbedsSuppressed,
 	}
 	if err := row.Scan(append(dest, extra...)...); err != nil {
 		return Message{}, err

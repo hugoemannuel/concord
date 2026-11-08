@@ -31,7 +31,8 @@ func (a *app) wireChat() {
 	uploads := mustStore(a.uploadsDir, "uploads dir")
 
 	messageRepository := message.MessageRepository(a.db)
-	a.messageService = message.MessageService(messageRepository, push.WrapMessages(a.hub, a.pushTap), a.cachedChannels(), a.conversationRepository, uploads, a.permissionService)
+	messageEvents := push.WrapMessages(a.hub, a.pushTap)
+	a.messageService = message.MessageService(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository, uploads, a.permissionService)
 	a.messageService.SetAudit(a.audit)
 	// Limpeza horária de arquivos sem dono (cascatas e uploads abandonados).
 	go message.NewJanitor(messageRepository, uploads).Run(a.ctx, time.Hour)
@@ -40,6 +41,8 @@ func (a *app) wireChat() {
 	a.roomAccess = message.NewServiceRoomAccess(a.channelService, a.permissionService, a.conversationService, a.friendshipService)
 	attachmentHandler := message.NewAttachmentHandler(messageRepository, uploads, a.uploadSpace, a.roomAccess, a.authService)
 	searchHandler := message.NewSearchHandler(messageRepository, a.permissionService, a.roomAccess)
+	suppressor := message.NewEmbedSuppressor(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository)
+	suppressHandler := message.NewSuppressEmbedsHandler(suppressor, a.permissionService, a.roomAccess)
 	a.wireTTS(messageRepository)
 	a.wireEmojis()
 
@@ -92,6 +95,7 @@ func (a *app) wireChat() {
 		message.MessageRoutes(api, a.messageHandler, a.authMiddleware)
 		message.AttachmentRoutes(api, attachmentHandler, a.authMiddleware)
 		message.SearchRoutes(api, searchHandler, a.authMiddleware)
+		message.SuppressEmbedsRoutes(api, suppressHandler, a.authMiddleware)
 		soundboard.Routes(api, soundboardHandler, a.authMiddleware)
 		soundboard.FavoriteRoutes(api, soundboard.NewFavoritesHandler(a.soundboardRepository, a.soundboardRepository, a.permissionService), a.authMiddleware)
 		sticker.Routes(api, stickerHandler, a.authMiddleware)
