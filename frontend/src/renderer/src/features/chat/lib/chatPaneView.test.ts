@@ -100,6 +100,10 @@ describe('pinnedPreview', () => {
   const pin = (extra: Partial<PinnedMessage>): PinnedMessage =>
     ({ id: 'p', author_id: 'u1', content: '', pinned_at: '', ...extra }) as PinnedMessage
 
+  it('texto sai sem os símbolos do Markdown e sem o conteúdo do spoiler', () => {
+    expect(pinnedPreview(pin({ content: '**oi** ||segredo||' }))).toEqual({ icon: null, text: 'oi ▮▮▮▮' })
+  })
+
   it('figurinha e GIF', () => {
     expect(pinnedPreview(pin({ sticker: { name: 'gato' } as PinnedMessage['sticker'] }))).toEqual({
       icon: 'sticker',

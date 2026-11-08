@@ -12,7 +12,7 @@ export function useAutoFocusComposer({
   canSend
 }: {
   room: string
-  inputRef: React.RefObject<HTMLInputElement | null>
+  inputRef: React.RefObject<HTMLTextAreaElement | null>
   canSend: boolean
 }): void {
   const focusedRoom = useRef<string | null>(null)

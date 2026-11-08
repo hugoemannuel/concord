@@ -15,6 +15,12 @@ import {
 } from './mentions'
 
 describe('mentionsUser', () => {
+  it('menção dentro de código (trecho ou bloco) não pinga, como no Discord', () => {
+    expect(mentionsUser('olha `@fulano`', 'fulano')).toBe(false)
+    expect(mentionsUser('```\n@fulano\n```', 'fulano')).toBe(false)
+    expect(mentionsUser('`x` @fulano', 'fulano')).toBe(true)
+  })
+
   it('reconhece @nick no começo, no meio e com pontuação', () => {
     expect(mentionsUser('@fulano bora?', 'fulano')).toBe(true)
     expect(mentionsUser('valeu @fulano!', 'fulano')).toBe(true)

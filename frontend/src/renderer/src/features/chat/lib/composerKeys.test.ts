@@ -21,7 +21,9 @@ const IDLE: ComposerKeyContext = {
   suggesting: false,
   highlighted: false,
   draftEmpty: false,
-  replying: false
+  replying: false,
+  composing: false,
+  touch: false
 }
 const MENU: ComposerKeyContext = { ...IDLE, suggesting: true }
 
@@ -33,11 +35,12 @@ describe('composerKeyAction', () => {
     expect(composerKeyAction(key('ArrowDown', { ctrlKey: true }), MENU)).toBe('none')
   })
 
-  it('Enter/Tab pegam o item destacado; sem destaque seguem normais', () => {
+  it('Enter/Tab pegam o item destacado; sem destaque, Enter envia e Tab segue normal', () => {
     const highlighted = { ...MENU, highlighted: true }
     expect(composerKeyAction(key('Enter'), highlighted)).toBe('mention-pick')
     expect(composerKeyAction(key('Tab'), highlighted)).toBe('mention-pick')
-    expect(composerKeyAction(key('Enter'), MENU)).toBe('none')
+    expect(composerKeyAction(key('Enter'), MENU)).toBe('send')
+    expect(composerKeyAction(key('Tab'), MENU)).toBe('none')
     expect(composerKeyAction(key('Tab'), { ...MENU, replying: true })).toBe('none')
   })
 
@@ -54,6 +57,22 @@ describe('composerKeyAction', () => {
     expect(composerKeyAction(key('ArrowUp', { metaKey: true }), empty)).toBe('none')
     expect(composerKeyAction(key('ArrowUp'), IDLE)).toBe('none')
     expect(composerKeyAction(key('ArrowDown'), empty)).toBe('none')
+  })
+})
+
+describe('composerKeyAction: várias linhas', () => {
+  it('Enter envia; Shift+Enter quebra a linha (como no Discord)', () => {
+    expect(composerKeyAction(key('Enter'), IDLE)).toBe('send')
+    expect(composerKeyAction(key('Enter', { shiftKey: true }), IDLE)).toBe('none')
+  })
+
+  it('Enter no meio da composição do teclado (IME, acentos) não envia', () => {
+    expect(composerKeyAction(key('Enter'), { ...IDLE, composing: true })).toBe('none')
+  })
+
+  it('no toque Enter quebra a linha: quem envia é o botão', () => {
+    expect(composerKeyAction(key('Enter'), { ...IDLE, touch: true })).toBe('none')
+    expect(composerKeyAction(key('Enter'), { ...MENU, highlighted: true, touch: true })).toBe('mention-pick')
   })
 })
 

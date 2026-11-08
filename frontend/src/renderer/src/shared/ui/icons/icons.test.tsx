@@ -39,10 +39,11 @@ function importedNames(): Set<string> {
 }
 
 describe('shared/ui/icons', () => {
+  // Lê todos os arquivos do renderer: com a cobertura ligada (crap.mjs) passa dos 5 s padrão.
   it('reexporta todos os nomes que o app importa', () => {
     const missing = [...importedNames()].filter((n) => !(n in icons))
     expect(missing).toEqual([])
-  })
+  }, 30_000)
 
   it('não tem mais os ícones mortos', () => {
     for (const dead of [

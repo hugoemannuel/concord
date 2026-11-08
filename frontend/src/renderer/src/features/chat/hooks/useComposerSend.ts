@@ -22,7 +22,7 @@ interface Options {
   room: string
   /** Sala atual, para um envio que termina depois da troca de sala não limpar o campo da nova. */
   roomRef: { current: string }
-  inputRef: React.RefObject<HTMLInputElement | null>
+  inputRef: React.RefObject<HTMLTextAreaElement | null>
   draft: string
   setDraft: Dispatch<SetStateAction<string>>
   drafts: DraftAttachment[]

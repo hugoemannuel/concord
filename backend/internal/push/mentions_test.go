@@ -21,6 +21,7 @@ func TestMentionedUsernames(t *testing.T) {
 		{"nome curto demais não vale", "oi @ab", nil},
 		{"sem menção", "mensagem comum", nil},
 		{"vazio", "", nil},
+		{"dentro de código não pinga", "`@ana_mobile` e ```\n@bia_web\n``` mas @caio_dev", []string{"caio_dev"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
