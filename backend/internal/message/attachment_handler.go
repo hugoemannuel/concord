@@ -251,7 +251,13 @@ func (h *AttachmentHandler) ServeFile(c *gin.Context) {
 	}
 	defer file.Close()
 
-	header := c.Writer.Header()
+	setFileHeaders(c.Writer.Header(), a)
+	// ServeContent responde Range (seek de vídeo/áudio) e If-Modified-Since.
+	http.ServeContent(c.Writer, c.Request, "", a.CreatedAt, file)
+}
+
+// setFileHeaders: tipo, cache e as proteções de quem abre o arquivo direto.
+func setFileHeaders(header http.Header, a *storedAttachment) {
 	header.Set("Content-Type", a.ContentType)
 	header.Set("X-Content-Type-Options", "nosniff")
 	// O app web roda na mesma origem da mídia (e dos tokens no localStorage):
@@ -260,6 +266,4 @@ func (h *AttachmentHandler) ServeFile(c *gin.Context) {
 	header.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	header.Set("Cache-Control", "private, max-age=3600")
 	header.Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": a.Filename}))
-	// ServeContent responde Range (seek de vídeo/áudio) e If-Modified-Since.
-	http.ServeContent(c.Writer, c.Request, "", a.CreatedAt, file)
 }
