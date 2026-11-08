@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { DraftAttachment } from '../lib/attachments'
 import ComposerAttachments from './ComposerAttachments'
+import { FileIcon } from '../../../shared/ui/icons'
 
 const draft = (over: Partial<DraftAttachment>): DraftAttachment => ({
   localId: 'a',
@@ -37,5 +38,17 @@ describe('ComposerAttachments', () => {
     expect(html.match(/aria-label="Remover anexo"/g)).toHaveLength(3)
     expect(html).not.toContain('×')
     expect(html).toMatch(/aria-label="Remover anexo"[^>]*focus-ring|focus-ring[^>]*aria-label="Remover anexo"/)
+  })
+
+  it('arquivo genérico (ex.: message.txt colado) mostra o ícone de arquivo, não o microfone', () => {
+    const file = renderToStaticMarkup(
+      <ComposerAttachments
+        drafts={[draft({ kind: 'file', previewUrl: null, file: new File(['x'], 'message.txt') })]}
+        onRemove={noop}
+      />
+    )
+    const fileIcon = renderToStaticMarkup(<FileIcon />).match(/d="([^"]+)"/)![1]
+    expect(file).toContain('message.txt')
+    expect(file).toContain(fileIcon)
   })
 })

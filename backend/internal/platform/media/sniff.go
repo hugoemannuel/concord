@@ -14,6 +14,9 @@ const (
 	KindImage Kind = "image"
 	KindVideo Kind = "video"
 	KindAudio Kind = "audio"
+	// KindFile: qualquer outro arquivo do chat (pdf, zip, código...). Nunca
+	// sai do Sniff; quem classifica é o upload do chat (ver Sniff).
+	KindFile Kind = "file"
 )
 
 // MaxFileBytes é o limite por arquivo (25 MB); o app usa o mesmo número.
@@ -54,7 +57,9 @@ func isMP4(head []byte) bool {
 // Segurança: a mídia é servida na mesma origem do app web. Aceitar aqui um
 // tipo que o navegador renderiza como documento (SVG, HTML, PDF…) abre
 // caminho para script na origem do app — não adicione tipos assim sem rever
-// os cabeçalhos de /api/media (CSP sandbox, nosniff).
+// os cabeçalhos de /api/media (CSP sandbox, nosniff). O que o Sniff não
+// reconhece vira KindFile no chat (text/plain ou application/octet-stream,
+// ver SniffText) e é servido sempre como attachment: baixa, nunca abre.
 func Sniff(head []byte, declared string) (kind Kind, contentType string, ok bool) {
 	declaredAudio := strings.HasPrefix(strings.ToLower(strings.TrimSpace(declared)), "audio/")
 

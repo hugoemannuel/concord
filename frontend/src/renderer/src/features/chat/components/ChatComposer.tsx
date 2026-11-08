@@ -1,6 +1,6 @@
 import { useRef, type Dispatch, type SetStateAction } from 'react'
 import type { Message } from '../api/messages'
-import { ACCEPT_ATTRIBUTE, type DraftAttachment } from '../lib/attachments'
+import type { DraftAttachment } from '../lib/attachments'
 import type { ChatPermissions } from '../lib/chatPermissions'
 import { composerPlaceholder } from '../lib/chatPaneView'
 import type { UserSuggestionInput } from '../lib/mentions'
@@ -143,7 +143,6 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
               ref={fileInputRef}
               type="file"
               multiple
-              accept={ACCEPT_ATTRIBUTE}
               hidden
               onChange={(e) => {
                 p.addFiles(Array.from(e.target.files ?? []))

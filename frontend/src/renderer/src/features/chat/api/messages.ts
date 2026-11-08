@@ -43,7 +43,7 @@ export interface Poll {
   total_voters: number
 }
 
-export type AttachmentKind = 'image' | 'video' | 'audio'
+export type AttachmentKind = 'image' | 'video' | 'audio' | 'file'
 
 export interface Attachment {
   id: string

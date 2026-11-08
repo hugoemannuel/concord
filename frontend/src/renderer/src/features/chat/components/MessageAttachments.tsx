@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
 import type { Attachment } from '../api/messages'
-import { fitMedia, formatBytes } from '../lib/attachments'
+import { fitMedia, formatBytes, groupAttachments, isTextFile } from '../lib/attachments'
 import { imageMenuHandler } from '../store/imageMenuStore'
 import { PlayIcon } from '../../../shared/ui/icons'
 import AudioPlayer from './AudioPlayer'
 import MediaLightbox from './MediaLightbox'
+import FileCard from './attachments/FileCard'
+import TextFilePreview from './attachments/TextFilePreview'
 import { useMediaSrc } from '../hooks/useMediaSrc'
 import { useNearViewport } from '../hooks/useNearViewport'
 
@@ -122,7 +124,8 @@ function VideoAttachment({ attachment }: { attachment: Attachment }): React.JSX.
 }
 
 /**
- * Anexos de uma mensagem: imagens e vídeos lado a lado, áudios um por linha.
+ * Anexos de uma mensagem: imagens e vídeos lado a lado; áudios e arquivos um
+ * por linha (arquivo de texto com prévia, o resto como cartão para baixar).
  * copyImages liga o "Copiar imagem" no botão direito das imagens (chat).
  */
 function MessageAttachments({
@@ -132,8 +135,7 @@ function MessageAttachments({
   attachments: Attachment[]
   copyImages?: boolean
 }): React.JSX.Element {
-  const visual = attachments.filter((a) => a.kind !== 'audio')
-  const audios = attachments.filter((a) => a.kind === 'audio')
+  const { visual, audios, files } = groupAttachments(attachments)
 
   return (
     <div data-message-media className="mt-1 flex flex-col gap-2">
@@ -151,6 +153,9 @@ function MessageAttachments({
       {audios.map((a) => (
         <AudioPlayer key={a.id} attachment={a} />
       ))}
+      {files.map((a) =>
+        isTextFile(a) ? <TextFilePreview key={a.id} attachment={a} /> : <FileCard key={a.id} attachment={a} />
+      )}
     </div>
   )
 }

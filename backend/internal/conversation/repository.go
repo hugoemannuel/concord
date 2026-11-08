@@ -312,6 +312,7 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Summary
 						WHEN COUNT(*) > 1 THEN '📎 ' || COUNT(*) || ' anexos'
 						WHEN MIN(a.kind) = 'image' THEN '🖼️ Imagem'
 						WHEN MIN(a.kind) = 'video' THEN '🎬 Vídeo'
+						WHEN MIN(a.kind) = 'file' THEN '📎 Arquivo'
 						ELSE '🎤 Áudio'
 					END
 					FROM message_attachments a

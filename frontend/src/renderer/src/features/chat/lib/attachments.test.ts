@@ -10,6 +10,9 @@ import {
   fitMedia,
   formatBytes,
   formatDuration,
+  groupAttachments,
+  hasVisualPreview,
+  isTextFile,
   mediaFileUrl,
   playableDuration,
   sendErrorMessage,
@@ -59,6 +62,41 @@ describe('anexos', () => {
       error: '"z.png" está vazio.'
     })
   })
+  it('no chat (any) qualquer arquivo entra; o que não é mídia vira file', () => {
+    expect(classifyFile({ name: 'doc.pdf', type: 'application/pdf', size: 10 }, 'any')).toEqual({
+      ok: true,
+      kind: 'file'
+    })
+    expect(classifyFile({ name: 'setup.exe', type: '', size: 10 }, 'any')).toEqual({
+      ok: true,
+      kind: 'file'
+    })
+    expect(classifyFile({ name: 'a.png', type: 'image/png', size: 10 }, 'any')).toEqual({
+      ok: true,
+      kind: 'image'
+    })
+    expect(classifyFile({ name: 'big.zip', type: 'application/zip', size: 30 * MB }, 'any').ok).toBe(
+      false
+    )
+    expect(classifyFile({ name: 'z.md', type: 'text/markdown', size: 0 }, 'any').ok).toBe(false)
+    const r = acceptFiles(0, [{ name: 'n.md', type: 'text/markdown', size: 3 }], 'any')
+    expect(r.accepted.map((a) => a.kind)).toEqual(['file'])
+    expect(acceptFiles(0, [{ name: 'n.md', type: 'text/markdown', size: 3 }]).accepted).toEqual([])
+  })
+  it('separa mídia, áudio e arquivo; texto pelo tipo do servidor', () => {
+    const a = (id: string, kind: Attachment['kind'], type = 'x/y'): Attachment =>
+      ({ id, kind, content_type: type }) as Attachment
+    const groups = groupAttachments([a('1', 'image'), a('2', 'file'), a('3', 'audio'), a('4', 'video')])
+    expect(groups.visual.map((x) => x.id)).toEqual(['1', '4'])
+    expect(groups.audios.map((x) => x.id)).toEqual(['3'])
+    expect(groups.files.map((x) => x.id)).toEqual(['2'])
+    expect(isTextFile(a('5', 'file', 'text/plain; charset=utf-8'))).toBe(true)
+    expect(isTextFile(a('6', 'file', 'application/octet-stream'))).toBe(false)
+    expect(hasVisualPreview('image')).toBe(true)
+    expect(hasVisualPreview('video')).toBe(true)
+    expect(hasVisualPreview('audio')).toBe(false)
+    expect(hasVisualPreview('file')).toBe(false)
+  })
   it('acceptFiles respeita 10 por mensagem', () => {
     const files = Array.from({ length: 4 }, (_, i) => ({
       name: `${i}.png`,
@@ -89,6 +127,7 @@ describe('anexos', () => {
     expect(attachmentPreview([{ kind: 'image' }])).toEqual({ icon: 'image', text: 'Imagem' })
     expect(attachmentPreview([{ kind: 'video' }])).toEqual({ icon: 'video', text: 'Vídeo' })
     expect(attachmentPreview([{ kind: 'audio' }])).toEqual({ icon: 'audio', text: 'Áudio' })
+    expect(attachmentPreview([{ kind: 'file' }])).toEqual({ icon: 'attachment', text: 'Arquivo' })
     expect(attachmentPreview([{ kind: 'image' }, { kind: 'audio' }, { kind: 'image' }])).toEqual({
       icon: 'attachment',
       text: '3 anexos'
