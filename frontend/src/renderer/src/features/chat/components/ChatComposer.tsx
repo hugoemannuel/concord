@@ -37,7 +37,7 @@ export interface ChatComposerProps {
   disabledReason?: string
   permissions: ChatPermissions
   isChannel: boolean
-  inputRef: React.RefObject<HTMLInputElement | null>
+  inputRef: React.RefObject<HTMLTextAreaElement | null>
   roomRef: { current: string }
   /** A lista volta a acompanhar o fim (envio de mensagem, figurinha, GIF). */
   followBottom: () => void
@@ -48,7 +48,7 @@ export interface ChatComposerProps {
   drafts: DraftAttachment[]
   addFiles: (files: File[]) => void
   removeAttachment: (localId: string) => void
-  onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => void
+  onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
   /** ↑ no campo vazio: abre a última mensagem minha na edição (false se não há). */
   onEditLast: () => boolean
   onOpenPoll: () => void
@@ -123,7 +123,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
           />
           <form
             onSubmit={send.handleSubmit}
-            className="relative flex items-center gap-2 rounded-xl border border-subtle bg-input px-3 py-2 backdrop-blur-xl focus-within:border-violet-500/40 max-md:gap-0.5 max-md:px-1 max-md:py-1"
+            className="relative flex items-end gap-2 rounded-xl border border-subtle bg-input px-3 py-2 backdrop-blur-xl focus-within:border-violet-500/40 max-md:gap-0.5 max-md:px-1 max-md:py-1"
           >
             <SlashCommandSuggestions
               isChannel={p.isChannel}

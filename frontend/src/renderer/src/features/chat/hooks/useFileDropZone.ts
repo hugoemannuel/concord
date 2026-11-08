@@ -13,7 +13,7 @@ export interface FileDropZone {
     onDrop: (e: React.DragEvent) => void
   }
   /** Colar texto continua normal; só arquivo (ex.: print) vira anexo. */
-  onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => void
+  onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
 }
 
 /** Arrastar, soltar e colar arquivos no chat: tudo vai para addFiles. */
@@ -46,7 +46,7 @@ export function useFileDropZone(addFiles: (files: File[]) => void): FileDropZone
     }
   }
 
-  const onPaste = (e: React.ClipboardEvent<HTMLInputElement>): void => {
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>): void => {
     if (e.clipboardData.files.length === 0) return
     e.preventDefault()
     addFiles(Array.from(e.clipboardData.files))

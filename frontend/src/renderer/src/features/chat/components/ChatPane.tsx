@@ -104,7 +104,7 @@ function ChatPane({
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const highlightTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(highlightTimer.current), [])
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   useAutoFocusComposer({ room, inputRef, canSend: !disabledReason })
   const { drafts, addFiles: addDraftFiles, remove: removeAttachment } = useAttachmentDraft(room)
   /** Sem ATTACH_FILES, arrastar, colar ou escolher arquivos só avisa. */

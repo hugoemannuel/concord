@@ -11,7 +11,7 @@ interface Options {
   draft: string
   /** Troca o texto do campo (com o aviso de digitando). */
   replaceDraft: (text: string) => void
-  inputRef: React.RefObject<HTMLInputElement | null>
+  inputRef: React.RefObject<HTMLTextAreaElement | null>
   mentionable: UserSuggestionInput[]
   canMentionEveryone: boolean
 }
@@ -31,7 +31,7 @@ export interface MentionMenu {
 }
 
 /** Cursor no campo; sem seleção, o fim do texto. */
-const caretOf = (el: HTMLInputElement, draft: string): number => el.selectionStart ?? draft.length
+const caretOf = (el: HTMLTextAreaElement, draft: string): number => el.selectionStart ?? draft.length
 
 /** Menu de sugestões do @ no campo de mensagem (estado por sala). */
 export function useMentionMenu({

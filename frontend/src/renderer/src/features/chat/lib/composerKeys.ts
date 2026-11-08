@@ -1,6 +1,7 @@
 /**
- * Teclas do campo de mensagem (ChatPane): menu de @, ↑ para editar a última
- * mensagem e Esc para largar a resposta. Função pura: o componente só executa.
+ * Teclas do campo de mensagem (ComposerInput): Enter envia (Shift+Enter quebra
+ * a linha), menu de @, ↑ para editar a última mensagem e Esc para largar a
+ * resposta. Função pura: o componente só executa.
  */
 
 export type ComposerKeyAction =
@@ -9,6 +10,7 @@ export type ComposerKeyAction =
   | 'mention-close'
   | 'edit-last'
   | 'cancel-reply'
+  | 'send'
   | 'none'
 
 export interface ComposerKey {
@@ -26,6 +28,10 @@ export interface ComposerKeyContext {
   highlighted: boolean
   draftEmpty: boolean
   replying: boolean
+  /** Composição do teclado em andamento (IME, acento morto): Enter confirma, não envia. */
+  composing: boolean
+  /** Toque é o ponteiro principal: Enter quebra a linha e quem envia é o botão. */
+  touch: boolean
 }
 
 const isArrow = (key: string): boolean => key === 'ArrowDown' || key === 'ArrowUp'
@@ -37,7 +43,8 @@ const navModifier = (e: ComposerKey): boolean => e.altKey || e.ctrlKey || e.meta
 /** Menu de @ aberto: null deixa a tecla seguir para as regras do campo. */
 function mentionKeyAction(e: ComposerKey, highlighted: boolean): ComposerKeyAction | null {
   if (isArrow(e.key) && !navModifier(e)) return 'mention-step'
-  if (isConfirm(e.key)) return highlighted ? 'mention-pick' : 'none' // nada de @all sem querer
+  if (isConfirm(e.key) && highlighted) return 'mention-pick'
+  if (e.key === 'Tab') return 'none' // nada de @all sem querer; Enter sem destaque envia
   return e.key === 'Escape' ? 'mention-close' : null
 }
 
@@ -46,9 +53,15 @@ function isEditLast(e: ComposerKey, draftEmpty: boolean): boolean {
   return e.key === 'ArrowUp' && draftEmpty && !e.shiftKey && !navModifier(e)
 }
 
+/** Enter sozinho envia, como no Discord; no toque não há Shift, então Enter quebra a linha. */
+function isSend(e: ComposerKey, ctx: ComposerKeyContext): boolean {
+  return e.key === 'Enter' && !e.shiftKey && !ctx.composing && !ctx.touch
+}
+
 export function composerKeyAction(e: ComposerKey, ctx: ComposerKeyContext): ComposerKeyAction {
   const mention = ctx.suggesting ? mentionKeyAction(e, ctx.highlighted) : null
   if (mention) return mention
+  if (isSend(e, ctx)) return 'send'
   if (isEditLast(e, ctx.draftEmpty)) return 'edit-last'
   return e.key === 'Escape' && ctx.replying ? 'cancel-reply' : 'none'
 }
