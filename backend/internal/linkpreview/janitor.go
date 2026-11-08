@@ -42,16 +42,22 @@ func (j *Janitor) Run(ctx context.Context) {
 	ticker := time.NewTicker(janitorEvery)
 	defer ticker.Stop()
 	for {
-		if rows, files, err := j.Sweep(ctx); err != nil {
-			log.Printf("[linkpreview] faxina: %v", err)
-		} else if rows > 0 || files > 0 {
-			log.Printf("[linkpreview] faxina: %d prévia(s) vencida(s), %d imagem(ns) apagada(s)", rows, files)
-		}
+		logSweep(j.Sweep(ctx))
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 		}
+	}
+}
+
+// logSweep registra a faxina só quando algo aconteceu.
+func logSweep(rows int64, files int, err error) {
+	switch {
+	case err != nil:
+		log.Printf("[linkpreview] faxina: %v", err)
+	case rows > 0 || files > 0:
+		log.Printf("[linkpreview] faxina: %d prévia(s) vencida(s), %d imagem(ns) apagada(s)", rows, files)
 	}
 }
 
