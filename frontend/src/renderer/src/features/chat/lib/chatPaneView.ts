@@ -9,7 +9,7 @@ import { mentionSuggestions, type MentionSuggestion, type UserSuggestionInput } 
 import type { User } from '../../auth/store/authStore'
 import { MUSIC_COMMANDS, type SlashSuggestion } from '../../music/lib/music'
 import { TTS_SUGGESTION } from '../../tts/lib/ttsCommand'
-import { textPreview, type Preview } from './preview'
+import { markdownPreview, textPreview, type Preview } from './preview'
 
 /** Id do canal de uma sala `channel:<id>`; DM e grupo não têm (null). */
 export function channelIdOf(room: string): string | null {
@@ -84,7 +84,7 @@ function richPreview(pin: PinnedMessage): Preview | null {
 
 function contentPreview(pin: PinnedMessage): Preview | null {
   const text = pin.content?.trim()
-  return text ? textPreview(text) : null
+  return text ? markdownPreview(text) : null
 }
 
 /** Prévia da mensagem fixada na barra do topo do canal. */

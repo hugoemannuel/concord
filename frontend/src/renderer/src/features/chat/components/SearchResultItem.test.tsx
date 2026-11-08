@@ -22,6 +22,12 @@ const render = (r: SearchResult): string =>
   renderToStaticMarkup(<SearchResultItem result={r} terms={['pizza']} onOpen={() => {}} />)
 
 describe('SearchResultItem', () => {
+  it('texto formatado aparece sem os símbolos, ainda com o termo marcado', () => {
+    const html = render(result({ content: '**pizza** hoje' }))
+    expect(html).not.toContain('**')
+    expect(html).toContain('pizza</mark>')
+  })
+
   it('texto com o termo marcado, autor e canal', () => {
     const html = render(result({ channel_name: 'geral' }))
     expect(html).toContain('<mark')

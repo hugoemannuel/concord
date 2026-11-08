@@ -21,7 +21,7 @@ import TTSBadge from '../../tts/components/TTSBadge'
 import { useChatStore } from '../store/chatStore'
 import UserServerTag from '../../serverprofile/components/ServerTagChip'
 import { messagePreviewParts } from '../lib/polls'
-import { textPreview, type Preview } from '../lib/preview'
+import { markdownPreview, type Preview } from '../lib/preview'
 
 // Pedaços da linha de mensagem do chat (ver MessageItem).
 
@@ -77,7 +77,7 @@ export function replyPreview(
   replyTo: ReplyPreview | null | undefined
 ): Preview {
   if (original) return messagePreviewParts(original)
-  return textPreview(replyTo?.content || '')
+  return markdownPreview(replyTo?.content || '')
 }
 
 /** "Respondendo a…" acima da mensagem, com o avatar, o apelido, a cor e a prévia do que foi respondido. */

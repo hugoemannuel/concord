@@ -2,6 +2,7 @@ import { formatMessageDateTime } from '../lib/messageDateTime'
 import type { SearchResult } from '../api/search'
 import { highlightParts } from '../lib/messageSearch'
 import { messagePreviewParts } from '../lib/polls'
+import { stripMarkdown } from '../lib/markdown/stripMarkdown'
 import { serverDisplayName } from '../../servers/lib/serverNames'
 import { useServerMemberColor } from '../../servers/hooks/useServerNames'
 import Avatar from '../../../shared/ui/Avatar'
@@ -19,7 +20,7 @@ function ResultBody({ result, terms }: { result: SearchResult; terms: string[] }
   if (!result.content) return <PreviewText preview={messagePreviewParts(result)} />
   return (
     <>
-      {highlightParts(result.content, terms).map((p, i) =>
+      {highlightParts(stripMarkdown(result.content), terms).map((p, i) =>
         p.match ? (
           <mark key={i} className="rounded bg-warning/30 px-0.5 text-warning">
             {p.text}
