@@ -25,6 +25,7 @@ import { checkScreenCastPortal } from './screen/screenPortal'
 import { portalMissingMessage, screenFlowArgs, screenShareFlow } from '../shared/screenShareFlow'
 import { enforceSandbox, SANDBOXED_PREFERENCES } from './security/sandbox'
 import { appOrigins, setupSessionPermissions } from './security/sessionPermissions'
+import { setupYouTubeReferer } from './security/youtubeReferer'
 import {
   attachCloseToTray,
   ensureSingleInstance,
@@ -333,6 +334,8 @@ app.whenReady().then(() => {
   // Câmera, microfone, notificação...: só o próprio app e só o que ele usa.
   const origins = appOrigins(join(__dirname, '../renderer'), devRendererUrl, __CONCORD_SERVER_URLS__)
   setupSessionPermissions(app, session.defaultSession, origins)
+  // Vídeo do YouTube no chat: o player precisa saber de que site veio.
+  setupYouTubeReferer(session.defaultSession, __CONCORD_SERVER_URLS__)
   // Sem a barra "File Edit View Window" padrão do Electron (aparecia no Alt).
   if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
 

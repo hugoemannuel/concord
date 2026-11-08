@@ -58,3 +58,27 @@ func TestPopulateMedia_IgnoraGifInvalidoESemSticker(t *testing.T) {
 		t.Fatalf("nada deveria ser preenchido: %+v", msg)
 	}
 }
+
+// lastBoolRow marca o último destino antes das colunas extras (embeds_suppressed).
+type lastBoolRow struct{ extra int }
+
+func (r lastBoolRow) Scan(dest ...any) error {
+	b, ok := dest[len(dest)-1-r.extra].(*bool)
+	if !ok {
+		return errors.New("embeds_suppressed não é a última coluna de messageColumns")
+	}
+	*b = true
+	return nil
+}
+
+func TestScanMessageRow_LeEmbedsSuppressed(t *testing.T) {
+	msg, err := scanMessageRow(lastBoolRow{})
+	if err != nil || !msg.EmbedsSuppressed {
+		t.Fatalf("EmbedsSuppressed = %v, err = %v", msg.EmbedsSuppressed, err)
+	}
+	var extra string
+	msg, err = scanMessageRow(lastBoolRow{extra: 1}, &extra)
+	if err != nil || !msg.EmbedsSuppressed {
+		t.Fatalf("com coluna extra: EmbedsSuppressed = %v, err = %v", msg.EmbedsSuppressed, err)
+	}
+}
