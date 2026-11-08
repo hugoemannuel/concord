@@ -264,5 +264,5 @@ func setFileHeaders(header http.Header, a *storedAttachment) {
 	// vídeo e áudio dentro do app não são afetados.
 	header.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	header.Set("Cache-Control", "private, max-age=3600")
-	header.Set("Content-Disposition", mime.FormatMediaType(disposition(a.Kind),map[string]string{"filename": a.Filename}))
+	header.Set("Content-Disposition", mime.FormatMediaType(disposition(a.Kind), map[string]string{"filename": a.Filename}))
 }
