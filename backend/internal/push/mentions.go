@@ -3,6 +3,8 @@ package push
 import (
 	"regexp"
 	"strings"
+
+	"gin-quickstart/backend/internal/message"
 )
 
 // O "@" precisa abrir o token (começo do texto, espaço ou pontuação de abertura): não vale em e-mail
@@ -12,11 +14,12 @@ var mentionPattern = regexp.MustCompile(`(?i)(?:^|[\s(\[{,;:!?"'])@([a-z0-9_]{3,
 // Palavras que parecem usuário mas são menções em massa (tratadas por message.DetectEveryoneMention).
 var reservedMentions = map[string]bool{"all": true, "here": true, "everyone": true}
 
-// MentionedUsernames devolve os @usuários citados no texto, em minúsculas, sem repetir.
+// MentionedUsernames devolve os @usuários citados no texto, em minúsculas, sem repetir. Menção dentro
+// de código não conta (message.StripCode), como no Discord.
 func MentionedUsernames(content string) []string {
 	var names []string
 	seen := map[string]bool{}
-	for _, m := range mentionPattern.FindAllStringSubmatch(content, -1) {
+	for _, m := range mentionPattern.FindAllStringSubmatch(message.StripCode(content), -1) {
 		name := strings.ToLower(m[1])
 		if reservedMentions[name] || seen[name] {
 			continue

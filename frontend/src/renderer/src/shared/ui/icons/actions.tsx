@@ -75,6 +75,15 @@ export function UnarchiveIcon(props: IconProps): React.JSX.Element {
   )
 }
 
+/** Duas folhas sobrepostas (copiar). */
+export function CopyIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2z" />
+    </Icon>
+  )
+}
+
 export function CheckIcon(props: IconProps): React.JSX.Element {
   return (
     <LineIcon {...props}>

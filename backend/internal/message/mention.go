@@ -31,8 +31,8 @@ func isNickByte(b byte) bool {
 // maiúsculas): o "@" precisa abrir o token (começo, espaço ou pontuação de
 // abertura), então não vale dentro de palavra, e-mail ("x@all.com") nem link
 // ("x.com/@all"); também não vale nick maior ("@allan", "@all.bot"). Se as duas aparecem, @all ganha. Mesma regra
-// de token do @nick do app (lib/mentions.ts). O app não renderiza código
-// inline, então crase não muda nada.
+// de token do @nick do app (lib/mentions.ts). Dentro de código (`trecho` ou
+// bloco ```) não vale, como no Discord (StripCode).
 func DetectEveryoneMention(content string) string {
 	hasAll, hasHere := everyoneMentions(content)
 	switch {
@@ -52,7 +52,7 @@ func containsEveryone(content string, kind string) bool {
 
 // everyoneMentions diz quais de @all e @here aparecem como palavra inteira.
 func everyoneMentions(content string) (hasAll bool, hasHere bool) {
-	lower := strings.ToLower(content)
+	lower := strings.ToLower(StripCode(content))
 	for i := 0; i < len(lower); i++ {
 		if lower[i] != '@' {
 			continue
