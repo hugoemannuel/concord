@@ -289,3 +289,26 @@ export function CircleSlashIcon(props: IconProps): React.JSX.Element {
     </Icon>
   )
 }
+
+/** Arquivo (documento com a ponta dobrada): anexo que não é foto, vídeo nem áudio. */
+export function FileIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <path
+        fillRule="evenodd"
+        d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.75V9h5.25L13 3.75z"
+      />
+    </Icon>
+  )
+}
+
+/** Baixar: seta para baixo sobre a bandeja. */
+export function DownloadIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Icon {...props}>
+      <rect x="10.75" y="3" width="2.5" height="11.5" rx="1.25" />
+      <path d="M6.6 10.1a1.25 1.25 0 0 1 1.77 0L12 13.73l3.63-3.63a1.25 1.25 0 1 1 1.77 1.77l-4.52 4.51a1.25 1.25 0 0 1-1.76 0L6.6 11.87a1.25 1.25 0 0 1 0-1.77z" />
+      <rect x="4" y="18.5" width="16" height="2.5" rx="1.25" />
+    </Icon>
+  )
+}

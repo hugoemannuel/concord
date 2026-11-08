@@ -14,6 +14,7 @@ import { copyText } from '../../../shared/lib/clipboard'
 import CreatePollModal from './CreatePollModal'
 import { usePinStore } from '../store/pinStore'
 import { useAttachmentDraft } from '../hooks/useAttachmentDraft'
+import { uploadAttachment } from '../api/attachments'
 import { useRoomState } from '../hooks/useRoomState'
 import { useMessageEditing } from '../hooks/useMessageEditing'
 import { useFileDropZone } from '../hooks/useFileDropZone'
@@ -106,7 +107,11 @@ function ChatPane({
   useEffect(() => () => window.clearTimeout(highlightTimer.current), [])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   useAutoFocusComposer({ room, inputRef, canSend: !disabledReason })
-  const { drafts, addFiles: addDraftFiles, remove: removeAttachment } = useAttachmentDraft(room)
+  const { drafts, addFiles: addDraftFiles, remove: removeAttachment } = useAttachmentDraft(
+    room,
+    uploadAttachment,
+    'any'
+  )
   /** Sem ATTACH_FILES, arrastar, colar ou escolher arquivos só avisa. */
   const addFiles = (files: File[]): void => {
     if (files.length === 0) return
@@ -116,7 +121,7 @@ function ChatPane({
     }
     addDraftFiles(files)
   }
-  const drop = useFileDropZone(addFiles)
+  const drop = useFileDropZone(addFiles, permissions.canAttach ? drafts.length : null)
   // Sala atual, para um envio que termina depois da troca de sala não limpar
   // o campo da sala nova.
   const roomRef = useRef(room)

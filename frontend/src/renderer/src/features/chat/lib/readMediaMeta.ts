@@ -52,9 +52,11 @@ function readTimedMeta(file: Blob, kind: 'video' | 'audio'): Promise<MediaMeta> 
 
 /**
  * Largura/altura (imagem e vídeo) e duração (vídeo e áudio) lidas no próprio
- * app antes do upload, para a conversa reservar o espaço. Qualquer falha → {}.
+ * app antes do upload, para a conversa reservar o espaço. Arquivo genérico
+ * não tem nenhum dos dois. Qualquer falha → {}.
  */
 export async function readMediaMeta(file: Blob, kind: AttachmentKind): Promise<MediaMeta> {
+  if (kind === 'file') return {}
   try {
     if (kind === 'image') {
       let timer: ReturnType<typeof setTimeout> | undefined

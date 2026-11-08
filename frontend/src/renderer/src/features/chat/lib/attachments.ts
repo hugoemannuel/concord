@@ -5,7 +5,13 @@ import type { Preview } from './preview'
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 export const MAX_ATTACHMENTS_PER_MESSAGE = 10
 
-/** `accept` do seletor de arquivos: os mesmos tipos que o backend aceita. */
+/**
+ * O que entra no rascunho: 'media' (comentários de propostas: só foto, vídeo
+ * e áudio) ou 'any' (chat: qualquer arquivo; o que não é mídia vira 'file').
+ */
+export type AcceptMode = 'media' | 'any'
+
+/** `accept` do seletor de mídia (comentários de propostas); o chat aceita tudo. */
 export const ACCEPT_ATTRIBUTE =
   'image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/x-m4a,audio/webm,.png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.mp3,.ogg,.wav,.m4a'
 
@@ -58,9 +64,10 @@ function kindOf(file: FileLike): AttachmentKind | null {
 }
 
 export function classifyFile(
-  file: FileLike
+  file: FileLike,
+  accept: AcceptMode = 'media'
 ): { ok: true; kind: AttachmentKind } | { ok: false; error: string } {
-  const kind = kindOf(file)
+  const kind = kindOf(file) ?? (accept === 'any' ? 'file' : null)
   if (!kind) {
     return {
       ok: false,
@@ -77,13 +84,14 @@ export function classifyFile(
 /** Separa o que pode entrar no rascunho (que já tem currentCount anexos). */
 export function acceptFiles<T extends FileLike>(
   currentCount: number,
-  files: T[]
+  files: T[],
+  accept: AcceptMode = 'media'
 ): { accepted: { file: T; kind: AttachmentKind }[]; errors: string[] } {
   const accepted: { file: T; kind: AttachmentKind }[] = []
   const errors: string[] = []
   let overLimit = false
   for (const file of files) {
-    const result = classifyFile(file)
+    const result = classifyFile(file, accept)
     if (!result.ok) {
       errors.push(result.error)
       continue
@@ -146,6 +154,8 @@ export function attachmentPreview(
       return { icon: 'image', text: 'Imagem' }
     case 'video':
       return { icon: 'video', text: 'Vídeo' }
+    case 'file':
+      return { icon: 'attachment', text: 'Arquivo' }
     default:
       return { icon: 'audio', text: 'Áudio' }
   }
@@ -184,6 +194,27 @@ export function mediaFileUrl(apiBaseUrl: string, attachmentId: string, token: st
 /** Tipo MIME sem parâmetros e em minúsculas ("image/png; x=1" → "image/png"). */
 export function baseMime(contentType: string): string {
   return contentType.split(';')[0].trim().toLowerCase()
+}
+
+/** Arquivo genérico que o servidor detectou como texto (UTF-8): tem prévia. */
+export function isTextFile(attachment: Pick<Attachment, 'kind' | 'content_type'>): boolean {
+  return attachment.kind === 'file' && baseMime(attachment.content_type) === 'text/plain'
+}
+
+/** Imagem e vídeo ganham miniatura (blob:) no rascunho; áudio e arquivo, ícone. */
+export function hasVisualPreview(kind: AttachmentKind): boolean {
+  return kind === 'image' || kind === 'video'
+}
+
+/** Anexos da mensagem por lugar na tela: mídia lado a lado, áudios e arquivos um por linha. */
+export function groupAttachments<T extends Pick<Attachment, 'kind'>>(
+  attachments: T[]
+): { visual: T[]; audios: T[]; files: T[] } {
+  return {
+    visual: attachments.filter((a) => hasVisualPreview(a.kind)),
+    audios: attachments.filter((a) => a.kind === 'audio'),
+    files: attachments.filter((a) => a.kind === 'file')
+  }
 }
 
 /** Formatos copiáveis. GIF fica de fora: a conversão para PNG perderia a animação. */

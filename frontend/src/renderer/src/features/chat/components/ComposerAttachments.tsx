@@ -1,6 +1,6 @@
 import type { DraftAttachment } from '../lib/attachments'
 import { formatBytes } from '../lib/attachments'
-import { MicIcon, PlayIcon } from '../../../shared/ui/icons'
+import { FileIcon, MicIcon, PlayIcon } from '../../../shared/ui/icons'
 import CloseButton from '../../../shared/ui/CloseButton'
 
 /** Fileira de anexos acima do campo de texto, com progresso e erro. */
@@ -35,6 +35,8 @@ function ComposerAttachments({
                 />
                 <PlayIcon className="absolute h-6 w-6 text-white/80" />
               </>
+            ) : d.kind === 'file' ? (
+              <FileIcon className="h-8 w-8" />
             ) : (
               <MicIcon className="h-8 w-8" />
             )}

@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { uploadAttachment, type UploadMeta, type UploadOptions } from '../api/attachments'
 import type { Attachment } from '../api/messages'
 import { ApiError } from '../../../shared/api/client'
-import { acceptFiles, uploadErrorMessage, type DraftAttachment } from '../lib/attachments'
+import {
+  acceptFiles,
+  hasVisualPreview,
+  uploadErrorMessage,
+  type AcceptMode,
+  type DraftAttachment
+} from '../lib/attachments'
 import { showToast } from '../../../shared/store/toastStore'
 import { readMediaMeta } from '../lib/readMediaMeta'
 
@@ -17,11 +23,13 @@ export type DraftUploader = (
 /**
  * Anexos do campo de envio: cada arquivo começa a subir assim que entra.
  * Remover, limpar, trocar de sala ou sair cancelam o que ainda está subindo
- * (nada vai parar na sala nova) e liberam as prévias blob:.
+ * (nada vai parar na sala nova) e liberam as prévias blob:. accept: 'any' no
+ * chat (qualquer arquivo), 'media' nos comentários de propostas.
  */
 export function useAttachmentDraft(
   room: string,
-  upload: DraftUploader = uploadAttachment
+  upload: DraftUploader = uploadAttachment,
+  accept: AcceptMode = 'media'
 ): {
   drafts: DraftAttachment[]
   addFiles: (files: File[]) => void
@@ -62,14 +70,14 @@ export function useAttachmentDraft(
 
   const addFiles = useCallback(
     (files: File[]) => {
-      const { accepted, errors } = acceptFiles(ids.current.size, files)
+      const { accepted, errors } = acceptFiles(ids.current.size, files, accept)
       errors.forEach((msg) => showToast.error(msg))
       if (accepted.length === 0) return
 
       const added: DraftAttachment[] = accepted.map(({ file, kind }) => {
         const localId = crypto.randomUUID()
         ids.current.add(localId)
-        const previewUrl = kind === 'audio' ? null : URL.createObjectURL(file)
+        const previewUrl = hasVisualPreview(kind) ? URL.createObjectURL(file) : null
         if (previewUrl) previews.current.set(localId, previewUrl)
         return { localId, file, kind, previewUrl, status: 'uploading', progress: 0 }
       })
@@ -106,7 +114,7 @@ export function useAttachmentDraft(
         })()
       }
     },
-    [room, update, upload]
+    [room, update, upload, accept]
   )
 
   const remove = useCallback(
