@@ -17,6 +17,7 @@ import MessageInviteEmbeds from '../../servers/components/ServerInviteEmbed'
 import MessageAttachments from './MessageAttachments'
 import MessageSticker from './MessageSticker'
 import MessageGif from './MessageGif'
+import MessageEmbeds from '../../linkpreview/components/MessageEmbeds'
 import TTSBadge from '../../tts/components/TTSBadge'
 import { useChatStore } from '../store/chatStore'
 import UserServerTag from '../../serverprofile/components/ServerTagChip'
@@ -224,7 +225,7 @@ function MessageStickerSlot({ message }: { message: Message }): React.JSX.Elemen
   )
 }
 
-/** Texto (ou o editor), cartão de convite, figurinha, GIF, anexos e enquete. */
+/** Texto (ou o editor), cartão de convite, figurinha, GIF, anexos, prévias de link e enquete. */
 export function MessageContent({
   message,
   mentionLabels,
@@ -275,6 +276,7 @@ export function MessageContent({
       {message.attachments?.length ? (
         <MessageAttachments attachments={message.attachments} copyImages />
       ) : null}
+      <MessageEmbeds message={message} />
       {message.poll && (
         <PollCard poll={message.poll} isAuthor={canEndPoll} onVote={onVote} onEnd={onEndPoll} />
       )}

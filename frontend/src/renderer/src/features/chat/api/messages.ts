@@ -110,6 +110,8 @@ export interface Message {
   edited_at?: string | null
   /** Quando a mensagem foi fixada no canal; ausente = não fixada. */
   pinned_at?: string | null
+  /** O autor removeu as prévias de link (features/linkpreview): sem cartão. */
+  embeds_suppressed?: boolean
 }
 
 export interface PinnedMessage extends Message {
