@@ -39,4 +39,8 @@ describe('previewLinks', () => {
     expect(previewLinks('')).toEqual([])
     expect(previewLinks('oi tudo bem?')).toEqual([])
   })
+  it('segue o leitor do Markdown: código de crase dupla e crase escapada', () => {
+    expect(previewLinks('``veja `isso` https://a.com``')).toEqual([])
+    expect(previewLinks('\\` https://a.com \\`')).toEqual(['https://a.com'])
+  })
 })
