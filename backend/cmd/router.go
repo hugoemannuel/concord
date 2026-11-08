@@ -50,7 +50,8 @@ func newRouter(db *pgxpool.Pool) (*gin.Engine, *lifecycle.Streams, *health.Readi
 		// cookies), então qualquer origem pode chamar a API.
 		AllowOriginFunc:  func(string) bool { return true },
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		// Range: a prévia de arquivo de texto do app pede só o começo.
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Range"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,

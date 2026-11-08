@@ -194,15 +194,40 @@ func TestUploadRejectsTooLarge(t *testing.T) {
 	env.assertDiskEmpty(t)
 }
 
-func TestUploadRejectsDisguisedFile(t *testing.T) {
-	env := newAttachmentEnv(t, fakeAccess{}, fakeSpace{ok: true})
-	rec := env.upload(t, "/api/channels/c1/attachments", nil, "foto.png", "image/png", []byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`))
-	if rec.Code != http.StatusUnsupportedMediaType {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+// uploadKind sobe um arquivo e devolve o anexo criado (falha se não for 201).
+func (e *attachmentEnv) uploadKind(t *testing.T, filename, declared string, data []byte) Attachment {
+	t.Helper()
+	rec := e.upload(t, "/api/channels/c1/attachments", nil, filename, declared, data)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("%s: status = %d, body = %s", filename, rec.Code, rec.Body.String())
 	}
-	env.assertDiskEmpty(t)
-	if len(env.repo.rows) != 0 {
-		t.Fatal("não deveria gravar linha")
+	var got Attachment
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+// Qualquer arquivo é aceito, como no Discord: o que não é mídia vira "file",
+// e o tipo vem dos bytes, nunca do que o cliente declarou.
+func TestUploadAcceptsAnyFileAsFile(t *testing.T) {
+	env := newAttachmentEnv(t, fakeAccess{}, fakeSpace{ok: true})
+	cases := []struct {
+		filename, declared string
+		data               []byte
+		wantType           string
+	}{
+		{"pacote.zip", "application/zip", []byte("PK\x03\x04\x14\x00\x00\x00"), "application/octet-stream"},
+		{"notas.md", "text/markdown", []byte("# Notas\n\nação\n"), "text/plain; charset=utf-8"},
+		// SVG declarado como PNG: antes 415; agora é texto e só baixa (attachment).
+		{"foto.png", "image/png", []byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`), "text/plain; charset=utf-8"},
+		{"lixo.txt", "text/plain", []byte("\x00\x01\x02binário"), "application/octet-stream"},
+	}
+	for _, tc := range cases {
+		got := env.uploadKind(t, tc.filename, tc.declared, tc.data)
+		if got.Kind != "file" || got.ContentType != tc.wantType || got.Filename != tc.filename {
+			t.Errorf("%s: resposta = %+v", tc.filename, got)
+		}
 	}
 }
 
@@ -314,6 +339,27 @@ func TestServeFileSandboxesContent(t *testing.T) {
 	}
 }
 
+// Arquivo genérico sempre baixa (o navegador não abre HTML/PDF na origem do
+// app); imagem, vídeo e áudio continuam inline.
+func TestServeFileDispositionByKind(t *testing.T) {
+	env := newAttachmentEnv(t, fakeAccess{}, fakeSpace{ok: true})
+	messageID := "m1"
+	id, _ := env.storedImage(t, &messageID)
+	rec := env.get("/api/media/"+id+"?token=bom", nil)
+	if got := rec.Header().Get("Content-Disposition"); got != `inline; filename=foto.png` {
+		t.Fatalf("imagem: Content-Disposition = %q", got)
+	}
+	row := env.repo.rows[id]
+	row.Kind, row.ContentType, row.Filename = "file", "text/plain; charset=utf-8", "pagina.html"
+	rec = env.get("/api/media/"+id+"?token=bom", nil)
+	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename=pagina.html` {
+		t.Fatalf("arquivo: Content-Disposition = %q", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q", got)
+	}
+}
+
 func TestServeFileSupportsRange(t *testing.T) {
 	env := newAttachmentEnv(t, fakeAccess{}, fakeSpace{ok: true})
 	messageID := "m1"
@@ -384,5 +430,18 @@ func TestSaveErrorStatus(t *testing.T) {
 		if status != tc.status || msg != tc.msg {
 			t.Fatalf("saveErrorStatus(%v) = (%d, %q), want (%d, %q)", tc.err, status, msg, tc.status, tc.msg)
 		}
+	}
+}
+
+// Arquivo vazio não vira anexo (o banco exige size_bytes >= 1): 400, nada no disco.
+func TestUploadRejectsEmptyFile(t *testing.T) {
+	env := newAttachmentEnv(t, fakeAccess{}, fakeSpace{ok: true})
+	rec := env.upload(t, "/api/channels/c1/attachments", nil, "vazio.txt", "text/plain", nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	env.assertDiskEmpty(t)
+	if len(env.repo.rows) != 0 {
+		t.Fatal("não deveria gravar linha")
 	}
 }

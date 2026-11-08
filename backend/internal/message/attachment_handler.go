@@ -154,14 +154,13 @@ func (h *AttachmentHandler) readForm(c *gin.Context, id string) (media.Form, err
 	})
 }
 
-// register confere o tipo do arquivo e grava o anexo pendente; devolve 201
+// register classifica o arquivo e grava o anexo pendente; devolve 201
 // ou o status e a mensagem da recusa.
 func (h *AttachmentHandler) register(ctx context.Context, a *storedAttachment, form media.Form) (int, string) {
-	kind, contentType, ok := media.Sniff(form.Head, form.Declared)
-	if !ok {
-		return http.StatusUnsupportedMediaType, "unsupported file type"
+	if form.Size == 0 {
+		return http.StatusBadRequest, "empty file"
 	}
-	a.Kind, a.ContentType = string(kind), contentType
+	a.Kind, a.ContentType = classify(form.Head, form.Declared)
 	a.Filename = sanitizeFilename(form.Filename)
 	a.SizeBytes = form.Size
 	a.Width = parseOptionalPositive(form.Fields["width"], maxMediaDimension)
@@ -265,5 +264,5 @@ func setFileHeaders(header http.Header, a *storedAttachment) {
 	// vídeo e áudio dentro do app não são afetados.
 	header.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	header.Set("Cache-Control", "private, max-age=3600")
-	header.Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": a.Filename}))
+	header.Set("Content-Disposition", mime.FormatMediaType(disposition(a.Kind),map[string]string{"filename": a.Filename}))
 }
