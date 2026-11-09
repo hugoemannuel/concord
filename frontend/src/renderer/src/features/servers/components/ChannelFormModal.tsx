@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ChannelType } from '../api/channels'
+import { updateChannel, type ChannelType } from '../api/channels'
 import type { Server } from '../api/servers'
 import type { Role } from '../lib/permissions'
 import { useServerStore } from '../store/serverStore'
@@ -134,8 +134,10 @@ function PrivateChannelFields({
 const formApi: ChannelFormApi = {
   create: (serverId, name, type, opts) =>
     useServerStore.getState().createChannel(serverId, name, type, opts),
-  update: (serverId, channelId, name) =>
-    useServerStore.getState().updateChannel(serverId, channelId, name),
+  update: async (serverId, channelId, name) => {
+    await updateChannel(serverId, channelId, name)
+    await useServerStore.getState().fetchChannels(serverId)
+  },
   refresh: (serverId) => void useChatStore.getState().fetchChannelsForServers([serverId])
 }
 

@@ -6,7 +6,6 @@ const listChannels = vi.fn()
 vi.mock('../api/channels', () => ({
   listChannels: (...args: unknown[]) => listChannels(...args),
   createChannel: vi.fn(),
-  updateChannel: vi.fn(),
   deleteChannel: vi.fn(),
   reorderChannels: (...args: unknown[]) => reorderChannels(...args)
 }))
