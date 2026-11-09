@@ -47,8 +47,8 @@ func (f *fakeStore) FindSystemByServerID(context.Context, string) (*Channel, err
 func (f *fakeStore) FindNoticesByServerID(context.Context, string) (*Channel, error) {
 	return nil, ErrChannelNotFound
 }
-func (f *fakeStore) Update(context.Context, string, string) error { return nil }
-func (f *fakeStore) Delete(context.Context, string) error         { return nil }
+func (f *fakeStore) Update(context.Context, string, UpdateInput) error { return nil }
+func (f *fakeStore) Delete(context.Context, string) error              { return nil }
 func (f *fakeStore) ListByServerID(context.Context, string) ([]Channel, error) {
 	return []Channel{}, nil
 }

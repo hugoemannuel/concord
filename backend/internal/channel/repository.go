@@ -82,6 +82,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 			is_system,
 			system_kind,
 			managed,
+			slowmode_seconds,
 			created_by,
 			created_at,
 			updated_at
@@ -98,6 +99,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 		&ch.IsSystem,
 		&ch.SystemKind,
 		&ch.Managed,
+		&ch.SlowmodeSeconds,
 		&ch.CreatedBy,
 		&ch.CreatedAt,
 		&ch.UpdatedAt,
@@ -155,12 +157,21 @@ func (r *Repository) ChannelServerID(ctx context.Context, channelID string) (str
 	return serverID, nil
 }
 
-func (r *Repository) Update(ctx context.Context, id string, name string) error {
+// SlowmodeSeconds: o modo lento do canal (0 = desligado). Usado pelo message.
+func (r *Repository) SlowmodeSeconds(ctx context.Context, channelID string) (int, error) {
+	var seconds int
+	err := r.db.QueryRow(ctx, `SELECT slowmode_seconds FROM channels WHERE id = $1`, channelID).Scan(&seconds)
+	return seconds, err
+}
+
+// Update grava o nome e, se veio, o modo lento (nil mantém o atual).
+func (r *Repository) Update(ctx context.Context, id string, in UpdateInput) error {
 	tag, err := r.db.Exec(
 		ctx,
-		`UPDATE channels SET name = $1, updated_at = NOW() WHERE id = $2`,
-		name,
+		`UPDATE channels SET name = $1, slowmode_seconds = COALESCE($3, slowmode_seconds), updated_at = NOW() WHERE id = $2`,
+		in.Name,
 		id,
+		in.SlowmodeSeconds,
 	)
 	if err != nil {
 		return err
@@ -195,6 +206,7 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			is_system,
 			system_kind,
 			managed,
+			slowmode_seconds,
 			created_by,
 			created_at,
 			updated_at
@@ -221,6 +233,7 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			&ch.IsSystem,
 			&ch.SystemKind,
 			&ch.Managed,
+			&ch.SlowmodeSeconds,
 			&ch.CreatedBy,
 			&ch.CreatedAt,
 			&ch.UpdatedAt,

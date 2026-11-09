@@ -31,7 +31,7 @@ type store interface {
 	FindByID(ctx context.Context, id string) (*Channel, error)
 	FindSystemByServerID(ctx context.Context, serverID string) (*Channel, error)
 	FindNoticesByServerID(ctx context.Context, serverID string) (*Channel, error)
-	Update(ctx context.Context, id string, name string) error
+	Update(ctx context.Context, id string, in UpdateInput) error
 	Delete(ctx context.Context, id string) error
 	ListByServerID(ctx context.Context, serverID string) ([]Channel, error)
 	Reorder(ctx context.Context, serverID string, chType string, ids []string) error
@@ -45,6 +45,8 @@ type Service struct {
 
 	// Chamados quando o canal do Maestro nasce com um servidor novo.
 	onSystemCreated []func(ctx context.Context, ch *Channel)
+	// Chamados depois de editar um canal (o modo lento do message se atualiza).
+	onUpdated []func(ctx context.Context, ch *Channel)
 }
 
 func ChannelService(repository *Repository, publisher EventPublisher) *Service {
@@ -128,9 +130,10 @@ func (s *Service) FindByID(ctx context.Context, id string) (*Channel, error) {
 	return s.repository.FindByID(ctx, id)
 }
 
-func (s *Service) Update(ctx context.Context, id string, name string) (*Channel, error) {
-	if name == "" {
-		return nil, ErrNameRequired
+// Update renomeia o canal e, se pedido, troca o modo lento.
+func (s *Service) Update(ctx context.Context, id string, in UpdateInput) (*Channel, error) {
+	if err := in.validate(); err != nil {
+		return nil, err
 	}
 
 	ch, err := s.repository.FindByID(ctx, id)
@@ -141,7 +144,7 @@ func (s *Service) Update(ctx context.Context, id string, name string) (*Channel,
 		return nil, ErrSystemChannel
 	}
 
-	if err := s.repository.Update(ctx, id, name); err != nil {
+	if err := s.repository.Update(ctx, id, in); err != nil {
 		return nil, err
 	}
 
@@ -150,14 +153,23 @@ func (s *Service) Update(ctx context.Context, id string, name string) (*Channel,
 		return nil, err
 	}
 
-	if s.publisher != nil {
-		s.publisher.PublishChannelUpdate(CreateEvent{
-			ServerID: ch.ServerID,
-			Channel:  *updated,
-		})
-	}
-
+	s.notifyUpdated(ctx, updated)
 	return updated, nil
+}
+
+// OnUpdated registra quem quer saber de cada canal editado (no boot).
+func (s *Service) OnUpdated(fn func(ctx context.Context, ch *Channel)) {
+	s.onUpdated = append(s.onUpdated, fn)
+}
+
+// notifyUpdated publica o channel:update e chama os ganchos de OnUpdated.
+func (s *Service) notifyUpdated(ctx context.Context, updated *Channel) {
+	if s.publisher != nil {
+		s.publisher.PublishChannelUpdate(CreateEvent{ServerID: updated.ServerID, Channel: *updated})
+	}
+	for _, fn := range s.onUpdated {
+		fn(ctx, updated)
+	}
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {

@@ -25,7 +25,7 @@ func (s *systemStore) FindByID(_ context.Context, id string) (*Channel, error) {
 	}
 	return nil, ErrChannelNotFound
 }
-func (s *systemStore) Update(_ context.Context, id, _ string) error {
+func (s *systemStore) Update(_ context.Context, id string, _ UpdateInput) error {
 	s.updated = append(s.updated, id)
 	return nil
 }
@@ -55,7 +55,7 @@ func TestSystemChannelCannotBeChanged(t *testing.T) {
 	ctx := context.Background()
 
 	for _, id := range []string{"musica", "avisos"} {
-		if _, err := svc.Update(ctx, id, "outro"); !errors.Is(err, ErrSystemChannel) {
+		if _, err := svc.Update(ctx, id, UpdateInput{Name: "outro"}); !errors.Is(err, ErrSystemChannel) {
 			t.Fatalf("%s: Update err = %v, want ErrSystemChannel", id, err)
 		}
 		if err := svc.Delete(ctx, id); !errors.Is(err, ErrSystemChannel) {
@@ -79,7 +79,7 @@ func TestRegularChannelStillEditable(t *testing.T) {
 	svc := newService(store, nil)
 	ctx := context.Background()
 
-	if _, err := svc.Update(ctx, "geral", "novo"); err != nil {
+	if _, err := svc.Update(ctx, "geral", UpdateInput{Name: "novo"}); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if err := svc.Delete(ctx, "geral"); err != nil {

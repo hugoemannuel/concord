@@ -198,7 +198,8 @@ func (h *Handler) Update(c *gin.Context) {
 	channelID := c.Param("channelId")
 
 	var input struct {
-		Name string `json:"name"`
+		Name            string `json:"name"`
+		SlowmodeSeconds *int   `json:"slowmode_seconds"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -220,19 +221,27 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.service.Update(c.Request.Context(), channelID, input.Name)
+	updated, err := h.service.Update(c.Request.Context(), channelID, UpdateInput{Name: input.Name, SlowmodeSeconds: input.SlowmodeSeconds})
 	if err != nil {
-		if errors.Is(err, ErrSystemChannel) {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "code": "system_channel"})
-			return
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondUpdateError(c, err)
 		return
 	}
 	updated.Overwrites = OverwritesOf(snap, channelID)
 	h.recordUpdate(c.Request.Context(), userID, current, updated)
 
 	c.JSON(http.StatusOK, updated)
+}
+
+// respondUpdateError: canal de sistema é 403; o resto (nome, modo lento) é 400.
+func respondUpdateError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, ErrSystemChannel):
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "code": "system_channel"})
+	case errors.Is(err, ErrInvalidSlowmode):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_slowmode"})
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
 }
 
 func (h *Handler) Delete(c *gin.Context) {

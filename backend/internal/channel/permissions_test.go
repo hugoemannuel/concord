@@ -93,9 +93,12 @@ func (f *permStore) FindNoticesByServerID(context.Context, string) (*Channel, er
 	return nil, ErrChannelNotFound
 }
 
-func (f *permStore) Update(_ context.Context, id string, name string) error {
+func (f *permStore) Update(_ context.Context, id string, in UpdateInput) error {
 	if ch, ok := f.channels[id]; ok {
-		ch.Name = name
+		ch.Name = in.Name
+		if in.SlowmodeSeconds != nil {
+			ch.SlowmodeSeconds = *in.SlowmodeSeconds
+		}
 	}
 	return nil
 }

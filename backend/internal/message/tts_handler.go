@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"math"
 	"net/http"
 
 	"gin-quickstart/backend/internal/permission"
@@ -78,8 +77,8 @@ func (h *TTSHandler) SendToConversation(c *gin.Context) {
 	respondTTS(c, msg, err)
 }
 
-// respondTTS traduz o resultado: 201, 400 (texto), 429 (cooldown, com
-// retry_after em segundos) ou 500.
+// respondTTS traduz o resultado: 201, 400 (texto), 429 (cooldown do TTS ou
+// modo lento do canal, com retry_after em segundos) ou 500.
 func respondTTS(c *gin.Context, msg *Message, err error) {
 	var cooldown *TTSCooldownError
 	switch {
@@ -90,7 +89,9 @@ func respondTTS(c *gin.Context, msg *Message, err error) {
 	case errors.Is(err, ErrTTSTooLong):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "tts_too_long", "max_length": TTSMaxLength})
 	case errors.As(err, &cooldown):
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error(), "code": "tts_cooldown", "retry_after": int(math.Ceil(cooldown.RetryAfter.Seconds()))})
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error(), "code": "tts_cooldown", "retry_after": retryAfterSeconds(cooldown.RetryAfter)})
+	case errors.As(err, new(*SlowmodeError)):
+		respondCreateError(c, err)
 	default:
 		log.Printf("[message] tts: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send tts message"})
