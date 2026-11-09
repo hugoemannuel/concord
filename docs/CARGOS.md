@@ -32,7 +32,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | Grupo | Permissão | Efeito |
 |---|---|---|
 | Geral | Ver canais | Vê o canal (sem isso ele é invisível). |
-| | Gerenciar canais | Criar, editar, reordenar e apagar canais. |
+| | Gerenciar canais | Criar, editar, reordenar e apagar canais (inclui o modo lento). Isenta do modo lento. |
 | | Gerenciar cargos | Criar/editar cargos abaixo do seu, dar e tirar cargos, editar permissões de canal. |
 | | Gerenciar servidor | Nome, ícone, canal principal e a customização: perfil do servidor (banner, traços, descrição, jogos, perfil privado), tag, faixa e tema de fundo. Ver [ADR 0050](adr/0050-customizacao-do-servidor.md). |
 | | Ver registro de auditoria | Ver em Configurações do servidor → Registro de auditoria quem fez cada ação de moderação e administração (últimos 90 dias). **Fora do @everyone**: só o dono, o Administrador e os cargos que ganharem. Ver [ADR 0036](adr/0036-registro-de-auditoria.md). |
@@ -47,7 +47,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | | Usar emojis e figurinhas de outros servidores | Usar em mensagens e reações deste servidor os emojis e figurinhas de outros servidores de que a pessoa participa. Vem ligada no @everyone e vale por canal. Em DM e grupo não há servidor de destino: basta ser membro do servidor de origem. Sem ela, os itens de fora aparecem desabilitados no seletor; quem mandar assim mesmo vê o emoji virar `:nome:` no texto e a figurinha e a reação serem recusadas. Somar-se a uma reação que já está na mensagem não pede a permissão. Ver [ADR 0054](adr/0054-emojis-de-outros-servidores.md). |
 | | Mencionar @all e @here | Avisar o canal inteiro. |
 | | Enviar mensagens TTS | Usar `/tts`: a mensagem é lida em voz para quem está em call no servidor (até 200 caracteres, uma a cada 10 s). Vem ligada no @everyone (no Discord vem desligada); quem quiser restringir desliga no cargo ou no canal. Ver [ADR 0012](adr/0012-tts-no-cliente.md). |
-| | Gerenciar mensagens | Apagar mensagem de outros e encerrar enquetes. |
+| | Gerenciar mensagens | Apagar mensagem de outros e encerrar enquetes. Isenta do modo lento. |
 | Voz | Conectar, Falar, Transmitir | Entrar, usar o microfone, compartilhar tela/câmera. |
 | | Usar mesa de áudio | Tocar os sons na chamada (os do servidor e os favoritos de outros servidores). Enviar som é *Adicionar sons*. |
 | | Silenciar / Ensurdecer / Mover membros | Moderação na chamada (mover inclui desconectar). |
@@ -66,6 +66,14 @@ A posição do cargo define quem manda em quem (maior = mais alto).
 - Expulsar, banir, silenciar, ensurdecer, desconectar e mover só vale sobre quem tem o cargo mais alto **menor** que o seu. Mesma posição não vale.
 - Ninguém dá ou tira uma permissão que **não tem** (Administrador pode tudo).
 - **Administrador** tem todas as permissões, mas a hierarquia vale para ele também: age sobre quem tem o cargo mais alto menor que o seu. Quem não tem cargo nenhum (só o @everyone, posição 0) está abaixo de qualquer cargo, então qualquer administrador com um cargo age sobre ele. Administrador dado só pelo @everyone não age sobre outros membros sem cargo (mesma posição); para isso, precisa de um cargo.
+
+## Modo lento
+
+Em **Editar canal**, quem tem *Gerenciar canais* escolhe um intervalo mínimo entre as mensagens de cada membro naquele canal (desligado, 5 s, 10 s, 15 s, 30 s, 1 min, 2 min, 5 min, 10 min, 15 min, 30 min, 1 h, 2 h ou 6 h). Vale no canal de texto e no chat do canal de voz; DM e grupo não têm.
+
+- Conta toda mensagem nova (texto, anexo, áudio, figurinha, GIF e `/tts`); editar, reagir e comandos do Maestro não contam.
+- Quem tem **Gerenciar mensagens** ou **Gerenciar canais** no canal fica isento (o dono e o Administrador também). Não há permissão própria: os bits acabaram (ADR 0054).
+- O servidor recusa com 429 (`code: "slowmode"`, `retry_after` em segundos); o app mostra a faixa "Modo lento" acima do campo, com a contagem. A vez de cada um fica em memória: reiniciar o backend libera uma mensagem a mais.
 
 ## Categorias privadas
 
@@ -108,6 +116,7 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 | `GET/POST /servers/:id/roles`, `PATCH/DELETE …/roles/:roleId`, `PUT …/roles/order` | membro / Gerenciar cargos |
 | `PUT/DELETE /servers/:id/members/:userId/roles/:roleId` | Gerenciar cargos (cargo abaixo do seu; nos cargos do dono, só o dono) |
 | `PUT/DELETE /servers/:id/channels/:channelId/overwrites/:role\|member/:targetId` | Gerenciar cargos no canal |
+| `PUT /servers/:id/channels/:channelId` com `name` e `slowmode_seconds` | Gerenciar canais |
 | `POST /servers/:id/channels` com `private` e `role_ids` | Gerenciar canais |
 | `POST /servers/:id/categories` (com `private`, `role_ids` e `member_ids`), `PUT /categories/:id` (só o nome), `DELETE`, ordem e `PUT /categories/channels/:id` | Gerenciar canais e ver a categoria |
 | `PUT /servers/:id/categories/:id` com `private`, `PUT` e `DELETE /categories/:id/overwrites/:type/:targetId`, `POST /categories/channels/:id/sync` | Gerenciar canais + Gerenciar cargos e ver a categoria; só bits que o ator tem |
