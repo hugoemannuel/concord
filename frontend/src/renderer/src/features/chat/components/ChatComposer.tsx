@@ -11,9 +11,11 @@ import { useMentionMenu } from '../hooks/useMentionMenu'
 import { useRoomDraft } from '../hooks/useRoomDraft'
 import { useRoomState } from '../hooks/useRoomState'
 import { useSendMedia } from '../hooks/useSendMedia'
+import { useSlowmode } from '../hooks/useSlowmode'
 import { useTypingSender } from '../hooks/useTypingSender'
 import ComposerAttachments from './ComposerAttachments'
 import ComposerInput from './composer/ComposerInput'
+import SlowmodeBar from './composer/SlowmodeBar'
 import MentionSuggestionList from './MentionSuggestionList'
 import {
   AttachButton,
@@ -64,6 +66,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const typing = useTypingSender(room)
   const [mediaPickerOpen, setMediaPickerOpen] = useRoomState(room, false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const slowmode = useSlowmode(room, permissions.bypassSlowmode)
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
   const menu = useMentionMenu({
     room,
@@ -80,6 +83,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     ...p,
     draft,
     setDraft,
+    slowmode,
     onSent: () => {
       typing.onSent()
       menu.reset()
@@ -91,7 +95,8 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     setDraft,
     replyingTo,
     setReplyState,
-    followBottom: p.followBottom
+    followBottom: p.followBottom,
+    slowmode
   })
 
   return (
@@ -109,6 +114,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
         onCancel={() => setReplyState(null)}
       />
       <ComposerGate disabledReason={p.disabledReason}>
+        <SlowmodeBar text={slowmode.text} />
         <div className="relative">
           <MediaPicker
             open={mediaPickerOpen}

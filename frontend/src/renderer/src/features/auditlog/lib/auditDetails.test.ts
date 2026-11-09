@@ -21,6 +21,17 @@ const entry = (over: Partial<AuditEntry>): AuditEntry => ({
 })
 
 describe('detalhes do que mudou', () => {
+  it('canal editado: o modo lento em s/min/h, "Desligado" quando 0', () => {
+    const rows = describeChanges(
+      entry({
+        action: 'channel.update',
+        target_type: 'channel',
+        changes: [{ field: 'slowmode_seconds', before: 0, after: 120 }]
+      })
+    )
+    expect(rows).toEqual([{ label: 'Modo lento', before: 'Desligado', after: '2 min' }])
+  })
+
   it('som editado: o nome e o emoji, com "sem emoji" quando ficou vazio', () => {
     const rows = describeChanges(
       entry({

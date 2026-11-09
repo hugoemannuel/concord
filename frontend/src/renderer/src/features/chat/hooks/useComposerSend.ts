@@ -15,7 +15,9 @@ import {
   type ReplyState,
   type SentMessage
 } from '../lib/sendFailure'
+import { slowmodeErrorText, slowmodeRetryAfter } from '../lib/slowmode'
 import { useChatStore } from '../store/chatStore'
+import type { Slowmode } from './useSlowmode'
 import { useRoomState } from './useRoomState'
 
 interface Options {
@@ -33,11 +35,20 @@ interface Options {
   followBottom: () => void
   /** Limpa o que o envio leva embora além do texto (aviso de digitando, menu do @). */
   onSent: () => void
+  /** Modo lento da sala: trava o envio na espera e conta a vez depois de enviar. */
+  slowmode?: Pick<Slowmode, 'blocked' | 'onSent' | 'onFailed'>
 }
 
 /** Ids dos anexos que já subiram: só eles saem do rascunho quando o envio dá certo. */
 const doneDraftIds = (drafts: DraftAttachment[]): string[] =>
   drafts.filter((d) => d.status === 'done').map((d) => d.localId)
+
+/** Falha do áudio gravado: modo lento diz quanto falta; o resto, o aviso do upload. */
+const voiceErrorText = (err: unknown): string => {
+  const retryAfter = slowmodeRetryAfter(err)
+  if (retryAfter !== null) return slowmodeErrorText(retryAfter)
+  return uploadErrorMessage(err instanceof ApiError ? err.status : 0)
+}
 
 /** Envio do campo de mensagem (texto, anexos, resposta) e do áudio gravado. */
 export function useComposerSend(o: Options): {
@@ -60,7 +71,7 @@ export function useComposerSend(o: Options): {
     }
   }, [])
   const attachmentState = draftStatus(o.drafts)
-  const submittable = canSubmit(o.draft, o.drafts)
+  const submittable = canSubmit(o.draft, o.drafts) && !o.slowmode?.blocked
   const ready = submittable && !sending
   const replyId = o.replyingTo?.id ?? null
 
@@ -97,8 +108,10 @@ export function useComposerSend(o: Options): {
     o.setReplyState(null)
     try {
       await sendToRoom(o.room, sent.text.trim(), attachmentState.readyIds, replyId)
+      o.slowmode?.onSent()
       clearSentDrafts(sent.room, sentDrafts)
     } catch (err) {
+      o.slowmode?.onFailed(err)
       reportFailure(sendErrorText(err), sent)
     } finally {
       setSending(false)
@@ -114,8 +127,10 @@ export function useComposerSend(o: Options): {
         duration_ms: durationMs
       })
       await sendToRoom(o.room, '', [attachment.id])
+      o.slowmode?.onSent()
     } catch (err) {
-      showToast.error(uploadErrorMessage(err instanceof ApiError ? err.status : 0))
+      o.slowmode?.onFailed(err)
+      showToast.error(voiceErrorText(err))
     } finally {
       setSendingVoice(false)
     }
