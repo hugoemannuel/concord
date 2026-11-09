@@ -108,7 +108,7 @@ export function useComposerSend(o: Options): {
     o.setReplyState(null)
     try {
       await sendToRoom(o.room, sent.text.trim(), attachmentState.readyIds, replyId)
-      o.slowmode.onSent()
+      o.slowmode.onSent(sent.text)
       clearSentDrafts(sent.room, sentDrafts)
     } catch (err) {
       o.slowmode.onFailed(err)
@@ -127,7 +127,7 @@ export function useComposerSend(o: Options): {
         duration_ms: durationMs
       })
       await sendToRoom(o.room, '', [attachment.id])
-      o.slowmode.onSent()
+      o.slowmode.onSent('')
     } catch (err) {
       o.slowmode.onFailed(err)
       showToast.error(voiceErrorText(err))

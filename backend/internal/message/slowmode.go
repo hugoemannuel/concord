@@ -68,24 +68,25 @@ func NewSlowmode(channels SlowmodeReader, perms PermissionChecker) *Slowmode {
 		last: make(map[slowmodeKey]time.Time), seconds: make(map[string]int)}
 }
 
-// Take marca a vez de userID no canal; se ainda não pode, devolve
-// *SlowmodeError com quanto falta e não marca nada.
-func (s *Slowmode) Take(ctx context.Context, channelID, userID string) error {
+// Take marca a vez de userID no canal e devolve o horário marcado (zero =
+// nada marcado: livre ou isento); se ainda não pode, devolve *SlowmodeError
+// com quanto falta e não marca nada.
+func (s *Slowmode) Take(ctx context.Context, channelID, userID string) (time.Time, error) {
 	window := s.windowFor(ctx, channelID, userID)
 	if window == 0 {
-		return nil
+		return time.Time{}, nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key, now := slowmodeKey{channelID, userID}, s.now()
 	if last, ok := s.last[key]; ok && now.Sub(last) < window {
-		return &SlowmodeError{RetryAfter: window - now.Sub(last)}
+		return time.Time{}, &SlowmodeError{RetryAfter: window - now.Sub(last)}
 	}
 	s.last[key] = now
 	if len(s.last) > slowmodePruneAt {
 		s.prune(now)
 	}
-	return nil
+	return now, nil
 }
 
 // windowFor: o intervalo que vale para a pessoa no canal (0 = livre). Sem
@@ -146,12 +147,16 @@ func (s *Slowmode) prune(now time.Time) {
 	}
 }
 
-// Release devolve a vez marcada por Take (a mensagem não chegou a sair).
-func (s *Slowmode) Release(channelID, userID string) {
+// Release devolve a vez que Take marcou em `at` (a mensagem não chegou a
+// sair). Se outro envio já marcou uma vez nova, ela fica.
+func (s *Slowmode) Release(channelID, userID string, at time.Time) {
 	if s == nil {
 		return
 	}
+	key := slowmodeKey{channelID, userID}
 	s.mu.Lock()
-	delete(s.last, slowmodeKey{channelID, userID})
+	if last, ok := s.last[key]; ok && last.Equal(at) {
+		delete(s.last, key)
+	}
 	s.mu.Unlock()
 }

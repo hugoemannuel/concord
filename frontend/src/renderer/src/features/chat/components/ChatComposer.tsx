@@ -175,7 +175,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
             <VoiceButton
               show={permissions.canAttach}
               room={room}
-              disabled={send.sendingVoice}
+              disabled={send.sendingVoice || slowmode.blocked}
               onRecorded={send.handleRecorded}
             />
             <SubmitButton

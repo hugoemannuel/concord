@@ -50,15 +50,15 @@ func TestSlowmodeSegundaMensagemEsperaOIntervalo(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(1000, 0)}
 	s := newTestSlowmode(clock)
 	ctx := context.Background()
-	if err := s.Take(ctx, "lento", "ana"); err != nil {
+	if _, err := s.Take(ctx, "lento", "ana"); err != nil {
 		t.Fatalf("primeira: %v", err)
 	}
 	clock.now = clock.now.Add(12 * time.Second)
-	if got := retryAfter(t, s.Take(ctx, "lento", "ana")); got != 18*time.Second {
+	if got := retryAfter(t, takeErr(s.Take(ctx, "lento", "ana"))); got != 18*time.Second {
 		t.Fatalf("retry = %s, quero 18s", got)
 	}
 	clock.now = clock.now.Add(18 * time.Second)
-	if err := s.Take(ctx, "lento", "ana"); err != nil {
+	if _, err := s.Take(ctx, "lento", "ana"); err != nil {
 		t.Fatalf("depois do intervalo: %v", err)
 	}
 }
@@ -69,7 +69,7 @@ func TestSlowmodeVezEPorCanalEPorPessoa(t *testing.T) {
 	s.now = clock.Now
 	ctx := context.Background()
 	for _, pair := range [][2]string{{"a", "ana"}, {"b", "ana"}, {"a", "bia"}} {
-		if err := s.Take(ctx, pair[0], pair[1]); err != nil {
+		if _, err := s.Take(ctx, pair[0], pair[1]); err != nil {
 			t.Fatalf("%v: %v", pair, err)
 		}
 	}
@@ -82,7 +82,7 @@ func TestSlowmodeIsentosECanalLivre(t *testing.T) {
 	cases := []struct{ channel, user string }{{"lento", "mod"}, {"lento", "gerente"}, {"livre", "ana"}, {"sumiu", "ana"}}
 	for _, c := range cases {
 		for i := 0; i < 3; i++ {
-			if err := s.Take(ctx, c.channel, c.user); err != nil {
+			if _, err := s.Take(ctx, c.channel, c.user); err != nil {
 				t.Fatalf("%s em %s (%d): %v", c.user, c.channel, i, err)
 			}
 		}
@@ -93,19 +93,19 @@ func TestSlowmodeReleaseDevolveAVez(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(1000, 0)}
 	s := newTestSlowmode(clock)
 	ctx := context.Background()
-	_ = s.Take(ctx, "lento", "ana")
-	s.Release("lento", "ana")
-	if err := s.Take(ctx, "lento", "ana"); err != nil {
+	at, _ := s.Take(ctx, "lento", "ana")
+	s.Release("lento", "ana", at)
+	if _, err := s.Take(ctx, "lento", "ana"); err != nil {
 		t.Fatalf("depois do Release: %v", err)
 	}
 }
 
 func TestSlowmodeNilNaoBloqueia(t *testing.T) {
 	var s *Slowmode
-	if err := s.Take(context.Background(), "lento", "ana"); err != nil {
+	if _, err := s.Take(context.Background(), "lento", "ana"); err != nil {
 		t.Fatal(err)
 	}
-	s.Release("lento", "ana")
+	s.Release("lento", "ana", time.Time{})
 }
 
 func TestSlowmodePodaAsVezesVencidas(t *testing.T) {
@@ -115,7 +115,7 @@ func TestSlowmodePodaAsVezesVencidas(t *testing.T) {
 	for i := 0; i <= slowmodePruneAt; i++ {
 		s.last[slowmodeKey{"lento", string(rune('a'+i%26)) + time.Duration(i).String()}] = clock.now
 	}
-	_ = s.Take(context.Background(), "lento", "ana")
+	_, _ = s.Take(context.Background(), "lento", "ana")
 	if _, ok := s.last[slowmodeKey{"lento", "velho"}]; ok {
 		t.Fatal("vez vencida não foi podada")
 	}
@@ -146,7 +146,7 @@ func TestSlowmodeLeOCanalUmaVezEAtualizaNaEdicao(t *testing.T) {
 	s.now = clock.Now
 	ctx := context.Background()
 	for range 3 {
-		if err := s.Take(ctx, "c", "ana"); err != nil {
+		if _, err := s.Take(ctx, "c", "ana"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -154,10 +154,10 @@ func TestSlowmodeLeOCanalUmaVezEAtualizaNaEdicao(t *testing.T) {
 		t.Fatalf("leu o canal %d vezes, quero 1", channels.reads)
 	}
 	s.SetSeconds("c", 30)
-	if err := s.Take(ctx, "c", "ana"); err != nil {
+	if _, err := s.Take(ctx, "c", "ana"); err != nil {
 		t.Fatalf("primeira depois de ligar: %v", err)
 	}
-	if got := retryAfter(t, s.Take(ctx, "c", "ana")); got != 30*time.Second {
+	if got := retryAfter(t, takeErr(s.Take(ctx, "c", "ana"))); got != 30*time.Second {
 		t.Fatalf("retry = %s", got)
 	}
 	if channels.reads != 1 {
@@ -168,8 +168,8 @@ func TestSlowmodeLeOCanalUmaVezEAtualizaNaEdicao(t *testing.T) {
 func TestSlowmodeErroAoLerNaoGuarda(t *testing.T) {
 	channels := &countingChannels{fakeSlowmodeChannels: fakeSlowmodeChannels{}}
 	s := NewSlowmode(channels, permsByUser{})
-	_ = s.Take(context.Background(), "sumiu", "ana")
-	_ = s.Take(context.Background(), "sumiu", "ana")
+	_, _ = s.Take(context.Background(), "sumiu", "ana")
+	_, _ = s.Take(context.Background(), "sumiu", "ana")
 	if channels.reads != 2 {
 		t.Fatalf("erro foi guardado: %d leituras", channels.reads)
 	}
@@ -188,8 +188,27 @@ func TestSlowmodeEdicaoDuranteALeituraVence(t *testing.T) {
 	s := NewSlowmode(rc, permsByUser{"ana": membro})
 	rc.gate = s
 	ctx := context.Background()
-	_ = s.Take(ctx, "c", "ana")
-	if err := s.Take(ctx, "c", "ana"); err == nil {
+	_, _ = s.Take(ctx, "c", "ana")
+	if _, err := s.Take(ctx, "c", "ana"); err == nil {
 		t.Fatal("o valor velho do banco venceu a edição")
+	}
+}
+
+func takeErr(_ time.Time, err error) error { return err }
+
+// Um envio lento que falha depois de outro já ter marcado a vez nova não pode
+// apagar a vez do outro.
+func TestSlowmodeReleaseNaoApagaVezDeOutroEnvio(t *testing.T) {
+	clock := &fakeClock{now: time.Unix(1000, 0)}
+	s := newTestSlowmode(clock)
+	ctx := context.Background()
+	lento, _ := s.Take(ctx, "lento", "ana")
+	clock.now = clock.now.Add(31 * time.Second)
+	if _, err := s.Take(ctx, "lento", "ana"); err != nil {
+		t.Fatal(err)
+	}
+	s.Release("lento", "ana", lento)
+	if _, err := s.Take(ctx, "lento", "ana"); err == nil {
+		t.Fatal("o Release do envio velho apagou a vez do novo")
 	}
 }

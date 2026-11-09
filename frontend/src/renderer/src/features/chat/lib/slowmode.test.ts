@@ -5,6 +5,7 @@ import {
   formatWait,
   remainingSeconds,
   slowmodeView,
+  shouldLockAfterSend,
   slowmodeBarText,
   slowmodeErrorText,
   slowmodeLabel,
@@ -70,5 +71,24 @@ describe('modo lento', () => {
     expect(slowmodeView({ seconds: 30, exempt: true, remaining: 5 }).blocked).toBe(false)
     expect(slowmodeView({ seconds: 0, exempt: false, remaining: 5 })).toEqual({ text: null, blocked: false })
     expect(slowmodeView({ seconds: 30, exempt: false, remaining: 0 }).blocked).toBe(false)
+  })
+
+  describe('trava depois de enviar', () => {
+    const base = { seconds: 30, exempt: false, text: 'oi', pending: [] }
+    const failed = (content: string) => ({ localId: 'l1', content, replyToId: null, status: 'failed' as const, error: 'x' })
+
+    it('mensagem que saiu trava', () => {
+      expect(shouldLockAfterSend(base)).toBe(true)
+      expect(shouldLockAfterSend({ ...base, text: '' })).toBe(true) // mídia ou áudio
+      expect(shouldLockAfterSend({ ...base, text: '/tts olá' })).toBe(true)
+    })
+
+    it('sem modo lento, isento, comando do Maestro ou falha de rede não trava', () => {
+      expect(shouldLockAfterSend({ ...base, seconds: 0 })).toBe(false)
+      expect(shouldLockAfterSend({ ...base, exempt: true })).toBe(false)
+      expect(shouldLockAfterSend({ ...base, text: '/play lofi' })).toBe(false)
+      expect(shouldLockAfterSend({ ...base, text: ' oi ', pending: [failed('oi')] })).toBe(false)
+      expect(shouldLockAfterSend({ ...base, pending: [{ ...failed('oi'), status: 'sending' as const }] })).toBe(true)
+    })
   })
 })

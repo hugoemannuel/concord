@@ -61,13 +61,22 @@ describe('sendSticker', () => {
 })
 
 describe('modo lento na mídia', () => {
-  const slow = (): MediaSendEnv['slowmode'] => ({ onSent: vi.fn(), onFailed: vi.fn() })
+  const slow = (blocked = false): MediaSendEnv['slowmode'] => ({ blocked, onSent: vi.fn(), onFailed: vi.fn() })
 
   it('mídia que sai conta a vez', async () => {
     const s = slow()
     await sendSticker(env({ slowmode: s }), { id: 'st1' } as ServerSticker)
     await sendGif(env({ slowmode: s }), gif)
     expect(s?.onSent).toHaveBeenCalledTimes(2)
+    expect(s?.onSent).toHaveBeenLastCalledWith('')
+  })
+
+  it('na espera não envia nada', async () => {
+    const e = env({ slowmode: slow(true) })
+    await sendSticker(e, { id: 'st1' } as ServerSticker)
+    await sendGif(e, gif)
+    expect(e.send).not.toHaveBeenCalled()
+    expect(e.begin).not.toHaveBeenCalled()
   })
 
   it('o 429 de modo lento diz quanto falta e trava a sala', async () => {

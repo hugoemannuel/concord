@@ -96,13 +96,14 @@ func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, au
 	if err := validateNewMessageWithMedia(content, attachmentIDs, hasMedia); err != nil {
 		return nil, err
 	}
-	if err := s.slowmode.Take(ctx, channelID, authorID); err != nil {
+	takenAt, err := s.slowmode.Take(ctx, channelID, authorID)
+	if err != nil {
 		return nil, err
 	}
 	msg, err := s.postToChannel(ctx, channelID, authorID, content, replyToID, attachmentIDs, stickerID, gifURL, gifMetadata)
 	if err != nil {
 		// Mensagem que não saiu não gasta a vez do modo lento.
-		s.slowmode.Release(channelID, authorID)
+		s.slowmode.Release(channelID, authorID, takenAt)
 		return nil, err
 	}
 	return msg, nil

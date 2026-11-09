@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useServerStore } from '../../servers/store/serverStore'
-import { remainingSeconds, slowmodeRetryAfter, slowmodeView } from '../lib/slowmode'
+import { remainingSeconds, shouldLockAfterSend, slowmodeRetryAfter, slowmodeView } from '../lib/slowmode'
+import { useChatStore } from '../store/chatStore'
 import { useSlowmodeStore } from '../store/slowmodeStore'
 
 /** id do canal de `channel:<id>` (DM e grupo não têm modo lento). */
@@ -12,8 +13,8 @@ export interface Slowmode {
   text: string | null
   /** Ainda esperando a vez: o envio fica travado. */
   blocked: boolean
-  /** A mensagem saiu: começa a contar a espera. */
-  onSent: () => void
+  /** O envio terminou sem erro: começa a contar a espera, se a vez contou. */
+  onSent: (text: string) => void
   /** O envio falhou: se foi o 429 do modo lento, trava pelo que o servidor disse. */
   onFailed: (err: unknown) => void
 }
@@ -27,7 +28,8 @@ export function useSlowmode(room: string, exempt: boolean): Slowmode {
   const until = useSlowmodeStore((s) => s.until[room] ?? 0)
   const block = useSlowmodeStore((s) => s.block)
   const [now, setNow] = useState(() => Date.now())
-  const remaining = remainingSeconds(until, now)
+  // O relógio do estado pode estar velho (sala trocada, trava recém-posta).
+  const remaining = remainingSeconds(until, Math.max(now, Date.now()))
 
   // Relógio da contagem: só anda enquanto falta tempo.
   useEffect(() => {
@@ -44,8 +46,9 @@ export function useSlowmode(room: string, exempt: boolean): Slowmode {
   const view = slowmodeView({ seconds, exempt, remaining })
   return {
     ...view,
-    onSent: () => {
-      if (seconds > 0 && !exempt) block(room, seconds)
+    onSent: (text) => {
+      const pending = useChatStore.getState().pendingByRoom[room] ?? []
+      if (shouldLockAfterSend({ seconds, exempt, text, pending })) block(room, seconds)
     },
     onFailed: (err) => {
       const retryAfter = slowmodeRetryAfter(err)

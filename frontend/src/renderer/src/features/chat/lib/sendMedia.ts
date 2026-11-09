@@ -19,8 +19,8 @@ export interface MediaSendEnv {
   begin: () => void
   clearDraft: () => void
   onError: (message: string) => void
-  /** Modo lento da sala: conta a vez depois de enviar e trava no 429. */
-  slowmode?: { onSent: () => void; onFailed: (err: unknown) => void }
+  /** Modo lento da sala: na espera não envia; conta a vez depois de enviar e trava no 429. */
+  slowmode?: { blocked: boolean; onSent: (text: string) => void; onFailed: (err: unknown) => void }
 }
 
 interface GifMetadataToSend {
@@ -37,10 +37,11 @@ function mediaFailed(env: MediaSendEnv, err: unknown, fallback: string): void {
 }
 
 export async function sendSticker(env: MediaSendEnv, sticker: ServerSticker): Promise<void> {
+  if (env.slowmode?.blocked) return
   env.begin()
   try {
     await env.send(env.room, '', [], env.replyId, { stickerId: sticker.id })
-    env.slowmode?.onSent()
+    env.slowmode?.onSent('')
   } catch (err) {
     mediaFailed(env, err, 'Não foi possível enviar a figurinha.')
   }
@@ -48,6 +49,7 @@ export async function sendSticker(env: MediaSendEnv, sticker: ServerSticker): Pr
 
 /** O GIF vai com o texto do campo e só limpa o campo se o envio deu certo. */
 export async function sendGif(env: MediaSendEnv, gif: GifItem): Promise<void> {
+  if (env.slowmode?.blocked) return
   env.begin()
   try {
     await env.send(env.room, env.draft, [], env.replyId, {
@@ -55,7 +57,7 @@ export async function sendGif(env: MediaSendEnv, gif: GifItem): Promise<void> {
       gifMetadata: { width: gif.width, height: gif.height, preview_url: gif.preview_url }
     })
     env.clearDraft()
-    env.slowmode?.onSent()
+    env.slowmode?.onSent('')
   } catch (err) {
     mediaFailed(env, err, 'Não foi possível enviar o GIF.')
   }

@@ -50,7 +50,7 @@ func slowmodeBody(t *testing.T, rec *httptest.ResponseRecorder) (string, int) {
 
 func TestCreateChannelMessageNoModoLentoE429(t *testing.T) {
 	gate := newGate()
-	_ = gate.Take(context.Background(), "lento", "ana")
+	_, _ = gate.Take(context.Background(), "lento", "ana")
 	rec := postRaw(slowmodeRouter(membro, gate), "/api/channels/lento/messages", `{"content":"oi"}`)
 	code, retry := slowmodeBody(t, rec)
 	if rec.Code != http.StatusTooManyRequests || code != "slowmode" || retry != 30 {

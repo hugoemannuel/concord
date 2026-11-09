@@ -137,12 +137,13 @@ func (s *TTSService) voiceTarget(ctx context.Context, channelID, serverID, autho
 // canal e só a call de voiceTarget fala.
 func (s *TTSService) SendToChannel(ctx context.Context, channelID, authorID, content string) (*Message, error) {
 	return s.send(ctx, authorID, content, func(text string) (*Message, error) {
-		if err := s.slowmode.Take(ctx, channelID, authorID); err != nil {
+		takenAt, err := s.slowmode.Take(ctx, channelID, authorID)
+		if err != nil {
 			return nil, err
 		}
 		msg, err := s.postToChannel(ctx, channelID, authorID, text)
 		if err != nil {
-			s.slowmode.Release(channelID, authorID)
+			s.slowmode.Release(channelID, authorID, takenAt)
 		}
 		return msg, err
 	})

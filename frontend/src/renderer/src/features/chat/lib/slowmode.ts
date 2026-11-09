@@ -2,6 +2,7 @@
 // `slowmode_seconds`. Quem tem Gerenciar mensagens ou Gerenciar canais fica
 // isento. O servidor é quem barra (429 "slowmode"); aqui só os textos e contas.
 import { ApiError } from '../../../shared/api/client'
+import type { PendingMessage } from './pendingMessages'
 
 /** Os intervalos aceitos pelo servidor (os do Discord); 0 = desligado. */
 const SLOWMODE_VALUES = [0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 21600]
@@ -68,4 +69,26 @@ export function slowmodeErrorText(retryAfter: number): string {
 export function slowmodeRetryAfter(err: unknown): number | null {
   if (!(err instanceof ApiError) || err.code !== 'slowmode') return null
   return Number(err.body.retry_after) || 1
+}
+
+/** "/tts ..." vira mensagem; os outros comandos (Maestro) não, e não contam. */
+const isNonMessageCommand = (text: string): boolean => text.startsWith('/') && !/^\/tts(\s|$)/i.test(text)
+
+/**
+ * Depois de um envio sem erro, a vez conta? Não conta sem modo lento, para
+ * quem é isento, em comando que não vira mensagem nem quando o envio caiu na
+ * rede (a bolha ficou "Não enviada" e o servidor não gastou a vez).
+ */
+export function shouldLockAfterSend(input: {
+  seconds: number
+  exempt: boolean
+  /** Texto enviado ('' para figurinha, GIF e áudio). */
+  text: string
+  /** Bolhas locais da sala logo depois do envio. */
+  pending: PendingMessage[]
+}): boolean {
+  if (input.seconds <= 0 || input.exempt) return false
+  const text = input.text.trim()
+  if (isNonMessageCommand(text)) return false
+  return !input.pending.some((p) => p.status === 'failed' && p.content === text)
 }
