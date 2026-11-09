@@ -150,6 +150,7 @@ describe('anexos', () => {
     const done = { status: 'done' as const, attachment: { id: 'a' } as Attachment }
     expect(canSubmit('', [])).toBe(false)
     expect(canSubmit('oi', [])).toBe(true)
+    expect(canSubmit('oi', [], true)).toBe(false) // modo lento: esperando a vez
     expect(canSubmit('', [done])).toBe(true)
     expect(canSubmit('oi', [done, { status: 'uploading' as const }])).toBe(false)
     expect(canSubmit('oi', [{ status: 'error' as const }])).toBe(false)

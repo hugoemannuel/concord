@@ -36,7 +36,7 @@ interface Options {
   /** Limpa o que o envio leva embora além do texto (aviso de digitando, menu do @). */
   onSent: () => void
   /** Modo lento da sala: trava o envio na espera e conta a vez depois de enviar. */
-  slowmode?: Pick<Slowmode, 'blocked' | 'onSent' | 'onFailed'>
+  slowmode: Pick<Slowmode, 'blocked' | 'onSent' | 'onFailed'>
 }
 
 /** Ids dos anexos que já subiram: só eles saem do rascunho quando o envio dá certo. */
@@ -71,7 +71,7 @@ export function useComposerSend(o: Options): {
     }
   }, [])
   const attachmentState = draftStatus(o.drafts)
-  const submittable = canSubmit(o.draft, o.drafts) && !o.slowmode?.blocked
+  const submittable = canSubmit(o.draft, o.drafts, o.slowmode.blocked)
   const ready = submittable && !sending
   const replyId = o.replyingTo?.id ?? null
 
@@ -108,10 +108,10 @@ export function useComposerSend(o: Options): {
     o.setReplyState(null)
     try {
       await sendToRoom(o.room, sent.text.trim(), attachmentState.readyIds, replyId)
-      o.slowmode?.onSent()
+      o.slowmode.onSent()
       clearSentDrafts(sent.room, sentDrafts)
     } catch (err) {
-      o.slowmode?.onFailed(err)
+      o.slowmode.onFailed(err)
       reportFailure(sendErrorText(err), sent)
     } finally {
       setSending(false)
@@ -127,9 +127,9 @@ export function useComposerSend(o: Options): {
         duration_ms: durationMs
       })
       await sendToRoom(o.room, '', [attachment.id])
-      o.slowmode?.onSent()
+      o.slowmode.onSent()
     } catch (err) {
-      o.slowmode?.onFailed(err)
+      o.slowmode.onFailed(err)
       showToast.error(voiceErrorText(err))
     } finally {
       setSendingVoice(false)
