@@ -4,12 +4,11 @@ import { ClockIcon } from '../../../../shared/ui/icons'
 function SlowmodeBar({ text }: { text: string | null }): React.JSX.Element | null {
   if (!text) return null
   return (
-    <p
-      aria-live="polite"
-      className="mb-1 flex min-w-0 items-center gap-1.5 px-1 text-ds-sm text-muted"
-    >
+    // Sem aria-live: a contagem muda a cada segundo; a recusa do servidor já
+    // sai em aviso (toast).
+    <p className="mb-1 flex min-w-0 items-center gap-1.5 px-1 text-ds-sm text-muted">
       <ClockIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="truncate">{text}</span>
+      <span className="truncate tabular-nums">{text}</span>
     </p>
   )
 }
