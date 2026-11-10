@@ -211,3 +211,17 @@ func TestRunSweeperVarreAteOContextoAcabar(t *testing.T) {
 	cancel()
 	<-done
 }
+
+func TestReinicioDevolveAMidiaDoQueVenceuForaDoAr(t *testing.T) {
+	w := newWorld(t)
+	ctx := context.Background()
+	past, soon := w.now.Add(-time.Minute), w.now.Add(time.Minute)
+	w.store.rows["srv-1|ana"] = Castigo{ServerID: "srv-1", UserID: "ana", SpeakUntil: &past, ListenUntil: &soon}
+	if err := w.svc.Warm(ctx); err != nil {
+		t.Fatal(err)
+	}
+	w.svc.Sweep(ctx)
+	if len(w.calls.enforced) != 1 || w.store.rows["srv-1|ana"].SpeakUntil != nil {
+		t.Errorf("a primeira varredura devolve a fala na mídia: %v %+v", w.calls.enforced, w.store.rows["srv-1|ana"])
+	}
+}

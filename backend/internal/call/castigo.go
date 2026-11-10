@@ -67,7 +67,8 @@ func (s *Service) castigoBlocksJoin(ctx context.Context, channelID, userID strin
 	}
 	ch, err := s.findChannel(ctx, channelID)
 	if err != nil {
-		return false
+		// Sem saber o servidor, quem tem castigo não entra (falha fechada).
+		return true
 	}
 	return s.castigoOf(ch.ServerID, userID).NoConnect
 }

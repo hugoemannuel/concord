@@ -29,25 +29,33 @@ func (s *Service) RunSweeper(ctx context.Context, every time.Duration) {
 func (s *Service) Sweep(ctx context.Context) {
 	now := s.now()
 	for _, c := range s.active.all() {
-		if p := c.pruned(now); c.changedBy(p) {
-			s.expire(ctx, p, now)
+		if p, ok := s.expire(ctx, c.ServerID, c.UserID, now); ok {
+			s.changed(ctx, p)
 		}
 	}
 	s.expireVotes(now)
 }
 
-// expire grava o que sobrou do castigo (ou o apaga) e avisa.
-func (s *Service) expire(ctx context.Context, c Castigo, now time.Time) {
-	if c.active(now) {
-		if err := s.store.Save(ctx, c); err != nil {
-			log.Printf("[castigo] gravar %s em %s: %v", c.UserID, c.ServerID, err)
-		}
-		s.active.put(c)
-	} else {
-		if err := s.store.Delete(ctx, c.ServerID, c.UserID); err != nil {
-			log.Printf("[castigo] apagar %s em %s: %v", c.UserID, c.ServerID, err)
-		}
-		s.active.remove(c.ServerID, c.UserID)
+// expire relê o castigo (sob s.mu: um castigo novo no meio não se perde) e
+// grava o que sobrou, ou o apaga. ok=false se nada venceu.
+func (s *Service) expire(ctx context.Context, serverID, userID string, now time.Time) (Castigo, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c, found := s.active.get(serverID, userID)
+	p := c.pruned(now)
+	if !found || !c.changedBy(p) {
+		return Castigo{}, false
 	}
-	s.changed(ctx, c)
+	if !p.active(now) {
+		if err := s.store.Delete(ctx, serverID, userID); err != nil {
+			log.Printf("[castigo] apagar %s em %s: %v", userID, serverID, err)
+		}
+		s.active.remove(serverID, userID)
+		return p, true
+	}
+	if err := s.store.Save(ctx, p); err != nil {
+		log.Printf("[castigo] gravar %s em %s: %v", userID, serverID, err)
+	}
+	s.active.put(p)
+	return p, true
 }

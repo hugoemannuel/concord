@@ -150,3 +150,23 @@ export function personName(
   const m = members.find((x) => x.user_id === userId)
   return m?.nickname || m?.display_name || m?.username || 'Alguém'
 }
+
+const ballots = (v: CastigoVote): number => v.yes.length + v.no.length
+
+/**
+ * A votação que fica: a resposta do meu voto pode chegar depois do evento que
+ * a decidiu. Fechada não volta a abrir, e a contagem não anda para trás.
+ */
+export function mergeVote(prev: CastigoVote | undefined, next: CastigoVote): CastigoVote {
+  if (!prev || prev.id !== next.id) return next
+  if (prev.status !== 'open' && next.status === 'open') return prev
+  if (next.status === prev.status && ballots(next) < ballots(prev)) return prev
+  return next
+}
+
+/** Quanto falta para a votação aberta vencer (0 se já venceu ou não está aberta). */
+export function voteMsLeft(vote: CastigoVote, now: number): number {
+  if (vote.status !== 'open') return 0
+  const t = Date.parse(vote.expires_at)
+  return Number.isNaN(t) ? 0 : Math.max(0, t - now)
+}

@@ -5,6 +5,8 @@ import {
   canApplyDirect,
   castigoEndsAt,
   hasAnyPower,
+  mergeVote,
+  voteMsLeft,
   personName,
   voteView,
   type Castigo,
@@ -118,5 +120,33 @@ describe('voteView e personName', () => {
     expect(personName('b', call, members)).toBe('Bibi')
     expect(personName('c', call, members)).toBe('caio')
     expect(personName('x', call, members)).toBe('Alguém')
+  })
+})
+
+describe('mergeVote e voteMsLeft', () => {
+  const base = {
+    id: 'v',
+    status: 'open',
+    yes: ['a'],
+    no: [],
+    expires_at: new Date(now + 30_000).toISOString()
+  } as unknown as CastigoVote
+
+  it('fechada não reabre e a contagem não volta', () => {
+    const passed = { ...base, status: 'passed', yes: ['a', 'b'] } as CastigoVote
+    expect(mergeVote(passed, { ...base, yes: ['a', 'b'] })).toBe(passed)
+    const two = { ...base, yes: ['a', 'b'] }
+    expect(mergeVote(two, base)).toBe(two)
+    expect(mergeVote(base, two)).toBe(two)
+    expect(mergeVote(undefined, base)).toBe(base)
+    const other = { ...base, id: 'w' }
+    expect(mergeVote(passed, other)).toBe(other)
+  })
+
+  it('tempo que falta', () => {
+    expect(voteMsLeft(base, now)).toBe(30_000)
+    expect(voteMsLeft(base, now + 60_000)).toBe(0)
+    expect(voteMsLeft({ ...base, status: 'failed' }, now)).toBe(0)
+    expect(voteMsLeft({ ...base, expires_at: 'x' }, now)).toBe(0)
   })
 })

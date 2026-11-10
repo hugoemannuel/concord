@@ -3,6 +3,7 @@ package castigo
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"gin-quickstart/backend/internal/call"
@@ -45,6 +46,9 @@ type Service struct {
 	now    func() time.Time
 	active *index
 	votes  *voteBook
+	// mu: ler, somar, gravar e guardar um castigo é um passo só (castigo
+	// direto, votação, tirar e vencer não se atropelam).
+	mu sync.Mutex
 }
 
 func NewService(st store, perms PermissionSource, calls Calls, pub Publisher) *Service {
@@ -77,8 +81,10 @@ func (s *Service) Warm(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Sem podar: o que venceu com o servidor fora do ar sai na primeira
+	// varredura, que também devolve a mídia de quem segue na call.
 	for _, c := range list {
-		s.active.put(c.pruned(now))
+		s.active.put(c)
 	}
 	return nil
 }
@@ -159,6 +165,19 @@ type punishment struct {
 // punish soma o castigo ao que a pessoa já tinha, grava, avisa o servidor e
 // aplica na call em que ela estiver.
 func (s *Service) punish(ctx context.Context, p punishment) (Castigo, error) {
+	c, err := s.merge(ctx, p)
+	if err != nil {
+		return Castigo{}, err
+	}
+	s.changed(ctx, c)
+	s.record(ctx, applyEvent(p))
+	return c, nil
+}
+
+// merge soma o castigo ao que já existe, grava e guarda (sob s.mu).
+func (s *Service) merge(ctx context.Context, p punishment) (Castigo, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	now := s.now()
 	c, ok := s.active.get(p.serverID, p.req.UserID)
 	if !ok {
@@ -169,8 +188,6 @@ func (s *Service) punish(ctx context.Context, p punishment) (Castigo, error) {
 		return Castigo{}, err
 	}
 	s.active.put(c)
-	s.changed(ctx, c)
-	s.record(ctx, applyEvent(p))
 	return c, nil
 }
 
@@ -193,10 +210,9 @@ func (s *Service) Lift(ctx context.Context, serverID, actorID, targetID string) 
 	if err := authorizeDirect(snap, actorID, targetID, c.effects(s.now())); err != nil {
 		return err
 	}
-	if err := s.store.Delete(ctx, serverID, targetID); err != nil {
+	if err := s.remove(ctx, serverID, targetID); err != nil {
 		return err
 	}
-	s.active.remove(serverID, targetID)
 	s.changed(ctx, Castigo{ServerID: serverID, UserID: targetID})
 	s.record(ctx, liftEvent(serverID, actorID, targetID))
 	return nil
@@ -212,4 +228,15 @@ func (s *Service) List(ctx context.Context, serverID, viewerID string) ([]Castig
 		return nil, ErrNotMember
 	}
 	return s.active.ofServer(serverID, s.now()), nil
+}
+
+// remove apaga o castigo do banco e da memória (sob s.mu).
+func (s *Service) remove(ctx context.Context, serverID, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.store.Delete(ctx, serverID, userID); err != nil {
+		return err
+	}
+	s.active.remove(serverID, userID)
+	return nil
 }

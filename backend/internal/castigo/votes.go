@@ -75,8 +75,17 @@ func (s *Service) CurrentVote(callID, userID string) (Vote, bool) {
 
 // applyVote: o castigo aprovado vale como se quem abriu a votação o desse.
 func (s *Service) applyVote(ctx context.Context, v Vote) {
+	// Algo pode ter mudado no minuto da votação (o alvo virou dono, saiu).
+	snap, err := s.snapshot(ctx, v.ServerID)
+	if err == nil {
+		err = checkTarget(snap, v.InitiatorID, v.TargetID)
+	}
+	if err != nil {
+		log.Printf("[castigo] votação %s aprovada, mas não vale mais: %v", v.ID, err)
+		return
+	}
 	d, _ := duration(v.Duration)
-	_, err := s.punish(ctx, punishment{
+	_, err = s.punish(ctx, punishment{
 		serverID: v.ServerID, actorID: v.InitiatorID, channelID: v.channelID, d: d, byVote: true,
 		req: Request{UserID: v.TargetID, Effects: v.Effects, Duration: v.Duration},
 	})

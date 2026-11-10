@@ -131,3 +131,14 @@ func TestSemCastigosLigadosNadaMuda(t *testing.T) {
 		t.Error("sem fonte de castigos ninguém é barrado")
 	}
 }
+
+func TestCastigoSemAcharOCanalBarraAEntrada(t *testing.T) {
+	svc, _ := castigoService(fakeCastigos{"srv-1|ana": {NoSpeak: true}})
+	svc.findChannel = func(context.Context, string) (*channel.Channel, error) { return nil, errors.New("banco fora") }
+	if !svc.castigoBlocksJoin(context.Background(), "geral", "ana") {
+		t.Error("quem tem castigo e o canal não foi achado não entra (falha fechada)")
+	}
+	if svc.castigoBlocksJoin(context.Background(), "geral", "bia") {
+		t.Error("sem castigo nem procura o canal")
+	}
+}

@@ -164,3 +164,20 @@ func TestQuemAbreEsperaParaAbrirOutra(t *testing.T) {
 		t.Errorf("a espera vencida sai da memória: %v", w.svc.votes.lastBy)
 	}
 }
+
+func TestVotacaoAprovadaConfereOAlvoDeNovo(t *testing.T) {
+	w := newWorld(t)
+	w.inCall("ana", "bia", "caio")
+	ctx := context.Background()
+	v, err := w.svc.StartVote(ctx, "c1", "ana", speak5min("caio"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(w.svc.perms.(fakePerms).snap.MemberRoles, "caio") // saiu do servidor no meio
+	if v, err = w.svc.CastVote(ctx, "c1", v.ID, "bia", true); err != nil || v.Status != VotePassed {
+		t.Fatalf("%+v, %v", v, err)
+	}
+	if w.svc.Punished("caio") {
+		t.Error("quem saiu do servidor não fica de castigo")
+	}
+}

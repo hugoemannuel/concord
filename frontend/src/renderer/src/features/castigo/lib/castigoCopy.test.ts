@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../../shared/api/client'
-import { castigoEffectsLabel, castigoErrorMessage, durationLabel, effectsSummary, voteSummary } from './castigoCopy'
+import {
+  castigoEffectsLabel,
+  castigoErrorMessage,
+  durationLabel,
+  effectsSummary,
+  voteSummary
+} from './castigoCopy'
 
 describe('castigoCopy', () => {
   it('resume os efeitos', () => {
