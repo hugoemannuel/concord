@@ -67,6 +67,11 @@ describe('mentionNotification', () => {
   const inChannel = (over: Partial<Message> = {}): Message =>
     dm({ conversation_id: null, channel_id: 'ch1', content: 'bora @fulano?', ...over })
 
+  it('encaminhada com @você não notifica', () => {
+    const forwarded_from = { message_id: 'm0', author_id: 'bia', author_name: 'Bia', created_at: '' }
+    expect(mentionNotification(inChannel({ forwarded_from }), me, 'srv1')).toBeNull()
+  })
+
   it('menção em canal vira notificação que abre o canal', () => {
     expect(mentionNotification(inChannel(), me, 'srv1')).toEqual({
       kind: 'mention',

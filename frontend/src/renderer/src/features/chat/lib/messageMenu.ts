@@ -24,6 +24,7 @@ export type MessageMenuAction =
   | 'react'
   | 'edit'
   | 'reply'
+  | 'forward'
   | 'pin'
   | 'unpin'
   | 'favorite'
@@ -42,6 +43,8 @@ export interface MessageMenuInput {
   canReact: boolean
   /** Minha mensagem, editável e fora da edição. */
   canEdit: boolean
+  /** Dá para encaminhar (features/chat/lib/forward). */
+  canForward?: boolean
   canPin: boolean
   isPinned: boolean
   /** Pode entrar na lista pessoal de favoritas (mensagem já enviada). */
@@ -55,7 +58,7 @@ export interface MessageMenuInput {
 
 /**
  * Itens do "Mais", em grupos separados por divisória como no Discord: reagir,
- * editar e responder; fixar, favoritar e copiar; excluir por último, em vermelho. Só
+ * editar, responder e encaminhar; fixar, favoritar e copiar; excluir por último, em vermelho. Só
  * entram as ações que já existem e que a pessoa pode fazer; grupo vazio some.
  */
 export function messageMenuGroups(input: MessageMenuInput): MessageMenuItem[][] {
@@ -69,7 +72,8 @@ export function messageMenuGroups(input: MessageMenuInput): MessageMenuItem[][] 
     [
       input.canReact && { action: 'react', label: 'Adicionar reação' },
       input.canEdit && { action: 'edit', label: 'Editar mensagem' },
-      { action: 'reply', label: 'Responder' }
+      { action: 'reply', label: 'Responder' },
+      Boolean(input.canForward) && { action: 'forward', label: 'Encaminhar' }
     ],
     [
       input.canPin && pin,

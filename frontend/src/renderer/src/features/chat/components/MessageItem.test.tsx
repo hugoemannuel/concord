@@ -86,6 +86,27 @@ describe('MessageItem', () => {
     expect(html).toContain('py-0.5')
   })
 
+  it('encaminhada: o selo com a origem e o texto da original', () => {
+    const html = render(
+      msg({
+        content: 'olha isso',
+        forwarded_from: {
+          message_id: 'm0',
+          author_id: 'caio',
+          author_name: 'Caio',
+          channel_id: 'c1',
+          channel_name: 'geral',
+          server_name: 'Salinha',
+          created_at: '2026-01-01T09:00:00Z'
+        }
+      })
+    )
+    expect(html).toContain('Encaminhada')
+    expect(html).toContain('de Caio · #geral · Salinha')
+    expect(html).toContain('olha isso')
+    expect(render(msg())).not.toContain('Encaminhada')
+  })
+
   it('mensagem /tts leva o selo de alto-falante', () => {
     expect(render(msg({ tts: true }))).toContain('Mensagem TTS')
     expect(render(msg())).not.toContain('Mensagem TTS')

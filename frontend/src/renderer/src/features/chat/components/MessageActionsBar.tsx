@@ -11,6 +11,8 @@ interface MessageActionsBarProps {
   onReact: (emoji: string) => void
   onTogglePicker: () => void
   onReply: () => void
+  /** Abre o seletor de destino; ausente = a mensagem não pode ser encaminhada. */
+  onForward?: () => void
   onCopy?: () => void
   onEdit?: () => void
   canPin?: boolean
@@ -32,6 +34,7 @@ function runMenuAction(action: MessageMenuAction, props: MessageActionsBarProps)
     react: props.onTogglePicker,
     edit: props.onEdit,
     reply: props.onReply,
+    forward: props.onForward,
     pin: props.onTogglePin,
     unpin: props.onTogglePin,
     favorite: props.onToggleFavorite,
@@ -47,6 +50,7 @@ function menuGroups(props: MessageActionsBarProps): ReturnType<typeof messageMen
   return messageMenuGroups({
     canReact: props.canReact,
     canEdit: Boolean(props.onEdit),
+    canForward: Boolean(props.onForward),
     canPin: Boolean(props.canPin && props.onTogglePin),
     isPinned: Boolean(props.isPinned),
     canFavorite: Boolean(props.onToggleFavorite),
@@ -97,7 +101,7 @@ function ReactionButtons({
 /**
  * Barra compacta de ícones sobre a mensagem (como no Discord): 3 reações
  * rápidas, adicionar reação, responder e "Mais", que abre o menu com as
- * outras ações (editar, fixar, favoritar, copiar, excluir...). Cada ação do menu só
+ * outras ações (editar, encaminhar, fixar, favoritar, copiar, excluir...). Cada ação do menu só
  * aparece quando o handler vem.
  */
 function MessageActionsBar(props: MessageActionsBarProps): React.JSX.Element {
