@@ -14,6 +14,7 @@ import ActivityPanel from '../features/call/components/ActivityPanel'
 import ScreenSharePrompt from '../features/call/components/ScreenSharePrompt'
 import VideoBackgroundModal from '../features/call/components/VideoBackgroundModal'
 import JoinRequestsStack from '../features/call/components/JoinRequestsStack'
+import CastigoHost from '../features/castigo/components/CastigoHost'
 import LevelUpBanner from '../features/levels/components/LevelUpBanner'
 import BoostBanner from '../features/levels/components/BoostBanner'
 import LevelUpScreen from '../features/levels/components/LevelUpScreen'
@@ -87,6 +88,7 @@ function AppShell(): React.JSX.Element {
       </div>
       <IncomingCallModal />
       <JoinRequestsStack />
+      <CastigoHost />
       <CallOverlay />
       <BirthdayModal />
       <ScreenMiniPlayer />

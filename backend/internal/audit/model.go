@@ -52,6 +52,9 @@ const (
 	VoiceDeafen     Action = "voice.deafen"
 	VoiceMove       Action = "voice.move"
 	VoiceDisconnect Action = "voice.disconnect"
+	// Castigo nas calls (docs/adr/0063-castigo-na-call.md).
+	VoiceCastigo     Action = "voice.castigo"
+	VoiceCastigoLift Action = "voice.castigo.lift"
 
 	MessageDelete Action = "message.delete"
 	MessagePin    Action = "message.pin"
@@ -81,7 +84,7 @@ var Actions = []Action{
 	CategoryCreate, CategoryUpdate, CategoryDelete,
 	RoleCreate, RoleUpdate, RoleDelete, RoleReorder, MemberRoleAdd, MemberRoleRemove,
 	MemberJoin, MemberLeave, MemberKick, MemberBan, MemberUnban, MemberNickname,
-	VoiceMute, VoiceDeafen, VoiceMove, VoiceDisconnect,
+	VoiceMute, VoiceDeafen, VoiceMove, VoiceDisconnect, VoiceCastigo, VoiceCastigoLift,
 	MessageDelete, MessagePin, MessageUnpin,
 	EmojiCreate, EmojiUpdate, EmojiDelete, StickerCreate, StickerUpdate, StickerDelete, SoundCreate, SoundUpdate, SoundDelete,
 	EventCreate, EventUpdate, EventDelete, EventAccess,

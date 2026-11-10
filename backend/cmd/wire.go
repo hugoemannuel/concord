@@ -134,6 +134,7 @@ func wire(ctx context.Context, db *pgxpool.Pool) *app {
 	a.wireCalls()
 	a.wirePushCalls()
 	a.wireGuests()
+	a.wireCastigos()
 	a.wireMusic()
 	a.wireEngagement()
 	a.wireEvents()
