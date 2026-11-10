@@ -1,6 +1,9 @@
 package call
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // Troca de chamada estilo Discord: uma pessoa tem uma conexão de voz só, então
 // ligar ou atender uma DM estando em outra call tira ela da call antiga antes.
@@ -8,9 +11,19 @@ import "context"
 // leaveForSwitch tira userID da chamada fromCallID para ele entrar em outra.
 // Sai da sala WS antes (como no move.go): o call:left/call:ended da call
 // antiga não chega ao próprio cliente, que já trocou de chamada sozinho.
+// A call antiga que já não existe (ocupado velho) conta como saída feita.
 func (s *Service) leaveForSwitch(ctx context.Context, userID, fromCallID string) error {
 	s.leaveCallRoom(userID, fromCallID)
-	return s.leaveCall(ctx, fromCallID, userID)
+	err := s.leaveCall(ctx, fromCallID, userID)
+	if !errors.Is(err, ErrNotFound) {
+		return err
+	}
+	s.mu.Lock()
+	if _, alive := s.calls[fromCallID]; !alive && s.busy[userID] == fromCallID {
+		delete(s.busy, userID)
+	}
+	s.mu.Unlock()
+	return nil
 }
 
 // ringingForLocked (com s.mu travado): userID é o chamado de uma DM que ainda

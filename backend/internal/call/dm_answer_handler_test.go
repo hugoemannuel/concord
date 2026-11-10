@@ -36,6 +36,18 @@ func TestAcceptRouteAnswersAfterJoining(t *testing.T) {
 	}
 }
 
+func TestAcceptRouteLeavesStaleCall(t *testing.T) {
+	s, _ := answerRig()
+	s.busy["bia"] = "sumiu" // a call antiga já não existe na memória
+
+	if rec := acceptRequest(s, "bia", "call-1"); rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	if s.busy["bia"] != "call-1" {
+		t.Fatalf("busy = %q", s.busy["bia"])
+	}
+}
+
 func TestAcceptRouteErrors(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -48,8 +60,11 @@ func TestAcceptRouteErrors(t *testing.T) {
 		{name: "quem não foi chamado", userID: "intruso", callID: "call-1", want: http.StatusForbidden},
 		{
 			name: "ocupado em outra chamada", userID: "bia", callID: "call-1",
-			setup: func(s *Service) { s.busy["bia"] = "outra" },
-			want:  http.StatusConflict,
+			setup: func(s *Service) {
+				s.busy["bia"] = "canal"
+				(&leaveRecorder{keepBusy: true}).install(s)
+			},
+			want: http.StatusConflict,
 		},
 	}
 	for _, tc := range cases {
