@@ -13,7 +13,12 @@ import ResizeHandle from '../../../shared/ui/ResizeHandle'
 import { useResizableWidth } from '../../../shared/hooks/useResizableWidth'
 import CreateGroupModal from './CreateGroupModal'
 import { hideConversation, leaveGroup, type ConversationSummary } from '../../chat/api/conversations'
-import { DirectMessagesList, FriendsNavButton, LeaveGroupConfirm } from './FriendsSidebarSections'
+import {
+  DirectMessagesList,
+  FavoritesNavButton,
+  FriendsNavButton,
+  LeaveGroupConfirm
+} from './FriendsSidebarSections'
 import { dropConversation } from '../lib/dropConversation'
 
 export function FriendsSidebar(): React.JSX.Element {
@@ -107,7 +112,9 @@ export function FriendsSidebar(): React.JSX.Element {
               setFriendsTab('online')
               navigate('/friends')
             }}
-          />
+          >
+            <FavoritesNavButton pathname={location.pathname} onOpen={() => navigate('/favoritas')} />
+          </FriendsNavButton>
 
           <DirectMessagesList
             conversations={conversations}

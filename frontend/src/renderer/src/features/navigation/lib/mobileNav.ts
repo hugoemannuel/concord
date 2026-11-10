@@ -33,12 +33,13 @@ export function sectionKind(path: string): string {
 
 // Rotas que são uma conversa/tela própria (não só "a lista daquele lugar"). A
 // visita de visitante só tem a call: abre direto nela. O painel das lives
-// (devs) é uma tela sem lista.
+// (devs) e as favoritas são telas sem lista.
 const CONTENT_PATHS = [
   /^\/servers\/[^/]+\/channels\//,
   /^\/dm\//,
   /^\/visitas\//,
-  /^\/observabilidade/
+  /^\/observabilidade/,
+  /^\/favoritas/
 ]
 
 // A aba do diamante (Melhorias, Propostas, Novidades, Rank global) não tem lista
