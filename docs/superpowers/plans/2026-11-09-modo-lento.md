@@ -10,7 +10,7 @@ Cada tarefa: teste primeiro (falhando pelo motivo certo) → código mínimo →
 
 ## Backend
 
-2. Migration `000201_channels_slowmode` (coluna + CHECK).
+2. Migration `000204_channels_slowmode` (coluna + CHECK).
 3. `channel/slowmode.go`: `ValidSlowmode` (tabela de valores). Teste unitário.
 4. `Channel.SlowmodeSeconds`; repositório lê a coluna em `FindByID`/`ListByServerID`, grava
    em `Update` (opcional) e expõe `SlowmodeSeconds`. `Service.Update` recebe

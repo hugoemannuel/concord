@@ -28,7 +28,7 @@ naquele canal (o "slowmode" do Discord). Quem tem permissão fica isento.
 ## Arquitetura
 
 Backend:
-- `backend/migrations/000201_channels_slowmode.{up,down}.sql`: coluna
+- `backend/migrations/000204_channels_slowmode.{up,down}.sql`: coluna
   `channels.slowmode_seconds INT NOT NULL DEFAULT 0` com CHECK 0..21600.
 - `internal/channel/slowmode.go`: valores aceitos (`ValidSlowmode`) e `ErrInvalidSlowmode`.
   `Channel.SlowmodeSeconds` (`slowmode_seconds` no JSON). `PUT /servers/:id/channels/:channelId`
