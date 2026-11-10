@@ -10,6 +10,7 @@ import type { GroupedMessage } from '../lib/messageGroups'
 import { isMaestroMessageKind } from '../../music/lib/music'
 import { MusicMessage } from '../../music/components/MusicMessage'
 import { ProfileTap } from '../../profile/components/ProfileTap'
+import { ForwardedFrame } from './ForwardedFrame'
 
 interface MessageItemProps {
   item: GroupedMessage
@@ -50,15 +51,17 @@ export function MessageItem({ item, timeZone, onOpenProfile }: MessageItemProps)
               <Text style={styles.time}>{timeLabel(message.created_at, new Date(), timeZone)}</Text>
             </View>
           ) : null}
-          {message.content.trim() ? (
-            <MessageText content={message.content}>
-              {message.edited_at ? <Text style={styles.edited}> (editada)</Text> : null}
-            </MessageText>
-          ) : null}
-          {message.sticker ? <MessageSticker sticker={message.sticker} /> : null}
-          {message.deleted_sticker_name ? <Text style={styles.deletedSticker}>:{message.deleted_sticker_name}:</Text> : null}
-          {message.gif_url ? <MessageGif gifUrl={message.gif_url} metadata={message.gif_metadata} /> : null}
-          {message.attachments?.length ? <MessageAttachments attachments={message.attachments} /> : null}
+          <ForwardedFrame from={message.forwarded_from}>
+            {message.content.trim() ? (
+              <MessageText content={message.content}>
+                {message.edited_at ? <Text style={styles.edited}> (editada)</Text> : null}
+              </MessageText>
+            ) : null}
+            {message.sticker ? <MessageSticker sticker={message.sticker} /> : null}
+            {message.deleted_sticker_name ? <Text style={styles.deletedSticker}>:{message.deleted_sticker_name}:</Text> : null}
+            {message.gif_url ? <MessageGif gifUrl={message.gif_url} metadata={message.gif_metadata} /> : null}
+            {message.attachments?.length ? <MessageAttachments attachments={message.attachments} /> : null}
+          </ForwardedFrame>
         </View>
       </View>
     </View>

@@ -59,7 +59,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 	var replyAvatarURL, replyDecorationURL *string
 	var replyStyle namestyle.Style
 	var stickerServerID, stickerName, stickerContentType *string
-	var rawGifMeta, rawCallInvite []byte
+	var rawGifMeta, rawCallInvite, rawForwarded []byte
 
 	msg.Author = &Author{}
 	dest := []any{
@@ -93,6 +93,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 		&msg.DeletedStickerName,
 		&msg.GifURL,
 		&rawGifMeta,
+		&rawForwarded,
 		&msg.TTS,
 		&msg.TTSVoiceChannelID,
 		&rawCallInvite,
@@ -122,5 +123,6 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 
 	populateMedia(&msg, stickerServerID, stickerName, stickerContentType, rawGifMeta)
 	msg.CallInvite = parseCallInvite(rawCallInvite)
+	msg.ForwardedFrom = parseForwardedFrom(rawForwarded)
 	return msg, nil
 }

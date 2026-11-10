@@ -45,7 +45,9 @@ func (a *app) wireChat() {
 	searchHandler := message.NewSearchHandler(messageRepository, a.permissionService, a.roomAccess)
 	suppressor := message.NewEmbedSuppressor(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository)
 	suppressHandler := message.NewSuppressEmbedsHandler(suppressor, a.permissionService, a.roomAccess)
+	favoriteHandler := message.NewFavoriteHandler(message.NewFavoriteService(messageRepository, a.roomAccess))
 	a.wireTTS(messageRepository, slowmode)
+	a.wireForward(messageRepository, uploads, messageEvents)
 	a.wireEmojis()
 
 	a.serverService.OnMemberJoined(func(ctx context.Context, serverID string, member server.ServerMember) {
@@ -98,6 +100,7 @@ func (a *app) wireChat() {
 		message.AttachmentRoutes(api, attachmentHandler, a.authMiddleware)
 		message.SearchRoutes(api, searchHandler, a.authMiddleware)
 		message.SuppressEmbedsRoutes(api, suppressHandler, a.authMiddleware)
+		message.FavoriteRoutes(api, favoriteHandler, a.authMiddleware)
 		soundboard.Routes(api, soundboardHandler, a.authMiddleware)
 		soundboard.FavoriteRoutes(api, soundboard.NewFavoritesHandler(a.soundboardRepository, a.soundboardRepository, a.permissionService), a.authMiddleware)
 		sticker.Routes(api, stickerHandler, a.authMiddleware)

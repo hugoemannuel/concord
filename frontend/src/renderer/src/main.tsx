@@ -15,6 +15,7 @@ import { startScreenSounds } from './features/call/lib/screenSoundsStart'
 import { startAppSounds } from './features/appsounds/lib/appSoundsStart'
 import { startArrivalBadges } from './features/call/lib/arrivalEventsStart'
 import { startCallInvites } from './features/call/lib/callInviteStart'
+import { startCastigos } from './features/castigo/lib/castigoStart'
 import { startSavedProfilesSync } from './features/savedProfiles/lib/savedProfilesStart'
 import { startMemberProfilesSync } from './features/memberProfiles/lib/memberProfileStart'
 import { startSpeechReport } from './features/call/lib/speechReportStart'
@@ -47,6 +48,9 @@ startSpeechReport()
 
 // Cartões de convite para a call na DM: viram "inválidos" quando a call acaba.
 startCallInvites()
+
+// Castigo nas calls: os castigos do servidor e as votações da call.
+startCastigos()
 
 // Perfis salvos: a lista acompanha as mudanças feitas em outros aparelhos.
 startSavedProfilesSync()

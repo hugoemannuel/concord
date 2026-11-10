@@ -253,9 +253,10 @@ func (n *Notifier) reachable(ctx context.Context, channelID string, targets map[
 }
 
 // mentionTargets separa quem foi citado pelo nome (direct) de quem só é alcançado pelo @all (everyone).
-// @here não gera push: quem recebe está online, por definição.
+// @here não gera push: quem recebe está online, por definição. Encaminhada
+// não pinga quem a original citava (o @all dela já sai nil).
 func (n *Notifier) mentionTargets(ctx context.Context, ev message.CreateEvent) (direct, everyone []string, err error) {
-	if names := MentionedUsernames(ev.Message.Content); len(names) > 0 {
+	if names := MentionedUsernames(ev.Message.Content); len(names) > 0 && ev.Message.ForwardedFrom == nil {
 		if direct, err = n.Directory.MemberIDsByUsername(ctx, ev.ServerID, names); err != nil {
 			return nil, nil, err
 		}

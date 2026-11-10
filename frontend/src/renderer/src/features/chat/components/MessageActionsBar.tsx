@@ -11,11 +11,16 @@ interface MessageActionsBarProps {
   onReact: (emoji: string) => void
   onTogglePicker: () => void
   onReply: () => void
+  /** Abre o seletor de destino; ausente = a mensagem não pode ser encaminhada. */
+  onForward?: () => void
   onCopy?: () => void
   onEdit?: () => void
   canPin?: boolean
   isPinned?: boolean
   onTogglePin?: () => void
+  /** Na lista pessoal de favoritas. */
+  isFavorite?: boolean
+  onToggleFavorite?: () => void
   onDelete?: () => void
   deleteTitle?: string
   /** Menu "Mais" controlado por fora (a barra fica na tela enquanto ele está aberto). */
@@ -29,8 +34,11 @@ function runMenuAction(action: MessageMenuAction, props: MessageActionsBarProps)
     react: props.onTogglePicker,
     edit: props.onEdit,
     reply: props.onReply,
+    forward: props.onForward,
     pin: props.onTogglePin,
     unpin: props.onTogglePin,
+    favorite: props.onToggleFavorite,
+    unfavorite: props.onToggleFavorite,
     copy: props.onCopy,
     delete: props.onDelete
   }
@@ -42,8 +50,11 @@ function menuGroups(props: MessageActionsBarProps): ReturnType<typeof messageMen
   return messageMenuGroups({
     canReact: props.canReact,
     canEdit: Boolean(props.onEdit),
+    canForward: Boolean(props.onForward),
     canPin: Boolean(props.canPin && props.onTogglePin),
     isPinned: Boolean(props.isPinned),
+    canFavorite: Boolean(props.onToggleFavorite),
+    isFavorite: Boolean(props.isFavorite),
     canCopy: Boolean(props.onCopy),
     canDelete: Boolean(props.onDelete),
     deleteLabel: props.deleteTitle ?? 'Excluir mensagem'
@@ -90,7 +101,7 @@ function ReactionButtons({
 /**
  * Barra compacta de ícones sobre a mensagem (como no Discord): 3 reações
  * rápidas, adicionar reação, responder e "Mais", que abre o menu com as
- * outras ações (editar, fixar, copiar, excluir...). Cada ação do menu só
+ * outras ações (editar, encaminhar, fixar, favoritar, copiar, excluir...). Cada ação do menu só
  * aparece quando o handler vem.
  */
 function MessageActionsBar(props: MessageActionsBarProps): React.JSX.Element {

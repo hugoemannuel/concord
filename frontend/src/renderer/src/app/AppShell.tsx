@@ -14,6 +14,7 @@ import ActivityPanel from '../features/call/components/ActivityPanel'
 import ScreenSharePrompt from '../features/call/components/ScreenSharePrompt'
 import VideoBackgroundModal from '../features/call/components/VideoBackgroundModal'
 import JoinRequestsStack from '../features/call/components/JoinRequestsStack'
+import CastigoHost from '../features/castigo/components/CastigoHost'
 import LevelUpBanner from '../features/levels/components/LevelUpBanner'
 import BoostBanner from '../features/levels/components/BoostBanner'
 import LevelUpScreen from '../features/levels/components/LevelUpScreen'
@@ -24,6 +25,7 @@ import { useFlushPendingLevelUp } from '../features/levels/hooks/useScreenCelebr
 import BadgesModal from '../features/levels/components/BadgesModal'
 import BadgeUnlockToast from '../features/levels/components/BadgeUnlockToast'
 import EnqueteHost from '../features/enquete/components/EnqueteHost'
+import ForwardMessageModal from '../features/chat/components/forward/ForwardMessageModal'
 import QuickSwitcherModal from '../features/friends/components/QuickSwitcherModal'
 import ShortcutsModal from '../features/settings/components/ShortcutsModal'
 import { useGlobalShortcuts } from '../features/settings/hooks/useGlobalShortcuts'
@@ -86,6 +88,7 @@ function AppShell(): React.JSX.Element {
       </div>
       <IncomingCallModal />
       <JoinRequestsStack />
+      <CastigoHost />
       <CallOverlay />
       <BirthdayModal />
       <ScreenMiniPlayer />
@@ -94,6 +97,7 @@ function AppShell(): React.JSX.Element {
       <VideoBackgroundModal />
       <LevelUpScreen />
       <InviteConfirmModal />
+      <ForwardMessageModal />
       <GuestVisitConfirmModal />
       <LevelUpMilestone />
       <ServerLevelUpOverlay />

@@ -235,6 +235,20 @@ func TestEditRejectsSystemAndPollMessages(t *testing.T) {
 	}
 }
 
+// A encaminhada é a foto da original: quem encaminhou não troca o texto dela.
+func TestEditRejectsForwardedMessage(t *testing.T) {
+	fwd := channelMsg("f1", "ana", "texto da original")
+	fwd.ForwardedFrom = &ForwardedFrom{MessageID: "m0", AuthorID: "bia"}
+	s, store, _ := editEnv(fwd)
+
+	if _, err := s.EditChannelMessage(context.Background(), "geral", "f1", "ana", "outro"); !errors.Is(err, ErrNotEditable) {
+		t.Fatalf("err = %v, want ErrNotEditable", err)
+	}
+	if store.updates != 0 {
+		t.Fatal("não grava")
+	}
+}
+
 func TestEditBroadcastsToSameRoomsAsCreate(t *testing.T) {
 	s, _, pub := editEnv(channelMsg("m1", "ana", "oi"), convMsg("d1", "ana", "oi"))
 	ctx := context.Background()

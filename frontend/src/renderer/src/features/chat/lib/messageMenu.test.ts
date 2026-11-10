@@ -45,6 +45,16 @@ describe('messageMenuGroups', () => {
     expect(groups[0].every((i) => !i.danger)).toBe(true)
   })
 
+  it('encaminhar entra depois de responder, quando dá para encaminhar', () => {
+    expect(labels(messageMenuGroups({ ...all, canForward: true }))[0]).toEqual([
+      'Adicionar reação',
+      'Editar mensagem',
+      'Responder',
+      'Encaminhar'
+    ])
+    expect(messageMenuGroups({ ...all, canForward: true })[0][3]).toMatchObject({ action: 'forward' })
+  })
+
   it('mensagem fixada: oferece desafixar', () => {
     const groups = messageMenuGroups({ ...all, isPinned: true })
     expect(groups[1][0]).toMatchObject({ action: 'unpin', label: 'Desafixar mensagem' })
@@ -75,6 +85,17 @@ describe('messageMenuGroups', () => {
   it('o rótulo de excluir vem de fora (moderação, comentário)', () => {
     const groups = messageMenuGroups({ ...all, deleteLabel: 'Excluir mensagem (moderação)' })
     expect(groups[2][0].label).toBe('Excluir mensagem (moderação)')
+  })
+
+  it('favoritar fica junto de fixar e copiar', () => {
+    const groups = messageMenuGroups({ ...all, canFavorite: true })
+    expect(labels(groups)[1]).toEqual(['Fixar mensagem', 'Favoritar', 'Copiar texto'])
+    expect(groups[1][1]).toMatchObject({ action: 'favorite' })
+  })
+
+  it('mensagem favorita: oferece remover das favoritas', () => {
+    const groups = messageMenuGroups({ ...all, canFavorite: true, isFavorite: true })
+    expect(groups[1][1]).toMatchObject({ action: 'unfavorite', label: 'Remover das favoritas' })
   })
 })
 

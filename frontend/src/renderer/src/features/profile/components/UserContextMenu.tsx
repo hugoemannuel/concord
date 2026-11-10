@@ -36,6 +36,7 @@ import { UserMemberSubmenus } from './UserContextMenuSubmenus'
 import SelfRolesSubmenu from './SelfRolesSubmenu'
 import { useStandardUserMenuActions } from '../hooks/useStandardUserMenuActions'
 import { useStandardUserMenuModel } from '../hooks/useStandardUserMenuModel'
+import CastigoMenuItems from '../../castigo/components/CastigoMenuItems'
 
 const itemClass = 'cursor-pointer rounded px-2 py-1.5 text-left hover:bg-fg/5 disabled:opacity-50'
 
@@ -198,6 +199,12 @@ function StandardUserMenu({
           }
         }}
         onModerate={moderate}
+      />
+
+      <CastigoMenuItems
+        target={{ userId: target.userId, name: target.name, voiceCallId }}
+        itemClass={itemClass}
+        close={close}
       />
     </div>
   )

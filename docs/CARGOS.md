@@ -44,6 +44,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | Membros | Expulsar / Banir | Tirar o membro (o ban impede de voltar até desbanir). |
 | | Administrador | Tudo, ignorando os canais. |
 | Texto | Enviar mensagens, Enviar arquivos, Adicionar reações, Ver histórico | Uso normal do chat. |
+| | Encaminhar (sem permissão própria) | Encaminha quem lê a mensagem (*Ver canais* na origem, ou participa da DM) para onde pode escrever: *Enviar mensagens* no canal de destino, mais *Enviar arquivos* se ela tem anexo; numa DM, a regra de escrever nela. A encaminhada não pinga ninguém e não pode ser editada. Ver [ADR 0062](adr/0062-encaminhar-mensagens.md). |
 | | Usar emojis e figurinhas de outros servidores | Usar em mensagens e reações deste servidor os emojis e figurinhas de outros servidores de que a pessoa participa. Vem ligada no @everyone e vale por canal. Em DM e grupo não há servidor de destino: basta ser membro do servidor de origem. Sem ela, os itens de fora aparecem desabilitados no seletor; quem mandar assim mesmo vê o emoji virar `:nome:` no texto e a figurinha e a reação serem recusadas. Somar-se a uma reação que já está na mensagem não pede a permissão. Ver [ADR 0054](adr/0054-emojis-de-outros-servidores.md). |
 | | Mencionar @all e @here | Avisar o canal inteiro. |
 | | Enviar mensagens TTS | Usar `/tts`: a mensagem é lida em voz para quem está em call no servidor (até 200 caracteres, uma a cada 10 s). Vem ligada no @everyone (no Discord vem desligada); quem quiser restringir desliga no cargo ou no canal. Ver [ADR 0012](adr/0012-tts-no-cliente.md). |
@@ -98,6 +99,16 @@ Em **Editar canal**, quem tem *Gerenciar canais* escolhe um intervalo mínimo en
 - *Silenciar* e *Ensurdecer no servidor* tiram do LiveKit a permissão de publicar / de ouvir e valem até um moderador liberar ou a chamada acabar. Ao liberar, o LiveKit devolve a escuta sozinho e o app republica o microfone e desmuta quem só estava mudo por causa do silêncio (quem já estava mudo por escolha continua mudo).
 - Mudou um cargo ou canal no meio da chamada? Quem perdeu o acesso sai da chamada e quem perdeu falar/transmitir tem a mídia ajustada na hora.
 
+## Castigo
+
+Castigo nas calls do servidor por um tempo ([ADR 0063](adr/0063-castigo-na-call.md)).
+
+- O castigo tira, em todos os canais de voz do servidor, um ou mais destes: **falar**, **entrar na call** (quem está numa sai na hora) e **escutar**. Prazos: 1, 5, 10 ou 30 minutos ou 1 hora. Acaba sozinho no fim do prazo, mesmo que o servidor reinicie no meio. Castigos somados ficam com o prazo mais longo de cada efeito.
+- **Aplicar direto** (e tirar antes da hora) pede, no servidor, a moderação de voz de cada efeito: falar → *Silenciar membros*; escutar → *Ensurdecer membros*; entrar → *Desconectar membros*. E vale a hierarquia: só sobre quem tem o cargo mais alto menor que o seu.
+- **Votação**: qualquer membro que está na call abre, contra outra pessoa da call. Votam os membros do servidor que estavam na call quando a votação abriu, **menos o alvo** (ele não vota e não conta). O castigo vale com **mais da metade** desses votos (quem abre já vota sim). Precisa de pelo menos 2 votantes (call com 3 pessoas ou mais). Dura 60 s, uma por call; quem abre espera 30 s para abrir outra. Visitantes não abrem nem votam.
+- O dono nunca fica de castigo; ninguém castiga a si mesmo. Silenciar ou ensurdecer no servidor não mexe no castigo, e liberar o silêncio não tira o castigo de falar.
+- Fica no registro de auditoria: quem castigou (na votação, quem abriu), o quê, por quanto tempo e se foi votação; e quem tirou.
+
 ## Visitantes
 
 Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
@@ -124,6 +135,8 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 | `GET/POST /servers/:id/bans`, `DELETE …/bans/:userId` | Banir |
 | `GET /servers/:id/audit-log?actor_id=&action=&before=&limit=` | Ver registro de auditoria |
 | `POST /calls/:id/participants/:userId/server-mute`, `…/server-deafen`, `DELETE …/participants/:userId` | Silenciar / Ensurdecer / Mover |
+| `GET /servers/:id/castigos`, `POST /servers/:id/castigos`, `DELETE …/castigos/:userId` | membro / a moderação de voz de cada efeito (ver "Castigo") |
+| `POST /calls/:id/castigo-votes`, `GET …/castigo-votes/current`, `POST …/castigo-votes/:voteId/ballots` | estar na call (membro) |
 | `POST /guest-invites` (estar na call do canal) | Convidar visitantes |
 | `GET /guest-invites?channel_id=`, `DELETE /guest-invites/:id`, `POST /guests/:userId/end` | Convidar visitantes ou Desconectar membros |
 | `GET /guest-invites/:token`, `POST /guest-invites/:token/join` | público (limite por IP) |
@@ -133,4 +146,4 @@ Reagir com emoji de outro servidor sem poder responde 403 com `code` `external_e
 
 ## Eventos em tempo real
 
-`role:create|update|delete|reorder`, `server:member:roles`, `server:permissions:invalidate` (o app relê canais, cargos e membros), `server:removed` (`reason`: `leave`, `kick` ou `ban`). `message:create/delete`, `channel:create/update` e `call:*` de canais só chegam a quem vê o canal.
+`role:create|update|delete|reorder`, `server:member:roles`, `server:permissions:invalidate` (o app relê canais, cargos e membros), `server:removed` (`reason`: `leave`, `kick` ou `ban`), `castigo:update` (o castigo de alguém no servidor, com os prazos nulos quando acaba) e `castigo:vote` (a votação, só para a call). `message:create/delete`, `channel:create/update` e `call:*` de canais só chegam a quem vê o canal.

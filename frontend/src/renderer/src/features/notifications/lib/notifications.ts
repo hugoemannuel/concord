@@ -1,5 +1,5 @@
 import type { Message } from '../../chat/api/messages'
-import { everyonePingsMe, mentionsUser } from '../../chat/lib/mentions'
+import { everyonePingsMe, textMentionsUser } from '../../chat/lib/mentions'
 import { messagePreview } from '../../chat/lib/polls'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 import { serverDisplayName } from '../../servers/lib/serverNames'
@@ -101,7 +101,7 @@ export function mentionNotification(
 ): AppNotification | null {
   if (!message.channel_id || !serverId || message.author_id === me.id) return null
   const isReplyToMe = message.reply_to?.author_id === me.id
-  const isMention = mentionsUser(message.content, me.username)
+  const isMention = textMentionsUser(message, me.username)
   const everyone = everyonePingsMe(message.mention_everyone, me.status)
     ? message.mention_everyone
     : null

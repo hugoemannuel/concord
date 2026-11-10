@@ -51,6 +51,7 @@ var messageColumns = `
 	m.deleted_sticker_name,
 	m.gif_url,
 	m.gif_metadata,
+	m.forwarded_from,
 	m.tts,
 	m.tts_voice_channel_id,
 	m.call_invite,

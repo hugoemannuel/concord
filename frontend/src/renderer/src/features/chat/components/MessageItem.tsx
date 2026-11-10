@@ -10,6 +10,8 @@ import { serverDisplayName } from '../../servers/lib/serverNames'
 import MusicMessage from '../../music/components/MusicMessage'
 import { isMaestroMessageKind } from '../../music/lib/music'
 import { messageMentionsMe, type MentionLabels } from '../lib/mentions'
+import { canForward } from '../lib/forward'
+import { useForwardStore } from '../store/forwardStore'
 import {
   authorFallbackName,
   hasReplyReference,
@@ -17,10 +19,12 @@ import {
   messageRowClass
 } from '../lib/messageItem'
 import { useMessageActionsState, type MessageActionsState } from '../hooks/useMessageActionsState'
+import { useMessageFavorite } from '../../messageFavorites/hooks/useMessageFavorite'
 import SystemMessage from './SystemMessage'
 import EmotePickerPopover from './EmotePickerPopover'
 import MessageActionsBar from './MessageActionsBar'
 import ReactionChips from './ReactionChips'
+import ForwardedFrame from './forward/ForwardedFrame'
 import {
   BlockedMessageNotice,
   MessageContent,
@@ -144,6 +148,7 @@ function MessageActions({
   actions: MessageActionsState
 }): React.JSX.Element {
   const { message } = item
+  const favorite = useMessageFavorite(message.id, actions.showBar)
   const bar = messageBarActions(
     {
       message,
@@ -162,11 +167,14 @@ function MessageActions({
           onReact={item.onReact}
           onTogglePicker={() => actions.togglePicker()}
           onReply={item.onReply}
+          onForward={canForward(message) ? () => useForwardStore.getState().open(message) : undefined}
           onCopy={bar.onCopy}
           onEdit={bar.onEdit}
           canPin={item.canPin}
           isPinned={Boolean(message.pinned_at)}
           onTogglePin={item.onTogglePin}
+          isFavorite={favorite.isFavorite}
+          onToggleFavorite={favorite.toggle}
           onDelete={bar.onDelete}
           deleteTitle={bar.deleteTitle}
           menuOpen={actions.menuOpen}
@@ -235,17 +243,19 @@ function MessageRow({
             nameColor={author.nameColor}
             onOpenProfile={author.openProfile}
           />
-          <MessageContent
-            message={message}
-            mentionLabels={item.mentionLabels}
-            isEditing={item.isEditing}
-            savingEdit={item.savingEdit}
-            onSaveEdit={item.onSaveEdit}
-            onCancelEdit={item.onCancelEdit}
-            canEndPoll={author.isMine || item.canModerate}
-            onVote={item.onVote}
-            onEndPoll={item.onEndPoll}
-          />
+          <ForwardedFrame from={message.forwarded_from}>
+            <MessageContent
+              message={message}
+              mentionLabels={item.mentionLabels}
+              isEditing={item.isEditing}
+              savingEdit={item.savingEdit}
+              onSaveEdit={item.onSaveEdit}
+              onCancelEdit={item.onCancelEdit}
+              canEndPoll={author.isMine || item.canModerate}
+              onVote={item.onVote}
+              onEndPoll={item.onEndPoll}
+            />
+          </ForwardedFrame>
           <ReactionChips
             reactions={message.reactions ?? []}
             meId={author.me?.id}

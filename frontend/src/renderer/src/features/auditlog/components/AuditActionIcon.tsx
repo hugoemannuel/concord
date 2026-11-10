@@ -3,6 +3,7 @@ import {
   ArrowLeftIcon,
   CalendarIcon,
   CircleSlashIcon,
+  ClockIcon,
   EnvelopeIcon,
   GearIcon,
   HangUpIcon,
@@ -44,6 +45,8 @@ const BY_ACTION: Record<string, ComponentType<IconProps>> = {
   'voice.deafen': HeadsetOffIcon,
   'voice.move': VolumeIcon,
   'voice.disconnect': HangUpIcon,
+  'voice.castigo': ClockIcon,
+  'voice.castigo.lift': ClockIcon,
   'message.delete': TrashIcon,
   'guest.remove': CircleSlashIcon
 }

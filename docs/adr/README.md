@@ -95,4 +95,7 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0057. Buscar o placar na API pública da ESPN, direto do navegador do plugin](0057-placar-com-a-api-publica-da-espn.md)
 - [0058. Sons de todos os servidores da pessoa na mesa de áudio](0058-sons-de-outros-servidores-na-mesa.md)
 - [0059. Tipo do canal de sistema em coluna própria](0059-tipo-do-canal-de-sistema.md)
+- [0061. Mensagens favoritas guardadas por referência, com o acesso conferido na leitura](0061-mensagens-favoritas.md)
 - [0056. Mostrar os plugins da comunidade como página do autor num iframe isolado](0056-plugins-em-iframe-isolado.md)
+- [0062. Encaminhar mensagens copiando o conteúdo e guardando a origem em forwarded_from](0062-encaminhar-mensagens.md)
+- [0063. Pôr alguém de castigo nas calls do servidor, direto ou por votação da call](0063-castigo-na-call.md)

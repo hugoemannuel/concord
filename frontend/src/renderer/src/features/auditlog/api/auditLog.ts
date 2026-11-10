@@ -37,6 +37,8 @@ export type AuditAction =
   | 'voice.deafen'
   | 'voice.move'
   | 'voice.disconnect'
+  | 'voice.castigo'
+  | 'voice.castigo.lift'
   | 'message.delete'
   | 'message.pin'
   | 'message.unpin'

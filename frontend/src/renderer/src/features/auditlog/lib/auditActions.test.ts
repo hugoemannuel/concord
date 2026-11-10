@@ -57,6 +57,16 @@ describe('frase de cada registro', () => {
     )
   })
 
+  it('castigo direto, por votação e tirado', () => {
+    expect(text({ action: 'voice.castigo', changes: [{ field: 'via', after: 'direct' }] })).toBe(
+      '@Fulano pôs @Ciclano de castigo'
+    )
+    expect(text({ action: 'voice.castigo', changes: [{ field: 'via', after: 'vote' }] })).toBe(
+      '@Fulano abriu a votação e @Ciclano ficou de castigo'
+    )
+    expect(text({ action: 'voice.castigo.lift', changes: [] })).toBe('@Fulano tirou o castigo de @Ciclano')
+  })
+
   it('silenciar e liberar dependem do valor novo', () => {
     const at = { channel_name: 'Sala 1' }
     expect(text({ action: 'voice.mute', ...at, changes: [{ field: 'mute', after: true }] })).toBe(

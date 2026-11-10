@@ -142,15 +142,26 @@ export function everyonePingsMe(
  * uma mensagem sua ou @all/@here liberados. No histórico não dá para saber o
  * status de quando a mensagem chegou, então @here destaca para todos.
  */
+/**
+ * O texto da mensagem cita @username? Na encaminhada não: quem a original
+ * citava não é avisado de novo (o backend também não pinga).
+ */
+export function textMentionsUser(
+  message: Pick<Message, 'content' | 'forwarded_from'>,
+  username: string
+): boolean {
+  return !message.forwarded_from && mentionsUser(message.content, username)
+}
+
 export function messageMentionsMe(
-  message: Pick<Message, 'author_id' | 'content' | 'mention_everyone'> & {
+  message: Pick<Message, 'author_id' | 'content' | 'mention_everyone' | 'forwarded_from'> & {
     reply_to?: { author_id: string } | null
   },
   me: { id: string; username: string } | null | undefined
 ): boolean {
   if (!me || message.author_id === me.id) return false
   return (
-    mentionsUser(message.content, me.username) ||
+    textMentionsUser(message, me.username) ||
     message.reply_to?.author_id === me.id ||
     Boolean(message.mention_everyone)
   )
