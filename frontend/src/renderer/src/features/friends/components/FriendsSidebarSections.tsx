@@ -8,26 +8,28 @@ import ConversationRow from './ConversationRow'
 // Partes da barra de DMs/amigos (FriendsSidebar), separadas para cada uma ter
 // só a sua regra de exibição.
 
+const navItemClass = (active: boolean): string =>
+  `flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-ds-md font-medium transition-colors ${
+    active ? 'bg-fg/10 text-strong' : 'text-gray-400 hover:bg-fg/6 hover:text-gray-200'
+  }`
+
 /** Botão "Amigos" do topo, com o contador de pedidos recebidos. */
 export function FriendsNavButton({
   pathname,
   incomingCount,
-  onOpen
+  onOpen,
+  children
 }: {
   pathname: string
   incomingCount: number
   onOpen: () => void
+  /** Outros atalhos do topo, embaixo do "Amigos". */
+  children?: React.ReactNode
 }): React.JSX.Element {
   const onFriendsPage = pathname === '/' || pathname === '/friends'
   return (
     <nav className="flex flex-col gap-0.5">
-      <button
-        type="button"
-        onClick={onOpen}
-        className={`flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-ds-md font-medium transition-colors ${
-          onFriendsPage ? 'bg-fg/10 text-strong' : 'text-gray-400 hover:bg-fg/6 hover:text-gray-200'
-        }`}
-      >
+      <button type="button" onClick={onOpen} className={navItemClass(onFriendsPage)}>
         <span className="flex items-center gap-3">
           <FriendsIcon className="h-5 w-5" />
           Amigos
@@ -38,6 +40,7 @@ export function FriendsNavButton({
           </span>
         )}
       </button>
+      {children}
     </nav>
   )
 }
