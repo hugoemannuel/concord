@@ -70,8 +70,8 @@ describe('resultLine', () => {
 
 describe('emptyListText', () => {
   it('sem amigos, todos na call ou busca sem resultado', () => {
-    expect(emptyListText(0, 0)).toContain('ainda não tem amigos')
-    expect(emptyListText(3, 0)).toContain('já estão na call')
-    expect(emptyListText(3, 2)).toBe('Nenhum amigo encontrado.')
+    expect(emptyListText(0, 0)).toBe('Ninguém para convidar ainda.')
+    expect(emptyListText(3, 0)).toBe('Todo mundo já está na call.')
+    expect(emptyListText(3, 2)).toBe('Ninguém encontrado.')
   })
 })

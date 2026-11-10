@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gin-quickstart/backend/internal/call"
 	"gin-quickstart/backend/internal/conversation"
+	"gin-quickstart/backend/internal/friendship"
 	"gin-quickstart/backend/internal/message"
 )
 
@@ -19,6 +21,10 @@ type callInviteDM struct {
 
 func (d callInviteDM) PostCallInvite(ctx context.Context, inviterID, inviteeID string, card call.InviteCard) error {
 	conv, err := d.conversations.GetOrCreateWith(ctx, inviterID, inviteeID)
+	if errors.Is(err, friendship.ErrCannotMessage) {
+		// Membro do servidor que só aceita DM de amigos.
+		return fmt.Errorf("abrir DM do convite: %w", call.ErrInviteeDMsClosed)
+	}
 	if err != nil {
 		return fmt.Errorf("abrir DM do convite: %w", err)
 	}

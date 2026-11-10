@@ -37,6 +37,7 @@ func (a *app) wireCalls() {
 	a.moderationService.OnRemoved(a.callService.RemoveFromServerCalls)
 	a.callService.SetBlockedCheck(a.friendshipService.IsBlockedEither)
 	a.callService.SetFriendChecker(a.friendshipService)
+	a.callService.SetMemberChecker(a.serverService)
 	a.callService.SetPlaceSources(a.channelService, a.serverService)
 	a.callService.SetInvitePoster(callInviteDM{conversations: a.conversationService, messages: a.messageService})
 	// AFK: XP de voz e badges de call param depois de 10 min sem falar.

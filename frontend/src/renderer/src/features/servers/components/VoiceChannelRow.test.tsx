@@ -215,7 +215,7 @@ describe('VoiceChannelRow', () => {
       inCall([participant('eu')])
       setCall(connected)
       const html = render({ renderMenuButton: () => <span data-menu="" /> })
-      expect(html).toContain('aria-label="Convidar amigos"')
+      expect(html).toContain('aria-label="Convidar para a call"')
       expect(html).toContain('right-14')
       expect(html).toContain('pr-20 sm:pr-2.5')
       // O balão do chat continua ali, ao lado.
@@ -232,9 +232,9 @@ describe('VoiceChannelRow', () => {
 
     it('fora do canal (ou em outro canal) não aparece', () => {
       inCall([participant('ana')])
-      expect(render()).not.toContain('Convidar amigos')
+      expect(render()).not.toContain('Convidar para a call')
       setCall({ ...connected, channelId: 'v2' })
-      expect(render()).not.toContain('Convidar amigos')
+      expect(render()).not.toContain('Convidar para a call')
     })
   })
 
