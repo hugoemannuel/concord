@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import Modal from '../../../shared/ui/Modal'
 import Button from '../../../shared/ui/Button'
 import { useFriendStore } from '../../friends/store/friendStore'
+import { useServerStore } from '../../servers/store/serverStore'
 import { useCallInviteStore } from '../store/callInviteStore'
 import { INVITE_COPY } from '../lib/callInviteCopy'
 import InviteFriendsForm from './InviteFriendsForm'
@@ -18,15 +19,27 @@ function useCloseOnEscape(open: boolean, onClose: () => void): void {
   }, [open, onClose])
 }
 
-function nameFrom(
-  friends: { id: string; username: string; display_name: string }[],
-  id: string
-): string {
-  const f = friends.find((x) => x.id === id)
-  return f ? f.display_name || f.username : id
+function peopleById(
+  friends: ({ id: string } & Named)[],
+  members: ({ user_id: string } & Named)[]
+): Map<string, Named> {
+  const map = new Map<string, Named>(members.map((m) => [m.user_id, m]))
+  for (const f of friends) map.set(f.id, f)
+  return map
 }
 
-/** Janela "Convidar amigos": o formulário de escolha e, depois, o resultado. */
+interface Named {
+  username?: string
+  display_name?: string
+}
+
+/** Nome da pessoa no resultado: amigo ou membro do servidor (senão, o id). */
+function nameFrom(people: Map<string, Named>, id: string): string {
+  const p = people.get(id)
+  return p?.display_name || p?.username || id
+}
+
+/** Janela "Convidar para a call": o formulário de escolha e, depois, o resultado. */
 function InviteFriendsModal({
   open,
   callId,
@@ -37,6 +50,7 @@ function InviteFriendsModal({
   onClose: () => void
 }): React.JSX.Element | null {
   const friends = useFriendStore((s) => s.friends)
+  const members = useServerStore((s) => s.currentMembers)
   const phase = useCallInviteStore((s) => s.phase)
   const results = useCallInviteStore((s) => s.results)
 
@@ -51,7 +65,7 @@ function InviteFriendsModal({
     <Modal open={open} title={INVITE_COPY.modalTitle} onClose={onClose}>
       {phase === 'ok' ? (
         <>
-          <InviteResultsList results={results} nameOf={(id) => nameFrom(friends, id)} />
+          <InviteResultsList results={results} nameOf={(id) => nameFrom(peopleById(friends, members), id)} />
           <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="ghost" className="min-h-10" onClick={onClose}>
               {INVITE_COPY.close}

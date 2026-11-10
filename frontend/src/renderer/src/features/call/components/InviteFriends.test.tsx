@@ -24,6 +24,19 @@ vi.mock('../../chat/store/chatStore', () => ({
 vi.mock('../store/callStore', () => ({
   useCallStore: (sel: (s: unknown) => unknown) => sel(callState)
 }))
+const serverState = {
+  currentMembers: [
+    { server_id: 's1', user_id: 'me', role: '', username: 'eu', display_name: 'Eu' },
+    { server_id: 's1', user_id: 'u1', role: '', username: 'ana', display_name: 'Ana' },
+    { server_id: 's1', user_id: 'u3', role: '', username: 'eli', display_name: 'Eli' }
+  ]
+}
+vi.mock('../../servers/store/serverStore', () => ({
+  useServerStore: (sel: (s: unknown) => unknown) => sel(serverState)
+}))
+vi.mock('../../auth/store/authStore', () => ({
+  useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: { id: 'me' } })
+}))
 const inviteState = {
   phase: 'idle',
   results: [] as { user_id: string; status: string }[],
@@ -85,17 +98,38 @@ describe('InviteFriendRow', () => {
 
 describe('FriendPickList', () => {
   const base = { total: 2, available: 2, selected: [], disabled: false, onChange: vi.fn() }
+  const friendsOnly = (people: (typeof ana)[]): never =>
+    [{ key: 'friends', title: 'Amigos', people }] as never
 
   it('carregando, vazia e com gente', () => {
     expect(
-      renderToStaticMarkup(<FriendPickList {...base} loaded={false} visible={[]} />)
-    ).toContain('Carregando seus amigos')
+      renderToStaticMarkup(<FriendPickList {...base} loaded={false} sections={friendsOnly([])} />)
+    ).toContain('Carregando')
     expect(
-      renderToStaticMarkup(<FriendPickList {...base} loaded visible={[]} total={0} />)
-    ).toContain('ainda não tem amigos')
-    expect(renderToStaticMarkup(<FriendPickList {...base} loaded visible={[ana]} />)).toContain(
-      'Ana'
+      renderToStaticMarkup(<FriendPickList {...base} loaded sections={friendsOnly([])} total={0} />)
+    ).toContain('Ninguém para convidar')
+    expect(
+      renderToStaticMarkup(<FriendPickList {...base} loaded sections={friendsOnly([ana])} />)
+    ).toContain('Ana')
+  })
+
+  it('cada seção tem título e "Selecionar todos"; seção vazia some', () => {
+    const html = renderToStaticMarkup(
+      <FriendPickList
+        {...base}
+        loaded
+        selected={['u1']}
+        sections={
+          [
+            { key: 'friends', title: 'Amigos', people: [ana] },
+            { key: 'members', title: 'Membros do servidor', people: [] }
+          ] as never
+        }
+      />
     )
+    expect(html).toContain('Amigos')
+    expect(html).not.toContain('Membros do servidor')
+    expect(html).toContain('Desmarcar todos')
   })
 })
 
@@ -105,8 +139,18 @@ describe('InviteFriendsForm', () => {
     const html = renderToStaticMarkup(<InviteFriendsForm callId="c1" />)
     expect(html).toContain('Ana')
     expect(html).not.toContain('bia')
-    expect(html).toContain('0 amigos selecionados')
+    expect(html).toContain('0 pessoas selecionadas')
     expect(html).toContain('disabled=""')
+  })
+
+  it('membros do servidor que não são amigos aparecem numa seção própria, sem mim', () => {
+    const html = renderToStaticMarkup(<InviteFriendsForm callId="c1" />)
+    expect(html).toContain('Membros do servidor')
+    expect(html).toContain('Eli')
+    expect(html).not.toContain('>Eu<')
+    // Ana é amiga e membro: aparece uma vez só.
+    expect(html.split('>Ana<').length - 1).toBe(1)
+    expect(html).toContain('Selecionar todos')
   })
 
   it('erro de envio aparece com alerta e o botão vira "Tentar de novo"', () => {
@@ -131,11 +175,13 @@ describe('InviteResultsList', () => {
         nameOf={(id) => id}
         results={[
           { user_id: 'u1', status: 'sent' },
-          { user_id: 'u2', status: 'busy' }
+          { user_id: 'u2', status: 'busy' },
+          { user_id: 'u3', status: 'dms_closed' }
         ]}
       />
     )
-    expect(html).toContain('1 de 2 convites enviados')
+    expect(html).toContain('1 de 3 convites enviados')
+    expect(html).toContain('Só aceita mensagem de amigos')
     expect(html).toContain('Convite enviado na conversa privada')
     expect(html).toContain('Está em outra call')
   })

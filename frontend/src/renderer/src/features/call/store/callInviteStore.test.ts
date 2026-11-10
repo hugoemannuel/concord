@@ -29,4 +29,15 @@ describe('callInviteStore', () => {
     expect(useCallInviteStore.getState().phase).toBe('error')
     expect(useCallInviteStore.getState().error).toBe('deu ruim')
   })
+
+  it('mais de 20 pessoas: manda em lotes e junta o resultado', async () => {
+    const ids = Array.from({ length: 45 }, (_, i) => `u${i}`)
+    vi.mocked(sendCallInvites).mockImplementation(async (_c, batch) =>
+      batch.map((user_id) => ({ user_id, status: 'sent' as const }))
+    )
+    await useCallInviteStore.getState().send('c1', ids)
+    expect(vi.mocked(sendCallInvites).mock.calls.map((c) => c[1].length)).toEqual([20, 20, 5])
+    expect(useCallInviteStore.getState().results).toHaveLength(45)
+    expect(useCallInviteStore.getState().phase).toBe('ok')
+  })
 })

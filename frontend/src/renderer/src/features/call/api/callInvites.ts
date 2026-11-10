@@ -8,6 +8,7 @@ export type InviteResultStatus =
   | 'blocked'
   | 'busy'
   | 'no_access'
+  | 'dms_closed'
   | 'failed'
 
 export interface InviteResult {
@@ -15,7 +16,7 @@ export interface InviteResult {
   status: InviteResultStatus
 }
 
-/** Convida vários amigos de uma vez; o servidor valida cada um e posta o cartão na DM. */
+/** Convida várias pessoas (amigos ou membros do servidor) de uma vez; o servidor valida cada um e posta o cartão na DM. */
 export async function sendCallInvites(callId: string, userIds: string[]): Promise<InviteResult[]> {
   const res = await request<{ results: InviteResult[] }>(`/calls/${callId}/invites`, {
     method: 'POST',

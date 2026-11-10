@@ -42,6 +42,8 @@ const (
 	InviteBlocked        = "blocked"
 	InviteBusy           = "busy"
 	InviteNoAccess       = "no_access"
+	// Membro (não amigo) que só aceita DM de amigos.
+	InviteDMsClosed = "dms_closed"
 	// A mensagem na DM não pôde ser postada.
 	InviteFailed = "failed"
 )
@@ -64,6 +66,7 @@ type InviteDMPoster interface {
 // inviteDeps: o que o convite de amigos usa de fora do pacote (ligado em cmd/wire_calls.go).
 type inviteDeps struct {
 	friends      FriendChecker
+	members      MemberChecker
 	channelNames channelFinder
 	serverNames  serverFinder
 	poster       InviteDMPoster
@@ -233,7 +236,7 @@ func (s *Service) sendInvite(ctx context.Context, ic inviteContext, inviteeID st
 	}
 	if err := s.invite.poster.PostCallInvite(ctx, ic.inviter.ID, inviteeID, card); err != nil {
 		s.releaseInvite(ic.callID, inviteeID, prev)
-		return InviteFailed
+		return postFailureStatus(err)
 	}
 	return InviteSent
 }
@@ -267,4 +270,3 @@ func (s *Service) releaseInvite(callID, inviteeID string, prev *invitation) {
 	}
 	delete(ac.invites.sent, inviteeID)
 }
-
