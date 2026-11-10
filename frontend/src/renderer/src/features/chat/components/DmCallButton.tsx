@@ -19,14 +19,12 @@ function DmCallButton({
   online: boolean
   blocked: boolean
 }): React.JSX.Element {
-  const callStatus = useCallStore((s) => s.status)
   const startDMCall = useCallStore((s) => s.startDMCall)
   const endCall = useCallStore((s) => s.endCall)
   const inCallWithUser = useInCallWith(userId)
   const { disabled, title } = dmCallButton({
     online,
     hasConversation: conversationId !== null,
-    callStatus,
     blocked
   })
 

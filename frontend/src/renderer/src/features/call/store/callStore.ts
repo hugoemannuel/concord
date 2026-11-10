@@ -1320,10 +1320,14 @@ export const useCallStore = create<CallState>()((set, get) => {
     },
 
     startDMCall: async (conversationId, peer) => {
-      if (get().status !== 'idle' || transitioning) return
+      const current = get()
+      if (transitioning || (current.status !== 'idle' && current.conversationId === conversationId))
+        return
       transitioning = true
+      // O microfone novo abre antes de tudo: se falhar, a call atual fica.
+      let mic: MicHandle
       try {
-        localMic = await openMic()
+        mic = await openMic()
       } catch {
         showToast.error('Não foi possível acessar o microfone.')
         transitioning = false
@@ -1332,6 +1336,9 @@ export const useCallStore = create<CallState>()((set, get) => {
 
       try {
         const call = await startCallApi({ type: 'dm', conversation_id: conversationId })
+        // O servidor já me tirou da call em que eu estava: aqui só desliga a mídia dela.
+        if (get().status !== 'idle') cleanup()
+        localMic = mic
         set({
           status: 'outgoing',
           callId: call.id,
@@ -1347,7 +1354,7 @@ export const useCallStore = create<CallState>()((set, get) => {
         })
         useChatStore.getState().subscribeRoom(`call:${call.id}`)
       } catch (err) {
-        stopLocalStream()
+        mic.stop()
         showToast.error(err instanceof Error ? err.message : 'Não foi possível iniciar a chamada.')
       } finally {
         transitioning = false

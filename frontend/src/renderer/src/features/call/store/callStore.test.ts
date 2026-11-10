@@ -1347,6 +1347,54 @@ describe('callStore — atender DM', () => {
   })
 })
 
+describe('callStore — ligar estando numa call', () => {
+  const ana = { id: 'ana', username: 'ana', display_name: 'Ana' }
+
+  it('ligar estando em canal sai dele localmente e fica tocando', async () => {
+    await joinChannel()
+    const oldMedia = media.instances[0]
+    api.startCall.mockResolvedValueOnce({ id: 'dm-9' })
+    chat.sendEvent.mockClear()
+
+    await useCallStore.getState().startDMCall('cv-1', ana)
+
+    expect(chat.sendEvent).not.toHaveBeenCalledWith('call:leave', expect.anything())
+    expect(oldMedia.disconnect).toHaveBeenCalled()
+    const s = useCallStore.getState()
+    expect([s.status, s.type, s.callId, s.conversationId]).toEqual([
+      'outgoing',
+      'dm',
+      'dm-9',
+      'cv-1'
+    ])
+    expect(chat.subscribeRoom).toHaveBeenCalledWith('call:dm-9')
+  })
+
+  it('ligar falhando mantém a call atual', async () => {
+    await joinChannel()
+    api.startCall.mockRejectedValueOnce(new Error('não deu'))
+
+    await useCallStore.getState().startDMCall('cv-1', ana)
+
+    expect(showToast.error).toHaveBeenCalledWith('não deu')
+    expect([useCallStore.getState().status, useCallStore.getState().callId]).toEqual([
+      'active',
+      'call-1'
+    ])
+  })
+
+  it('ligar de novo na conversa da call em andamento não faz nada', async () => {
+    api.startCall.mockResolvedValueOnce({ id: 'dm-9' })
+    await useCallStore.getState().startDMCall('cv-1', ana)
+    api.startCall.mockClear()
+
+    await useCallStore.getState().startDMCall('cv-1', ana)
+
+    expect(api.startCall).not.toHaveBeenCalled()
+    expect(useCallStore.getState().callId).toBe('dm-9')
+  })
+})
+
 describe('callStore — reentrada após queda do WS', () => {
   const participant = (id: string): Record<string, unknown> => ({
     user_id: id,

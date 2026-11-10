@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { dmCallButton, startDmCall } from './dmCall'
 
-const livre = { online: true, hasConversation: true, callStatus: 'idle', blocked: false }
+const livre = { online: true, hasConversation: true, blocked: false }
 
 describe('dmCallButton', () => {
   it('online, com conversa e sem chamada: liberado', () => {
@@ -15,11 +15,9 @@ describe('dmCallButton', () => {
     })
   })
 
-  it('já em chamada: desabilitado e explica (vale mais que offline)', () => {
-    expect(dmCallButton({ ...livre, callStatus: 'active', online: false })).toEqual({
-      disabled: true,
-      title: 'Você já está em uma chamada'
-    })
+  it('em outra call: liberado (ligar troca de call, estilo Discord)', () => {
+    expect(dmCallButton(livre)).toEqual({ disabled: false, title: 'Iniciar chamada de voz' })
+    expect('callStatus' in livre).toBe(false)
   })
 
   it('sem conversa aberta ou bloqueado: desabilitado', () => {
