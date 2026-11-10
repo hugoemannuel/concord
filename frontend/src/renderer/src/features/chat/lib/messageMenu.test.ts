@@ -45,6 +45,16 @@ describe('messageMenuGroups', () => {
     expect(groups[0].every((i) => !i.danger)).toBe(true)
   })
 
+  it('encaminhar entra depois de responder, quando dá para encaminhar', () => {
+    expect(labels(messageMenuGroups({ ...all, canForward: true }))[0]).toEqual([
+      'Adicionar reação',
+      'Editar mensagem',
+      'Responder',
+      'Encaminhar'
+    ])
+    expect(messageMenuGroups({ ...all, canForward: true })[0][3]).toMatchObject({ action: 'forward' })
+  })
+
   it('mensagem fixada: oferece desafixar', () => {
     const groups = messageMenuGroups({ ...all, isPinned: true })
     expect(groups[1][0]).toMatchObject({ action: 'unpin', label: 'Desafixar mensagem' })

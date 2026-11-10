@@ -6,6 +6,8 @@ import { compareTimestamps, mergeMessages } from './messageOrder'
 /** Dá para editar? Sua mensagem, que não é do sistema, enquete nem só figurinha. */
 export function canEditMessage(message: Message, meId: string | null | undefined): boolean {
   if (!meId || message.author_id !== meId || message.system_kind || message.poll || message.call_invite) return false
+  // A encaminhada é a foto da original: o texto não é de quem encaminhou.
+  if (message.forwarded_from) return false
   if ((message.sticker_id || message.sticker) && !message.content) return false
   return true
 }

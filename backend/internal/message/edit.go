@@ -106,9 +106,9 @@ func (s *Service) editDestination(ctx context.Context, channelID string) express
 }
 
 // checkEditable: só texto comum (nada de mensagem do sistema, convite para a
-// call nem enquete).
+// call, encaminhada nem enquete).
 func (s *Service) checkEditable(ctx context.Context, current *Message) error {
-	if current.SystemKind != nil || current.CallInvite != nil {
+	if current.SystemKind != nil || current.CallInvite != nil || current.ForwardedFrom != nil {
 		return ErrNotEditable
 	}
 	hasPoll, err := s.edits.HasPoll(ctx, current.ID)

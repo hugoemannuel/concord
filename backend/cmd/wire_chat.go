@@ -45,6 +45,7 @@ func (a *app) wireChat() {
 	suppressHandler := message.NewSuppressEmbedsHandler(suppressor, a.permissionService, a.roomAccess)
 	favoriteHandler := message.NewFavoriteHandler(message.NewFavoriteService(messageRepository, a.roomAccess))
 	a.wireTTS(messageRepository)
+	a.wireForward(messageRepository, uploads, messageEvents)
 	a.wireEmojis()
 
 	a.serverService.OnMemberJoined(func(ctx context.Context, serverID string, member server.ServerMember) {

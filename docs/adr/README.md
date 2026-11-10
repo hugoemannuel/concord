@@ -97,3 +97,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0059. Tipo do canal de sistema em coluna própria](0059-tipo-do-canal-de-sistema.md)
 - [0061. Mensagens favoritas guardadas por referência, com o acesso conferido na leitura](0061-mensagens-favoritas.md)
 - [0056. Mostrar os plugins da comunidade como página do autor num iframe isolado](0056-plugins-em-iframe-isolado.md)
+- [0062. Encaminhar mensagens copiando o conteúdo e guardando a origem em forwarded_from](0062-encaminhar-mensagens.md)

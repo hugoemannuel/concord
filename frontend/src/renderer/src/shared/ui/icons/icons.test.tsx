@@ -87,6 +87,7 @@ const LINE_GLYPHS = [
   'PaperclipIcon',
   'PlusIcon',
   'ReplyIcon',
+  'ForwardIcon',
   'SlashIcon',
   'UndoIcon',
   'RedoIcon',
