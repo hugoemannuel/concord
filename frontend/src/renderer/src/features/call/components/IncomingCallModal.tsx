@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCallStore } from '../store/callStore'
+import { useIncomingCallStore } from '../store/incomingCallStore'
 import { playSound, stopSound } from '../lib/sounds'
 import { PhoneIcon, PhoneOffIcon } from '../../../shared/ui/icons'
 import Button from '../../../shared/ui/Button'
@@ -24,16 +25,29 @@ function useRingtone(ringing: boolean): void {
   }, [ringing])
 }
 
+/** Esc recusa, como fechar qualquer modal. */
+function useEscapeToDecline(active: boolean, decline: () => void): void {
+  useEffect(() => {
+    if (!active) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') decline()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active, decline])
+}
+
+/** A DM que toca para mim, por cima da call em que eu estiver: atender troca de call. */
 function IncomingCallModal(): React.JSX.Element | null {
   const navigate = useNavigate()
-  const status = useCallStore((s) => s.status)
-  const peer = useCallStore((s) => s.participants[0] ?? null)
+  const peer = useIncomingCallStore((s) => s.call?.initiator ?? null)
   const acceptCall = useCallStore((s) => s.acceptCall)
   const declineCall = useCallStore((s) => s.declineCall)
 
-  useRingtone(status === 'ringing')
+  useRingtone(peer !== null)
+  useEscapeToDecline(peer !== null, declineCall)
 
-  if (status !== 'ringing' || !peer) return null
+  if (!peer) return null
 
   const handleAccept = (): void => {
     void acceptCall().then(() => {
@@ -43,7 +57,7 @@ function IncomingCallModal(): React.JSX.Element | null {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="rounded-xl border border-subtle bg-modal shadow-2xl shadow-black/70 w-full max-w-sm p-8 text-center">
         <Avatar
           userId={peer.id}
@@ -58,12 +72,14 @@ function IncomingCallModal(): React.JSX.Element | null {
           <StyledName name={peer.display_name} userId={peer.id} style={peer.name_style} />
         </p>
         <p className="mb-6 text-ds-xs text-muted">@{peer.username}</p>
-        <p className="mb-6 animate-pulse text-ds-sm font-semibold text-secondary">Chamada de voz…</p>
+        <p className="mb-6 animate-pulse text-ds-sm font-semibold text-secondary">
+          Chamada de voz…
+        </p>
         <div className="flex items-center justify-center gap-3">
           <Button variant="danger" onClick={declineCall} aria-label="Recusar chamada">
             <PhoneOffIcon className="h-5 w-5" />
           </Button>
-          <Button variant="success" onClick={handleAccept} aria-label="Aceitar chamada">
+          <Button variant="success" onClick={handleAccept} aria-label="Aceitar chamada" autoFocus>
             <PhoneIcon className="h-5 w-5" />
           </Button>
         </div>

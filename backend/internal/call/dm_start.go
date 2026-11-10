@@ -42,16 +42,14 @@ func (s *Service) checkDMCallable(ctx context.Context, initiatorID, calleeID str
 }
 
 // reserveDMLocked (com s.mu travado) decide se dá para começar: devolve a chamada que já existe nessa conversa,
-// ErrBusy se um dos dois está em outra chamada, ou (nil, nil) quando está livre.
-func (s *Service) reserveDMLocked(initiatorID, calleeID, conversationID string) (*Call, error) {
+// ErrBusy se quem liga está em outra chamada, ou (nil, nil) quando está livre. O chamado em
+// outra chamada não impede: a DM toca para ele (switchCallerForDM).
+func (s *Service) reserveDMLocked(initiatorID, conversationID string) (*Call, error) {
 	if callID, ok := s.busy[initiatorID]; ok {
 		existing := s.calls[callID]
 		if existing != nil && existing.info.ConversationID != nil && *existing.info.ConversationID == conversationID {
 			return existing.info, nil
 		}
-		return nil, ErrBusy
-	}
-	if _, ok := s.busy[calleeID]; ok {
 		return nil, ErrBusy
 	}
 	if existing := s.findActiveByScopeLocked(TypeDM, conversationID); existing != nil {
@@ -116,13 +114,16 @@ func (s *Service) StartDM(ctx context.Context, initiatorID string, conversationI
 	if err := s.checkDMCallable(ctx, initiatorID, calleeID); err != nil {
 		return nil, err
 	}
+	if err := s.switchCallerForDM(ctx, initiatorID, calleeID, conv.ID); err != nil {
+		return nil, err
+	}
 	return s.createDM(ctx, conv.ID, initiatorID, calleeID)
 }
 
 // createDM reserva os dois lados e cria a chamada tocando.
 func (s *Service) createDM(ctx context.Context, conversationID, initiatorID, calleeID string) (*Call, error) {
 	s.mu.Lock()
-	existing, err := s.reserveDMLocked(initiatorID, calleeID, conversationID)
+	existing, err := s.reserveDMLocked(initiatorID, conversationID)
 	if existing != nil || err != nil {
 		s.mu.Unlock()
 		return existing, err

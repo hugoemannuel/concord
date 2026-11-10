@@ -85,7 +85,7 @@ func TestCheckDMCallable(t *testing.T) {
 func TestReserveDMLocked(t *testing.T) {
 	t.Run("livre devolve nada", func(t *testing.T) {
 		s := serviceWithCall("x")
-		if call, err := s.reserveDMLocked("ana", "bia", "cv-1"); call != nil || err != nil {
+		if call, err := s.reserveDMLocked("ana", "cv-1"); call != nil || err != nil {
 			t.Fatalf("call=%v err=%v", call, err)
 		}
 	})
@@ -93,7 +93,7 @@ func TestReserveDMLocked(t *testing.T) {
 	t.Run("quem liga ocupado em outra chamada: ocupado", func(t *testing.T) {
 		s := serviceWithCall("call-1", "ana")
 		s.busy["ana"] = "call-1"
-		if _, err := s.reserveDMLocked("ana", "bia", "cv-1"); !errors.Is(err, ErrBusy) {
+		if _, err := s.reserveDMLocked("ana", "cv-1"); !errors.Is(err, ErrBusy) {
 			t.Fatalf("err=%v", err)
 		}
 	})
@@ -103,17 +103,17 @@ func TestReserveDMLocked(t *testing.T) {
 		convID := "cv-1"
 		s.calls["call-1"].info.ConversationID = &convID
 		s.busy["ana"] = "call-1"
-		call, err := s.reserveDMLocked("ana", "bia", "cv-1")
+		call, err := s.reserveDMLocked("ana", "cv-1")
 		if err != nil || call == nil || call.ID != "call-1" {
 			t.Fatalf("call=%v err=%v", call, err)
 		}
 	})
 
-	t.Run("chamado ocupado: ocupado", func(t *testing.T) {
+	t.Run("chamado em outra chamada: livre para tocar", func(t *testing.T) {
 		s := serviceWithCall("x")
 		s.busy["bia"] = "outra"
-		if _, err := s.reserveDMLocked("ana", "bia", "cv-1"); !errors.Is(err, ErrBusy) {
-			t.Fatalf("err=%v", err)
+		if call, err := s.reserveDMLocked("ana", "cv-1"); call != nil || err != nil {
+			t.Fatalf("call=%v err=%v", call, err)
 		}
 	})
 
@@ -122,7 +122,7 @@ func TestReserveDMLocked(t *testing.T) {
 		convID := "cv-1"
 		s.calls["call-1"].info.Type = TypeDM
 		s.calls["call-1"].info.ConversationID = &convID
-		call, err := s.reserveDMLocked("ana", "bia", "cv-1")
+		call, err := s.reserveDMLocked("ana", "cv-1")
 		if err != nil || call == nil || call.ID != "call-1" {
 			t.Fatalf("call=%v err=%v", call, err)
 		}
@@ -178,9 +178,21 @@ func TestCreateDM(t *testing.T) {
 		}
 	})
 
-	t.Run("ocupado não cria nada", func(t *testing.T) {
+	t.Run("chamado em outra chamada recebe o convite", func(t *testing.T) {
 		s, pub := rig()
 		s.busy["bia"] = "outra"
+		call, err := s.createDM(ctx, "cv-1", "ana", "bia")
+		if err != nil || call == nil {
+			t.Fatalf("call=%v err=%v", call, err)
+		}
+		if invites := pub.eventsOf("call:invite"); len(invites) != 1 || invites[0].target != "user:bia" {
+			t.Fatalf("convite = %+v", invites)
+		}
+	})
+
+	t.Run("quem liga ocupado não cria nada", func(t *testing.T) {
+		s, pub := rig()
+		s.busy["ana"] = "outra"
 		if _, err := s.createDM(ctx, "cv-1", "ana", "bia"); !errors.Is(err, ErrBusy) {
 			t.Fatalf("err=%v", err)
 		}

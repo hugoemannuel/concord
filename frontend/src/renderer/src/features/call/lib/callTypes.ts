@@ -1,6 +1,6 @@
 import type { NameStyle } from '../../profile/lib/nameStyle'
 
-export type CallStatus = 'idle' | 'ringing' | 'outgoing' | 'active'
+export type CallStatus = 'idle' | 'outgoing' | 'active'
 export type CallKind = 'dm' | 'channel'
 
 export interface CallUserInfo {

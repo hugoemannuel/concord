@@ -48,11 +48,14 @@ describe('call:invite', () => {
     expect(useIncomingCallStore.getState().call).toEqual({ callId: 'c9', conversationId: 'cv1', initiator: ana })
   })
 
-  it('ignora quando já estou em chamada ou o convite não é de DM', () => {
+  it('convite com call ativa toca (atender troca de call, estilo Discord)', () => {
     inChannelCall()
     ev('call:invite', { call_id: 'c9', type: 'dm', initiator: ana, conversation_id: 'cv1' })
-    expect(useIncomingCallStore.getState().call).toBeNull()
-    session().reset()
+    expect(useIncomingCallStore.getState().call?.callId).toBe('c9')
+    expect(session().callId).toBe('c1')
+  })
+
+  it('ignora convite que não é de DM', () => {
     ev('call:invite', { call_id: 'c9', type: 'channel', initiator: ana })
     expect(useIncomingCallStore.getState().call).toBeNull()
   })

@@ -1,6 +1,5 @@
 import type { CallStateResponse } from '../api/calls'
 import { useCallNoticeStore } from '../store/callNoticeStore'
-import { useCallSessionStore } from '../store/callSessionStore'
 import { useIncomingCallStore } from '../store/incomingCallStore'
 
 interface Deps {
@@ -22,7 +21,6 @@ export async function handleCallInviteTap(data: Record<string, unknown>, deps: D
   try {
     const state = await deps.getActiveDmCall(conversationId)
     if (state.call?.id !== callId || state.call.status !== 'ringing') return missed()
-    if (useCallSessionStore.getState().phase !== 'idle') return
     const who = state.participants.find((p) => p.user_id === state.call?.initiator_id)
     useIncomingCallStore.getState().ring({
       callId,
