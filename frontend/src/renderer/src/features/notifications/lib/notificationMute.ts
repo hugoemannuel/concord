@@ -1,5 +1,5 @@
 import type { Message } from '../../chat/api/messages'
-import { everyonePingsMe, mentionsUser } from '../../chat/lib/mentions'
+import { everyonePingsMe, textMentionsUser } from '../../chat/lib/mentions'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 
 export type NotificationLevel = 'all' | 'mentions' | 'nothing'
@@ -85,7 +85,7 @@ export function mentionKindOf(
   if (message.author_id === me.id) return { direct: false, everyone: false }
   return {
     direct:
-      message.reply_to?.author_id === me.id || mentionsUser(message.content, me.username),
+      message.reply_to?.author_id === me.id || textMentionsUser(message, me.username),
     everyone: everyonePingsMe(message.mention_everyone, me.status)
   }
 }

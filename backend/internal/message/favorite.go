@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Mensagens favoritas (#590, ADR 0061): a lista pessoal de cada um, com
+// Mensagens favoritas (#590, ADR 0062): a lista pessoal de cada um, com
 // mensagens de canal e de DM. Só guarda a referência; o conteúdo é o da
 // mensagem, mostrado só enquanto a pessoa ainda lê a sala. Mensagem apagada
 // some da lista (a cascata do banco leva o favorito).

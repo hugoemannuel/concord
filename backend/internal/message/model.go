@@ -72,6 +72,8 @@ type Message struct {
 	PinnedAt *time.Time `json:"pinned_at,omitempty"`
 	// O autor tirou as prévias de link (suppress_embeds.go): o app não pede cartão.
 	EmbedsSuppressed bool `json:"embeds_suppressed,omitempty"`
+	// Mensagem encaminhada (forward.go): de onde ela veio; nil = mensagem comum.
+	ForwardedFrom *ForwardedFrom `json:"forwarded_from,omitempty"`
 }
 
 type PinnedMessage struct {

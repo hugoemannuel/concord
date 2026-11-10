@@ -170,6 +170,16 @@ export function ReplyIcon(props: IconProps): React.JSX.Element {
   )
 }
 
+/** Seta curva para a direita: encaminhar (o espelho do responder). */
+export function ForwardIcon(props: IconProps): React.JSX.Element {
+  return (
+    <LineIcon {...props}>
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5V20" />
+    </LineIcon>
+  )
+}
+
 /** Carinha (seletor de emoji). */
 export function SmileyIcon(props: IconProps): React.JSX.Element {
   return (

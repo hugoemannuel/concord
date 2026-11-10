@@ -235,6 +235,11 @@ describe('messageMentionsMe', () => {
     ...over
   })
 
+  it('encaminhada não destaca quem a original citava', () => {
+    const forwarded_from = { message_id: 'm0', author_id: 'bia', author_name: 'Bia', created_at: '' }
+    expect(messageMentionsMe(msg({ content: 'oi @fulano', forwarded_from }), me)).toBe(false)
+  })
+
   it('@nick, resposta minha e @all/@here liberados destacam a linha', () => {
     expect(messageMentionsMe(msg({ content: 'oi @fulano' }), me)).toBe(true)
     expect(messageMentionsMe(msg({ reply_to: { author_id: 'eu' } }), me)).toBe(true)

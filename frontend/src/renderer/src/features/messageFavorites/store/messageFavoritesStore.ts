@@ -13,7 +13,7 @@ import {
 export const MAX_MESSAGE_FAVORITES = 500
 
 /**
- * Mensagens favoritas da pessoa (ADR 0061). Os ids dizem ao menu da mensagem
+ * Mensagens favoritas da pessoa (ADR 0062). Os ids dizem ao menu da mensagem
  * se ela já é favorita; a lista completa só carrega na tela das favoritas.
  */
 interface MessageFavoritesState {

@@ -24,6 +24,7 @@ import { useFlushPendingLevelUp } from '../features/levels/hooks/useScreenCelebr
 import BadgesModal from '../features/levels/components/BadgesModal'
 import BadgeUnlockToast from '../features/levels/components/BadgeUnlockToast'
 import EnqueteHost from '../features/enquete/components/EnqueteHost'
+import ForwardMessageModal from '../features/chat/components/forward/ForwardMessageModal'
 import QuickSwitcherModal from '../features/friends/components/QuickSwitcherModal'
 import ShortcutsModal from '../features/settings/components/ShortcutsModal'
 import { useGlobalShortcuts } from '../features/settings/hooks/useGlobalShortcuts'
@@ -94,6 +95,7 @@ function AppShell(): React.JSX.Element {
       <VideoBackgroundModal />
       <LevelUpScreen />
       <InviteConfirmModal />
+      <ForwardMessageModal />
       <GuestVisitConfirmModal />
       <LevelUpMilestone />
       <ServerLevelUpOverlay />

@@ -94,6 +94,11 @@ describe('applyMessageUpdate', () => {
 })
 
 describe('canEditMessage / lastEditableMessage', () => {
+  it('encaminhada não se edita (é a foto da original)', () => {
+    const forwarded_from = { message_id: 'm0', author_id: 'bia', author_name: 'Bia', created_at: '' }
+    expect(canEditMessage(msg('a', 1, { forwarded_from }), 'me')).toBe(false)
+  })
+
   it('só a sua mensagem comum (sem sistema, sem enquete e sem figurinha pura)', () => {
     expect(canEditMessage(msg('a', 1), 'me')).toBe(true)
     expect(canEditMessage(msg('a', 1, { author_id: 'outro' }), 'me')).toBe(false)

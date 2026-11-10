@@ -315,6 +315,14 @@ func TestMencaoEmCanal(t *testing.T) {
 		}
 	})
 
+	t.Run("encaminhada não pinga quem a original citava", func(t *testing.T) {
+		r := newRig()
+		ev := channelEvent("oi @ana_mobile, vem ver", nil)
+		ev.Message.ForwardedFrom = &message.ForwardedFrom{MessageID: "m0", AuthorID: "u-bia"}
+		r.n.OnMessage(ev)
+		expectTokens(t, r)
+	})
+
 	t.Run("mensagem comum de canal não notifica ninguém", func(t *testing.T) {
 		r := newRig()
 		r.n.OnMessage(channelEvent("bom dia, pessoal", nil))

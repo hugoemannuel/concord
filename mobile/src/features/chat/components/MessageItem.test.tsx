@@ -35,6 +35,14 @@ describe('MessageItem', () => {
     expect(screen.getByText('28/10/2026 09:05')).toBeOnTheScreen()
   })
 
+  it('encaminhada: o selo com a origem acima do texto da original', async () => {
+    const forwarded_from = { message_id: 'm0', author_id: 'u2', author_name: 'Caio', channel_id: 'c1', channel_name: 'geral', created_at: '' }
+    await render(<MessageItem item={item({}, message({ forwarded_from }))} timeZone="UTC" />)
+    expect(screen.getByText('Encaminhada')).toBeOnTheScreen()
+    expect(screen.getByText('de Caio · #geral')).toBeOnTheScreen()
+    expect(screen.getByText('olá, pessoal')).toBeOnTheScreen()
+  })
+
   it('continuação do bloco: só o texto', async () => {
     await render(<MessageItem item={item({ showHeader: false })} timeZone="UTC" />)
     expect(screen.queryByText('Ana Mobile')).toBeNull()

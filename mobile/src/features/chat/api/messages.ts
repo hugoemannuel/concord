@@ -34,6 +34,19 @@ export interface GifMetadata {
   preview_url?: string
 }
 
+/** De onde veio a mensagem encaminhada (cópia do desktop: features/chat/api/messages). */
+export interface ForwardedFrom {
+  message_id: string
+  author_id: string
+  author_name: string
+  author_username?: string
+  channel_id?: string | null
+  channel_name?: string
+  server_name?: string
+  conversation_id?: string | null
+  created_at: string
+}
+
 export interface Message {
   id: string
   author_id: string
@@ -53,6 +66,8 @@ export interface Message {
   created_at: string
   /** Quando o autor editou o texto pela última vez; ausente = nunca editada. */
   edited_at?: string | null
+  /** Mensagem encaminhada: de onde ela veio (o conteúdo é o da original). */
+  forwarded_from?: ForwardedFrom | null
 }
 
 export const MESSAGE_LIMIT = 50

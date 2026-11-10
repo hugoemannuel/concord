@@ -74,6 +74,23 @@ export interface CallInvite {
   server_name?: string
 }
 
+/**
+ * De onde veio a mensagem encaminhada: a foto do momento do encaminhamento
+ * (nomes não acompanham renomeações). DM só tem a conversa, sem nomes.
+ */
+export interface ForwardedFrom {
+  message_id: string
+  author_id: string
+  author_name: string
+  author_username?: string
+  channel_id?: string | null
+  channel_name?: string
+  server_id?: string | null
+  server_name?: string
+  conversation_id?: string | null
+  created_at: string
+}
+
 export interface Message {
   id: string
   author_id: string
@@ -112,6 +129,8 @@ export interface Message {
   pinned_at?: string | null
   /** O autor removeu as prévias de link (features/linkpreview): sem cartão. */
   embeds_suppressed?: boolean
+  /** Mensagem encaminhada (features/chat/lib/forward): de onde ela veio. */
+  forwarded_from?: ForwardedFrom | null
 }
 
 export interface PinnedMessage extends Message {

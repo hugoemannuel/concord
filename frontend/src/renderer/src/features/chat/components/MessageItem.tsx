@@ -10,6 +10,8 @@ import { serverDisplayName } from '../../servers/lib/serverNames'
 import MusicMessage from '../../music/components/MusicMessage'
 import { isMaestroMessageKind } from '../../music/lib/music'
 import { messageMentionsMe, type MentionLabels } from '../lib/mentions'
+import { canForward } from '../lib/forward'
+import { useForwardStore } from '../store/forwardStore'
 import {
   authorFallbackName,
   hasReplyReference,
@@ -22,6 +24,7 @@ import SystemMessage from './SystemMessage'
 import EmotePickerPopover from './EmotePickerPopover'
 import MessageActionsBar from './MessageActionsBar'
 import ReactionChips from './ReactionChips'
+import ForwardedFrame from './forward/ForwardedFrame'
 import {
   BlockedMessageNotice,
   MessageContent,
@@ -164,6 +167,7 @@ function MessageActions({
           onReact={item.onReact}
           onTogglePicker={() => actions.togglePicker()}
           onReply={item.onReply}
+          onForward={canForward(message) ? () => useForwardStore.getState().open(message) : undefined}
           onCopy={bar.onCopy}
           onEdit={bar.onEdit}
           canPin={item.canPin}
@@ -239,17 +243,19 @@ function MessageRow({
             nameColor={author.nameColor}
             onOpenProfile={author.openProfile}
           />
-          <MessageContent
-            message={message}
-            mentionLabels={item.mentionLabels}
-            isEditing={item.isEditing}
-            savingEdit={item.savingEdit}
-            onSaveEdit={item.onSaveEdit}
-            onCancelEdit={item.onCancelEdit}
-            canEndPoll={author.isMine || item.canModerate}
-            onVote={item.onVote}
-            onEndPoll={item.onEndPoll}
-          />
+          <ForwardedFrame from={message.forwarded_from}>
+            <MessageContent
+              message={message}
+              mentionLabels={item.mentionLabels}
+              isEditing={item.isEditing}
+              savingEdit={item.savingEdit}
+              onSaveEdit={item.onSaveEdit}
+              onCancelEdit={item.onCancelEdit}
+              canEndPoll={author.isMine || item.canModerate}
+              onVote={item.onVote}
+              onEndPoll={item.onEndPoll}
+            />
+          </ForwardedFrame>
           <ReactionChips
             reactions={message.reactions ?? []}
             meId={author.me?.id}

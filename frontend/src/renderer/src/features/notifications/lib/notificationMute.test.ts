@@ -85,6 +85,11 @@ describe('resolveScope', () => {
 })
 
 describe('mentionKindOf', () => {
+  it('@nick numa encaminhada não é menção (só a original citava)', () => {
+    const forwarded_from = { message_id: 'm0', author_id: 'bia', author_name: 'Bia', created_at: '' }
+    expect(mentionKindOf(msg({ content: 'oi @eu', forwarded_from }), me).direct).toBe(false)
+  })
+
   it('@nick e resposta são diretas', () => {
     expect(mentionKindOf(msg({ content: 'oi @eu' }), me).direct).toBe(true)
     expect(
