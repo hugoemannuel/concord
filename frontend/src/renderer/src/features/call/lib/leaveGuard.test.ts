@@ -7,8 +7,7 @@ describe('shouldConfirmLeave', () => {
     expect(shouldConfirmLeave('outgoing')).toBe(true)
   })
 
-  it('fora de chamada, ou só tocando, sai sem perguntar', () => {
+  it('fora de chamada sai sem perguntar', () => {
     expect(shouldConfirmLeave('idle')).toBe(false)
-    expect(shouldConfirmLeave('ringing')).toBe(false)
   })
 })

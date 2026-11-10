@@ -28,6 +28,14 @@ const setup = (onSend: (t: string) => Promise<SendOutcome>, forbiddenNotice: str
 describe('Composer', () => {
   beforeEach(() => useNetworkStore.setState({ online: true }))
 
+  it('modo lento: avisa quanto falta e o texto fica no campo', async () => {
+    await setup(jest.fn().mockResolvedValue({ slowmode: 12 }))
+    await type('oi')
+    await press()
+    expect(await screen.findByText('Modo lento: aguarde 12 s para mandar outra mensagem.')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Mensagem para #geral').props.value).toBe('oi')
+  })
+
   it('canal de servidor: digitar "/" sugere os comandos do Maestro e tocar completa', async () => {
     await render(<Composer label="Mensagem para #geral" room="channel:c1" serverId="sv" onSend={jest.fn()} />)
     await type('/pl')

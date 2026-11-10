@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { GifItem } from '../api/gifs'
 import type { ServerSticker } from '../api/stickers'
+import { ApiError } from '../../../shared/api/client'
 import { sendGif, sendSticker, type MediaSendEnv } from './sendMedia'
 
 function env(over: Partial<MediaSendEnv> = {}): MediaSendEnv {
@@ -56,5 +57,37 @@ describe('sendSticker', () => {
     const e = env({ send: vi.fn(async () => Promise.reject(new Error('x'))) })
     await sendSticker(e, { id: 's1' } as ServerSticker)
     expect(e.onError).toHaveBeenCalledWith('Não foi possível enviar a figurinha.')
+  })
+})
+
+describe('modo lento na mídia', () => {
+  const slow = (blocked = false): MediaSendEnv['slowmode'] => ({ blocked, onSent: vi.fn(), onFailed: vi.fn() })
+
+  it('mídia que sai conta a vez', async () => {
+    const s = slow()
+    await sendSticker(env({ slowmode: s }), { id: 'st1' } as ServerSticker)
+    await sendGif(env({ slowmode: s }), gif)
+    expect(s?.onSent).toHaveBeenCalledTimes(2)
+    expect(s?.onSent).toHaveBeenLastCalledWith('')
+  })
+
+  it('na espera não envia nada', async () => {
+    const e = env({ slowmode: slow(true) })
+    await sendSticker(e, { id: 'st1' } as ServerSticker)
+    await sendGif(e, gif)
+    expect(e.send).not.toHaveBeenCalled()
+    expect(e.begin).not.toHaveBeenCalled()
+  })
+
+  it('o 429 de modo lento diz quanto falta e trava a sala', async () => {
+    const s = slow()
+    const err = new ApiError(429, 'slowmode', 'slowmode', { retry_after: 7 })
+    const e = env({ slowmode: s, send: vi.fn(async () => Promise.reject(err)) })
+    await sendSticker(e, { id: 'st1' } as ServerSticker)
+    await sendGif(e, gif)
+    expect(e.onError).toHaveBeenCalledWith('Modo lento: aguarde 7 s para mandar outra mensagem.')
+    expect(e.onError).toHaveBeenCalledTimes(2)
+    expect(s?.onFailed).toHaveBeenCalledWith(err)
+    expect(e.clearDraft).not.toHaveBeenCalled()
   })
 })

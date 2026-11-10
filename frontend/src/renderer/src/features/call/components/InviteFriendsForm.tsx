@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Button from '../../../shared/ui/Button'
-import { useFriendStore } from '../../friends/store/friendStore'
-import { useChatStore } from '../../chat/store/chatStore'
-import { useCallStore } from '../store/callStore'
 import { useCallInviteStore, type SendPhase } from '../store/callInviteStore'
 import { INVITE_COPY } from '../lib/callInviteCopy'
-import { invitableFriends } from '../lib/inviteFriendsList'
+import { useInviteCandidates } from '../hooks/useInviteCandidates'
 import FriendPickList from './FriendPickList'
 
 function sendLabel(phase: SendPhase): string {
@@ -13,26 +10,13 @@ function sendLabel(phase: SendPhase): string {
   return phase === 'error' ? INVITE_COPY.retry : INVITE_COPY.send
 }
 
-/** Busca + multisseleção de amigos e o envio de todos os convites numa ação. */
+/** Busca + multisseleção de amigos e membros do servidor; todos os convites numa ação. */
 function InviteFriendsForm({ callId }: { callId: string }): React.JSX.Element {
-  const friends = useFriendStore((s) => s.friends)
-  const loaded = useFriendStore((s) => s.loaded)
-  const presence = useChatStore((s) => s.presence)
-  const participants = useCallStore((s) => s.participants)
   const phase = useCallInviteStore((s) => s.phase)
   const error = useCallInviteStore((s) => s.error)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string[]>([])
-
-  const inCallIds = useMemo(() => participants.map((p) => p.id), [participants])
-  const visible = useMemo(
-    () => invitableFriends(friends, inCallIds, query, (id) => Boolean(presence[id])),
-    [friends, inCallIds, query, presence]
-  )
-  const available = useMemo(
-    () => invitableFriends(friends, inCallIds, '', () => true).length,
-    [friends, inCallIds]
-  )
+  const { loaded, sections, total, available } = useInviteCandidates(query)
   const sending = phase === 'loading'
   const searchRef = useRef<HTMLInputElement>(null)
   // Foco na busca ao abrir (a janela monta o formulário só quando abre).
@@ -53,8 +37,8 @@ function InviteFriendsForm({ callId }: { callId: string }): React.JSX.Element {
       />
       <FriendPickList
         loaded={loaded}
-        visible={visible}
-        total={friends.length}
+        sections={sections}
+        total={total}
         available={available}
         selected={selected}
         disabled={sending}

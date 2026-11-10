@@ -7,7 +7,7 @@ import { canSubmit, draftStatus } from '../lib/attachments'
 import { AttachMenu } from './AttachMenu'
 import { ComposerAttachments } from './ComposerAttachments'
 import type { ExtraMessageData } from '../api/messages'
-import type { SendOutcome } from '../hooks/useRoomMessages'
+import { sendNotice, type SendOutcome } from '../lib/sendOutcome'
 import { SlashSuggestions } from '../../music/components/SlashSuggestions'
 import { MediaPickerSheet } from './MediaPickerSheet'
 import { IconButton } from '../../../shared/ui/IconButton'
@@ -23,8 +23,6 @@ interface ComposerProps {
   /** Aviso do 403 (sem permissão); sem ele, vale o aviso genérico de falha. */
   forbiddenNotice?: string
 }
-
-const SEND_FAILED = 'Não foi possível enviar. Tente de novo.'
 
 /** Campo de envio do chat: texto, botão Enviar e aviso de falha (o texto volta ao campo). */
 export function Composer({ label, room, onSend, serverId, forbiddenNotice }: ComposerProps) {
@@ -47,7 +45,7 @@ export function Composer({ label, room, onSend, serverId, forbiddenNotice }: Com
     if (outcome === 'ok') {
       setText('')
       clear()
-    } else setNotice(outcome === 'forbidden' ? (forbiddenNotice ?? SEND_FAILED) : SEND_FAILED)
+    } else setNotice(sendNotice(outcome, forbiddenNotice))
   }
 
   /** GIF e figurinha vão na hora, como no desktop; o texto digitado fica no campo. */
@@ -57,7 +55,7 @@ export function Composer({ label, room, onSend, serverId, forbiddenNotice }: Com
     setNotice(null)
     const outcome = await onSend('', extra)
     setSending(false)
-    if (outcome !== 'ok') setNotice(outcome === 'forbidden' ? (forbiddenNotice ?? SEND_FAILED) : SEND_FAILED)
+    setNotice(sendNotice(outcome, forbiddenNotice))
   }
 
   return (

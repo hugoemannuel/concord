@@ -34,10 +34,13 @@ type Channel struct {
 	// SystemKind: qual canal de sistema é ("maestro" ou "notices"); null nos demais.
 	SystemKind *string `json:"system_kind"`
 	// Managed: canal de uma sala de evento. Só o evento o cria e o apaga; o app não o edita.
-	Managed   bool      `json:"managed"`
-	CreatedBy string    `json:"created_by"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Managed bool `json:"managed"`
+	// SlowmodeSeconds: modo lento, intervalo mínimo entre as mensagens de cada
+	// membro (0 = desligado). Ver slowmode.go.
+	SlowmodeSeconds int       `json:"slowmode_seconds"`
+	CreatedBy       string    `json:"created_by"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 	// Overwrites: sobrescritas de permissão do canal (canal privado = deny de
 	// VIEW_CHANNEL no @everyone). Preenchido a partir do snapshot de permissões.
 	Overwrites []permission.Overwrite `json:"overwrites"`

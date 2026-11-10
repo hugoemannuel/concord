@@ -1,22 +1,28 @@
 import type { InviteResultStatus } from '../api/callInvites'
 
 /**
- * Todos os textos do convite de amigos para a call, num lugar só (para o
+ * Todos os textos do convite para a call (amigos e membros do servidor), num lugar só (para o
  * Hugo aprovar ou trocar sem caçar pelos componentes).
  */
 export const INVITE_COPY = {
-  buttonLabel: 'Convidar amigos',
-  modalTitle: 'Convidar amigos para a call',
-  searchLabel: 'Buscar amigos',
-  searchPlaceholder: 'Buscar amigo',
-  loadingFriends: 'Carregando seus amigos…',
-  noFriends: 'Você ainda não tem amigos para convidar.',
-  noMatches: 'Nenhum amigo encontrado.',
-  allInCall: 'Todos os seus amigos já estão na call.',
+  buttonLabel: 'Convidar para a call',
+  modalTitle: 'Convidar para a call',
+  searchLabel: 'Buscar amigos e membros do servidor',
+  searchPlaceholder: 'Buscar amigo ou membro',
+  loadingFriends: 'Carregando…',
+  noFriends: 'Ninguém para convidar ainda.',
+  noMatches: 'Ninguém encontrado.',
+  allInCall: 'Todo mundo já está na call.',
+  friendsSection: 'Amigos',
+  membersSection: 'Membros do servidor',
+  selectAll: 'Selecionar todos',
+  unselectAll: 'Desmarcar todos',
+  selectAllLabel: (section: string): string => `Selecionar todos: ${section}`,
+  unselectAllLabel: (section: string): string => `Desmarcar todos: ${section}`,
   online: 'Online',
   offline: 'Offline',
   selectedCount: (n: number): string =>
-    n === 1 ? '1 amigo selecionado' : `${n} amigos selecionados`,
+    n === 1 ? '1 pessoa selecionada' : `${n} pessoas selecionadas`,
   send: 'Enviar convites',
   sending: 'Enviando…',
   sentAll: (n: number): string => (n === 1 ? 'Convite enviado.' : `${n} convites enviados.`),
@@ -41,10 +47,11 @@ const RESULT_TEXT: Record<InviteResultStatus, string> = {
   sent: 'Convite enviado na conversa privada',
   already_invited: 'Já foi convidado há pouco',
   already_in_call: 'Já está na call',
-  not_friend: 'Não é seu amigo',
+  not_friend: 'Não é seu amigo nem membro do servidor',
   blocked: 'Não pode ser convidado',
   busy: 'Está em outra call',
   no_access: 'Sem acesso a este canal de voz',
+  dms_closed: 'Só aceita mensagem de amigos',
   failed: 'Não foi possível enviar o convite'
 }
 

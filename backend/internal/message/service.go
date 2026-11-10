@@ -64,6 +64,7 @@ type Service struct {
 	files           FileRemover
 	perms           PermissionChecker
 	mentionLimiter  *mentionLimiter
+	slowmode        *Slowmode
 	expressions     *expressionUse
 	audit           AuditRecorder
 }
@@ -114,43 +115,6 @@ func normalizeMediaPointers(stickerID *string, gifURL *string) (*string, *string
 		}
 	}
 	return stickerID, gifURL, nil
-}
-
-func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {
-	var err error
-	stickerID, gifURL, err = normalizeMediaPointers(stickerID, gifURL)
-	if err != nil {
-		return nil, err
-	}
-	hasMedia := len(attachmentIDs) > 0 || stickerID != nil || gifURL != nil
-	if err := validateNewMessageWithMedia(content, attachmentIDs, hasMedia); err != nil {
-		return nil, err
-	}
-
-	dest := s.channelDestination(ctx, channelID)
-	serverID := dest.ServerID
-	content, err = s.expressions.message(ctx, dest, authorID, content, stickerID)
-	if err != nil {
-		return nil, err
-	}
-
-	mentionEveryone := s.resolveMentionEveryone(ctx, serverID, channelID, authorID, content)
-	msg, err := s.create(ctx, channelID, "", authorID, content, replyToID, attachmentIDs, mentionEveryone, stickerID, gifURL, gifMetadata)
-	if err != nil {
-		// Mensagem que não saiu não gasta a vez do anti-spam.
-		if mentionEveryone != nil {
-			s.mentionLimiter.Release(authorID, channelID)
-		}
-		return nil, err
-	}
-
-	s.publisher.PublishMessageCreate(CreateEvent{
-		ChannelID: msg.ChannelID,
-		ServerID:  serverID,
-		Message:   *msg,
-	})
-
-	return msg, nil
 }
 
 func (s *Service) CreateConversationMessage(ctx context.Context, conversationID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {

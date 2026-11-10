@@ -11,6 +11,8 @@ export interface ChatPermissions {
   canReadHistory: boolean
   /** Mandar /tts (SEND_TTS_MESSAGES); na DM vale quem pode escrever. */
   canSendTTS: boolean
+  /** Isento do modo lento (MANAGE_MESSAGES ou MANAGE_CHANNELS); DM não tem modo lento. */
+  bypassSlowmode: boolean
 }
 
 /** DM e grupos: sem cargos, mas com tudo que o chat já fazia. */
@@ -21,7 +23,8 @@ export const DIRECT_CHAT_PERMISSIONS: ChatPermissions = {
   canModerate: false,
   canMentionEveryone: false,
   canReadHistory: true,
-  canSendTTS: true
+  canSendTTS: true,
+  bypassSlowmode: true
 }
 
 /** A partir das permissões da pessoa no canal (ServerAccess.channelPerms). */
@@ -33,7 +36,9 @@ export function chatPermissionsFor(channelPerms: number): ChatPermissions {
     canModerate: has(channelPerms, Perm.MANAGE_MESSAGES),
     canMentionEveryone: has(channelPerms, Perm.MENTION_EVERYONE),
     canReadHistory: has(channelPerms, Perm.READ_MESSAGE_HISTORY),
-    canSendTTS: has(channelPerms, Perm.SEND_MESSAGES | Perm.SEND_TTS_MESSAGES)
+    canSendTTS: has(channelPerms, Perm.SEND_MESSAGES | Perm.SEND_TTS_MESSAGES),
+    bypassSlowmode:
+      has(channelPerms, Perm.MANAGE_MESSAGES) || has(channelPerms, Perm.MANAGE_CHANNELS)
   }
 }
 

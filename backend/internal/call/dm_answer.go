@@ -8,24 +8,55 @@ import (
 
 // Atender e recusar a chamada de DM que está tocando. Extraído do service.go.
 
+// Accept: o chamado atende. Em outra call, sai dela antes (estilo Discord: uma
+// conexão de voz só), mas só depois de conferir que a chamada nova ainda vale.
 func (s *Service) Accept(ctx context.Context, callID string, userID string) error {
-	s.mu.Lock()
+	s.mu.RLock()
+	_, fromCallID, done, err := s.acceptCheckLocked(callID, userID)
+	s.mu.RUnlock()
+	if err != nil || done {
+		return err
+	}
+	if fromCallID != "" {
+		if err := s.leaveForSwitch(ctx, userID, fromCallID); err != nil {
+			return err
+		}
+	}
+	return s.joinAccepted(ctx, callID, userID)
+}
+
+// acceptCheckLocked (com s.mu travado) confere se userID pode atender: a
+// chamada existe e não terminou, ele é o convidado da DM. done = já está nela;
+// fromCallID = a outra call em que ele está (vazio se livre).
+func (s *Service) acceptCheckLocked(callID, userID string) (ac *activeCall, fromCallID string, done bool, err error) {
 	ac, ok := s.calls[callID]
 	if !ok || ac.info.Status == StatusEnded {
-		s.mu.Unlock()
-		return ErrNotFound
+		return nil, "", false, ErrNotFound
 	}
 	if ac.info.Type == TypeDM && ac.inviteeID != userID {
-		s.mu.Unlock()
-		return ErrNotAllowed
+		return nil, "", false, ErrNotAllowed
 	}
 	if _, ok := ac.participants[userID]; ok {
-		s.mu.Unlock()
-		return nil
+		return ac, "", true, nil
 	}
 	if otherID, ok := s.busy[userID]; ok && otherID != callID {
+		return ac, otherID, false, nil
+	}
+	return ac, "", false, nil
+}
+
+// joinAccepted põe quem atendeu na chamada. Revalida: a chamada pode ter
+// terminado durante a troca, e ainda preso a outra call (estado velho) é
+// ErrBusy, sem tentar sair de novo.
+func (s *Service) joinAccepted(ctx context.Context, callID string, userID string) error {
+	s.mu.Lock()
+	ac, fromCallID, done, err := s.acceptCheckLocked(callID, userID)
+	if err == nil && fromCallID != "" {
+		err = ErrBusy
+	}
+	if err != nil || done {
 		s.mu.Unlock()
-		return ErrBusy
+		return err
 	}
 
 	userInfo, err := s.lookupUser(ctx, userID)

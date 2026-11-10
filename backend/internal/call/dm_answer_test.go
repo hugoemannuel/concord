@@ -67,11 +67,69 @@ func TestAccept(t *testing.T) {
 		}
 	})
 
-	t.Run("chamado já em outra chamada: ocupado", func(t *testing.T) {
+	t.Run("chamado em outra chamada: sai dela e atende", func(t *testing.T) {
+		s, pub := answerRig()
+		s.busy["bia"] = "canal"
+		rec := &leaveRecorder{}
+		rec.install(s)
+		if err := s.Accept(ctx, "call-1", "bia"); err != nil {
+			t.Fatalf("err=%v", err)
+		}
+		if len(rec.calls) != 1 || rec.calls[0] != [2]string{"canal", "bia"} {
+			t.Fatalf("saídas = %v", rec.calls)
+		}
+		if s.busy["bia"] != "call-1" || len(pub.eventsOf("call:accept")) != 1 {
+			t.Fatalf("busy=%q accepts=%d", s.busy["bia"], len(pub.eventsOf("call:accept")))
+		}
+	})
+
+	t.Run("chamada encerrada não tira ninguém da call atual", func(t *testing.T) {
 		s, _ := answerRig()
-		s.busy["bia"] = "outra"
+		s.busy["bia"] = "canal"
+		s.calls["call-1"].info.Status = StatusEnded
+		rec := &leaveRecorder{}
+		rec.install(s)
+		if err := s.Accept(ctx, "call-1", "bia"); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("err=%v", err)
+		}
+		if len(rec.calls) != 0 {
+			t.Fatalf("não deveria sair: %v", rec.calls)
+		}
+	})
+
+	t.Run("busy velho não entra em laço", func(t *testing.T) {
+		s, _ := answerRig()
+		s.busy["bia"] = "canal"
+		rec := &leaveRecorder{keepBusy: true}
+		rec.install(s)
 		if err := s.Accept(ctx, "call-1", "bia"); !errors.Is(err, ErrBusy) {
 			t.Fatalf("err=%v", err)
+		}
+		if len(rec.calls) != 1 {
+			t.Fatalf("uma tentativa só: %v", rec.calls)
+		}
+	})
+
+	t.Run("falha ao sair da call antiga devolve o erro", func(t *testing.T) {
+		s, _ := answerRig()
+		s.busy["bia"] = "canal"
+		rec := &leaveRecorder{failWith: errors.New("banco")}
+		rec.install(s)
+		if err := s.Accept(ctx, "call-1", "bia"); err == nil || s.calls["call-1"].participants["bia"] != nil {
+			t.Fatalf("err=%v", err)
+		}
+	})
+
+	t.Run("intruso não tira ninguém", func(t *testing.T) {
+		s, _ := answerRig()
+		s.busy["intruso"] = "canal"
+		rec := &leaveRecorder{}
+		rec.install(s)
+		if err := s.Accept(ctx, "call-1", "intruso"); !errors.Is(err, ErrNotAllowed) {
+			t.Fatalf("err=%v", err)
+		}
+		if len(rec.calls) != 0 {
+			t.Fatalf("não deveria sair: %v", rec.calls)
 		}
 	})
 

@@ -267,9 +267,9 @@ export function draftStatus(drafts: DraftLike[]): {
   return { readyIds, uploading, failed }
 }
 
-/** Dá para enviar: nada subindo nem com erro, e há texto ou anexo pronto. */
-export function canSubmit(text: string, drafts: DraftLike[]): boolean {
+/** Dá para enviar: fora da espera do modo lento, nada subindo nem com erro, e há texto ou anexo pronto. */
+export function canSubmit(text: string, drafts: DraftLike[], slowmodeBlocked = false): boolean {
   const { readyIds, uploading, failed } = draftStatus(drafts)
-  if (uploading || failed) return false
+  if (slowmodeBlocked || uploading || failed) return false
   return text.trim().length > 0 || readyIds.length > 0
 }

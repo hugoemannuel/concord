@@ -1,21 +1,16 @@
 import type { CallUserInfo } from '../../call/store/callStore'
 
-// Botão de ligar do cabeçalho da DM.
+// Botão de ligar do cabeçalho da DM. Estar em outra call não impede: ligar
+// troca de call (estilo Discord). Na call com esta pessoa, o botão vira
+// "Encerrar chamada" (DmCallButton).
 
-export function dmCallButton(o: {
-  online: boolean
-  hasConversation: boolean
-  callStatus: string
-  blocked: boolean
-}): { disabled: boolean; title: string } {
-  const inCall = o.callStatus !== 'idle'
+export function dmCallButton(o: { online: boolean; hasConversation: boolean; blocked: boolean }): {
+  disabled: boolean
+  title: string
+} {
   return {
-    disabled: !o.online || !o.hasConversation || inCall || o.blocked,
-    title: inCall
-      ? 'Você já está em uma chamada'
-      : o.online
-        ? 'Iniciar chamada de voz'
-        : 'Usuário offline'
+    disabled: !o.online || !o.hasConversation || o.blocked,
+    title: o.online ? 'Iniciar chamada de voz' : 'Usuário offline'
   }
 }
 

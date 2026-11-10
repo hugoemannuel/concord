@@ -19,7 +19,7 @@ function CallOverlay(): React.JSX.Element | null {
   const musicGain = useMusicDucking(entries.some((e) => e.music))
   useForgetEndedLives()
 
-  if (status === 'idle' || status === 'ringing') return null
+  if (status === 'idle') return null
 
   return (
     <>

@@ -34,6 +34,8 @@ func (a *app) wireChat() {
 	messageEvents := push.WrapMessages(a.hub, a.pushTap)
 	a.messageService = message.MessageService(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository, uploads, a.permissionService)
 	a.messageService.SetAudit(a.audit)
+	slowmode := a.wireSlowmode()
+	a.messageService.SetSlowmode(slowmode)
 	// Limpeza horária de arquivos sem dono (cascatas e uploads abandonados).
 	go message.NewJanitor(messageRepository, uploads).Run(a.ctx, time.Hour)
 	a.messageHandler = message.MessageHandler(a.messageService, a.channelService, a.conversationService, a.friendshipService, a.permissionService)
@@ -44,7 +46,7 @@ func (a *app) wireChat() {
 	suppressor := message.NewEmbedSuppressor(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository)
 	suppressHandler := message.NewSuppressEmbedsHandler(suppressor, a.permissionService, a.roomAccess)
 	favoriteHandler := message.NewFavoriteHandler(message.NewFavoriteService(messageRepository, a.roomAccess))
-	a.wireTTS(messageRepository)
+	a.wireTTS(messageRepository, slowmode)
 	a.wireForward(messageRepository, uploads, messageEvents)
 	a.wireEmojis()
 

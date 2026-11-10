@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const request = vi.hoisted(() => vi.fn())
 vi.mock('../../../shared/api/client', () => ({ request }))
 
-import { createChannel, listChannels } from './channels'
+import { createChannel, listChannels, updateChannel } from './channels'
 
 describe('listChannels', () => {
   beforeEach(() => request.mockReset())
@@ -48,6 +48,19 @@ describe('criar canal com categoria', () => {
     await createChannel('s', 'geral', 'text', { private: true, roleIds: ['r'], categoryId: 'cat' })
     expect(request).toHaveBeenCalledWith('/servers/s/channels', {
       method: 'POST', body: JSON.stringify({ name: 'geral', type: 'text', category_id: 'cat', private: true, role_ids: ['r'] })
+    })
+  })
+})
+
+describe('updateChannel', () => {
+  beforeEach(() => request.mockReset())
+
+  it('manda o nome e o modo lento no PUT do canal', async () => {
+    request.mockResolvedValue({ id: 'c1' })
+    await updateChannel('s1', 'c1', { name: 'geral', slowmode_seconds: 30 })
+    expect(request).toHaveBeenCalledWith('/servers/s1/channels/c1', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'geral', slowmode_seconds: 30 })
     })
   })
 })

@@ -11,7 +11,8 @@ describe('chatPermissionsFor', () => {
       canModerate: false,
       canMentionEveryone: false,
       canReadHistory: true,
-      canSendTTS: true
+      canSendTTS: true,
+      bypassSlowmode: false
     })
   })
 
@@ -46,6 +47,12 @@ describe('chatPermissionsFor', () => {
     expect(chatPermissionsFor(DEFAULT_EVERYONE & ~Perm.READ_MESSAGE_HISTORY).canReadHistory).toBe(
       false
     )
+  })
+
+  it('Gerenciar mensagens ou Gerenciar canais isenta do modo lento', () => {
+    expect(chatPermissionsFor(DEFAULT_EVERYONE | Perm.MANAGE_MESSAGES).bypassSlowmode).toBe(true)
+    expect(chatPermissionsFor(DEFAULT_EVERYONE | Perm.MANAGE_CHANNELS).bypassSlowmode).toBe(true)
+    expect(DIRECT_CHAT_PERMISSIONS.bypassSlowmode).toBe(true)
   })
 
   it('sem ver o canal (0) nada é permitido', () => {

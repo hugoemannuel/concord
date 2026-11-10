@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import { sendCallInvites, type InviteResult } from '../api/callInvites'
 import { INVITE_COPY } from '../lib/callInviteCopy'
+import { chunk } from '../lib/invitePeople'
+
+/** Limite do servidor por requisição (maxInviteesPerRequest no backend). */
+const BATCH = 20
 
 // Envio dos convites de amigos para a call (a janela "Convidar amigos"). Fica
 // fora do callStore de propósito.
@@ -22,7 +26,11 @@ export const useCallInviteStore = create<CallInviteState>()((set) => ({
   send: async (callId, userIds) => {
     set({ phase: 'loading', error: null, results: [] })
     try {
-      const results = await sendCallInvites(callId, userIds)
+      // "Selecionar todos" pode passar do limite: manda em lotes, um depois do outro.
+      const results: InviteResult[] = []
+      for (const batch of chunk(userIds, BATCH)) {
+        results.push(...(await sendCallInvites(callId, batch)))
+      }
       set({ phase: 'ok', results })
     } catch (err) {
       const message = err instanceof Error && err.message ? err.message : INVITE_COPY.requestFailed

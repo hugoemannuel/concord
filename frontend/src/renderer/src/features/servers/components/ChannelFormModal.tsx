@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ChannelType } from '../api/channels'
+import { updateChannel, type ChannelType } from '../api/channels'
 import type { Server } from '../api/servers'
 import type { Role } from '../lib/permissions'
 import { useServerStore } from '../store/serverStore'
@@ -11,6 +11,7 @@ import Button from '../../../shared/ui/Button'
 import Input from '../../../shared/ui/Input'
 import Switch from '../../../shared/ui/Switch'
 import ChannelCategoryPicker from './ChannelCategoryPicker'
+import ChannelSlowmodeField from './ChannelSlowmodeField'
 import { VolumeIcon } from '../../../shared/ui/icons'
 import { actionErrorMessage } from '../lib/permissionErrors'
 import { channelSlug } from '../lib/channelSidebar'
@@ -134,12 +135,14 @@ function PrivateChannelFields({
 const formApi: ChannelFormApi = {
   create: (serverId, name, type, opts) =>
     useServerStore.getState().createChannel(serverId, name, type, opts),
-  update: (serverId, channelId, name) =>
-    useServerStore.getState().updateChannel(serverId, channelId, name),
+  update: async (serverId, channelId, input) => {
+    await updateChannel(serverId, channelId, input)
+    await useServerStore.getState().fetchChannels(serverId)
+  },
   refresh: (serverId) => void useChatStore.getState().fetchChannelsForServers([serverId])
 }
 
-/** Criar (texto ou voz, público ou privado) ou renomear um canal. */
+/** Criar (texto ou voz, público ou privado) ou editar (nome e modo lento) um canal. */
 function ChannelFormDialog({
   server,
   form
@@ -153,6 +156,7 @@ function ChannelFormDialog({
   const [isPrivate, setPrivate] = useState(false)
   const [roleIds, setRoleIds] = useState<string[]>([])
   const [categoryId, setCategoryId] = useState(form.categoryId ?? '')
+  const [slowmodeSeconds, setSlowmodeSeconds] = useState(form.editing?.slowmode_seconds ?? 0)
   const [saving, setSaving] = useState(false)
   const editing = form.editing
 
@@ -162,7 +166,7 @@ function ChannelFormDialog({
     if (!canSubmitChannel(slug, saving, server.id)) return
     setSaving(true)
     try {
-      const input = { serverId: server.id, name: slug, editing, type, private: isPrivate, roleIds, categoryId }
+      const input = { serverId: server.id, name: slug, editing, type, private: isPrivate, roleIds, categoryId, slowmodeSeconds }
       const done = await saveChannel(input, formApi)
       closeForm()
       showToast.success(done)
@@ -193,6 +197,7 @@ function ChannelFormDialog({
             maxLength={32}
           />
         </div>
+        {editing && <ChannelSlowmodeField value={slowmodeSeconds} onChange={setSlowmodeSeconds} />}
         {!editing && <ChannelTypePicker type={type} onChange={setType} />}
         {!editing && <ChannelCategoryPicker serverId={server.id} value={categoryId} onChange={setCategoryId} />}
         {!editing && (

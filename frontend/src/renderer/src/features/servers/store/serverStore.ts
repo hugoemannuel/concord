@@ -27,7 +27,6 @@ import {
 } from '../api/roles'
 import {
   createChannel as apiCreateChannel,
-  updateChannel as apiUpdateChannel,
   deleteChannel as apiDeleteChannel,
   reorderChannels as apiReorderChannels
 } from '../api/channels'
@@ -79,7 +78,6 @@ export interface ServerState {
     type?: ChannelType,
     options?: CreateChannelOptions
   ) => Promise<void>
-  updateChannel: (serverId: string, channelId: string, name: string) => Promise<void>
   deleteChannel: (serverId: string, channelId: string) => Promise<void>
   /**
    * Nova ordem de uma seção: aplica na hora e manda ao servidor; se ele
@@ -173,10 +171,6 @@ export const useServerStore = create<ServerState>()((set, get) => ({
   },
   createChannel: async (serverId, name, type, options) => {
     await apiCreateChannel(serverId, name, type, options)
-    await get().fetchChannels(serverId)
-  },
-  updateChannel: async (serverId: string, channelId: string, name: string) => {
-    await apiUpdateChannel(serverId, channelId, name)
     await get().fetchChannels(serverId)
   },
   deleteChannel: async (serverId: string, channelId: string) => {

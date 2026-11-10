@@ -1,6 +1,6 @@
 // Criar e editar canal (formulário da barra de canais). Sem React: quem chama
 // passa as ações do servidor.
-import type { Channel, ChannelType } from '../api/channels'
+import type { Channel, ChannelType, UpdateChannelInput } from '../api/channels'
 
 export interface ChannelFormInput {
   serverId: string
@@ -11,6 +11,8 @@ export interface ChannelFormInput {
   private: boolean
   roleIds: string[]
   categoryId?: string
+  /** Modo lento escolhido ao editar (segundos; 0 = desligado). */
+  slowmodeSeconds?: number
 }
 
 export interface ChannelFormApi {
@@ -20,7 +22,7 @@ export interface ChannelFormApi {
     type: ChannelType,
     opts: { private: boolean; roleIds: string[]; categoryId?: string }
   ) => Promise<unknown>
-  update: (serverId: string, channelId: string, name: string) => Promise<unknown>
+  update: (serverId: string, channelId: string, input: UpdateChannelInput) => Promise<unknown>
   /** Recarrega os canais do servidor para as não lidas (chatStore). */
   refresh: (serverId: string) => void
 }
@@ -30,10 +32,13 @@ export function canSubmitChannel(name: string, saving: boolean, serverId: string
   return name !== '' && !saving && serverId !== ''
 }
 
-/** Cria ou renomeia o canal; devolve o aviso de sucesso. */
+/** Cria ou edita (nome e modo lento) o canal; devolve o aviso de sucesso. */
 export async function saveChannel(input: ChannelFormInput, api: ChannelFormApi): Promise<string> {
   if (input.editing) {
-    await api.update(input.serverId, input.editing.id, input.name)
+    await api.update(input.serverId, input.editing.id, {
+      name: input.name,
+      slowmode_seconds: input.slowmodeSeconds
+    })
     api.refresh(input.serverId)
     return 'Canal atualizado!'
   }

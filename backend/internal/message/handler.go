@@ -53,60 +53,6 @@ type CommandHandler interface {
 
 func (h *Handler) SetCommandHandler(c CommandHandler) { h.commands = c }
 
-// tryCommand: comando reconhecido não é gravado como mensagem.
-func (h *Handler) tryCommand(serverID, channelID, userID, content string, attachmentIDs []string) bool {
-	if h.commands == nil || len(attachmentIDs) > 0 {
-		return false
-	}
-	return h.commands.HandleCommand(serverID, channelID, userID, content)
-}
-
-func (h *Handler) CreateChannelMessage(c *gin.Context) {
-	channelID := c.Param("channelId")
-
-	var input struct {
-		Content       string   `json:"content"`
-		ReplyToID     *string  `json:"reply_to_id"`
-		AttachmentIDs []string     `json:"attachment_ids"`
-		StickerID     *string      `json:"sticker_id"`
-		GifURL        *string      `json:"gif_url"`
-		GifMetadata   *GifMetadata `json:"gif_metadata"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-		return
-	}
-
-	userID, ok := h.getUserID(c)
-	if !ok {
-		return
-	}
-
-	want := permission.SendMessages
-	if len(input.AttachmentIDs) > 0 {
-		want |= permission.AttachFiles
-	}
-	if !h.requireChannel(c, channelID, userID, want) {
-		return
-	}
-
-	if len(input.AttachmentIDs) == 0 && input.StickerID == nil && input.GifURL == nil && h.commands != nil {
-		if ch, err := h.channelService.FindByID(c.Request.Context(), channelID); err == nil && h.tryCommand(ch.ServerID, channelID, userID, input.Content, input.AttachmentIDs) {
-			c.JSON(http.StatusAccepted, gin.H{"command": true})
-			return
-		}
-	}
-
-	msg, err := h.service.CreateChannelMessage(c.Request.Context(), channelID, userID, input.Content, input.ReplyToID, input.AttachmentIDs, input.StickerID, input.GifURL, input.GifMetadata)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, msg)
-}
-
 func (h *Handler) ListChannelMessages(c *gin.Context) {
 	channelID := c.Param("channelId")
 
@@ -310,8 +256,8 @@ func (h *Handler) CreateConversationMessage(c *gin.Context) {
 	conversationID := c.Param("id")
 
 	var input struct {
-		Content       string   `json:"content"`
-		ReplyToID     *string  `json:"reply_to_id"`
+		Content       string       `json:"content"`
+		ReplyToID     *string      `json:"reply_to_id"`
 		AttachmentIDs []string     `json:"attachment_ids"`
 		StickerID     *string      `json:"sticker_id"`
 		GifURL        *string      `json:"gif_url"`

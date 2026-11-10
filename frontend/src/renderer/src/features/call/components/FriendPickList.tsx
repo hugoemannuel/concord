@@ -1,11 +1,12 @@
 import { INVITE_COPY } from '../lib/callInviteCopy'
-import { emptyListText, toggleSelected, type InvitableFriend } from '../lib/inviteFriendsList'
-import InviteFriendRow from './InviteFriendRow'
+import { emptyListText } from '../lib/inviteFriendsList'
+import type { InviteSectionData } from '../hooks/useInviteCandidates'
+import InviteSection from './InviteSection'
 
-/** Lista rolável de amigos com checkbox (carregando, vazia ou com gente). */
+/** Lista rolável em seções (amigos, membros do servidor), cada linha com checkbox. */
 function FriendPickList({
   loaded,
-  visible,
+  sections,
   total,
   available,
   selected,
@@ -13,13 +14,14 @@ function FriendPickList({
   onChange
 }: {
   loaded: boolean
-  visible: InvitableFriend[]
+  sections: InviteSectionData[]
   total: number
   available: number
   selected: string[]
   disabled: boolean
   onChange: (next: string[]) => void
 }): React.JSX.Element {
+  const filled = sections.filter((s) => s.people.length > 0)
   let body: React.JSX.Element
   if (!loaded) {
     body = (
@@ -27,21 +29,21 @@ function FriendPickList({
         {INVITE_COPY.loadingFriends}
       </p>
     )
-  } else if (visible.length === 0) {
+  } else if (filled.length === 0) {
     body = <p className="p-3 text-ds-sm text-muted">{emptyListText(total, available)}</p>
   } else {
     body = (
-      <ul className="flex flex-col gap-0.5" aria-label={INVITE_COPY.modalTitle}>
-        {visible.map((f) => (
-          <InviteFriendRow
-            key={f.id}
-            friend={f}
-            selected={selected.includes(f.id)}
+      <div className="flex flex-col gap-3">
+        {filled.map((s) => (
+          <InviteSection
+            key={s.key}
+            section={s}
+            selected={selected}
             disabled={disabled}
-            onToggle={() => onChange(toggleSelected(selected, f.id))}
+            onChange={onChange}
           />
         ))}
-      </ul>
+      </div>
     )
   }
   return <div className="max-h-[50vh] min-h-24 overflow-y-auto overscroll-contain">{body}</div>

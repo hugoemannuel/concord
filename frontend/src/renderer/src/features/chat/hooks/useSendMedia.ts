@@ -14,7 +14,8 @@ export function useSendMedia({
   setDraft,
   replyingTo,
   setReplyState,
-  followBottom
+  followBottom,
+  slowmode
 }: {
   room: string
   draft: string
@@ -23,6 +24,7 @@ export function useSendMedia({
   setReplyState: (state: ReplyState | null) => void
   /** A lista volta a acompanhar o fim (a própria mensagem aparece embaixo). */
   followBottom: () => void
+  slowmode?: MediaSendEnv['slowmode']
 }): { handleSendSticker: (s: ServerSticker) => Promise<void>; handleSendGif: (g: GifItem) => Promise<void> } {
   const sendToRoom = useChatStore((s) => s.sendToRoom)
   const env: MediaSendEnv = {
@@ -35,7 +37,8 @@ export function useSendMedia({
       setReplyState(null)
     },
     clearDraft: () => setDraft(''),
-    onError: showToast.error
+    onError: showToast.error,
+    slowmode
   }
   return {
     handleSendSticker: (sticker) => sendSticker(env, sticker),

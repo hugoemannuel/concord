@@ -42,17 +42,11 @@ const (
 	InviteBlocked        = "blocked"
 	InviteBusy           = "busy"
 	InviteNoAccess       = "no_access"
+	// Membro (não amigo) que só aceita DM de amigos.
+	InviteDMsClosed = "dms_closed"
 	// A mensagem na DM não pôde ser postada.
 	InviteFailed = "failed"
 )
-
-// FriendChecker é o que a chamada usa do friendship.Service.
-type FriendChecker interface {
-	AreFriends(ctx context.Context, a, b string) (bool, error)
-}
-
-// SetFriendChecker liga a checagem de amizade dos convites.
-func (s *Service) SetFriendChecker(f FriendChecker) { s.invite.friends = f }
 
 // InviteCard: o que o cartão do convite guarda (a foto do momento do convite).
 type InviteCard struct {
@@ -72,6 +66,7 @@ type InviteDMPoster interface {
 // inviteDeps: o que o convite de amigos usa de fora do pacote (ligado em cmd/wire_calls.go).
 type inviteDeps struct {
 	friends      FriendChecker
+	members      MemberChecker
 	channelNames channelFinder
 	serverNames  serverFinder
 	poster       InviteDMPoster
@@ -224,26 +219,6 @@ func (s *Service) inviteStateStatusLocked(callID, inviteeID string, now time.Tim
 	return ""
 }
 
-// inviteeEligibility: amizade, bloqueio e acesso ao canal. Presença não conta:
-// o convite fica salvo na DM e o amigo vê quando voltar.
-func (s *Service) inviteeEligibility(ctx context.Context, ic inviteContext, inviteeID string) string {
-	if s.invite.friends == nil {
-		return InviteNotFriend
-	}
-	if ok, err := s.invite.friends.AreFriends(ctx, ic.inviter.ID, inviteeID); err != nil || !ok {
-		return InviteNotFriend
-	}
-	if s.blockedCheck != nil {
-		if blocked, err := s.blockedCheck(ctx, ic.inviter.ID, inviteeID); err != nil || blocked {
-			return InviteBlocked
-		}
-	}
-	if s.requireConnect(ctx, ic.channelID, inviteeID) != nil {
-		return InviteNoAccess
-	}
-	return ""
-}
-
 // sendInvite reserva o convite (rechecando o estado sob o mutex, para duas
 // requisições juntas não duplicarem) e posta o cartão na DM. Se a DM falhar,
 // a reserva é desfeita.
@@ -261,7 +236,7 @@ func (s *Service) sendInvite(ctx context.Context, ic inviteContext, inviteeID st
 	}
 	if err := s.invite.poster.PostCallInvite(ctx, ic.inviter.ID, inviteeID, card); err != nil {
 		s.releaseInvite(ic.callID, inviteeID, prev)
-		return InviteFailed
+		return postFailureStatus(err)
 	}
 	return InviteSent
 }
@@ -295,4 +270,3 @@ func (s *Service) releaseInvite(callID, inviteeID string, prev *invitation) {
 	}
 	delete(ac.invites.sent, inviteeID)
 }
-

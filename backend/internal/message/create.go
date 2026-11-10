@@ -82,3 +82,57 @@ func nilIfEmpty(s string) *string {
 	}
 	return &s
 }
+
+// SetSlowmode liga o modo lento dos canais (no boot; o mesmo do /tts).
+func (s *Service) SetSlowmode(gate *Slowmode) { s.slowmode = gate }
+
+func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {
+	var err error
+	stickerID, gifURL, err = normalizeMediaPointers(stickerID, gifURL)
+	if err != nil {
+		return nil, err
+	}
+	hasMedia := len(attachmentIDs) > 0 || stickerID != nil || gifURL != nil
+	if err := validateNewMessageWithMedia(content, attachmentIDs, hasMedia); err != nil {
+		return nil, err
+	}
+	takenAt, err := s.slowmode.Take(ctx, channelID, authorID)
+	if err != nil {
+		return nil, err
+	}
+	msg, err := s.postToChannel(ctx, channelID, authorID, content, replyToID, attachmentIDs, stickerID, gifURL, gifMetadata)
+	if err != nil {
+		// Mensagem que não saiu não gasta a vez do modo lento.
+		s.slowmode.Release(channelID, authorID, takenAt)
+		return nil, err
+	}
+	return msg, nil
+}
+
+// postToChannel grava a mensagem já validada e publica o message:create.
+func (s *Service) postToChannel(ctx context.Context, channelID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {
+	dest := s.channelDestination(ctx, channelID)
+	serverID := dest.ServerID
+	content, err := s.expressions.message(ctx, dest, authorID, content, stickerID)
+	if err != nil {
+		return nil, err
+	}
+
+	mentionEveryone := s.resolveMentionEveryone(ctx, serverID, channelID, authorID, content)
+	msg, err := s.create(ctx, channelID, "", authorID, content, replyToID, attachmentIDs, mentionEveryone, stickerID, gifURL, gifMetadata)
+	if err != nil {
+		// Mensagem que não saiu não gasta a vez do anti-spam.
+		if mentionEveryone != nil {
+			s.mentionLimiter.Release(authorID, channelID)
+		}
+		return nil, err
+	}
+
+	s.publisher.PublishMessageCreate(CreateEvent{
+		ChannelID: msg.ChannelID,
+		ServerID:  serverID,
+		Message:   *msg,
+	})
+
+	return msg, nil
+}

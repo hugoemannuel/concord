@@ -1,5 +1,6 @@
 import type { GifItem } from '../api/gifs'
 import type { ServerSticker } from '../api/stickers'
+import { slowmodeErrorText, slowmodeRetryAfter } from './slowmode'
 
 /** O que enviar figurinha ou GIF precisa do ChatPane (sala, campo, resposta e aviso). */
 export interface MediaSendEnv {
@@ -18,6 +19,8 @@ export interface MediaSendEnv {
   begin: () => void
   clearDraft: () => void
   onError: (message: string) => void
+  /** Modo lento da sala: na espera não envia; conta a vez depois de enviar e trava no 429. */
+  slowmode?: { blocked: boolean; onSent: (text: string) => void; onFailed: (err: unknown) => void }
 }
 
 interface GifMetadataToSend {
@@ -26,17 +29,27 @@ interface GifMetadataToSend {
   preview_url: string
 }
 
+/** Falha ao enviar mídia: no modo lento, quanto falta; senão, o aviso da mídia. */
+function mediaFailed(env: MediaSendEnv, err: unknown, fallback: string): void {
+  env.slowmode?.onFailed(err)
+  const retryAfter = slowmodeRetryAfter(err)
+  env.onError(retryAfter === null ? fallback : slowmodeErrorText(retryAfter))
+}
+
 export async function sendSticker(env: MediaSendEnv, sticker: ServerSticker): Promise<void> {
+  if (env.slowmode?.blocked) return
   env.begin()
   try {
     await env.send(env.room, '', [], env.replyId, { stickerId: sticker.id })
-  } catch {
-    env.onError('Não foi possível enviar a figurinha.')
+    env.slowmode?.onSent('')
+  } catch (err) {
+    mediaFailed(env, err, 'Não foi possível enviar a figurinha.')
   }
 }
 
 /** O GIF vai com o texto do campo e só limpa o campo se o envio deu certo. */
 export async function sendGif(env: MediaSendEnv, gif: GifItem): Promise<void> {
+  if (env.slowmode?.blocked) return
   env.begin()
   try {
     await env.send(env.room, env.draft, [], env.replyId, {
@@ -44,7 +57,8 @@ export async function sendGif(env: MediaSendEnv, gif: GifItem): Promise<void> {
       gifMetadata: { width: gif.width, height: gif.height, preview_url: gif.preview_url }
     })
     env.clearDraft()
-  } catch {
-    env.onError('Não foi possível enviar o GIF.')
+    env.slowmode?.onSent('')
+  } catch (err) {
+    mediaFailed(env, err, 'Não foi possível enviar o GIF.')
   }
 }
