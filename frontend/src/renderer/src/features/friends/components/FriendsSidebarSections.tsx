@@ -1,4 +1,4 @@
-import { FriendsIcon, PlusIcon } from '../../../shared/ui/icons'
+import { FriendsIcon, PlusIcon, StarIcon } from '../../../shared/ui/icons'
 import { DmListSkeleton } from '../../../shared/ui/skeleton/layouts'
 import type { ConversationSummary } from '../../chat/api/conversations'
 import { conversationTitle } from '../../chat/lib/conversations'
@@ -8,26 +8,28 @@ import ConversationRow from './ConversationRow'
 // Partes da barra de DMs/amigos (FriendsSidebar), separadas para cada uma ter
 // só a sua regra de exibição.
 
+const navItemClass = (active: boolean): string =>
+  `flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-ds-md font-medium transition-colors ${
+    active ? 'bg-fg/10 text-strong' : 'text-gray-400 hover:bg-fg/6 hover:text-gray-200'
+  }`
+
 /** Botão "Amigos" do topo, com o contador de pedidos recebidos. */
 export function FriendsNavButton({
   pathname,
   incomingCount,
-  onOpen
+  onOpen,
+  children
 }: {
   pathname: string
   incomingCount: number
   onOpen: () => void
+  /** Outros atalhos do topo, embaixo do "Amigos" (ex.: Favoritas). */
+  children?: React.ReactNode
 }): React.JSX.Element {
   const onFriendsPage = pathname === '/' || pathname === '/friends'
   return (
     <nav className="flex flex-col gap-0.5">
-      <button
-        type="button"
-        onClick={onOpen}
-        className={`flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-ds-md font-medium transition-colors ${
-          onFriendsPage ? 'bg-fg/10 text-strong' : 'text-gray-400 hover:bg-fg/6 hover:text-gray-200'
-        }`}
-      >
+      <button type="button" onClick={onOpen} className={navItemClass(onFriendsPage)}>
         <span className="flex items-center gap-3">
           <FriendsIcon className="h-5 w-5" />
           Amigos
@@ -38,7 +40,32 @@ export function FriendsNavButton({
           </span>
         )}
       </button>
+      {children}
     </nav>
+  )
+}
+
+/** Atalho "Favoritas": a lista pessoal de mensagens favoritas. */
+export function FavoritesNavButton({
+  pathname,
+  onOpen
+}: {
+  pathname: string
+  onOpen: () => void
+}): React.JSX.Element {
+  const active = pathname === '/favoritas'
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-current={active ? 'page' : undefined}
+      className={navItemClass(active)}
+    >
+      <span className="flex items-center gap-3">
+        <StarIcon size={20} />
+        Favoritas
+      </span>
+    </button>
   )
 }
 

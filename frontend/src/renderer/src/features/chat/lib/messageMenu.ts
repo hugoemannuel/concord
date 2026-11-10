@@ -20,7 +20,16 @@ export function quickReactions(
   return [...new Set(base)].slice(0, count)
 }
 
-export type MessageMenuAction = 'react' | 'edit' | 'reply' | 'pin' | 'unpin' | 'copy' | 'delete'
+export type MessageMenuAction =
+  | 'react'
+  | 'edit'
+  | 'reply'
+  | 'pin'
+  | 'unpin'
+  | 'favorite'
+  | 'unfavorite'
+  | 'copy'
+  | 'delete'
 
 export interface MessageMenuItem {
   action: MessageMenuAction
@@ -35,6 +44,9 @@ export interface MessageMenuInput {
   canEdit: boolean
   canPin: boolean
   isPinned: boolean
+  /** Pode entrar na lista pessoal de favoritas (mensagem já enviada). */
+  canFavorite?: boolean
+  isFavorite?: boolean
   /** Tem texto para copiar. */
   canCopy: boolean
   canDelete: boolean
@@ -43,20 +55,27 @@ export interface MessageMenuInput {
 
 /**
  * Itens do "Mais", em grupos separados por divisória como no Discord: reagir,
- * editar e responder; fixar e copiar; excluir por último, em vermelho. Só
+ * editar e responder; fixar, favoritar e copiar; excluir por último, em vermelho. Só
  * entram as ações que já existem e que a pessoa pode fazer; grupo vazio some.
  */
 export function messageMenuGroups(input: MessageMenuInput): MessageMenuItem[][] {
   const pin: MessageMenuItem = input.isPinned
     ? { action: 'unpin', label: 'Desafixar mensagem' }
     : { action: 'pin', label: 'Fixar mensagem' }
+  const favorite: MessageMenuItem = input.isFavorite
+    ? { action: 'unfavorite', label: 'Remover das favoritas' }
+    : { action: 'favorite', label: 'Favoritar' }
   const groups: (MessageMenuItem | false)[][] = [
     [
       input.canReact && { action: 'react', label: 'Adicionar reação' },
       input.canEdit && { action: 'edit', label: 'Editar mensagem' },
       { action: 'reply', label: 'Responder' }
     ],
-    [input.canPin && pin, input.canCopy && { action: 'copy', label: 'Copiar texto' }],
+    [
+      input.canPin && pin,
+      Boolean(input.canFavorite) && favorite,
+      input.canCopy && { action: 'copy', label: 'Copiar texto' }
+    ],
     [input.canDelete && { action: 'delete', label: input.deleteLabel, danger: true }]
   ]
   return groups
