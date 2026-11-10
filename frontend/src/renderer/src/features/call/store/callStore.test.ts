@@ -126,7 +126,10 @@ vi.mock('../api/calls', () => api)
 const snapshot = vi.hoisted(() => ({ captureScreenPreview: vi.fn(async () => 'FOTO') }))
 vi.mock('../lib/screenSnapshot', () => snapshot)
 vi.mock('../../../shared/api/client', () => ({ ApiError: class extends Error {} }))
-vi.mock('../../../shared/lib/config', () => ({ LIVEKIT_URL: 'ws://servidor', API_BASE_URL: '/api' }))
+vi.mock('../../../shared/lib/config', () => ({
+  LIVEKIT_URL: 'ws://servidor',
+  API_BASE_URL: '/api'
+}))
 
 const chat = vi.hoisted(() => ({
   sendEvent: vi.fn(),
@@ -141,7 +144,9 @@ vi.mock('../../auth/store/authStore', () => ({
 }))
 const entrance = vi.hoisted(() => ({ playEntranceClip: vi.fn(async () => true) }))
 vi.mock('../lib/entranceSoundPlayer', () => entrance)
-vi.mock('../../../shared/store/toastStore', () => ({ showToast: { error: vi.fn(), info: vi.fn(), success: vi.fn() } }))
+vi.mock('../../../shared/store/toastStore', () => ({
+  showToast: { error: vi.fn(), info: vi.fn(), success: vi.fn() }
+}))
 const sounds = vi.hoisted(() => ({ playSound: vi.fn(), setSoundOutput: vi.fn() }))
 vi.mock('../lib/sounds', () => sounds)
 
@@ -164,6 +169,7 @@ const bgPipeline = vi.hoisted(() => ({ create: vi.fn() }))
 vi.mock('../lib/backgroundPipeline', () => ({ createBackgroundPipeline: bgPipeline.create }))
 
 import { CallLockedError, useCallStore } from './callStore'
+import { useIncomingCallStore } from './incomingCallStore'
 import { useVideoSettingsStore } from './videoSettingsStore'
 import { useVideoModalStore } from './videoModalStore'
 import { ApiError } from '../../../shared/api/client'
@@ -200,6 +206,7 @@ beforeEach(() => {
   })
   useVideoModalStore.getState().close()
   useCallStore.getState().endCall()
+  useIncomingCallStore.getState().clear()
   vi.clearAllMocks()
   media.instances.length = 0
   media.events.length = 0
@@ -230,7 +237,10 @@ describe('callStore — mídia via LiveKit', () => {
     native.setNativeLiveQuality.mockReturnValueOnce(true)
     useCallStore.getState().updateScreenQuality({ resolution: '720p', frameRate: 60 })
     expect(media.updateScreenQuality).not.toHaveBeenCalled()
-    expect(useCallStore.getState().screenShareQuality).toEqual({ resolution: '720p', frameRate: 60 })
+    expect(useCallStore.getState().screenShareQuality).toEqual({
+      resolution: '720p',
+      frameRate: 60
+    })
 
     const stream = fakeStream('video')
     rtc.getDisplayStream.mockResolvedValueOnce(stream)
@@ -443,7 +453,10 @@ describe('callStore — mídia via LiveKit', () => {
     })
 
     it('sala trancada (423): lança CallLockedError com a call', async () => {
-      const locked = Object.assign(new ApiError(423, 'trancada'), { status: 423, body: { call_id: 'call-9' } })
+      const locked = Object.assign(new ApiError(423, 'trancada'), {
+        status: 423,
+        body: { call_id: 'call-9' }
+      })
       api.startCall.mockRejectedValue(locked)
       await expect(useCallStore.getState().startChannelCall('canal-1')).rejects.toBeInstanceOf(
         CallLockedError
@@ -886,7 +899,9 @@ describe('callStore — mídia via LiveKit', () => {
     vi.useFakeTimers()
     try {
       chat.sendEvent.mockClear()
-      const handlers = media.instances[0].handlers as { onConnectionLost: (reason?: number) => void }
+      const handlers = media.instances[0].handlers as {
+        onConnectionLost: (reason?: number) => void
+      }
       handlers.onConnectionLost(2)
       expect(useCallStore.getState().callId).toBeNull()
       vi.advanceTimersByTime(120_000)
@@ -1100,7 +1115,7 @@ describe('callStore — mídia via LiveKit', () => {
     useCallStore.getState().toggleMute()
 
     expect(chat.sendEvent).not.toHaveBeenCalledWith('call:voice', expect.anything())
-    expect(useCallStore.getState().status).toBe('ringing')
+    expect(useCallStore.getState().status).toBe('idle')
   })
 
   it('ao conectar a mídia, avisa o estado atual de mudo/ensurdecido', async () => {
@@ -1130,7 +1145,10 @@ describe('callStore — mídia via LiveKit', () => {
   })
 
   it('ao entrar, toca o meu som de entrada no lugar do "join" padrão', async () => {
-    me.user = { id: 'eu', entrance_sound_url: '/api/entrance-sounds/0b6e7a52-3c1f-4c47-9d0e-2f6a8b1c4d5e' }
+    me.user = {
+      id: 'eu',
+      entrance_sound_url: '/api/entrance-sounds/0b6e7a52-3c1f-4c47-9d0e-2f6a8b1c4d5e'
+    }
     try {
       await joinChannel()
       expect(entrance.playEntranceClip).toHaveBeenCalledTimes(1)
@@ -1187,7 +1205,11 @@ describe('callStore — atender DM', () => {
   function ringing(): void {
     useCallStore.getState().handleWsEvent({
       type: 'call:invite',
-      payload: { call_id: 'dm-1', type: 'dm', initiator: { id: 'ana', username: 'ana', display_name: 'Ana' } }
+      payload: {
+        call_id: 'dm-1',
+        type: 'dm',
+        initiator: { id: 'ana', username: 'ana', display_name: 'Ana' }
+      }
     })
   }
 
@@ -1203,7 +1225,8 @@ describe('callStore — atender DM', () => {
     expect(chat.subscribeRoom).not.toHaveBeenCalled()
     expect(chat.sendEvent).not.toHaveBeenCalledWith('call:accept', expect.anything())
     // Ainda não sou participante: segue tocando (um call:voice agora seria recusado).
-    expect(useCallStore.getState().status).toBe('ringing')
+    expect(useCallStore.getState().status).toBe('idle')
+    expect(useIncomingCallStore.getState().call?.callId).toBe('dm-1')
 
     accepted.resolve(undefined)
     await accepting
@@ -1238,17 +1261,18 @@ describe('callStore — atender DM', () => {
 
     expect(showToast.error).toHaveBeenCalled()
     expect(useCallStore.getState().status).toBe('idle')
+    expect(useIncomingCallStore.getState().call).toBeNull()
     expect(api.getCallToken).not.toHaveBeenCalled()
   })
 
-  it('desligou enquanto o aceite ia ao servidor: sai da chamada que acabou de entrar', async () => {
+  it('recusou enquanto o aceite ia ao servidor: sai da chamada que acabou de entrar', async () => {
     const accepted = deferred<undefined>()
     api.acceptCall.mockReturnValueOnce(accepted.promise)
     ringing()
 
     const accepting = useCallStore.getState().acceptCall()
     await flush()
-    useCallStore.getState().endCall()
+    useCallStore.getState().declineCall()
     chat.sendEvent.mockClear()
     accepted.resolve(undefined)
     await accepting
@@ -1258,6 +1282,68 @@ describe('callStore — atender DM', () => {
     expect(chat.sendEvent).toHaveBeenCalledWith('call:leave', { call_id: 'dm-1' })
     expect(api.getCallToken).not.toHaveBeenCalled()
     expect(useCallStore.getState().status).toBe('idle')
+  })
+
+  it('convite com call ativa toca sem derrubar a call', async () => {
+    await joinChannel()
+    ringing()
+
+    expect(useIncomingCallStore.getState().call?.callId).toBe('dm-1')
+    expect(useCallStore.getState().status).toBe('active')
+    expect(useCallStore.getState().callId).toBe('call-1')
+  })
+
+  it('aceitar estando em canal limpa a call local sem call:leave e entra na DM', async () => {
+    await joinChannel()
+    const oldMedia = media.instances[0]
+    ringing()
+    chat.sendEvent.mockClear()
+
+    await useCallStore.getState().acceptCall()
+    await flush()
+
+    expect(chat.sendEvent).not.toHaveBeenCalledWith('call:leave', expect.anything())
+    expect(oldMedia.disconnect).toHaveBeenCalled()
+    expect(useIncomingCallStore.getState().call).toBeNull()
+    const s = useCallStore.getState()
+    expect([s.status, s.callId, s.type]).toEqual(['active', 'dm-1', 'dm'])
+    expect(s.participants.map((p) => p.id)).toEqual(['ana'])
+    expect(chat.subscribeRoom).toHaveBeenCalledWith('call:dm-1')
+  })
+
+  it('recusar mantém a call atual', async () => {
+    await joinChannel()
+    ringing()
+
+    useCallStore.getState().declineCall()
+
+    expect(chat.sendEvent).toHaveBeenCalledWith('call:decline', { call_id: 'dm-1' })
+    expect(useIncomingCallStore.getState().call).toBeNull()
+    expect([useCallStore.getState().status, useCallStore.getState().callId]).toEqual([
+      'active',
+      'call-1'
+    ])
+  })
+
+  it('microfone falhando ao aceitar mantém a call atual', async () => {
+    await joinChannel()
+    ringing()
+    rtc.getAudioStream.mockRejectedValueOnce(new Error('sem microfone'))
+
+    await useCallStore.getState().acceptCall()
+
+    expect(showToast.error).toHaveBeenCalled()
+    expect(api.acceptCall).not.toHaveBeenCalled()
+    expect([useCallStore.getState().status, useCallStore.getState().callId]).toEqual([
+      'active',
+      'call-1'
+    ])
+  })
+
+  it('call:ended da chamada que toca limpa o convite', () => {
+    ringing()
+    useCallStore.getState().handleWsEvent({ type: 'call:ended', payload: { call_id: 'dm-1' } })
+    expect(useIncomingCallStore.getState().call).toBeNull()
   })
 })
 
@@ -1855,7 +1941,12 @@ describe('callStore — selo LIVE em dia', () => {
 
 describe('callStore — lista dos canais de voz pelos eventos do servidor', () => {
   const callInfo = { id: 'call-5', type: 'channel', channel_id: 'canal-5', server_id: 's2' }
-  const person = (user_id: string): object => ({ call_id: 'call-5', user_id, role: 'member', joined_at: '' })
+  const person = (user_id: string): object => ({
+    call_id: 'call-5',
+    user_id,
+    role: 'member',
+    joined_at: ''
+  })
 
   it('entrar, sair e o fim da chamada mudam a lista sem ler o servidor', () => {
     const event = (type: string, payload: object): void =>
@@ -2009,7 +2100,7 @@ describe('callStore — detecção local da própria fala', () => {
         }
       })
     invite()
-    expect(useCallStore.getState().status).toBe('ringing')
+    expect(useIncomingCallStore.getState().call?.callId).toBe('dm-1')
     useCallStore.getState().declineCall()
     expect(vad.watches).toHaveLength(0)
 

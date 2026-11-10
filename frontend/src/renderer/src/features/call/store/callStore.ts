@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { WsEvent } from '../../../shared/api/ws'
 import {
-  acceptCall as acceptCallApi,
   startCall as startCallApi,
   endCall as endCallApi,
   getCallState,
@@ -18,6 +17,7 @@ import {
 } from '../lib/backgroundPipeline'
 import { needsPipeline, resolveBackgroundEffect, sameBackground } from '../lib/videoBackground'
 import { useVideoSettingsStore } from './videoSettingsStore'
+import { useIncomingCallStore } from './incomingCallStore'
 import { useVideoModalStore } from './videoModalStore'
 import { ScreenShareSetupError } from '../lib/displayMedia'
 import {
@@ -27,6 +27,8 @@ import {
   type ScreenShareQuality
 } from '../lib/screenShareQuality'
 import type { MicHandle } from '../lib/noiseSuppression'
+import { openMicOrDefault } from '../lib/openMic'
+import { acceptIncomingDm } from '../lib/acceptIncomingDm'
 import { CallMedia, type CallMediaHandlers, type RemoteMedia } from '../lib/livekit'
 import type {
   EndedPayload,
@@ -113,13 +115,7 @@ import {
   CallLockedError
 } from '../lib/callTypes'
 
-export type {
-  CallStatus,
-  CallKind,
-  CallUserInfo,
-  VoiceState,
-  KnockState
-}
+export type { CallStatus, CallKind, CallUserInfo, VoiceState, KnockState }
 export { CallLockedError }
 
 // Aviso com instruções de instalação (portal de tela no Linux): dá tempo de ler.
@@ -621,25 +617,6 @@ export const useCallStore = create<CallState>()((set, get) => {
     }
   }
 
-  /**
-   * Atende a DM e espera o servidor registrar a entrada. false = não deu
-   * (avisado) ou a pessoa desligou nesse meio-tempo (sai da chamada de novo:
-   * o call:leave do desligar pode ter chegado antes do aceite).
-   */
-  const acceptDm = async (callId: string): Promise<boolean> => {
-    try {
-      await acceptCallApi(callId)
-    } catch (err) {
-      if (get().callId !== callId) return false
-      showToast.error(err instanceof Error ? err.message : 'Não foi possível entrar na chamada.')
-      cleanup()
-      return false
-    }
-    if (get().callId === callId) return true
-    useChatStore.getState().sendEvent('call:leave', { call_id: callId })
-    return false
-  }
-
   /** Pede o token da sala; falha a conexão e devolve null se não der. */
   const fetchMediaToken = async (connection: CallMedia, callId: string): Promise<string | null> => {
     try {
@@ -856,12 +833,10 @@ export const useCallStore = create<CallState>()((set, get) => {
 
   /** Reenvia ao servidor se estou transmitindo (ou não) — corrige o que se perdeu na queda. */
   const sendScreenState = (callId: string): void => {
-    useChatStore
-      .getState()
-      .sendEvent('call:screen', {
-        call_id: callId,
-        active: localScreenStream !== null || nativeLiveActive()
-      })
+    useChatStore.getState().sendEvent('call:screen', {
+      call_id: callId,
+      active: localScreenStream !== null || nativeLiveActive()
+    })
   }
 
   /**
@@ -981,23 +956,13 @@ export const useCallStore = create<CallState>()((set, get) => {
     set(IDLE_CALL)
   }
 
-  /**
-   * Abre o microfone escolhido; se ele sumiu desde a última vez (headset
-   * desconectado), usa o padrão do sistema em vez de impedir a chamada.
-   */
-  const openMic = async (): Promise<MicHandle> => {
-    const id = get().inputDeviceId
-    try {
-      return await getAudioStream(id)
-    } catch (err) {
-      const name = (err as DOMException)?.name
-      if (!id || (name !== 'OverconstrainedError' && name !== 'NotFoundError')) throw err
+  /** Microfone escolhido (ou o padrão do sistema, se ele sumiu). */
+  const openMic = (): Promise<MicHandle> =>
+    openMicOrDefault(get().inputDeviceId, () => {
       showToast.info('Microfone escolhido não encontrado — usando o padrão do sistema.')
       set({ inputDeviceId: '' })
       saveAudioPrefs({ inputId: '', outputId: get().outputDeviceId })
-      return getAudioStream('')
-    }
-  }
+    })
 
   /** Aplica o mute no microfone local e na sala. */
   const applyMute = (muted: boolean): void => {
@@ -1044,21 +1009,14 @@ export const useCallStore = create<CallState>()((set, get) => {
 
   const wsHandlers: Record<string, WsHandler> = {
     'call:invite': ({ payload }) => {
+      // Toca mesmo comigo em outra call (estilo Discord): atender troca de call.
       const p = payload as unknown as InvitePayload
-      if (p.type !== 'dm' || get().status !== 'idle') return
+      if (p.type !== 'dm') return
       notifyDesktop(callNotification(p.initiator))
-      set({
-        status: 'ringing',
+      useIncomingCallStore.getState().ring({
         callId: p.call_id,
-        type: 'dm',
         conversationId: p.conversation_id ?? null,
-        channelId: null,
-        participants: [p.initiator],
-        isInitiator: false,
-        streams: {},
-        muted: false,
-        deafened: false,
-        startedAt: null
+        initiator: p.initiator
       })
       return
     },
@@ -1245,6 +1203,8 @@ export const useCallStore = create<CallState>()((set, get) => {
 
     'call:ended': ({ payload }) => {
       const p = payload as unknown as EndedPayload
+      const incoming = useIncomingCallStore.getState()
+      if (incoming.call?.callId === p.call_id) incoming.clear()
       if (get().callId !== p.call_id) return
       cleanup()
       return
@@ -1462,12 +1422,13 @@ export const useCallStore = create<CallState>()((set, get) => {
     },
 
     acceptCall: async () => {
-      const { status, callId, participants } = get()
-      const peer = participants[0]
-      if (status !== 'ringing' || !callId || !peer || transitioning) return
+      const incoming = useIncomingCallStore.getState().call
+      if (!incoming || transitioning) return
       transitioning = true
+      // O microfone novo abre antes de tudo: se falhar, a call atual fica.
+      let mic: MicHandle
       try {
-        localMic = await openMic()
+        mic = await openMic()
       } catch {
         showToast.error('Não foi possível acessar o microfone.')
         transitioning = false
@@ -1476,20 +1437,39 @@ export const useCallStore = create<CallState>()((set, get) => {
 
       // Ativa só com a entrada registrada: antes disso o servidor recusaria o
       // mudo (call:voice), a sala da chamada e o token da mídia.
-      const accepted = await acceptDm(callId)
+      const accepted = await acceptIncomingDm(incoming.callId)
       transitioning = false
-      if (!accepted) return
-      set({ status: 'active', startedAt: Date.now() })
+      if (!accepted) {
+        mic.stop()
+        return
+      }
+      useIncomingCallStore.getState().clear()
+      // O servidor já me tirou da call antiga: aqui só desliga a mídia dela.
+      if (get().status !== 'idle') cleanup()
+      localMic = mic
+      set({
+        status: 'active',
+        callId: incoming.callId,
+        type: 'dm',
+        conversationId: incoming.conversationId,
+        channelId: null,
+        participants: [incoming.initiator],
+        isInitiator: false,
+        streams: {},
+        muted: false,
+        deafened: false,
+        startedAt: Date.now()
+      })
       playSound('join')
-      useChatStore.getState().subscribeRoom(`call:${callId}`)
-      void connectMedia(callId)
+      useChatStore.getState().subscribeRoom(`call:${incoming.callId}`)
+      void connectMedia(incoming.callId)
     },
 
     declineCall: () => {
-      const { status, callId } = get()
-      if (status !== 'ringing' || !callId) return
-      useChatStore.getState().sendEvent('call:decline', { call_id: callId })
-      cleanup()
+      const incoming = useIncomingCallStore.getState()
+      if (!incoming.call) return
+      useChatStore.getState().sendEvent('call:decline', { call_id: incoming.call.callId })
+      incoming.clear()
     },
 
     endCall: () => {
@@ -1499,14 +1479,10 @@ export const useCallStore = create<CallState>()((set, get) => {
         return
       }
       if (status === 'active') playSound('leave')
-      if (status === 'ringing') {
-        useChatStore.getState().sendEvent('call:decline', { call_id: callId })
-      } else {
-        useChatStore.getState().sendEvent('call:leave', { call_id: callId })
-        // Em canal, a queda de WS já dispara HandleDisconnect no servidor.
-        if (type === 'dm' && !useChatStore.getState().isWsConnected()) {
-          void endCallApi(callId).catch(() => {})
-        }
+      useChatStore.getState().sendEvent('call:leave', { call_id: callId })
+      // Em canal, a queda de WS já dispara HandleDisconnect no servidor.
+      if (type === 'dm' && !useChatStore.getState().isWsConnected()) {
+        void endCallApi(callId).catch(() => {})
       }
       cleanup()
     },

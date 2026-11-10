@@ -100,9 +100,8 @@ describe('showVoicePanel / voicePanelHeading', () => {
     expect(showVoicePanel('outgoing')).toBe(true)
   })
 
-  it('fica escondido sem chamada e quando alguém está chamando (o modal cuida disso)', () => {
+  it('fica escondido sem chamada', () => {
     expect(showVoicePanel('idle')).toBe(false)
-    expect(showVoicePanel('ringing')).toBe(false)
   })
 
   it('título: o estado da conexão de voz na chamada, "Chamando…" antes de atenderem', () => {
