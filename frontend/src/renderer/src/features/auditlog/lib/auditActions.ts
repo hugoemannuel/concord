@@ -98,6 +98,13 @@ const ACTIONS: Record<AuditAction, ActionInfo> = {
   },
   'voice.move': { label: 'Movido de canal de voz', tone: 'update', sentence: '{a} moveu {t} para {c}' },
   'voice.disconnect': { label: 'Desconectado da voz', tone: 'delete', sentence: '{a} desconectou {t} de {c}' },
+  'voice.castigo': {
+    label: 'Castigo na voz',
+    tone: 'delete',
+    sentence: (e) =>
+      changeOf(e, 'via')?.after === 'vote' ? '{a} abriu a votação e {t} ficou de castigo' : '{a} pôs {t} de castigo'
+  },
+  'voice.castigo.lift': { label: 'Castigo tirado', tone: 'create', sentence: '{a} tirou o castigo de {t}' },
   'message.delete': { label: 'Mensagem apagada', tone: 'delete', sentence: '{a} apagou uma mensagem de {t} em {c}' },
   'message.pin': { label: 'Mensagem fixada', tone: 'create', sentence: '{a} fixou uma mensagem de {t} em {c}' },
   'message.unpin': { label: 'Mensagem desafixada', tone: 'delete', sentence: '{a} desafixou uma mensagem de {t} em {c}' },
@@ -154,7 +161,7 @@ export const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
     label: 'Membros',
     actions: ['member.join', 'member.leave', 'member.kick', 'member.ban', 'member.unban', 'member.nickname']
   },
-  { label: 'Voz', actions: ['voice.mute', 'voice.deafen', 'voice.move', 'voice.disconnect'] },
+  { label: 'Voz', actions: ['voice.mute', 'voice.deafen', 'voice.move', 'voice.disconnect', 'voice.castigo', 'voice.castigo.lift'] },
   { label: 'Mensagens', actions: ['message.delete', 'message.pin', 'message.unpin'] },
   {
     label: 'Emojis, figurinhas e sons',

@@ -59,6 +59,8 @@ func (s *Service) requireConnect(ctx context.Context, channelID, userID string) 
 		return ErrNotMember
 	case !permission.Has(perms, permission.ViewChannel|permission.Connect):
 		return ErrNoConnect
+	case s.castigoBlocksJoin(ctx, channelID, userID):
+		return ErrCastigo
 	}
 	return nil
 }
@@ -101,20 +103,21 @@ func (s *Service) GrantFor(ctx context.Context, callID, userID string) livekit.G
 		return livekit.Grant{}
 	}
 	channelID := *ac.info.ChannelID
+	var serverID string
+	if ac.info.ServerID != nil {
+		serverID = *ac.info.ServerID
+	}
 	var serverMuted, serverDeafened bool
 	if p, ok := ac.participants[userID]; ok {
 		serverMuted, serverDeafened = p.serverMuted, p.serverDeafened
 	}
 	s.mu.RUnlock()
 
-	if s.perms == nil {
-		return grantFor(0, serverMuted, serverDeafened)
+	var perms int64
+	if s.perms != nil {
+		perms, _ = s.channelPerms(ctx, channelID, userID)
 	}
-	perms, err := s.channelPerms(ctx, channelID, userID)
-	if err != nil {
-		perms = 0
-	}
-	return grantFor(perms, serverMuted, serverDeafened)
+	return s.castigoOf(serverID, userID).limit(grantFor(perms, serverMuted, serverDeafened))
 }
 
 // channelCall devolve a chamada de canal e quem está nela, ou erro.
@@ -194,7 +197,7 @@ func (s *Service) setServerVoice(ctx context.Context, callID, actorID, targetID 
 	s.saveServerVoiceState(callID, targetID, serverMuted, serverDeafened)
 
 	if s.media != nil {
-		grant := grantFor(s.permsIn(ctx, snap, channelID, targetID), serverMuted, serverDeafened)
+		grant := s.castigoOf(snap.ServerID, targetID).limit(grantFor(s.permsIn(ctx, snap, channelID, targetID), serverMuted, serverDeafened))
 		if err := s.media.UpdatePermissions(ctx, callID, targetID, grant); err != nil {
 			log.Printf("[call] update media permissions of %s in %s failed: %v", targetID, callID, err)
 		}
@@ -319,22 +322,30 @@ func (s *Service) RevalidateServer(ctx context.Context, serverID string) {
 	}
 	for callID, vc := range calls {
 		for userID, flags := range vc.participants {
-			perms := s.permsIn(ctx, snap, vc.channelID, userID)
-			if !permission.Has(perms, permission.ViewChannel|permission.Connect) {
-				if err := s.kick(ctx, callID, userID); err != nil {
-					log.Printf("[call] revalidate: remove %s from %s failed: %v", userID, callID, err)
-				}
-				continue
-			}
-			if s.media != nil {
-				grant := grantFor(perms, flags.serverMuted, flags.serverDeafened)
-				if err := s.media.UpdatePermissions(ctx, callID, userID, grant); err != nil {
-					log.Printf("[call] revalidate: update %s in %s failed: %v", userID, callID, err)
-				}
-				dropScreenWithoutStream(ctx, s.media, callID, userID, grant)
-			}
+			s.revalidateParticipant(ctx, snap, callID, vc.channelID, userID, flags)
 		}
 	}
+}
+
+// revalidateParticipant: sem acesso ao canal, sai da chamada; com acesso, a
+// mídia passa a refletir o que ele pode agora.
+func (s *Service) revalidateParticipant(ctx context.Context, snap *permission.Snapshot, callID, channelID, userID string, flags participantFlags) {
+	perms := s.permsIn(ctx, snap, channelID, userID)
+	castigo := s.castigoOf(snap.ServerID, userID)
+	if !permission.Has(perms, permission.ViewChannel|permission.Connect) || castigo.NoConnect {
+		if err := s.kick(ctx, callID, userID); err != nil {
+			log.Printf("[call] revalidate: remove %s from %s failed: %v", userID, callID, err)
+		}
+		return
+	}
+	if s.media == nil {
+		return
+	}
+	grant := castigo.limit(grantFor(perms, flags.serverMuted, flags.serverDeafened))
+	if err := s.media.UpdatePermissions(ctx, callID, userID, grant); err != nil {
+		log.Printf("[call] revalidate: update %s in %s failed: %v", userID, callID, err)
+	}
+	dropScreenWithoutStream(ctx, s.media, callID, userID, grant)
 }
 
 // RemoveFromServerCalls tira o usuário das chamadas de voz do servidor

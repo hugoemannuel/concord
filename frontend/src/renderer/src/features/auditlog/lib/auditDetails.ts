@@ -2,6 +2,7 @@ import type { AuditChange, AuditEntry } from '../api/auditLog'
 import { PERMISSION_GROUPS } from '../../servers/lib/permissionCatalog'
 import { Perm } from '../../servers/lib/permissions'
 import { actionInfo } from './auditActions'
+import { castigoEffectsLabel, durationLabel } from '../../castigo/lib/castigoCopy'
 
 /** Um campo que mudou: antes e depois já em texto. */
 export interface ValueRow {
@@ -105,13 +106,18 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   server_theme_dim: { label: 'Escurecer a imagem', format: (v) => `${String(v)}%` },
   tag_name: { label: 'Nome da tag', format: text },
   tag_badge: { label: 'Emblema da tag', format: text },
-  tag_color: { label: 'Cor da tag', format: text }
+  tag_color: { label: 'Cor da tag', format: text },
+  castigo_effects: { label: 'O que tirou', format: (v) => castigoEffectsLabel(String(v ?? '')) },
+  castigo_duration: { label: 'Duração', format: (v) => durationLabel(Number(v)) }
 }
+
+/** Campos que só têm o valor novo (o castigo dado), mesmo fora da criação. */
+const AFTER_ONLY = new Set(['castigo_effects', 'castigo_duration'])
 
 const PERMISSION_FIELDS: Record<string, string> = { permissions: 'Permissões', allow: 'Permitido', deny: 'Negado' }
 
 /** Campos que a frase já conta (não repetem nos detalhes). */
-const IN_SENTENCE = new Set(['role', 'mute', 'deaf'])
+const IN_SENTENCE = new Set(['role', 'mute', 'deaf', 'via'])
 
 const PERMISSION_LABELS: [number, string][] = PERMISSION_GROUPS.flatMap((g) =>
   g.permissions.map((p): [number, string] => [Perm[p.name], p.label])
@@ -133,7 +139,7 @@ function permissionRow(label: string, c: AuditChange): PermissionRow {
  */
 function valueRow(e: AuditEntry, label: string, format: (v: unknown) => string, c: AuditChange): ValueRow {
   const row: ValueRow = { label }
-  if (actionInfo(e.action).tone !== 'create') row.before = format(c.before)
+  if (actionInfo(e.action).tone !== 'create' && !AFTER_ONLY.has(c.field)) row.before = format(c.before)
   row.after = format(c.after)
   return row
 }
