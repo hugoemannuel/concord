@@ -52,7 +52,7 @@ const (
 	VoiceDeafen     Action = "voice.deafen"
 	VoiceMove       Action = "voice.move"
 	VoiceDisconnect Action = "voice.disconnect"
-	// Castigo nas calls (docs/adr/0061-castigo-na-call.md).
+	// Castigo nas calls (docs/adr/0063-castigo-na-call.md).
 	VoiceCastigo     Action = "voice.castigo"
 	VoiceCastigoLift Action = "voice.castigo.lift"
 

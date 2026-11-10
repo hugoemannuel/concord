@@ -2,7 +2,7 @@
 // tempo: sem falar, sem entrar em call ou sem ouvir. Quem tem as permissões
 // de moderação de voz aplica direto; qualquer pessoa da call pode abrir uma
 // votação, e o castigo vale se a maioria da call aceitar.
-// Ver docs/adr/0061-castigo-na-call.md.
+// Ver docs/adr/0063-castigo-na-call.md.
 package castigo
 
 import (

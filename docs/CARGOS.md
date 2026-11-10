@@ -93,7 +93,7 @@ A posição do cargo define quem manda em quem (maior = mais alto).
 
 ## Castigo
 
-Castigo nas calls do servidor por um tempo ([ADR 0061](adr/0061-castigo-na-call.md)).
+Castigo nas calls do servidor por um tempo ([ADR 0063](adr/0063-castigo-na-call.md)).
 
 - O castigo tira, em todos os canais de voz do servidor, um ou mais destes: **falar**, **entrar na call** (quem está numa sai na hora) e **escutar**. Prazos: 1, 5, 10 ou 30 minutos ou 1 hora. Acaba sozinho no fim do prazo, mesmo que o servidor reinicie no meio. Castigos somados ficam com o prazo mais longo de cada efeito.
 - **Aplicar direto** (e tirar antes da hora) pede, no servidor, a moderação de voz de cada efeito: falar → *Silenciar membros*; escutar → *Ensurdecer membros*; entrar → *Desconectar membros*. E vale a hierarquia: só sobre quem tem o cargo mais alto menor que o seu.

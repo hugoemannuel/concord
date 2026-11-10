@@ -1,4 +1,4 @@
-// Castigo nas calls do servidor (docs/adr/0061-castigo-na-call.md). Puro: as
+// Castigo nas calls do servidor (docs/adr/0063-castigo-na-call.md). Puro: as
 // regras que o app usa para mostrar e travar botões. Quem decide é o servidor.
 
 /** O que o castigo tira. */

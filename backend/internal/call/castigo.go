@@ -7,7 +7,7 @@ import (
 	"gin-quickstart/backend/internal/platform/livekit"
 )
 
-// Castigo (docs/adr/0061-castigo-na-call.md): por um tempo, a pessoa não fala,
+// Castigo (docs/adr/0063-castigo-na-call.md): por um tempo, a pessoa não fala,
 // não entra em call ou não ouve nos canais de voz de um servidor. Os castigos
 // ficam no internal/castigo; aqui a chamada só consulta e aplica na mídia.
 

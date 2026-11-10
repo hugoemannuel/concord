@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// wireCastigos: castigo nas calls (docs/adr/0061-castigo-na-call.md). Vem
+// wireCastigos: castigo nas calls (docs/adr/0063-castigo-na-call.md). Vem
 // depois das chamadas (consulta quem está nelas e aplica o castigo na mídia).
 func (a *app) wireCastigos() {
 	svc := castigo.NewService(castigo.NewRepository(a.db), a.permissionService, a.callService, a.hub)

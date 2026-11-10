@@ -1,4 +1,4 @@
-# 0061. Pôr alguém de castigo nas calls do servidor, direto ou por votação da call
+# 0063. Pôr alguém de castigo nas calls do servidor, direto ou por votação da call
 
 - Status: aceito
 - Data: 2026-11-09
@@ -55,7 +55,7 @@ permissão. As forças:
 ## Decisão
 
 - Pacote novo `internal/castigo` (modelo, índice, repositório, serviço, votação, varredura, rotas)
-  e a tabela `castigos` (migration 000201). A chamada ganha só `call/castigo.go`: a interface
+  e a tabela `castigos` (migration 000203). A chamada ganha só `call/castigo.go`: a interface
   `CastigoSource` (consultada em `requireConnect`, no token da mídia e ao revalidar) e
   `EnforceCastigo`, que aplica na hora a quem está na call (sai se não pode entrar; senão o LiveKit
   recebe as novas permissões).
