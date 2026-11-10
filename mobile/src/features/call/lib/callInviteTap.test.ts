@@ -41,10 +41,10 @@ describe('handleCallInviteTap', () => {
     expect(useCallNoticeStore.getState().message).toBe('Chamada perdida de Ana')
   })
 
-  it('já em chamada não abre a tela de atender', async () => {
+  it('em call, ainda abre a tela de atender', async () => {
     useCallSessionStore.getState().begin({ callId: 'x', kind: 'channel', phase: 'active', name: 'Geral' })
     await handleCallInviteTap(data, { getActiveDmCall: jest.fn().mockResolvedValue(ringing) })
-    expect(useIncomingCallStore.getState().call).toBeNull()
+    expect(useIncomingCallStore.getState().call?.callId).toBe('c1')
   })
 
   it('dados incompletos são ignorados', async () => {

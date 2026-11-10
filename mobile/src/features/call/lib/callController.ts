@@ -181,7 +181,8 @@ export function createCallController(deps: ControllerDeps) {
   }
 
   async function callDm(dm: DmTarget): Promise<void> {
-    if (session().phase !== 'idle') await leave()
+    // O servidor me tira da call em que eu estava (estilo Discord): só desliga aqui.
+    if (session().phase !== 'idle') await leave(false)
     const micDenied = await askMic()
     session().begin({ callId: '', kind: 'dm', phase: 'outgoing', conversationId: dm.id, name: dm.name, micDenied })
     try {
@@ -207,7 +208,8 @@ export function createCallController(deps: ControllerDeps) {
   async function acceptIncoming(): Promise<void> {
     const incoming = useIncomingCallStore.getState().call
     if (!incoming) return
-    if (session().phase !== 'idle') await leave()
+    // O servidor me tira da call em que eu estava ao atender: só desliga aqui.
+    if (session().phase !== 'idle') await leave(false)
     useIncomingCallStore.getState().clear()
     const micDenied = await askMic()
     session().begin({

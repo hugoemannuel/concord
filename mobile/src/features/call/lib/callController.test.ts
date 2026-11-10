@@ -228,6 +228,25 @@ describe('callDm / accept / decline', () => {
     expect(session()).toMatchObject({ callId: 'd9', kind: 'dm', name: 'Ana', phase: 'active' })
   })
 
+  it('aceitar em call não manda call:leave (o servidor já tira) e troca de call', async () => {
+    const { controller, deps } = rig()
+    await controller.joinChannel({ id: 'ch1', name: 'Geral', serverId: 's1' })
+    useIncomingCallStore.getState().ring({ callId: 'd9', conversationId: 'cv1', initiator: ana })
+    await controller.acceptIncoming()
+    expect(deps.ws.send).not.toHaveBeenCalledWith('call:leave', expect.anything())
+    expect(deps.ws.unsubscribe).toHaveBeenCalledWith('call:c1')
+    expect(session()).toMatchObject({ callId: 'd9', kind: 'dm' })
+  })
+
+  it('ligar em call não manda call:leave (o servidor já tira) e fica chamando', async () => {
+    const { controller, deps } = rig()
+    await controller.joinChannel({ id: 'ch1', name: 'Geral', serverId: 's1' })
+    ;(deps.api.startCall as jest.Mock).mockResolvedValue({ id: 'd1', type: 'dm', status: 'ringing' })
+    await controller.callDm({ id: 'cv1', name: 'Ana' })
+    expect(deps.ws.send).not.toHaveBeenCalledWith('call:leave', expect.anything())
+    expect(session()).toMatchObject({ phase: 'outgoing', callId: 'd1', kind: 'dm' })
+  })
+
   it('recusar avisa o servidor e limpa', () => {
     const { controller, deps } = rig()
     useIncomingCallStore.getState().ring({ callId: 'd9', conversationId: 'cv1', initiator: ana })

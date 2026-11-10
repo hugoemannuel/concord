@@ -19,8 +19,9 @@ function endCall(): void {
   people().reset()
 }
 
+/** Toca mesmo comigo em outra call (estilo Discord): atender troca de call. */
 function onInvite(p: InvitePayload): void {
-  if (p.type !== 'dm' || session().phase !== 'idle') return
+  if (p.type !== 'dm') return
   useIncomingCallStore.getState().ring({ callId: p.call_id, conversationId: p.conversation_id ?? null, initiator: p.initiator })
 }
 
