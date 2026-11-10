@@ -108,6 +108,8 @@ type Service struct {
 	invite        inviteDeps
 	// Visitantes (convite de visitante, ver guest.go).
 	guests GuestAccess
+	// Castigos: quem não fala, não entra ou não ouve (ver castigo.go).
+	castigos CastigoSource
 	// Canal pelo id (trocável nos testes, que não têm banco).
 	findChannel func(ctx context.Context, id string) (*channel.Channel, error)
 	// Conversa pelo id (trocável nos testes, que não têm banco).
