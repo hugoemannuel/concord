@@ -228,14 +228,24 @@ describe('callDm / accept / decline', () => {
     expect(session()).toMatchObject({ callId: 'd9', kind: 'dm', name: 'Ana', phase: 'active' })
   })
 
-  it('aceitar em call não manda call:leave (o servidor já tira) e troca de call', async () => {
+  it('aceitar em call sai da antiga antes do aceite (o WS entrega em ordem: sem fantasma se o aceite falhar)', async () => {
     const { controller, deps } = rig()
     await controller.joinChannel({ id: 'ch1', name: 'Geral', serverId: 's1' })
     useIncomingCallStore.getState().ring({ callId: 'd9', conversationId: 'cv1', initiator: ana })
+    ;(deps.ws.send as jest.Mock).mockClear()
     await controller.acceptIncoming()
-    expect(deps.ws.send).not.toHaveBeenCalledWith('call:leave', expect.anything())
-    expect(deps.ws.unsubscribe).toHaveBeenCalledWith('call:c1')
+    const sent = (deps.ws.send as jest.Mock).mock.calls.map((c) => c[0])
+    expect(sent.slice(0, 2)).toEqual(['call:leave', 'call:accept'])
+    expect(deps.ws.send).toHaveBeenCalledWith('call:leave', { call_id: 'c1' })
     expect(session()).toMatchObject({ callId: 'd9', kind: 'dm' })
+  })
+
+  it('ligar em call e o servidor recusar: sai de verdade da call antiga (sem fantasma no canal)', async () => {
+    const { controller, deps } = rig()
+    await controller.joinChannel({ id: 'ch1', name: 'Geral', serverId: 's1' })
+    ;(deps.api.startCall as jest.Mock).mockRejectedValue(new Error('bloqueado'))
+    await controller.callDm({ id: 'cv1', name: 'Ana' })
+    expect(deps.ws.send).toHaveBeenCalledWith('call:leave', { call_id: 'c1' })
   })
 
   it('ligar em call não manda call:leave (o servidor já tira) e fica chamando', async () => {

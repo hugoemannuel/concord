@@ -181,8 +181,10 @@ export function createCallController(deps: ControllerDeps) {
   }
 
   async function callDm(dm: DmTarget): Promise<void> {
-    // O servidor me tira da call em que eu estava (estilo Discord): só desliga aqui.
-    if (session().phase !== 'idle') await leave(false)
+    // O servidor me tira da call em que eu estava (estilo Discord): só desliga aqui. Se ele recusar a
+    // ligação, não me tirou: aviso a saída da call antiga para não ficar de fantasma na lista dela.
+    const previousCallId = session().phase !== 'idle' ? session().callId : ''
+    if (previousCallId) await leave(false)
     const micDenied = await askMic()
     session().begin({ callId: '', kind: 'dm', phase: 'outgoing', conversationId: dm.id, name: dm.name, micDenied })
     try {
@@ -190,6 +192,7 @@ export function createCallController(deps: ControllerDeps) {
       session().setCallId(call.id)
       deps.ws.subscribe(`call:${call.id}`)
     } catch (err) {
+      if (previousCallId) deps.ws.send('call:leave', { call_id: previousCallId })
       await fail(err)
     }
   }
@@ -208,8 +211,9 @@ export function createCallController(deps: ControllerDeps) {
   async function acceptIncoming(): Promise<void> {
     const incoming = useIncomingCallStore.getState().call
     if (!incoming) return
-    // O servidor me tira da call em que eu estava ao atender: só desliga aqui.
-    if (session().phase !== 'idle') await leave(false)
+    // O aceite vai pelo WS, que entrega em ordem: sair antes deixa o servidor livre para o aceite e,
+    // se o aceite falhar (a chamada acabou), não sobro de fantasma na call antiga.
+    if (session().phase !== 'idle') await leave()
     useIncomingCallStore.getState().clear()
     const micDenied = await askMic()
     session().begin({
