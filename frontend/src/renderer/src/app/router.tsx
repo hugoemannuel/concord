@@ -4,6 +4,7 @@ import Friends from '../features/friends/pages/Friends'
 import ServerView from '../features/servers/pages/ServerView'
 import DmChat from '../features/chat/pages/DmChat'
 import GroupChat from '../features/chat/pages/GroupChat'
+import MessageFavoritesPage from '../features/messageFavorites/pages/MessageFavoritesPage'
 import ProposalsPage from '../features/proposals/pages/ProposalsPage'
 import Changelog from '../features/updates/pages/Changelog'
 import HubBackFrame from '../features/improvements/components/HubBackFrame'
@@ -47,6 +48,15 @@ export const router = createRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'friends', element: <Friends /> },
+      // Mensagens favoritas: a lista pessoal (link na barra do Início).
+      {
+        path: 'favoritas',
+        element: (
+          <MobileBackFrame>
+            <MessageFavoritesPage />
+          </MobileBackFrame>
+        )
+      },
       // Painel das lives, só devs e sem link no app (docs/OBSERVABILIDADE.md).
       {
         path: 'observabilidade',

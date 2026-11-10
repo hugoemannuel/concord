@@ -28,7 +28,12 @@ vi.mock('../../../shared/ui/skeleton/layouts', () => ({
 
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ConversationSummary } from '../../chat/api/conversations'
-import { DirectMessagesList, FriendsNavButton, LeaveGroupConfirm } from './FriendsSidebarSections'
+import {
+  DirectMessagesList,
+  FavoritesNavButton,
+  FriendsNavButton,
+  LeaveGroupConfirm
+} from './FriendsSidebarSections'
 
 const conv = (id: string): ConversationSummary =>
   ({ id, type: 'group', name: `Grupo ${id}`, members: [] }) as unknown as ConversationSummary
@@ -54,6 +59,30 @@ describe('FriendsNavButton', () => {
     expect(
       renderToStaticMarkup(<FriendsNavButton pathname="/" incomingCount={0} onOpen={() => {}} />)
     ).toContain('bg-fg/10 text-strong')
+  })
+})
+
+describe('FavoritesNavButton', () => {
+  it('destacado na tela das favoritas', () => {
+    const html = renderToStaticMarkup(<FavoritesNavButton pathname="/favoritas" onOpen={() => {}} />)
+    expect(html).toContain('Favoritas')
+    expect(html).toContain('aria-current="page"')
+    expect(html).toContain('bg-fg/10 text-strong')
+  })
+
+  it('fora dela, sem destaque', () => {
+    const html = renderToStaticMarkup(<FavoritesNavButton pathname="/friends" onOpen={() => {}} />)
+    expect(html).not.toContain('aria-current')
+  })
+
+  it('fica dentro da navegação do topo, embaixo do Amigos', () => {
+    const html = renderToStaticMarkup(
+      <FriendsNavButton pathname="/friends" incomingCount={0} onOpen={() => {}}>
+        <FavoritesNavButton pathname="/friends" onOpen={() => {}} />
+      </FriendsNavButton>
+    )
+    expect(html.indexOf('Amigos')).toBeLessThan(html.indexOf('Favoritas'))
+    expect(html.indexOf('Favoritas')).toBeLessThan(html.indexOf('</nav>'))
   })
 })
 

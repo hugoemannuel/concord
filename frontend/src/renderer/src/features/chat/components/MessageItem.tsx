@@ -17,6 +17,7 @@ import {
   messageRowClass
 } from '../lib/messageItem'
 import { useMessageActionsState, type MessageActionsState } from '../hooks/useMessageActionsState'
+import { useMessageFavorite } from '../../messageFavorites/hooks/useMessageFavorite'
 import SystemMessage from './SystemMessage'
 import EmotePickerPopover from './EmotePickerPopover'
 import MessageActionsBar from './MessageActionsBar'
@@ -144,6 +145,7 @@ function MessageActions({
   actions: MessageActionsState
 }): React.JSX.Element {
   const { message } = item
+  const favorite = useMessageFavorite(message.id, actions.showBar)
   const bar = messageBarActions(
     {
       message,
@@ -167,6 +169,8 @@ function MessageActions({
           canPin={item.canPin}
           isPinned={Boolean(message.pinned_at)}
           onTogglePin={item.onTogglePin}
+          isFavorite={favorite.isFavorite}
+          onToggleFavorite={favorite.toggle}
           onDelete={bar.onDelete}
           deleteTitle={bar.deleteTitle}
           menuOpen={actions.menuOpen}

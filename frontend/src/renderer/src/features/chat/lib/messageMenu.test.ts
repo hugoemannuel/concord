@@ -76,6 +76,17 @@ describe('messageMenuGroups', () => {
     const groups = messageMenuGroups({ ...all, deleteLabel: 'Excluir mensagem (moderação)' })
     expect(groups[2][0].label).toBe('Excluir mensagem (moderação)')
   })
+
+  it('favoritar fica junto de fixar e copiar', () => {
+    const groups = messageMenuGroups({ ...all, canFavorite: true })
+    expect(labels(groups)[1]).toEqual(['Fixar mensagem', 'Favoritar', 'Copiar texto'])
+    expect(groups[1][1]).toMatchObject({ action: 'favorite' })
+  })
+
+  it('mensagem favorita: oferece remover das favoritas', () => {
+    const groups = messageMenuGroups({ ...all, canFavorite: true, isFavorite: true })
+    expect(groups[1][1]).toMatchObject({ action: 'unfavorite', label: 'Remover das favoritas' })
+  })
 })
 
 describe('menuPosition', () => {

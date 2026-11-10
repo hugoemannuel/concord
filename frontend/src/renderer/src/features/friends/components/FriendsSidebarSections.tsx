@@ -1,4 +1,4 @@
-import { FriendsIcon, PlusIcon } from '../../../shared/ui/icons'
+import { FriendsIcon, PlusIcon, StarIcon } from '../../../shared/ui/icons'
 import { DmListSkeleton } from '../../../shared/ui/skeleton/layouts'
 import type { ConversationSummary } from '../../chat/api/conversations'
 import { conversationTitle } from '../../chat/lib/conversations'
@@ -23,7 +23,7 @@ export function FriendsNavButton({
   pathname: string
   incomingCount: number
   onOpen: () => void
-  /** Outros atalhos do topo, embaixo do "Amigos". */
+  /** Outros atalhos do topo, embaixo do "Amigos" (ex.: Favoritas). */
   children?: React.ReactNode
 }): React.JSX.Element {
   const onFriendsPage = pathname === '/' || pathname === '/friends'
@@ -42,6 +42,30 @@ export function FriendsNavButton({
       </button>
       {children}
     </nav>
+  )
+}
+
+/** Atalho "Favoritas": a lista pessoal de mensagens favoritas. */
+export function FavoritesNavButton({
+  pathname,
+  onOpen
+}: {
+  pathname: string
+  onOpen: () => void
+}): React.JSX.Element {
+  const active = pathname === '/favoritas'
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-current={active ? 'page' : undefined}
+      className={navItemClass(active)}
+    >
+      <span className="flex items-center gap-3">
+        <StarIcon size={20} />
+        Favoritas
+      </span>
+    </button>
   )
 }
 
