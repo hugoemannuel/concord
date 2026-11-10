@@ -319,22 +319,29 @@ func (s *Service) RevalidateServer(ctx context.Context, serverID string) {
 	}
 	for callID, vc := range calls {
 		for userID, flags := range vc.participants {
-			perms := s.permsIn(ctx, snap, vc.channelID, userID)
-			if !permission.Has(perms, permission.ViewChannel|permission.Connect) {
-				if err := s.kick(ctx, callID, userID); err != nil {
-					log.Printf("[call] revalidate: remove %s from %s failed: %v", userID, callID, err)
-				}
-				continue
-			}
-			if s.media != nil {
-				grant := grantFor(perms, flags.serverMuted, flags.serverDeafened)
-				if err := s.media.UpdatePermissions(ctx, callID, userID, grant); err != nil {
-					log.Printf("[call] revalidate: update %s in %s failed: %v", userID, callID, err)
-				}
-				dropScreenWithoutStream(ctx, s.media, callID, userID, grant)
-			}
+			s.revalidateParticipant(ctx, snap, callID, vc.channelID, userID, flags)
 		}
 	}
+}
+
+// revalidateParticipant: sem acesso ao canal, sai da chamada; com acesso, a
+// mídia passa a refletir o que ele pode agora.
+func (s *Service) revalidateParticipant(ctx context.Context, snap *permission.Snapshot, callID, channelID, userID string, flags participantFlags) {
+	perms := s.permsIn(ctx, snap, channelID, userID)
+	if !permission.Has(perms, permission.ViewChannel|permission.Connect) {
+		if err := s.kick(ctx, callID, userID); err != nil {
+			log.Printf("[call] revalidate: remove %s from %s failed: %v", userID, callID, err)
+		}
+		return
+	}
+	if s.media == nil {
+		return
+	}
+	grant := grantFor(perms, flags.serverMuted, flags.serverDeafened)
+	if err := s.media.UpdatePermissions(ctx, callID, userID, grant); err != nil {
+		log.Printf("[call] revalidate: update %s in %s failed: %v", userID, callID, err)
+	}
+	dropScreenWithoutStream(ctx, s.media, callID, userID, grant)
 }
 
 // RemoveFromServerCalls tira o usuário das chamadas de voz do servidor
