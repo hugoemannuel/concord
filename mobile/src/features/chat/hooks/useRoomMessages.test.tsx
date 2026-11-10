@@ -113,7 +113,7 @@ describe('useRoomMessages', () => {
     const { result } = await renderHook(() => useRoomMessages({ kind: 'channel', id: 'c1' }))
     await waitFor(() => expect(result.current.status).toBe('ready'))
     const before = result.current.messages.length
-    let outcome = ''
+    let outcome: unknown = ''
     await act(async () => void (outcome = await result.current.send('/play boa noite')))
     expect(outcome).toBe('ok')
     expect(result.current.messages).toHaveLength(before)
@@ -123,7 +123,7 @@ describe('useRoomMessages', () => {
     send.mockResolvedValue(msg('g', 6))
     const { result } = await renderHook(() => useRoomMessages({ kind: 'channel', id: 'c1' }))
     await waitFor(() => expect(result.current.status).toBe('ready'))
-    let outcome = ''
+    let outcome: unknown = ''
     await act(async () => void (outcome = await result.current.send('  ')))
     expect(outcome).toBe('empty')
     await act(async () => void (outcome = await result.current.send('', { stickerId: 's1' })))
@@ -135,7 +135,7 @@ describe('useRoomMessages', () => {
     send.mockResolvedValue(msg('n', 5))
     const { result } = await renderHook(() => useRoomMessages({ kind: 'channel', id: 'c1' }))
     await waitFor(() => expect(result.current.status).toBe('ready'))
-    let outcome = ''
+    let outcome: unknown = ''
     await act(async () => void (outcome = await result.current.send('  oi  ')))
     expect(send).toHaveBeenCalledWith('c1', 'oi', undefined)
     expect(outcome).toBe('ok')
@@ -146,7 +146,7 @@ describe('useRoomMessages', () => {
   it('texto vazio não envia', async () => {
     const { result } = await renderHook(() => useRoomMessages({ kind: 'channel', id: 'c1' }))
     await waitFor(() => expect(result.current.status).toBe('ready'))
-    let outcome = ''
+    let outcome: unknown = ''
     await act(async () => void (outcome = await result.current.send('   ')))
     expect(outcome).toBe('empty')
     expect(send).not.toHaveBeenCalled()
@@ -156,12 +156,21 @@ describe('useRoomMessages', () => {
     const { result } = await renderHook(() => useRoomMessages({ kind: 'channel', id: 'c1' }))
     await waitFor(() => expect(result.current.status).toBe('ready'))
     send.mockRejectedValueOnce(new ApiError(403, 'no'))
-    let outcome = ''
+    let outcome: unknown = ''
     await act(async () => void (outcome = await result.current.send('oi')))
     expect(outcome).toBe('forbidden')
     send.mockRejectedValueOnce(new ApiError(0, 'rede'))
     await act(async () => void (outcome = await result.current.send('oi')))
     expect(outcome).toBe('error')
+  })
+
+  it('429 do modo lento traz a espera', async () => {
+    const { result } = await renderHook(() => useRoomMessages({ kind: 'channel', id: 'c1' }))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    send.mockRejectedValueOnce(new ApiError(429, 'slow', 'slowmode', { retry_after: 9 }))
+    let outcome: unknown = null
+    await act(async () => void (outcome = await result.current.send('oi')))
+    expect(outcome).toEqual({ slowmode: 9 })
   })
 
   it('ao reconectar, busca de novo a página mais recente e junta (cobre eventos perdidos)', async () => {

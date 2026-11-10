@@ -106,6 +106,7 @@ type TTSService struct {
 	calls     TTSCalls
 	publisher EventPublisher
 	cooldown  *ttsCooldown
+	slowmode  *Slowmode
 }
 
 func NewTTSService(repository *Repository, publisher EventPublisher, channels ChannelResolver, convs ConversationResolver, calls TTSCalls) *TTSService {
@@ -136,19 +137,35 @@ func (s *TTSService) voiceTarget(ctx context.Context, channelID, serverID, autho
 // canal e só a call de voiceTarget fala.
 func (s *TTSService) SendToChannel(ctx context.Context, channelID, authorID, content string) (*Message, error) {
 	return s.send(ctx, authorID, content, func(text string) (*Message, error) {
-		serverID, _ := s.channels.ChannelServerID(ctx, channelID)
-		msg := &Message{ID: uuid.New().String(), AuthorID: authorID, ChannelID: &channelID, Content: text, TTS: true,
-			TTSVoiceChannelID: s.voiceTarget(ctx, channelID, serverID, authorID)}
-		if err := s.store.Create(ctx, msg); err != nil {
-			return nil, err
-		}
-		full, err := s.store.FindByID(ctx, msg.ID)
+		takenAt, err := s.slowmode.Take(ctx, channelID, authorID)
 		if err != nil {
 			return nil, err
 		}
-		s.publisher.PublishMessageCreate(CreateEvent{ChannelID: full.ChannelID, ServerID: serverID, Message: *full})
-		return full, nil
+		msg, err := s.postToChannel(ctx, channelID, authorID, text)
+		if err != nil {
+			s.slowmode.Release(channelID, authorID, takenAt)
+		}
+		return msg, err
 	})
+}
+
+// SetSlowmode liga o modo lento dos canais (o mesmo das mensagens comuns).
+func (s *TTSService) SetSlowmode(gate *Slowmode) { s.slowmode = gate }
+
+// postToChannel grava a TTS no canal e publica o message:create.
+func (s *TTSService) postToChannel(ctx context.Context, channelID, authorID, text string) (*Message, error) {
+	serverID, _ := s.channels.ChannelServerID(ctx, channelID)
+	msg := &Message{ID: uuid.New().String(), AuthorID: authorID, ChannelID: &channelID, Content: text, TTS: true,
+		TTSVoiceChannelID: s.voiceTarget(ctx, channelID, serverID, authorID)}
+	if err := s.store.Create(ctx, msg); err != nil {
+		return nil, err
+	}
+	full, err := s.store.FindByID(ctx, msg.ID)
+	if err != nil {
+		return nil, err
+	}
+	s.publisher.PublishMessageCreate(CreateEvent{ChannelID: full.ChannelID, ServerID: serverID, Message: *full})
+	return full, nil
 }
 
 // SendToConversation posta a TTS na DM (ou grupo).

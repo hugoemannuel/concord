@@ -42,11 +42,11 @@ describe('saveChannel', () => {
     })
   })
 
-  it('renomeia o canal editado', async () => {
+  it('renomeia o canal editado e grava o modo lento', async () => {
     const a = api()
     const editing = { id: 'c1' } as Channel
-    expect(await saveChannel({ ...base, editing }, a)).toBe('Canal atualizado!')
-    expect(a.update).toHaveBeenCalledWith('s1', 'c1', 'off-topic')
+    expect(await saveChannel({ ...base, editing, slowmodeSeconds: 30 }, a)).toBe('Canal atualizado!')
+    expect(a.update).toHaveBeenCalledWith('s1', 'c1', { name: 'off-topic', slowmode_seconds: 30 })
     expect(a.create).not.toHaveBeenCalled()
     expect(a.refresh).toHaveBeenCalledWith('s1')
   })

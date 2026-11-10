@@ -40,9 +40,10 @@ func createdChanges(ch *Channel, private bool) []audit.Change {
 	return changes
 }
 
-// recordUpdate grava a edição do canal (sem mudança, não grava).
+// recordUpdate grava a edição do canal (nome e modo lento) (sem mudança, não grava).
 func (h *Handler) recordUpdate(ctx context.Context, actorID string, before, after *Channel) {
 	changes := audit.Diff(nil, "name", before.Name, after.Name)
+	changes = audit.Diff(changes, "slowmode_seconds", before.SlowmodeSeconds, after.SlowmodeSeconds)
 	if len(changes) > 0 {
 		h.record(ctx, channelEvent(audit.ChannelUpdate, actorID, after, changes))
 	}

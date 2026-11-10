@@ -18,6 +18,8 @@ export interface Channel {
   system_kind?: SystemChannelKind | null
   /** Canal da sala de um evento: só o evento o cria e apaga. */
   managed?: boolean
+  /** Modo lento: intervalo mínimo (s) entre as mensagens de cada membro; 0 = desligado. */
+  slowmode_seconds?: number
   created_by: string
   created_at: string
   updated_at: string
@@ -95,10 +97,20 @@ export function deleteChannelOverwrite(
   )
 }
 
-export function updateChannel(serverId: string, channelId: string, name: string): Promise<Channel> {
+/** O que a edição do canal muda (sem slowmode_seconds, o modo lento fica como está). */
+export interface UpdateChannelInput {
+  name: string
+  slowmode_seconds?: number
+}
+
+export function updateChannel(
+  serverId: string,
+  channelId: string,
+  input: UpdateChannelInput
+): Promise<Channel> {
   return request<Channel>(`/servers/${serverId}/channels/${channelId}`, {
     method: 'PUT',
-    body: JSON.stringify({ name })
+    body: JSON.stringify(input)
   })
 }
 

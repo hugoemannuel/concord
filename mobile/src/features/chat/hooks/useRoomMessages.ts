@@ -15,9 +15,10 @@ import {
   type Message
 } from '../api/messages'
 import { mergeMessages, oldestId, removeMessage } from '../lib/messageList'
+import { sendOutcomeOf, type SendOutcome } from '../lib/sendOutcome'
 
 export type LoadStatus = 'loading' | 'ready' | 'error'
-export type SendOutcome = 'ok' | 'empty' | 'forbidden' | 'error'
+export type { SendOutcome }
 
 /** O que o chat mostra: um canal de texto ou uma conversa (DM ou grupo). */
 export interface ChatTarget {
@@ -128,7 +129,7 @@ export function useRoomMessages(target: ChatTarget) {
         if (!isCommandAck(sent)) setMessages((current) => mergeMessages(current, [sent]))
         return 'ok'
       } catch (err) {
-        return err instanceof ApiError && err.status === 403 ? 'forbidden' : 'error'
+        return sendOutcomeOf(err)
       }
     },
     [kind, id]

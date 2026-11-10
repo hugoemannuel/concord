@@ -2,6 +2,7 @@ import type { Message } from '../api/messages'
 import { ApiError } from '../../../shared/api/client'
 import { permissionError } from '../../servers/lib/permissions'
 import { sendErrorMessage } from './attachments'
+import { slowmodeErrorText, slowmodeRetryAfter } from './slowmode'
 import {
   afterSendFailure,
   canRestoreHere,
@@ -88,8 +89,10 @@ function restoreLater(
   env.focusInput()
 }
 
-/** Aviso de uma mensagem que não foi: permissão, erro da API ou falha de rede. */
+/** Aviso de uma mensagem que não foi: modo lento, permissão, erro da API ou falha de rede. */
 export function sendErrorText(err: unknown): string {
   if (!(err instanceof ApiError)) return 'Falha ao enviar mensagem.'
+  const retryAfter = slowmodeRetryAfter(err)
+  if (retryAfter !== null) return slowmodeErrorText(retryAfter)
   return permissionError(err.code, '') || sendErrorMessage(err.status, err.message)
 }

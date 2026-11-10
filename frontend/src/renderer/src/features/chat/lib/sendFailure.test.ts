@@ -127,6 +127,12 @@ describe('sendErrorText', () => {
     )
   })
 
+  it('modo lento diz quanto falta', () => {
+    expect(sendErrorText(new ApiError(429, 'slowmode', 'slowmode', { retry_after: 12 }))).toBe(
+      'Modo lento: aguarde 12 s para mandar outra mensagem.'
+    )
+  })
+
   it('erro de permissão conhecido usa o texto da permissão', () => {
     expect(sendErrorText(new ApiError(403, 'forbidden', 'missing_permission'))).toBe(
       'Você não tem permissão para isso.'
