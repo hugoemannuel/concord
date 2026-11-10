@@ -45,8 +45,8 @@ func applyEvent(p punishment) audit.Event {
 		ServerID: p.serverID, ActorID: p.actorID, Action: audit.VoiceCastigo,
 		TargetType: audit.TargetMember, TargetID: p.req.UserID, ChannelID: p.channelID,
 		Changes: []audit.Change{
-			{Field: "effects", After: p.req.Effects.names()},
-			{Field: "duration", After: p.req.Duration},
+			{Field: "castigo_effects", After: p.req.Effects.names()},
+			{Field: "castigo_duration", After: p.req.Duration},
 			{Field: "via", After: via},
 		},
 	}

@@ -21,6 +21,24 @@ const entry = (over: Partial<AuditEntry>): AuditEntry => ({
 })
 
 describe('detalhes do que mudou', () => {
+  it('castigo: o que tirou e por quanto tempo, sem o antes; a votação fica na frase', () => {
+    const rows = describeChanges(
+      entry({
+        action: 'voice.castigo',
+        target_type: 'member',
+        changes: [
+          { field: 'castigo_effects', after: 'speak,listen' },
+          { field: 'castigo_duration', after: 600 },
+          { field: 'via', after: 'vote' }
+        ]
+      })
+    )
+    expect(rows).toEqual([
+      { label: 'O que tirou', after: 'Falar, Escutar' },
+      { label: 'Duração', after: '10 min' }
+    ])
+  })
+
   it('som editado: o nome e o emoji, com "sem emoji" quando ficou vazio', () => {
     const rows = describeChanges(
       entry({

@@ -186,3 +186,28 @@ func TestListEWarm(t *testing.T) {
 		t.Error("o vencido sai do banco")
 	}
 }
+
+func TestRunSweeperVarreAteOContextoAcabar(t *testing.T) {
+	w := newWorld(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	if _, err := w.svc.Apply(ctx, "srv-1", "mod", Request{UserID: "ana", Effects: Effects{Speak: true}, Duration: 60}); err != nil {
+		t.Fatal(err)
+	}
+	// Já venceu quando a varredura começa (o relógio não muda depois).
+	w.now = w.now.Add(2 * time.Minute)
+	done := make(chan struct{})
+	go func() {
+		w.svc.RunSweeper(ctx, time.Millisecond)
+		close(done)
+	}()
+	deadline := time.After(2 * time.Second)
+	for w.svc.Punished("ana") {
+		select {
+		case <-deadline:
+			t.Fatal("a varredura não rodou")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	cancel()
+	<-done
+}
