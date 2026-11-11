@@ -147,6 +147,20 @@ func (s *Slowmode) prune(now time.Time) {
 	}
 }
 
+// Run manda a mensagem na vez de userID no canal: marca a vez, chama send e,
+// se send falhar, devolve a vez. Ainda sem vez: *SlowmodeError, sem chamar send.
+func (s *Slowmode) Run(ctx context.Context, channelID, userID string, send func() (*Message, error)) (*Message, error) {
+	takenAt, err := s.Take(ctx, channelID, userID)
+	if err != nil {
+		return nil, err
+	}
+	msg, err := send()
+	if err != nil {
+		s.Release(channelID, userID, takenAt)
+	}
+	return msg, err
+}
+
 // Release devolve a vez que Take marcou em `at` (a mensagem não chegou a
 // sair). Se outro envio já marcou uma vez nova, ela fica.
 func (s *Slowmode) Release(channelID, userID string, at time.Time) {

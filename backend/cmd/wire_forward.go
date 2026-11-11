@@ -13,7 +13,7 @@ import (
 
 // wireForward: encaminhar mensagens (docs/adr/0062-encaminhar-mensagens.md).
 // Depende do roomAccess e do messageService montados pelo wireChat.
-func (a *app) wireForward(repository *message.Repository, uploads *media.Store, events message.EventPublisher) {
+func (a *app) wireForward(repository *message.Repository, uploads *media.Store, events message.EventPublisher, slowmode *message.Slowmode) {
 	dir := forwardDirectory{channels: a.channelService, servers: a.serverService}
 	forwarder := message.NewForwarder(message.ForwarderDeps{
 		Store:     repository,
@@ -23,6 +23,7 @@ func (a *app) wireForward(repository *message.Repository, uploads *media.Store, 
 		Directory: dir,
 		Comments:  a.messageService,
 		Events:    message.NewRoomEvents(events, a.cachedChannels(), a.conversationRepository),
+		Slowmode:  slowmode,
 	})
 	handler := message.NewForwardHandler(forwarder, message.NewForwardTargets(dir, a.permissionService))
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) {

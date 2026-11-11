@@ -9,7 +9,10 @@ import (
 )
 
 func (s *Service) CreateChannelPoll(ctx context.Context, channelID string, authorID string, input CreatePollInput) (*Message, error) {
-	msg, err := s.createPoll(ctx, channelID, "", authorID, input)
+	// A enquete é mensagem do canal: gasta a vez do modo lento como as outras.
+	msg, err := s.slowmode.Run(ctx, channelID, authorID, func() (*Message, error) {
+		return s.createPoll(ctx, channelID, "", authorID, input)
+	})
 	if err != nil {
 		return nil, err
 	}

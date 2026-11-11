@@ -53,7 +53,8 @@ func (h *Handler) CreateChannelPoll(c *gin.Context) {
 
 	msg, err := h.service.CreateChannelPoll(c.Request.Context(), channelID, userID, input)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// Modo lento: 429 com retry_after, como a mensagem comum; o resto é 400.
+		respondCreateError(c, err)
 		return
 	}
 
