@@ -8,6 +8,7 @@ import type { ForwardTarget, ForwardTargetServer } from '../api/forward'
 import type { ForwardedFrom, Message } from '../api/messages'
 import { isBotUser } from '../../music/lib/bots'
 import { conversationTitle } from './conversations'
+import { slowmodeErrorText, slowmodeRetryAfter } from './slowmode'
 
 /** Tem o que copiar e não é enquete, convite para call nem aviso do sistema. */
 export function canForward(message: Message): boolean {
@@ -102,6 +103,8 @@ const ERROR_BY_STATUS: Record<number, string> = {
 }
 
 export function forwardErrorMessage(err: unknown): string {
+  const retryAfter = slowmodeRetryAfter(err)
+  if (retryAfter !== null) return slowmodeErrorText(retryAfter)
   if (err instanceof ApiError) {
     const text = (err.code && ERROR_BY_CODE[err.code]) || ERROR_BY_STATUS[err.status]
     if (text) return text

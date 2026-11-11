@@ -105,4 +105,9 @@ describe('forwardErrorMessage', () => {
     expect(forwardErrorMessage(new ApiError(507, 'x'))).toBe('O servidor está sem espaço para os arquivos.')
     expect(forwardErrorMessage(new Error('rede'))).toBe('Não foi possível encaminhar a mensagem.')
   })
+
+  it('modo lento no destino: diz quanto falta', () => {
+    const err = new ApiError(429, 'slowmode: retry after 30s', 'slowmode', { retry_after: 30 })
+    expect(forwardErrorMessage(err)).toBe('Modo lento: aguarde 30 s para mandar outra mensagem.')
+  })
 })
