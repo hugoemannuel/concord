@@ -11,7 +11,7 @@ import (
 func (s *Service) CreateChannelPoll(ctx context.Context, channelID string, authorID string, input CreatePollInput) (*Message, error) {
 	// A enquete é mensagem do canal: gasta a vez do modo lento como as outras.
 	msg, err := s.slowmode.Run(ctx, channelID, authorID, func() (*Message, error) {
-		return s.createPoll(ctx, channelID, "", authorID, input)
+		return s.createPoll(ctx, channelID, "", authorID, s.pollImages.Localize(ctx, input))
 	})
 	if err != nil {
 		return nil, err
@@ -32,7 +32,8 @@ func (s *Service) CreateChannelPoll(ctx context.Context, channelID string, autho
 }
 
 func (s *Service) CreateConversationPoll(ctx context.Context, conversationID string, authorID string, input CreatePollInput) (*Message, error) {
-	msg, err := s.createPoll(ctx, "", conversationID, authorID, input)
+	// Imagem de fora vira a cópia no servidor (poll_image.go).
+	msg, err := s.createPoll(ctx, "", conversationID, authorID, s.pollImages.Localize(ctx, input))
 	if err != nil {
 		return nil, err
 	}

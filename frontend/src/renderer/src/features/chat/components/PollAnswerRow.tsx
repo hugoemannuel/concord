@@ -1,5 +1,7 @@
 import type { PollAnswer } from '../api/messages'
 import { votesLabel } from '../lib/polls'
+import { pollImageSrc } from '../lib/pollImage'
+import { API_BASE_URL } from '../../../shared/lib/config'
 import { CheckIcon } from '../../../shared/ui/icons'
 import { PollAnswerMedia } from './PollAnswerMedia'
 
@@ -57,7 +59,9 @@ function PollAnswerRow({
           style={{ width: `${percent}%` }}
         />
       )}
-      <PollAnswerMedia answer={answer} />
+      <PollAnswerMedia
+        answer={{ emoji: answer.emoji, image_url: pollImageSrc(answer.image_url, API_BASE_URL) }}
+      />
       <span className="relative min-w-0 flex-1 break-words text-ds-sm font-medium text-strong">
         {answer.text}
       </span>

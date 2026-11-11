@@ -67,6 +67,8 @@ type Service struct {
 	slowmode        *Slowmode
 	expressions     *expressionUse
 	audit           AuditRecorder
+	// pollImages copia as imagens das respostas de enquete (poll_image.go).
+	pollImages *PollImages
 }
 
 func MessageService(repository *Repository, publisher EventPublisher, channelResolver ChannelResolver, convResolver ConversationResolver, files FileRemover, perms PermissionChecker) *Service {
