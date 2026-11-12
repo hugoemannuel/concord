@@ -111,6 +111,9 @@ type DeleteEvent struct {
 	ServerID       string   `json:"server_id,omitempty"`
 	UserIDs        []string `json:"user_ids,omitempty"`
 	MessageID      string   `json:"message_id"`
+	// Expired: quem apagou foi o prazo da conversa (ExpirySweeper), não alguém;
+	// o cliente não mexe nas não lidas.
+	Expired bool `json:"expired,omitempty"`
 }
 
 type ReactionEvent struct {

@@ -19,6 +19,7 @@ const media = (o: Partial<ViewOnceMedia> = {}): ViewOnceMedia => ({
   kind: 'image',
   gone: false,
   viewer_ids: [],
+  recipient_ids: [],
   recipient_count: 1,
   ...o
 })

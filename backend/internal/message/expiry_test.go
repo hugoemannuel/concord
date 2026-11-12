@@ -100,8 +100,8 @@ func TestSweeperApagaEPublica(t *testing.T) {
 	}
 	c1, c2 := "c1", "c2"
 	want := []DeleteEvent{
-		{ConversationID: &c1, UserIDs: []string{"ana", "bia"}, MessageID: "m1"},
-		{ConversationID: &c2, UserIDs: []string{"caio"}, MessageID: "m2"},
+		{ConversationID: &c1, UserIDs: []string{"ana", "bia"}, MessageID: "m1", Expired: true},
+		{ConversationID: &c2, UserIDs: []string{"caio"}, MessageID: "m2", Expired: true},
 	}
 	if !reflect.DeepEqual(pub.deleted, want) {
 		t.Fatalf("eventos = %+v, want %+v", pub.deleted, want)

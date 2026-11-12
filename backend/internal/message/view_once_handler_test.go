@@ -26,21 +26,28 @@ func (f *fakeOpener) Open(_ context.Context, attachmentID, userID string) (strin
 	return "tok", time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC), nil
 }
 
+const openID = "6f1c2a4e-8d3b-4c5a-9e7f-1a2b3c4d5e6f"
+
 func postOpen(t *testing.T, opener *fakeOpener) *httptest.ResponseRecorder {
+	t.Helper()
+	return postOpenID(t, opener, openID)
+}
+
+func postOpenID(t *testing.T, opener *fakeOpener, id string) *httptest.ResponseRecorder {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	auth := func(c *gin.Context) { c.Set("userID", "u1"); c.Next() }
 	ViewOnceRoutes(r.Group("/api"), NewViewOnceHandler(opener), auth)
 	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/attachments/a1/open", nil))
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/attachments/"+id+"/open", nil))
 	return rec
 }
 
 func TestOpenHandlerDevolveToken(t *testing.T) {
 	opener := &fakeOpener{}
 	rec := postOpen(t, opener)
-	if rec.Code != http.StatusOK || opener.gotID != "a1" || opener.gotUser != "u1" {
+	if rec.Code != http.StatusOK || opener.gotID != openID || opener.gotUser != "u1" {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body)
 	}
 	var body struct {
@@ -69,5 +76,14 @@ func TestOpenHandlerTraduzErros(t *testing.T) {
 		if rec.Code != c.status || strings.Contains(rec.Body.String(), "segredo") {
 			t.Errorf("%v: status %d body %s", c.err, rec.Code, rec.Body)
 		}
+	}
+}
+
+// Id que não é UUID: 404 antes de chegar ao banco (o Postgres daria 500).
+func TestOpenHandlerIdInvalidoDa404(t *testing.T) {
+	opener := &fakeOpener{}
+	rec := postOpenID(t, opener, "nao-e-uuid")
+	if rec.Code != http.StatusNotFound || opener.gotID != "" {
+		t.Fatalf("status %d, chamou o serviço com %q", rec.Code, opener.gotID)
 	}
 }

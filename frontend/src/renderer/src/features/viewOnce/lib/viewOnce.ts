@@ -23,24 +23,48 @@ export function settleViewOnce(on: boolean, allowed: boolean): boolean {
   return on && allowed
 }
 
-export type PillState = 'unseen' | 'seen' | 'sender' | 'expired'
+/** `locked`: quem não estava entre os destinatários (entrou no grupo depois): nunca abre. */
+export type PillState = 'unseen' | 'seen' | 'sender' | 'expired' | 'locked'
 
 /** Como a pílula aparece: o autor vê o andamento; o destinatário, se ainda dá para abrir. */
 export function pillState(v: ViewOnceMedia, authorId: string, meId: string): PillState {
   if (authorId === meId) return v.gone && v.viewer_ids.length === 0 ? 'expired' : 'sender'
   if (v.viewer_ids.includes(meId)) return 'seen'
+  if (v.recipient_ids && !v.recipient_ids.includes(meId)) return 'locked'
   return v.gone ? 'expired' : 'unseen'
 }
 
-/** O texto da pílula (autor em grupo ganha "Vista por X de Y"). */
+/** O texto da pílula (autor em grupo ganha "Vista por X de Y"; bloqueada, o rótulo sem contagem). */
 export function pillLabel(state: PillState, kind: ViewOnceMedia['kind'], v: ViewOnceMedia): string {
   const photo = kind === 'image'
   if (state === 'unseen') return photo ? 'Foto' : 'Vídeo'
   if (state === 'seen') return 'Aberta'
   if (state === 'expired') return 'Expirou'
   const base = photo ? 'Foto de visualização única' : 'Vídeo de visualização única'
-  if (v.recipient_count <= 1) return base
+  if (state === 'locked' || v.recipient_count <= 1) return base
   return `${base} · Vista por ${v.viewer_ids.length} de ${v.recipient_count}`
+}
+
+/** O estado mostrado depois de abrir, preso à versão da mídia em que nasceu. */
+export interface LocalPill {
+  state: PillState
+  key: string
+}
+
+/** Muda quando o servidor muda a mídia (message:update com quem viu ou se sumiu). */
+export function mediaKey(v: ViewOnceMedia): string {
+  return `${v.gone}|${v.viewer_ids.join(',')}`
+}
+
+/** O estado local vale até o servidor mandar outra versão da mídia; aí manda o servidor. */
+export function shownPillState(
+  local: LocalPill | null,
+  v: ViewOnceMedia,
+  authorId: string,
+  meId: string
+): PillState {
+  if (local && local.key === mediaKey(v)) return local.state
+  return pillState(v, authorId, meId)
 }
 
 /** A pergunta da confirmação (só na primeira abertura). */
@@ -55,8 +79,21 @@ export function isGoneError(err: unknown): boolean {
   return !!err && typeof err === 'object' && (err as { status?: number }).status === 410
 }
 
+/** O pedido de abertura voltou 403: não estava entre os destinatários (é definitivo). */
+export function isForbiddenError(err: unknown): boolean {
+  return !!err && typeof err === 'object' && (err as { status?: number }).status === 403
+}
+
+type Outcome = 'seen' | 'gone' | 'cancelled' | 'forbidden'
+
+const OUTCOME_STATE: Record<Outcome, PillState | null> = {
+  seen: 'seen',
+  gone: 'expired',
+  forbidden: 'locked',
+  cancelled: null
+}
+
 /** O que a pílula mostra logo após o visualizador fechar, até o servidor confirmar. */
-export function outcomeState(outcome: 'seen' | 'gone' | 'cancelled'): PillState | null {
-  if (outcome === 'seen') return 'seen'
-  return outcome === 'gone' ? 'expired' : null
+export function outcomeState(outcome: Outcome): PillState | null {
+  return OUTCOME_STATE[outcome]
 }

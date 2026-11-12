@@ -38,13 +38,14 @@ func (r *Repository) MarkViewOnce(ctx context.Context, attachmentID, uploaderID,
 }
 
 // viewOnceColumns: o estado da visualização única na mesma query dos anexos
-// (quem já viu e quantos podiam ver só são contados para esses anexos).
+// (quem já viu e quem podia ver só são lidos para esses anexos).
 const viewOnceColumns = `
 	a.view_once,
 	a.view_once_gone_at IS NOT NULL,
 	CASE WHEN a.view_once THEN COALESCE((SELECT array_agg(v.user_id::text ORDER BY v.viewed_at, v.user_id)
 		FROM attachment_views v WHERE v.attachment_id = a.id), '{}') ELSE '{}' END,
-	CASE WHEN a.view_once THEN (SELECT count(*) FROM view_once_recipients rc WHERE rc.attachment_id = a.id) ELSE 0 END
+	CASE WHEN a.view_once THEN COALESCE((SELECT array_agg(rc.user_id::text ORDER BY rc.user_id)
+		FROM view_once_recipients rc WHERE rc.attachment_id = a.id), '{}') ELSE '{}' END
 `
 
 // scanAttachmentRow lê uma linha de AttachAttachments; vo só vem no anexo de
@@ -56,7 +57,7 @@ func scanAttachmentRow(rows pgx.Rows) (string, Attachment, *ViewOnceMedia, error
 	v := &ViewOnceMedia{}
 	if err := rows.Scan(
 		&messageID, &a.ID, &a.Kind, &a.ContentType, &a.Filename, &a.SizeBytes, &a.Width, &a.Height, &a.DurationMs,
-		&viewOnce, &v.Gone, &v.ViewerIDs, &v.RecipientCount,
+		&viewOnce, &v.Gone, &v.ViewerIDs, &v.RecipientIDs,
 	); err != nil {
 		return "", Attachment{}, nil, err
 	}
@@ -64,6 +65,7 @@ func scanAttachmentRow(rows pgx.Rows) (string, Attachment, *ViewOnceMedia, error
 		return messageID, a, nil, nil
 	}
 	v.ID, v.Kind = a.ID, a.Kind
+	v.RecipientCount = len(v.RecipientIDs)
 	return messageID, a, v, nil
 }
 

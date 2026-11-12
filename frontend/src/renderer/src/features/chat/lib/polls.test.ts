@@ -200,6 +200,7 @@ describe('prévia da visualização única', () => {
     kind,
     gone: false,
     viewer_ids: [],
+    recipient_ids: [],
     recipient_count: 1
   })
 

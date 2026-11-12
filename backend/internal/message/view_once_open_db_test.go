@@ -82,6 +82,28 @@ func carregar(t *testing.T, s *searchDB, repo *Repository, id string) Message {
 	return page[0]
 }
 
+// Ruling R10: a mensagem diz quem podia abrir, para quem entrou no grupo
+// depois não ver um botão que nunca funciona.
+func TestListaTrazQuemPodiaAbrir(t *testing.T) {
+	s := newSearchDB(t)
+	repo := MessageRepository(s.db)
+	bia, caio := s.users["bia"], s.users["caio"]
+	msgID, _ := enviarViewOnce(t, s, repo, bia, caio)
+
+	vo := carregar(t, s, repo, msgID).ViewOnce
+	if vo == nil || vo.RecipientCount != 2 || len(vo.RecipientIDs) != 2 {
+		t.Fatalf("view_once = %+v", vo)
+	}
+	got := map[string]bool{vo.RecipientIDs[0]: true, vo.RecipientIDs[1]: true}
+	if !got[bia] || !got[caio] {
+		t.Fatalf("recipient_ids = %v", vo.RecipientIDs)
+	}
+	raw, _ := json.Marshal(vo)
+	if !strings.Contains(string(raw), `"recipient_ids":[`) {
+		t.Fatalf("json = %s", raw)
+	}
+}
+
 // Foco de revisão 4: app antigo não acha o anexo em attachments.
 func TestListaTiraViewOnceDeAttachments(t *testing.T) {
 	s := newSearchDB(t)

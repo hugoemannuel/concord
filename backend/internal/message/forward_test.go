@@ -39,6 +39,9 @@ func (s *fakeForwardStore) FindByID(_ context.Context, id string) (*Message, err
 		return nil, errors.New("no rows")
 	}
 	copied := *m
+	// como o repositório: FindByID não carrega a visualização única, só
+	// AttachAttachments.
+	copied.ViewOnce = nil
 	return &copied, nil
 }
 
@@ -53,6 +56,9 @@ func (s *fakeForwardStore) HasPoll(_ context.Context, id string) (bool, error) {
 func (s *fakeForwardStore) AttachAttachments(_ context.Context, msgs []Message) error {
 	for i := range msgs {
 		msgs[i].Attachments = append([]Attachment(nil), s.attachments[msgs[i].ID]...)
+		if m, ok := s.msgs[msgs[i].ID]; ok {
+			msgs[i].ViewOnce = m.ViewOnce
+		}
 	}
 	return nil
 }

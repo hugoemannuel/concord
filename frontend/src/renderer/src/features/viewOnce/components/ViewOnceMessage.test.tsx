@@ -14,7 +14,7 @@ import ViewOnceMessage from './ViewOnceMessage'
 const msg = (authorId: string, over = {}): Message =>
   ({
     author_id: authorId,
-    view_once: { id: 'a', kind: 'image', gone: false, viewer_ids: [], recipient_count: 1, ...over }
+    view_once: { id: 'a', kind: 'image', gone: false, viewer_ids: [], recipient_ids: ['me'], recipient_count: 1, ...over }
   }) as unknown as Message
 
 describe('ViewOnceMessage', () => {
@@ -28,6 +28,15 @@ describe('ViewOnceMessage', () => {
     const html = renderToStaticMarkup(<ViewOnceMessage message={msg('me')} />)
     expect(html).not.toContain('<button')
     expect(html).toContain('Foto de visualização única')
+  })
+
+  it('quem entrou no grupo depois: texto sem botão', () => {
+    const html = renderToStaticMarkup(
+      <ViewOnceMessage message={msg('outro', { recipient_ids: ['b', 'c'], recipient_count: 2 })} />
+    )
+    expect(html).not.toContain('<button')
+    expect(html).toContain('Foto de visualização única')
+    expect(html).not.toContain('Vista por')
   })
 
   it('sem view_once, não desenha nada', () => {

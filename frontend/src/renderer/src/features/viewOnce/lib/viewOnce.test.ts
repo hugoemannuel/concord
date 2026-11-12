@@ -4,11 +4,14 @@ import type { ViewOnceMedia } from '../../chat/api/messages'
 import {
   canViewOnce,
   confirmText,
+  isForbiddenError,
+  mediaKey,
   outcomeState,
   pillLabel,
   pillState,
   sendExtra,
-  settleViewOnce
+  settleViewOnce,
+  shownPillState
 } from './viewOnce'
 
 const draft = (over: Partial<DraftAttachment> = {}): DraftAttachment => ({
@@ -58,6 +61,7 @@ describe('pílula', () => {
     kind: 'image',
     gone: false,
     viewer_ids: [],
+    recipient_ids: ['me'],
     recipient_count: 1,
     ...o
   })
@@ -67,6 +71,28 @@ describe('pílula', () => {
     expect(pillState(v({ viewer_ids: ['me'], gone: true }), 'au', 'me')).toBe('seen')
     expect(pillState(v(), 'me', 'me')).toBe('sender')
     expect(pillState(v({ gone: true }), 'au', 'me')).toBe('expired')
+  })
+
+  it('quem entrou no grupo depois do envio (não está em recipient_ids): bloqueada', () => {
+    expect(pillState(v({ recipient_ids: ['b', 'c'] }), 'au', 'me')).toBe('locked')
+    expect(pillState(v({ recipient_ids: ['b'], gone: true }), 'au', 'me')).toBe('locked')
+    // o autor nunca está na lista e continua vendo o andamento
+    expect(pillState(v({ recipient_ids: ['b'] }), 'me', 'me')).toBe('sender')
+  })
+
+  it('bloqueada: o rótulo do autor, sem "Vista por"', () => {
+    const grupo = v({ viewer_ids: ['b'], recipient_ids: ['b', 'c'], recipient_count: 2 })
+    expect(pillLabel('locked', 'image', grupo)).toBe('Foto de visualização única')
+    expect(pillLabel('locked', 'video', grupo)).toBe('Vídeo de visualização única')
+  })
+
+  it('o estado local vale só até o servidor mudar a mídia', () => {
+    const antes = v({ gone: true })
+    const local = { state: 'expired' as const, key: mediaKey(antes) }
+    expect(shownPillState(local, antes, 'au', 'me')).toBe('expired')
+    // message:update depois: quem abriu entra em viewer_ids → "Aberta"
+    expect(shownPillState(local, v({ gone: true, viewer_ids: ['me'] }), 'au', 'me')).toBe('seen')
+    expect(shownPillState(null, antes, 'au', 'me')).toBe('expired')
   })
 
   it('textos exatos', () => {
@@ -92,5 +118,12 @@ describe('outcomeState', () => {
     expect(outcomeState('seen')).toBe('seen')
     expect(outcomeState('gone')).toBe('expired')
     expect(outcomeState('cancelled')).toBeNull()
+  })
+
+  it('403 na abertura: bloqueada de vez (sem tentar de novo)', () => {
+    expect(outcomeState('forbidden')).toBe('locked')
+    expect(isForbiddenError({ status: 403 })).toBe(true)
+    expect(isForbiddenError({ status: 410 })).toBe(false)
+    expect(isForbiddenError(null)).toBe(false)
   })
 })

@@ -10,6 +10,7 @@ import (
 	"gin-quickstart/backend/internal/platform/authctx"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // ViewOnceOpener abre uma mídia de visualização única (ViewOnceService.Open).
@@ -31,6 +32,10 @@ func (h *ViewOnceHandler) Open(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "attachment not found"})
+		return
+	}
 	token, expiresAt, err := h.opener.Open(c.Request.Context(), id, userID)
 	if err != nil {
 		status, msg := openErrorStatus(err)

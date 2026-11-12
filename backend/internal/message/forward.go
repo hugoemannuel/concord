@@ -146,14 +146,16 @@ func (f *Forwarder) source(ctx context.Context, req ForwardRequest) (*Message, e
 	if err := f.store.AttachAttachments(ctx, page); err != nil {
 		return nil, err
 	}
-	if !hasForwardableContent(&page[0]) {
+	// a visualização única só aparece depois de AttachAttachments (FindByID não
+	// lê view_once): checar antes deixaria a legenda passar.
+	if page[0].ViewOnce != nil || !hasForwardableContent(&page[0]) {
 		return nil, ErrNotForwardable
 	}
 	return &page[0], nil
 }
 
 func (f *Forwarder) checkForwardable(ctx context.Context, src *Message) error {
-	if src.SystemKind != nil || src.CallInvite != nil || src.ViewOnce != nil {
+	if src.SystemKind != nil || src.CallInvite != nil {
 		return ErrNotForwardable
 	}
 	hasPoll, err := f.store.HasPoll(ctx, src.ID)

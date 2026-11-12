@@ -119,5 +119,5 @@ func (s *ExpirySweeper) publishDelete(ctx context.Context, m ExpiredMessage, roo
 		rooms[m.ConversationID] = userIDs
 	}
 	conv := m.ConversationID
-	s.publisher.PublishMessageDelete(DeleteEvent{ConversationID: &conv, UserIDs: userIDs, MessageID: m.ID})
+	s.publisher.PublishMessageDelete(DeleteEvent{ConversationID: &conv, UserIDs: userIDs, MessageID: m.ID, Expired: true})
 }

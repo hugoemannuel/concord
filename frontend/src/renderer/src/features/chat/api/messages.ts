@@ -96,6 +96,8 @@ export interface ViewOnceMedia {
   kind: 'image' | 'video'
   gone: boolean
   viewer_ids: string[]
+  /** Quem podia abrir (fixado no envio): quem entrou no grupo depois não está aqui. */
+  recipient_ids: string[]
   recipient_count: number
 }
 
