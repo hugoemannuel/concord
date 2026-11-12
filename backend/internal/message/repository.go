@@ -163,7 +163,7 @@ func (r *Repository) ListByChannel(ctx context.Context, channelID string, limit 
 			`
 			SELECT `+messageColumns+`
 			`+messageFrom+`
-			WHERE m.channel_id = $1
+			WHERE m.channel_id = $1 AND `+notExpired+`
 			ORDER BY m.created_at DESC, m.id DESC
 			LIMIT $2
 			`,
@@ -176,7 +176,7 @@ func (r *Repository) ListByChannel(ctx context.Context, channelID string, limit 
 			`
 			SELECT `+messageColumns+`
 			`+messageFrom+`
-			WHERE m.channel_id = $1
+			WHERE m.channel_id = $1 AND `+notExpired+`
 			`+listBeforeCondition+`
 			ORDER BY m.created_at DESC, m.id DESC
 			LIMIT $3

@@ -104,7 +104,7 @@ func (r *Repository) GetPinnedMessage(ctx context.Context, channelID, messageID 
 		ctx,
 		`SELECT `+pinnedMessageColumns+`
 		 `+pinnedMessageFrom+`
-		 WHERE cpm.channel_id = $1 AND cpm.message_id = $2`,
+		 WHERE cpm.channel_id = $1 AND cpm.message_id = $2 AND `+notExpired+``,
 		channelID,
 		messageID,
 	)
@@ -129,7 +129,7 @@ func (r *Repository) ListPinnedMessages(ctx context.Context, channelID string) (
 		ctx,
 		`SELECT `+pinnedMessageColumns+`
 		 `+pinnedMessageFrom+`
-		 WHERE cpm.channel_id = $1
+		 WHERE cpm.channel_id = $1 AND `+notExpired+`
 		 ORDER BY cpm.pinned_at DESC`,
 		channelID,
 	)
