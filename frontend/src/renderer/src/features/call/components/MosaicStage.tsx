@@ -3,12 +3,15 @@ import type { CallPerson } from '../lib/callParticipants'
 import type { ScreenEntry } from '../lib/screenWatch'
 import { mosaicRest, type CameraEntry } from '../lib/stagePeople'
 import type { CallUserInfo } from '../store/callStore'
+import { useParticipantStripStore } from '../store/participantStripStore'
+import ParticipantStrip from './ParticipantStrip'
 import { MeTile, PersonTile, ScreenTile } from './StageTiles'
 import StreamMosaic from './StreamMosaic'
 
 /**
  * Sem foco selecionado: mosaico com as telas e as câmeras (cada uma é um
- * bloco: "screen:<id>" / "camera:<id>") + quem não tem vídeo embaixo.
+ * bloco: "screen:<id>" / "camera:<id>") + quem não tem vídeo embaixo, numa
+ * faixa que dá para ocultar (mesma preferência do modo foco).
  */
 function MosaicStage({
   screens,
@@ -55,6 +58,9 @@ function MosaicStage({
     )
   ])
   const rest = mosaicRest(screens, cameras, meId, people)
+  // Mesma preferência do modo foco: ocultou lá, fica oculto aqui também.
+  const stripHidden = useParticipantStripStore((s) => s.hidden)
+  const toggleStrip = useParticipantStripStore((s) => s.toggle)
 
   return (
     <div className="flex h-full w-full flex-col gap-4">
@@ -64,12 +70,14 @@ function MosaicStage({
         renderTile={(key) => tiles.get(key)?.node ?? null}
       />
       {rest.show && (
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
-          {rest.showMe && <MeTile info={meInfo} speaking={speaking} size="md" />}
-          {rest.others.map((p) => (
-            <PersonTile key={p.id} user={p} speaking={speaking} size="md" />
-          ))}
-        </div>
+        <ParticipantStrip hidden={stripHidden} onToggle={toggleStrip}>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {rest.showMe && <MeTile info={meInfo} speaking={speaking} size="md" />}
+            {rest.others.map((p) => (
+              <PersonTile key={p.id} user={p} speaking={speaking} size="md" />
+            ))}
+          </div>
+        </ParticipantStrip>
       )}
     </div>
   )
