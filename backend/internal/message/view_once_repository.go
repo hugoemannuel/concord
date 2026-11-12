@@ -100,18 +100,3 @@ func (r *Repository) GrantView(ctx context.Context, attachmentID, userID string)
 	}
 	return tag.RowsAffected() == 1, nil
 }
-
-// MarkViewOnceGoneIfAllViewed marca o anexo como apagado quando todos os
-// destinatários já viram. Só um chamador recebe true (WHERE view_once_gone_at
-// IS NULL), então o arquivo sai do disco uma vez só.
-func (r *Repository) MarkViewOnceGoneIfAllViewed(ctx context.Context, attachmentID string) (bool, error) {
-	tag, err := r.db.Exec(ctx, `
-		UPDATE message_attachments a SET view_once_gone_at = now()
-		WHERE a.id = $1 AND a.view_once AND a.view_once_gone_at IS NULL
-		  AND (SELECT count(*) FROM attachment_views v WHERE v.attachment_id = a.id)
-		   >= (SELECT count(*) FROM view_once_recipients rc WHERE rc.attachment_id = a.id)`, attachmentID)
-	if err != nil {
-		return false, err
-	}
-	return tag.RowsAffected() == 1, nil
-}

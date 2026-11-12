@@ -35,7 +35,7 @@ que já existe (canais, DMs comuns, anexos comuns, Android) muda de comportament
 | D6 | Mensagem de visualização única = exatamente **um** anexo `image` ou `video`, sem outros anexos, enquete, figurinha ou GIF. Texto é permitido. | Regra simples, igual ao WhatsApp (uma mídia por vez). *Decisão do agente.* |
 | D7 | Cada destinatário tem a sua visualização. Quem enviou nunca reabre. Destinatários = participantes da conversa **na hora do envio**, menos o autor (guardados em `view_once_recipients`); quem entra depois não abre, quem sai não abre mais. | Igual ao WhatsApp em grupo; quem enviou escolheu aquele público e o "Vista por X de Y" não muda de denominador. Decidido pelo usuário. |
 | D8 | "Visto" = abrir. Abrir libera o arquivo por 5 min (token `view_once`); dentro disso o vídeo toca, pausa e volta à vontade. Fechar encerra no app. | Se "visto" fosse "assistir até o fim", fechar no meio reabriria. |
-| D9 | O arquivo é apagado quando todos os destinatários viram, ou 14 dias após o envio (o que vier primeiro). A mensagem fica com o estado "Aberta"/"Expirou". | Igual ao WhatsApp; libera disco. |
+| D9 | O arquivo é apagado pela limpeza periódica quando todos os destinatários viram e a última visualização passou da janela do token (5 min), ou 14 dias após o envio (o que vier primeiro; nunca com uma visualização nos últimos 5 min). A mensagem fica com o estado "Aberta"/"Expirou". | Igual ao WhatsApp; libera disco. |
 | D10 | Mensagem de visualização única que também é temporária: vale o que vencer primeiro. | Consequência direta de D3 e D9. |
 | D11 | Responder, fixar, encaminhar, copiar imagem e buscar por `has:image`/`has:video` **não** mostram nem acham a mídia. A resposta mostra "Foto de visualização única". | A mídia só sai pelo `open`. *Decisão do agente.* |
 | D12 | Proteção contra print (`setContentProtection`) só no desktop, só enquanto o visualizador está aberto. Web abre sem ela. | Única proteção real disponível; o efeito colateral (janela preta para quem assiste a tela compartilhada) só existe nesse intervalo. |
@@ -96,13 +96,15 @@ ordem inversa.)
     Kinds aceitos: só `image` e `video` (existe também `file`, recusado).
   - `POST /attachments/:id/open`: exige acesso à sala (`RoomAccess`) e estar em `view_once_recipients` (senão 403), recusa o autor (403),
     quem já viu ou anexo `gone` (410). Grava em `attachment_views` (conflito = 410, sem corrida)
-    e devolve `{ "token", "expires_at" }`. Depois, se todos os destinatários viram, marca `gone`
-    e apaga o arquivo (D15). Publica o `message:update` que já existe (o autor vê "Vista por").
+    e devolve `{ "token", "expires_at" }`. Abrir não apaga nada: quando todos os destinatários viram
+    e a última visualização passou da janela do token (5 min), a limpeza periódica (`ExpirySweeper`)
+    marca `gone` e apaga o arquivo (D15); assim o token vale os 5 min (D8). Publica o `message:update`
+    que já existe (o autor vê "Vista por").
   - `ServeFile`: hoje chama `VerifyMediaToken` primeiro (que recusa outro tipo); passa a buscar
     o anexo antes e escolher a verificação pelo `view_once`. O `CanRead` da sala continua em todo pedido.
     Anexo `view_once` só abre com token `view_once` cujo `attachment_id` é o dele;
     token `media` → 404 (o mesmo de "não existe", sem vazar). Anexo `gone` → 404.
-  - Limpeza dos 14 dias: dentro do `ExpirySweeper` (mesmo tick): marca `gone` e manda o arquivo
+  - Limpeza (todos viram + 5 min, ou 14 dias): dentro do `ExpirySweeper` (mesmo tick): marca `gone` e manda o arquivo
     apaga o arquivo.
 - `internal/auth/view_once_token.go` (novo): `GenerateViewOnceToken(userID, attachmentID)` /
   `VerifyViewOnceToken`, TTL 5 min, `type: "view_once"`. Conferir que AuthMiddleware e WebSocket

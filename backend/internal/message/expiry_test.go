@@ -10,14 +10,15 @@ import (
 )
 
 type fakeExpiryRepo struct {
-	mu         sync.Mutex
-	onBatch    func()
-	batches    [][]ExpiredMessage
-	calls      int
-	limits     []int
-	viewOnce   []string
-	sentBefore time.Time
-	err        error
+	mu           sync.Mutex
+	onBatch      func()
+	batches      [][]ExpiredMessage
+	calls        int
+	limits       []int
+	viewOnce     []string
+	sentBefore   time.Time
+	viewedBefore time.Time
+	err          error
 }
 
 func (r *fakeExpiryRepo) DeleteExpired(_ context.Context, _ time.Time, limit int) ([]ExpiredMessage, error) {
@@ -44,8 +45,8 @@ func (r *fakeExpiryRepo) chamadas() int {
 	return len(r.limits)
 }
 
-func (r *fakeExpiryRepo) ExpireViewOnce(_ context.Context, before time.Time) ([]string, error) {
-	r.sentBefore = before
+func (r *fakeExpiryRepo) ExpireViewOnce(_ context.Context, sentBefore, viewedBefore time.Time) ([]string, error) {
+	r.sentBefore, r.viewedBefore = sentBefore, viewedBefore
 	return r.viewOnce, nil
 }
 
@@ -140,6 +141,10 @@ func TestSweeperExpiraVisualizacaoUnicaApos14Dias(t *testing.T) {
 	}
 	if want := now.Add(-14 * 24 * time.Hour); !repo.sentBefore.Equal(want) {
 		t.Fatalf("sentBefore = %v, want %v", repo.sentBefore, want)
+	}
+	// Quem abriu tem o token por 5 min: o arquivo só sai depois disso.
+	if want := now.Add(-5 * time.Minute); !repo.viewedBefore.Equal(want) {
+		t.Fatalf("viewedBefore = %v, want %v", repo.viewedBefore, want)
 	}
 	if want := []string{"v1", "v2"}; !reflect.DeepEqual(files.removed, want) {
 		t.Fatalf("arquivos removidos = %v, want %v", files.removed, want)

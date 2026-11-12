@@ -24,7 +24,6 @@ type viewOnceOpenRepo interface {
 	FindAttachment(ctx context.Context, id string) (*storedAttachment, error)
 	IsViewOnceRecipient(ctx context.Context, attachmentID, userID string) (bool, error)
 	GrantView(ctx context.Context, attachmentID, userID string) (bool, error)
-	MarkViewOnceGoneIfAllViewed(ctx context.Context, attachmentID string) (bool, error)
 	FindByID(ctx context.Context, id string) (*Message, error)
 	AttachAttachments(ctx context.Context, messages []Message) error
 }
@@ -39,7 +38,6 @@ type ViewOnceOpenDeps struct {
 	Repo      viewOnceOpenRepo
 	Access    RoomAccess
 	Tokens    ViewOnceTokens
-	Files     FileRemover
 	Publisher EventPublisher
 }
 
@@ -101,7 +99,10 @@ func (s *ViewOnceService) Open(ctx context.Context, attachmentID, userID string)
 	if !granted {
 		return "", time.Time{}, ErrViewOnceGone
 	}
-	s.afterView(ctx, a)
+	// A visualização já está gravada: o aviso sai mesmo se o pedido cair. O
+	// arquivo fica até a limpeza periódica (ViewOnceOpenWindow depois da
+	// última abertura), para o token valer os 5 min.
+	s.publishUpdate(context.WithoutCancel(ctx), *a.MessageID, *a.ConversationID)
 	return token, expiresAt, nil
 }
 
@@ -141,23 +142,9 @@ func (s *ViewOnceService) checkRecipient(ctx context.Context, a *storedAttachmen
 	return nil
 }
 
-// afterView: se todos viram, apaga o arquivo; depois avisa a conversa (o
-// autor vê "Vista por"). A visualização já valeu: falhas aqui só vão ao log.
-func (s *ViewOnceService) afterView(ctx context.Context, a *storedAttachment) {
-	gone, err := s.open.Repo.MarkViewOnceGoneIfAllViewed(ctx, a.ID)
-	if err != nil {
-		log.Printf("view_once: marcar %s como apagado: %v", a.ID, err)
-	}
-	if gone {
-		if err := s.open.Files.Remove(a.ID); err != nil {
-			log.Printf("view_once: apagar arquivo %s: %v", a.ID, err)
-		}
-	}
-	s.publishUpdate(ctx, *a.MessageID, *a.ConversationID)
-}
-
 // publishUpdate relê a mensagem (com o view_once novo) e publica o
-// message:update para os participantes, como a edição na DM.
+// message:update para os participantes, como a edição na DM (o autor vê
+// "Vista por").
 func (s *ViewOnceService) publishUpdate(ctx context.Context, messageID, conversationID string) {
 	msg, err := s.open.Repo.FindByID(ctx, messageID)
 	if err != nil {

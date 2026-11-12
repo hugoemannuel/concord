@@ -1,14 +1,20 @@
 package message
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"gin-quickstart/backend/internal/platform/media"
+
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
@@ -19,20 +25,6 @@ func (f fakeViewOnceTokens) GenerateViewOnceToken(userID, attachmentID string) (
 		return "", time.Time{}, f.err
 	}
 	return "vo:" + attachmentID + ":" + userID, time.Now().Add(5 * time.Minute), nil
-}
-
-// lockedFiles: o FileRemover dos testes de abertura (pode ser chamado de
-// goroutines diferentes).
-type lockedFiles struct {
-	mu      sync.Mutex
-	removed []string
-}
-
-func (f *lockedFiles) Remove(id string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.removed = append(f.removed, id)
-	return nil
 }
 
 type lockedPublisher struct {
@@ -65,16 +57,15 @@ func enviarViewOnce(t *testing.T, s *searchDB, repo *Repository, recipients ...s
 }
 
 type openEnv struct {
-	svc   *ViewOnceService
-	files *lockedFiles
-	pub   *lockedPublisher
+	svc *ViewOnceService
+	pub *lockedPublisher
 }
 
 func newOpenEnv(s *searchDB, repo *Repository, access RoomAccess) *openEnv {
-	env := &openEnv{files: &lockedFiles{}, pub: &lockedPublisher{}}
+	env := &openEnv{pub: &lockedPublisher{}}
 	ids := []string{s.users["ana"], s.users["bia"], s.users["caio"]}
 	env.svc = NewViewOnceService(repo, fakeViewOnceRooms{ids: ids})
-	env.svc.SetOpen(ViewOnceOpenDeps{Repo: repo, Access: access, Tokens: fakeViewOnceTokens{}, Files: env.files, Publisher: env.pub})
+	env.svc.SetOpen(ViewOnceOpenDeps{Repo: repo, Access: access, Tokens: fakeViewOnceTokens{}, Publisher: env.pub})
 	return env
 }
 
@@ -219,64 +210,72 @@ func TestOpenConcorrenteSoUmGanha(t *testing.T) {
 	if ok != 1 || gone != 1 {
 		t.Fatalf("tokens=%v errs=%v", tokens, errs)
 	}
-	if len(env.files.removed) != 1 || len(env.pub.updates) != 1 {
-		t.Fatalf("removidos=%v updates=%d", env.files.removed, len(env.pub.updates))
+	if len(env.pub.updates) != 1 {
+		t.Fatalf("updates = %d", len(env.pub.updates))
 	}
 }
 
-func TestOpenUltimoDestinatarioApagaArquivoEPublica(t *testing.T) {
+// D8: abrir não apaga nada; o token segura o arquivo pelos 5 min (a limpeza
+// periódica apaga depois). Num 1:1, o único destinatário abre e carrega.
+func TestOpenUnicoDestinatarioArquivoContinua(t *testing.T) {
 	s := newSearchDB(t)
 	repo := MessageRepository(s.db)
-	bia, caio := s.users["bia"], s.users["caio"]
-	msgID, att := enviarViewOnce(t, s, repo, bia, caio)
+	caio := s.users["caio"]
+	msgID, att := enviarViewOnce(t, s, repo, caio)
 	env := newOpenEnv(s, repo, fakeAccess{})
 
-	if _, _, err := env.svc.Open(s.ctx, att, bia); err != nil {
+	token, _, err := env.svc.Open(s.ctx, att, caio)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(env.files.removed) != 0 {
-		t.Fatalf("apagou cedo: %v", env.files.removed)
+	if len(env.pub.updates) != 1 {
+		t.Fatalf("updates = %d", len(env.pub.updates))
 	}
-	if len(env.pub.updates) != 1 || len(env.pub.updates[0].Message.ViewOnce.ViewerIDs) != 1 {
-		t.Fatalf("updates = %+v", env.pub.updates)
-	}
-	if _, _, err := env.svc.Open(s.ctx, att, caio); err != nil {
-		t.Fatal(err)
-	}
-	if len(env.files.removed) != 1 || env.files.removed[0] != att {
-		t.Fatalf("removidos = %v", env.files.removed)
-	}
-	last := env.pub.updates[len(env.pub.updates)-1]
+	last := env.pub.updates[0]
 	vo := last.Message.ViewOnce
 	if last.Message.ID != msgID || last.ConversationID == nil || *last.ConversationID != s.convID || len(last.UserIDs) != 3 {
 		t.Fatalf("update = %+v", last)
 	}
-	if vo == nil || !vo.Gone || len(vo.ViewerIDs) != 2 || vo.RecipientCount != 2 {
+	if vo == nil || vo.Gone || len(vo.ViewerIDs) != 1 || vo.ViewerIDs[0] != caio || vo.RecipientCount != 1 {
 		t.Fatalf("view_once = %+v", vo)
 	}
-	if got := carregar(t, s, repo, msgID); got.ViewOnce == nil || !got.ViewOnce.Gone {
-		t.Fatalf("relida = %+v", got.ViewOnce)
+
+	store, err := media.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.Save(att, bytes.NewReader(pngBytes(64)), 1024); err != nil {
+		t.Fatal(err)
+	}
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	h := NewAttachmentHandler(repo, store, fakeSpace{ok: true}, fakeAccess{}, openTokens{})
+	AttachmentRoutes(router.Group("/api"), h, func(c *gin.Context) {})
+	for rangeHeader, want := range map[string]int{"": http.StatusOK, "bytes=0-3": http.StatusPartialContent} {
+		req := httptest.NewRequest(http.MethodGet, "/api/media/"+att+"?token="+token, nil)
+		if rangeHeader != "" {
+			req.Header.Set("Range", rangeHeader)
+		}
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != want {
+			t.Fatalf("Range %q: status = %d, want %d", rangeHeader, rec.Code, want)
+		}
+	}
+	if files, _ := store.List(); len(files) != 1 {
+		t.Fatalf("arquivo sumiu do disco: %v", files)
 	}
 }
 
-// Dois "últimos" correndo: só um marca gone (e só um apaga o arquivo).
-func TestMarcarGoneSoUmaVez(t *testing.T) {
-	s := newSearchDB(t)
-	repo := MessageRepository(s.db)
-	caio := s.users["caio"]
-	_, att := enviarViewOnce(t, s, repo, caio)
-	if ok, err := repo.MarkViewOnceGoneIfAllViewed(s.ctx, att); err != nil || ok {
-		t.Fatalf("sem visualização: ok=%v err=%v", ok, err)
+// openTokens confere o token do fakeViewOnceTokens ("vo:<anexo>:<usuário>").
+type openTokens struct{ fakeTokens }
+
+func (openTokens) VerifyViewOnceToken(token, attachmentID string) (string, error) {
+	prefix := "vo:" + attachmentID + ":"
+	if !strings.HasPrefix(token, prefix) {
+		return "", errors.New("invalid token")
 	}
-	if ok, err := repo.GrantView(s.ctx, att, caio); err != nil || !ok {
-		t.Fatalf("grant: ok=%v err=%v", ok, err)
-	}
-	if ok, err := repo.MarkViewOnceGoneIfAllViewed(s.ctx, att); err != nil || !ok {
-		t.Fatalf("primeira: ok=%v err=%v", ok, err)
-	}
-	if ok, err := repo.MarkViewOnceGoneIfAllViewed(s.ctx, att); err != nil || ok {
-		t.Fatalf("segunda: ok=%v err=%v", ok, err)
-	}
+	return strings.TrimPrefix(token, prefix), nil
 }
 
 // Já apagada (14 dias): não dá mais para gravar visualização.

@@ -39,13 +39,23 @@ func (r *Repository) DeleteExpired(ctx context.Context, now time.Time, limit int
 	return out, rows.Err()
 }
 
-// ExpireViewOnce marca como apagadas as mídias de visualização única enviadas
-// antes de sentBefore e devolve os ids, para o arquivo sair do disco.
-func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore time.Time) ([]string, error) {
+// ExpireViewOnce marca como apagadas as mídias de visualização única que
+// todos os destinatários já viram, ou que foram enviadas antes de sentBefore,
+// e devolve os ids, para o arquivo sair do disco. Nos dois casos, só se
+// ninguém abriu desde viewedBefore: quem abriu tem o token por 5 min para
+// carregar e avançar o vídeo.
+func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore, viewedBefore time.Time) ([]string, error) {
 	rows, err := r.db.Query(ctx, `
-		UPDATE message_attachments SET view_once_gone_at = now()
-		WHERE view_once AND view_once_gone_at IS NULL AND message_id IS NOT NULL AND created_at < $1
-		RETURNING id::text`, sentBefore)
+		UPDATE message_attachments a SET view_once_gone_at = now()
+		WHERE a.view_once AND a.view_once_gone_at IS NULL AND a.message_id IS NOT NULL
+		  AND NOT EXISTS (SELECT 1 FROM attachment_views v WHERE v.attachment_id = a.id AND v.viewed_at >= $2)
+		  AND (a.created_at < $1 OR (
+		        EXISTS (SELECT 1 FROM attachment_views v WHERE v.attachment_id = a.id)
+		    AND NOT EXISTS (
+		        SELECT 1 FROM view_once_recipients rc
+		        WHERE rc.attachment_id = a.id
+		          AND NOT EXISTS (SELECT 1 FROM attachment_views v WHERE v.attachment_id = a.id AND v.user_id = rc.user_id))))
+		RETURNING a.id::text`, sentBefore, viewedBefore)
 	if err != nil {
 		return nil, err
 	}

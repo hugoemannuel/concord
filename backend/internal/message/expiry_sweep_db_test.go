@@ -101,7 +101,7 @@ func TestExpireViewOnceSoAntigasNaoVistasPorTodos(t *testing.T) {
 	novo(false, 15*24*time.Hour, nil, true)       // não é visualização única
 	novo(true, 15*24*time.Hour, nil, false)       // pendente (sem mensagem)
 
-	got, err := repo.ExpireViewOnce(s.ctx, time.Now().Add(-ViewOnceTTL))
+	got, err := repo.ExpireViewOnce(s.ctx, time.Now().Add(-ViewOnceTTL), time.Now().Add(-ViewOnceOpenWindow))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,57 @@ func TestExpireViewOnceSoAntigasNaoVistasPorTodos(t *testing.T) {
 	if err := s.db.QueryRow(s.ctx, `SELECT view_once_gone_at FROM message_attachments WHERE id = $1`, antiga).Scan(&gone); err != nil || gone == nil {
 		t.Fatalf("view_once_gone_at não marcado (err=%v)", err)
 	}
-	if again, _ := repo.ExpireViewOnce(s.ctx, time.Now().Add(-ViewOnceTTL)); len(again) != 0 {
+	if again, _ := repo.ExpireViewOnce(s.ctx, time.Now().Add(-ViewOnceTTL), time.Now().Add(-ViewOnceOpenWindow)); len(again) != 0 {
 		t.Fatalf("segunda passada devolveu %v", again)
+	}
+}
+
+// verEm grava a visualização de userID no anexo, idade atrás.
+func verEm(t *testing.T, s *searchDB, att, userID string, idade time.Duration) {
+	t.Helper()
+	if _, err := s.db.Exec(s.ctx, `INSERT INTO attachment_views (attachment_id, user_id, viewed_at) VALUES ($1, $2, $3)`,
+		att, userID, time.Now().Add(-idade)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Todos viram e a última visualização passou da janela do token (5 min): o
+// arquivo sai. Antes disso, quem abriu ainda carrega e avança o vídeo.
+func TestExpireViewOnceDepoisDeTodosVeremEDaJanela(t *testing.T) {
+	s := newSearchDB(t)
+	repo := MessageRepository(s.db)
+	bia, caio := s.users["bia"], s.users["caio"]
+
+	_, vistaHa6 := enviarViewOnce(t, s, repo, caio)
+	verEm(t, s, vistaHa6, caio, 6*time.Minute)
+	_, vistaHa1 := enviarViewOnce(t, s, repo, caio)
+	verEm(t, s, vistaHa1, caio, time.Minute)
+	_, faltaUm := enviarViewOnce(t, s, repo, bia, caio)
+	verEm(t, s, faltaUm, caio, 6*time.Minute)
+	_, antigaAberta := enviarViewOnce(t, s, repo, bia, caio)
+	verEm(t, s, antigaAberta, bia, time.Minute)
+	if _, err := s.db.Exec(s.ctx, `UPDATE message_attachments SET created_at = now() - interval '15 days' WHERE id = $1`, antigaAberta); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.ExpireViewOnce(s.ctx, time.Now().Add(-ViewOnceTTL), time.Now().Add(-ViewOnceOpenWindow))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mine := map[string]bool{vistaHa6: true, vistaHa1: true, faltaUm: true, antigaAberta: true}
+	var proprios []string
+	for _, id := range got {
+		if mine[id] {
+			proprios = append(proprios, id)
+		}
+	}
+	if !reflect.DeepEqual(proprios, []string{vistaHa6}) {
+		t.Fatalf("ExpireViewOnce = %v, want [%s]", proprios, vistaHa6)
+	}
+	for id, want := range map[string]bool{vistaHa6: true, vistaHa1: false, faltaUm: false, antigaAberta: false} {
+		var gone bool
+		if err := s.db.QueryRow(s.ctx, `SELECT view_once_gone_at IS NOT NULL FROM message_attachments WHERE id = $1`, id).Scan(&gone); err != nil || gone != want {
+			t.Errorf("%s: gone = %v, want %v (err=%v)", id, gone, want, err)
+		}
 	}
 }
