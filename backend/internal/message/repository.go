@@ -55,7 +55,8 @@ var messageColumns = `
 	m.tts,
 	m.tts_voice_channel_id,
 	m.call_invite,
-	m.embeds_suppressed
+	m.embeds_suppressed,
+	m.expires_at
 `
 
 // messageProfileJoins: o perfil do servidor do autor e de quem foi respondido
@@ -82,18 +83,7 @@ func (r *Repository) Create(ctx context.Context, msg *Message) error {
 	}
 	return r.db.QueryRow(
 		ctx,
-		`
-		INSERT INTO messages (id, author_id, channel_id, conversation_id, reply_to_id, content, system_kind, mention_everyone, sticker_id, gif_url, gif_metadata, call_invite, tts, tts_voice_channel_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		RETURNING
-			id,
-			author_id,
-			channel_id,
-			conversation_id,
-			reply_to_id,
-			content,
-			created_at
-		`,
+		insertMessageSQL,
 		msg.ID,
 		msg.AuthorID,
 		msg.ChannelID,

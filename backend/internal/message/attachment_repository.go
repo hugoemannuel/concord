@@ -110,20 +110,21 @@ func (r *Repository) CreateWithAttachments(ctx context.Context, msg *Message, at
 
 	if _, err := tx.Exec(
 		ctx,
-		`
-		INSERT INTO messages (id, author_id, channel_id, conversation_id, reply_to_id, content, mention_everyone, sticker_id, gif_url, gif_metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		`,
+		insertMessageSQL,
 		msg.ID,
 		msg.AuthorID,
 		msg.ChannelID,
 		msg.ConversationID,
 		msg.ReplyToID,
 		msg.Content,
+		nil, // system_kind: mensagem com anexo nunca é aviso de sistema
 		msg.MentionEveryone,
 		msg.StickerID,
 		msg.GifURL,
 		gifMetaBytes,
+		nil,   // call_invite
+		false, // tts
+		nil,   // tts_voice_channel_id
 	); err != nil {
 		return err
 	}
