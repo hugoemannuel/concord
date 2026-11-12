@@ -64,3 +64,21 @@ export function isExpired(m: Pick<Message, 'expires_at'>, now: number): boolean 
 export function conversationIdOfRoom(room: string): string | null {
   return room.startsWith('conversation:') ? room.slice('conversation:'.length) : null
 }
+
+/** Id do canal de uma sala `channel:<id>`; conversa e outras salas dão null. */
+export function channelIdOfRoom(room: string): string | null {
+  return room.startsWith('channel:') ? room.slice('channel:'.length) : null
+}
+
+/** Prazo da sala: o da conversa ou o do canal (null = desativado ou sala desconhecida). */
+export function roomDisappearing(
+  room: string,
+  conversations: readonly { id: string; disappearing_seconds?: number | null }[],
+  channels: readonly { id: string; disappearing_seconds?: number | null }[]
+): DisappearingSeconds | null {
+  const conversationId = conversationIdOfRoom(room)
+  const list = conversationId !== null ? conversations : channels
+  const id = conversationId ?? channelIdOfRoom(room)
+  const seconds = list.find((c) => c.id === id)?.disappearing_seconds
+  return (seconds as DisappearingSeconds | null | undefined) ?? null
+}

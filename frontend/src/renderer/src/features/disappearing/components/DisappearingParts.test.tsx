@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import ChannelDisappearingMark from './ChannelDisappearingMark'
 import DisappearingBanner from './DisappearingBanner'
 import DisappearingMenu from './DisappearingMenu'
 import ExpiryMark from './ExpiryMark'
@@ -45,5 +46,15 @@ describe('faixa e relógio', () => {
     el.props.onClick()
     expect(closed).toBe(1)
     expect(renderToStaticMarkup(el)).toContain('aria-hidden="true"')
+  })
+})
+
+describe('marca do canal', () => {
+  it('só com prazo, com rótulo curto e aria-label aprovado', () => {
+    expect(renderToStaticMarkup(<ChannelDisappearingMark seconds={null} />)).toBe('')
+    const out = renderToStaticMarkup(<ChannelDisappearingMark seconds={604800} />)
+    expect(out).toContain('aria-label="Mensagens temporárias"')
+    expect(out).toContain('7 d')
+    expect(out).not.toContain('<button')
   })
 })

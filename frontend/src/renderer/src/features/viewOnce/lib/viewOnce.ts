@@ -131,3 +131,15 @@ const OUTCOME_STATE: Record<Outcome, PillState | null> = {
 export function outcomeState(outcome: Outcome): PillState | null {
   return OUTCOME_STATE[outcome]
 }
+
+/**
+ * O olho de visualização única vale na sala? DM e grupo sempre; canal só com
+ * `allow_view_once` ligado e fora dos canais de sistema.
+ */
+export function viewOnceAllowedIn(
+  room: string,
+  channel: { allow_view_once?: boolean; is_system?: boolean } | undefined
+): boolean {
+  if (!room.startsWith('channel:')) return true
+  return channel?.allow_view_once === true && !channel.is_system
+}
