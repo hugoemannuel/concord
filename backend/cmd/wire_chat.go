@@ -86,6 +86,7 @@ func (a *app) wireChat() {
 	entranceSounds := mustStore(filepath.Join(profileMediaDir, user.EntranceSoundDir), "entrance sounds dir")
 	entranceSoundHandler := user.NewEntranceSoundHandler(profileService, entranceSounds, a.uploadSpace)
 	conversationHandler := conversation.ConversationHandler(a.conversationService, a.userService, a.profileHandler)
+	conversationHandler.SetDisappearingService(conversation.NewDisappearingService(a.conversationRepository, a.conversationService, conversation.ActorNameFrom(a.userService), a.messageService))
 	// O ícone do servidor usa o mesmo upload do avatar.
 	serverHandler := server.ServerHandler(a.serverService, a.friendshipService, a.channelService, a.permissionService, a.roleService, a.moderationService, a.nicknameService, a.profileHandler)
 	serverHandler.SetAudit(a.audit)
