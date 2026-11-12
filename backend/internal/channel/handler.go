@@ -229,6 +229,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	updated.Overwrites = OverwritesOf(snap, channelID)
+	h.service.AnnounceDisappearing(c.Request.Context(), userID, current, updated)
 	h.recordUpdate(c.Request.Context(), userID, current, updated)
 
 	c.JSON(http.StatusOK, updated)

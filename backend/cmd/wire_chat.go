@@ -34,6 +34,8 @@ func (a *app) wireChat() {
 	messageEvents := push.WrapMessages(a.hub, a.pushTap)
 	a.messageService = message.MessageService(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository, uploads, a.permissionService)
 	a.messageService.SetAudit(a.audit)
+	// Aviso no canal quando o prazo das mensagens temporárias muda.
+	a.channelService.SetNoticePoster(a.messageService, conversation.ActorNameFrom(a.userService))
 	slowmode := a.wireSlowmode()
 	a.messageService.SetSlowmode(slowmode)
 	// Limpeza horária de arquivos sem dono (cascatas e uploads abandonados).

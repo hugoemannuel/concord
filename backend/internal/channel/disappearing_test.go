@@ -1,15 +1,19 @@
 package channel
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 
 	"gin-quickstart/backend/internal/audit"
 	"gin-quickstart/backend/internal/audit/audittest"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestValidChannelDisappearing(t *testing.T) {
@@ -64,5 +68,85 @@ func TestUpdatePrazoEVisualizacaoUnicaGravamEAuditam(t *testing.T) {
 	}
 	if e.Action != audit.ChannelUpdate || !reflect.DeepEqual(e.Changes, want) {
 		t.Fatalf("auditoria: %+v", e)
+	}
+}
+
+// fakeNotices guarda os avisos postados (ou falha, se err estiver preenchido).
+type fakeNotices struct {
+	texts []string
+	err   error
+}
+
+func (f *fakeNotices) PostChannelNotice(_ context.Context, _, _, content string) error {
+	f.texts = append(f.texts, content)
+	return f.err
+}
+
+func noticeRequest(t *testing.T, store *permStore, notices *fakeNotices, pub *permPublisher, body string) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	svc := newService(store, pub)
+	svc.SetNoticePoster(notices, func(context.Context, string) (string, error) { return "Ana", nil })
+	ChannelRoutes(router.Group("/api"), ChannelHandler(svc, store), func(c *gin.Context) { c.Set("userID", "mod"); c.Next() })
+	req := httptest.NewRequest(http.MethodPut, "/api/servers/s1/channels/geral", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestTrocarPrazoPostaOAviso(t *testing.T) {
+	store, notices := newPermStore(), &fakeNotices{}
+	noticeRequest(t, store, notices, &permPublisher{}, `{"name":"geral","disappearing_seconds":604800}`)
+	want := []string{"Ana ativou as mensagens temporárias. Novas mensagens vão sumir após 7 dias."}
+	if !reflect.DeepEqual(notices.texts, want) {
+		t.Fatalf("avisos = %q", notices.texts)
+	}
+}
+
+func TestSalvarOMesmoPrazoNaoPosta(t *testing.T) {
+	store, notices := newPermStore(), &fakeNotices{}
+	week := 604800
+	store.channels["geral"].DisappearingSeconds = &week
+	noticeRequest(t, store, notices, &permPublisher{}, `{"name":"geral","disappearing_seconds":604800}`)
+	noticeRequest(t, store, notices, &permPublisher{}, `{"name":"novo"}`)
+	if len(notices.texts) != 0 {
+		t.Fatalf("avisos = %q", notices.texts)
+	}
+	// Desligado e continuar desligado (0 e nil são o mesmo valor).
+	off := newPermStore()
+	noticeRequest(t, off, notices, &permPublisher{}, `{"name":"geral","disappearing_seconds":0}`)
+	if len(notices.texts) != 0 {
+		t.Fatalf("avisos = %q", notices.texts)
+	}
+}
+
+func TestDesligarOPrazoPostaOAviso(t *testing.T) {
+	store, notices := newPermStore(), &fakeNotices{}
+	week := 604800
+	store.channels["geral"].DisappearingSeconds = &week
+	noticeRequest(t, store, notices, &permPublisher{}, `{"name":"geral","disappearing_seconds":0}`)
+	want := []string{"Ana desativou as mensagens temporárias."}
+	if !reflect.DeepEqual(notices.texts, want) {
+		t.Fatalf("avisos = %q", notices.texts)
+	}
+}
+
+func TestFalhaNoAvisoNaoDesfazAEdicao(t *testing.T) {
+	store, pub := newPermStore(), &permPublisher{}
+	notices := &fakeNotices{err: errors.New("banco fora")}
+	noticeRequest(t, store, notices, pub, `{"name":"geral","disappearing_seconds":86400}`)
+	got := store.channels["geral"].DisappearingSeconds
+	if got == nil || *got != 86400 {
+		t.Fatalf("gravado = %v", got)
+	}
+	if len(pub.updates) != 1 {
+		t.Fatalf("channel:update = %d, want 1", len(pub.updates))
+	}
+	if len(notices.texts) != 1 {
+		t.Fatalf("tentativas = %d", len(notices.texts))
 	}
 }
