@@ -12,7 +12,7 @@ import { useDmConversation } from '../hooks/useDmConversation'
 import { useDmPeer } from '../hooks/useDmPeer'
 import { dmMenuTarget } from '../lib/dmPeer'
 import CollapsibleSearch from '../components/CollapsibleSearch'
-import DisappearingButton from '../disappearing/components/DisappearingButton'
+import DisappearingButton from '../../disappearing/components/DisappearingButton'
 import MobileNavButton from '../../navigation/components/MobileNavButton'
 
 function DmChat(): React.JSX.Element {

@@ -23,8 +23,8 @@ import { useChatStore } from '../store/chatStore'
 import UserServerTag from '../../serverprofile/components/ServerTagChip'
 import { messagePreviewParts } from '../lib/polls'
 import { markdownPreview, type Preview } from '../lib/preview'
-import ViewOnceMessage from '../viewOnce/components/ViewOnceMessage'
-import ExpiryMark from '../disappearing/components/ExpiryMark'
+import ViewOnceMessage from '../../viewOnce/components/ViewOnceMessage'
+import ExpiryMark from '../../disappearing/components/ExpiryMark'
 
 // Pedaços da linha de mensagem do chat (ver MessageItem).
 

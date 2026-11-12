@@ -17,10 +17,10 @@ import ComposerAttachments from './ComposerAttachments'
 import ComposerInput from './composer/ComposerInput'
 import SlowmodeBar from './composer/SlowmodeBar'
 import MentionSuggestionList from './MentionSuggestionList'
-import DisappearingBanner from '../disappearing/components/DisappearingBanner'
-import { useViewOnceDraft } from '../viewOnce/hooks/useViewOnceDraft'
-import { useDisappearing } from '../disappearing/hooks/useDisappearing'
-import { conversationIdOfRoom } from '../disappearing/lib/disappearing'
+import DisappearingBanner from '../../disappearing/components/DisappearingBanner'
+import { useViewOnceDraft } from '../../viewOnce/hooks/useViewOnceDraft'
+import { useDisappearing } from '../../disappearing/hooks/useDisappearing'
+import { conversationIdOfRoom } from '../../disappearing/lib/disappearing'
 import {
   AttachButton,
   ComposerGate,

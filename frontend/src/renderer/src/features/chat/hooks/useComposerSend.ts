@@ -17,7 +17,7 @@ import {
 } from '../lib/sendFailure'
 import { slowmodeErrorText, slowmodeRetryAfter } from '../lib/slowmode'
 import { useChatStore } from '../store/chatStore'
-import { sendExtra } from '../viewOnce/lib/viewOnce'
+import { sendExtra } from '../../viewOnce/lib/viewOnce'
 import type { Slowmode } from './useSlowmode'
 import { useRoomState } from './useRoomState'
 

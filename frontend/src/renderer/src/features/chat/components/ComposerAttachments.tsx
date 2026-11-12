@@ -2,7 +2,7 @@ import type { DraftAttachment } from '../lib/attachments'
 import { formatBytes } from '../lib/attachments'
 import { FileIcon, MicIcon, PlayIcon } from '../../../shared/ui/icons'
 import CloseButton from '../../../shared/ui/CloseButton'
-import ViewOnceToggle, { ViewOnceBadge } from '../viewOnce/components/ViewOnceToggle'
+import ViewOnceToggle, { ViewOnceBadge } from '../../viewOnce/components/ViewOnceToggle'
 
 /** Fileira de anexos acima do campo de texto, com progresso e erro. */
 function ComposerAttachments({

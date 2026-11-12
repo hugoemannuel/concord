@@ -43,7 +43,7 @@ import {
   RoomLoadingGate
 } from './MessageListStates'
 import { useRoomMessages } from '../hooks/useRoomMessages'
-import { useHideExpired } from '../disappearing/hooks/useHideExpired'
+import { useHideExpired } from '../../disappearing/hooks/useHideExpired'
 import { useChannelPins } from '../hooks/useChannelPins'
 import { useJumpRequests } from '../hooks/useJumpRequests'
 import { useReactToMessage } from '../hooks/useReactToMessage'

@@ -21,7 +21,7 @@ import {
 import { useMessageActionsState, type MessageActionsState } from '../hooks/useMessageActionsState'
 import { useMessageFavorite } from '../../messageFavorites/hooks/useMessageFavorite'
 import SystemMessage from './SystemMessage'
-import DisappearingNotice from '../disappearing/components/DisappearingNotice'
+import DisappearingNotice from '../../disappearing/components/DisappearingNotice'
 import EmotePickerPopover from './EmotePickerPopover'
 import MessageActionsBar from './MessageActionsBar'
 import ReactionChips from './ReactionChips'
