@@ -460,7 +460,7 @@ func (a *sqlArgs) add(v any) string {
 // channels c) e os argumentos. O texto e o LIKE usam search_normalize, a
 // mesma função do índice de trigramas (migration 000055).
 func buildSearchWhere(scope SearchScope, f SearchFilter, args *sqlArgs) string {
-	var conds []string
+	conds := []string{notExpired}
 	if scope.ConversationID != "" {
 		conds = append(conds, "m.conversation_id = "+args.add(scope.ConversationID)+"::uuid")
 	} else {
@@ -477,18 +477,7 @@ func buildSearchWhere(scope SearchScope, f SearchFilter, args *sqlArgs) string {
 		p := args.add(f.In)
 		conds = append(conds, "(m.channel_id::text = ANY("+p+"::text[]) OR lower(c.name) = ANY("+p+"::text[]))")
 	}
-	for _, kind := range f.Has {
-		switch kind {
-		case HasLink:
-			conds = append(conds, `m.content ~* 'https?://'`)
-		case HasFile:
-			conds = append(conds, "EXISTS (SELECT 1 FROM message_attachments a WHERE a.message_id = m.id)")
-		case HasImage, HasVideo, HasAudio:
-			conds = append(conds, "EXISTS (SELECT 1 FROM message_attachments a WHERE a.message_id = m.id AND a.kind = "+args.add(kind)+")")
-		case HasPoll:
-			conds = append(conds, "EXISTS (SELECT 1 FROM polls p WHERE p.message_id = m.id)")
-		}
-	}
+	conds = append(conds, hasConds(f.Has, args)...)
 	for _, name := range f.Mentions {
 		conds = append(conds, "m.content ~* "+args.add(mentionPattern(name)))
 	}
@@ -512,6 +501,25 @@ func buildSearchWhere(scope SearchScope, f SearchFilter, args *sqlArgs) string {
 		conds = append(conds, pinned)
 	}
 	return strings.Join(conds, "\n\t\tAND ")
+}
+
+// hasConds: uma condição por tipo do has:. Imagem e vídeo ignoram anexo de
+// visualização única, que a busca não pode revelar (D11).
+func hasConds(kinds []string, args *sqlArgs) []string {
+	var conds []string
+	for _, kind := range kinds {
+		switch kind {
+		case HasLink:
+			conds = append(conds, `m.content ~* 'https?://'`)
+		case HasFile:
+			conds = append(conds, "EXISTS (SELECT 1 FROM message_attachments a WHERE a.message_id = m.id)")
+		case HasImage, HasVideo, HasAudio:
+			conds = append(conds, "EXISTS (SELECT 1 FROM message_attachments a WHERE a.message_id = m.id AND a.kind = "+args.add(kind)+" AND NOT a.view_once)")
+		case HasPoll:
+			conds = append(conds, "EXISTS (SELECT 1 FROM polls p WHERE p.message_id = m.id)")
+		}
+	}
+	return conds
 }
 
 // buildSearchOrder: newest/oldest por (created_at, id); relevance pelo

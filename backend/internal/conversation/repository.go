@@ -289,6 +289,7 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Summary
 				SELECT COUNT(*)
 				FROM messages m
 				WHERE m.conversation_id = c.id
+				AND (m.expires_at IS NULL OR m.expires_at > now())
 				AND m.created_at > cm.last_read_at
 				AND m.author_id <> $1
 			),
@@ -325,6 +326,7 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Summary
 			FROM messages m
 			LEFT JOIN polls p ON p.message_id = m.id
 			WHERE m.conversation_id = c.id
+			AND (m.expires_at IS NULL OR m.expires_at > now())
 			ORDER BY m.created_at DESC
 			LIMIT 1
 		) lm ON TRUE

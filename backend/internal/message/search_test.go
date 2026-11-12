@@ -285,7 +285,7 @@ func TestBuildSearchWhere(t *testing.T) {
 	}
 
 	conv := buildSearchWhere(SearchScope{ConversationID: "x"}, SearchFilter{Terms: []string{"oi"}}, &sqlArgs{})
-	if !strings.HasPrefix(conv, "m.conversation_id = $1::uuid") || strings.Contains(conv, "channel_id = ANY") {
+	if !strings.HasPrefix(conv, notExpired) || !strings.Contains(conv, "m.conversation_id = $1::uuid") || strings.Contains(conv, "channel_id = ANY") {
 		t.Errorf("conversa: %s", conv)
 	}
 }
