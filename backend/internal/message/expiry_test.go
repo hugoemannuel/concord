@@ -15,7 +15,10 @@ type fakeExpiryRepo struct {
 	batches      [][]ExpiredMessage
 	calls        int
 	limits       []int
-	viewOnce     []string
+	viewOnce     []ExpiredViewOnce
+	pending      []string
+	marked       []string
+	messages     map[string]*Message
 	sentBefore   time.Time
 	viewedBefore time.Time
 	err          error
@@ -45,10 +48,29 @@ func (r *fakeExpiryRepo) chamadas() int {
 	return len(r.limits)
 }
 
-func (r *fakeExpiryRepo) ExpireViewOnce(_ context.Context, sentBefore, viewedBefore time.Time) ([]string, error) {
+func (r *fakeExpiryRepo) ExpireViewOnce(_ context.Context, sentBefore, viewedBefore time.Time) ([]ExpiredViewOnce, error) {
 	r.sentBefore, r.viewedBefore = sentBefore, viewedBefore
 	return r.viewOnce, nil
 }
+
+func (r *fakeExpiryRepo) PendingViewOnceFiles(_ context.Context, _ int) ([]string, error) {
+	return r.pending, nil
+}
+
+func (r *fakeExpiryRepo) MarkViewOnceFilesRemoved(_ context.Context, ids []string) error {
+	r.marked = append(r.marked, ids...)
+	return nil
+}
+
+func (r *fakeExpiryRepo) FindByID(_ context.Context, id string) (*Message, error) {
+	if m, ok := r.messages[id]; ok {
+		c := *m
+		return &c, nil
+	}
+	return nil, errors.New("nao achou")
+}
+
+func (r *fakeExpiryRepo) AttachAttachments(_ context.Context, _ []Message) error { return nil }
 
 type fakeExpiryRooms struct {
 	users map[string][]string
@@ -80,7 +102,10 @@ func (f *fakeExpiryFiles) Remove(name string) error {
 type deletePublisher struct {
 	pinTestPublisher
 	deleted []DeleteEvent
+	updated []UpdateEvent
 }
+
+func (p *deletePublisher) PublishMessageUpdate(e UpdateEvent) { p.updated = append(p.updated, e) }
 
 func (p *deletePublisher) PublishMessageDelete(e DeleteEvent) { p.deleted = append(p.deleted, e) }
 
@@ -133,11 +158,24 @@ func TestSweeperRepeteEnquantoLoteCheio(t *testing.T) {
 
 func TestSweeperExpiraVisualizacaoUnicaApos14Dias(t *testing.T) {
 	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
-	repo := &fakeExpiryRepo{viewOnce: []string{"v1", "v2"}}
+	repo := &fakeExpiryRepo{
+		viewOnce: []ExpiredViewOnce{{AttachmentID: "v1", MessageID: "m1", ConversationID: "c1"}, {AttachmentID: "v2", MessageID: "m1", ConversationID: "c1"}},
+		pending:  []string{"v1", "v2"},
+		messages: map[string]*Message{"m1": {ID: "m1"}},
+	}
 	files := &fakeExpiryFiles{}
 
-	if err := NewExpirySweeper(repo, &fakeExpiryRooms{}, files, &deletePublisher{}).RunOnce(context.Background(), now); err != nil {
+	pub := &deletePublisher{}
+	rooms := &fakeExpiryRooms{users: map[string][]string{"c1": {"ana", "bia"}}}
+	if err := NewExpirySweeper(repo, rooms, files, pub).RunOnce(context.Background(), now); err != nil {
 		t.Fatal(err)
+	}
+	// Um message:update por mensagem (dois anexos da mesma), para os participantes.
+	if len(pub.updated) != 1 || pub.updated[0].Message.ID != "m1" || !reflect.DeepEqual(pub.updated[0].UserIDs, []string{"ana", "bia"}) {
+		t.Fatalf("updates = %+v", pub.updated)
+	}
+	if want := []string{"v1", "v2"}; !reflect.DeepEqual(repo.marked, want) {
+		t.Fatalf("marcados = %v, want %v", repo.marked, want)
 	}
 	if want := now.Add(-14 * 24 * time.Hour); !repo.sentBefore.Equal(want) {
 		t.Fatalf("sentBefore = %v, want %v", repo.sentBefore, want)
@@ -215,5 +253,22 @@ func TestSweeperParaEntreLotesSeCtxCancelado(t *testing.T) {
 	}
 	if repo.calls != 1 {
 		t.Fatalf("chamadas = %d, want 1", repo.calls)
+	}
+}
+
+// Depois de uma queda entre marcar e apagar, o arquivo continua pendente: a
+// próxima passada remove de novo e só marca o que saiu (falha fica para depois).
+func TestSweeperRetomaArquivosPendentes(t *testing.T) {
+	repo := &fakeExpiryRepo{pending: []string{"p1", "p2", "p3"}}
+	files := &fakeExpiryFiles{failOn: "p2"}
+
+	if err := NewExpirySweeper(repo, &fakeExpiryRooms{}, files, &deletePublisher{}).RunOnce(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"p1", "p2", "p3"}; !reflect.DeepEqual(files.removed, want) {
+		t.Fatalf("removidos = %v, want %v", files.removed, want)
+	}
+	if want := []string{"p1", "p3"}; !reflect.DeepEqual(repo.marked, want) {
+		t.Fatalf("marcados = %v, want %v", repo.marked, want)
 	}
 }

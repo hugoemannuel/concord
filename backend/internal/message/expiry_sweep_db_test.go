@@ -105,8 +105,8 @@ func TestExpireViewOnceSoAntigasNaoVistasPorTodos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(got, []string{antiga}) {
-		t.Fatalf("ExpireViewOnce = %v, want [%s]", got, antiga)
+	if len(got) != 1 || got[0].AttachmentID != antiga || got[0].MessageID != msg || got[0].ConversationID != s.convID {
+		t.Fatalf("ExpireViewOnce = %+v, want anexo %s da mensagem %s", got, antiga, msg)
 	}
 	var gone *time.Time
 	if err := s.db.QueryRow(s.ctx, `SELECT view_once_gone_at FROM message_attachments WHERE id = $1`, antiga).Scan(&gone); err != nil || gone == nil {
@@ -151,8 +151,8 @@ func TestExpireViewOnceDepoisDeTodosVeremEDaJanela(t *testing.T) {
 	}
 	mine := map[string]bool{vistaHa6: true, vistaHa1: true, faltaUm: true, antigaAberta: true}
 	var proprios []string
-	for _, id := range got {
-		if mine[id] {
+	for _, g := range got {
+		if id := g.AttachmentID; mine[id] {
 			proprios = append(proprios, id)
 		}
 	}
@@ -164,5 +164,41 @@ func TestExpireViewOnceDepoisDeTodosVeremEDaJanela(t *testing.T) {
 		if err := s.db.QueryRow(s.ctx, `SELECT view_once_gone_at IS NOT NULL FROM message_attachments WHERE id = $1`, id).Scan(&gone); err != nil || gone != want {
 			t.Errorf("%s: gone = %v, want %v (err=%v)", id, gone, want, err)
 		}
+	}
+}
+
+// Marcado como apagado mas com o arquivo ainda por remover (queda no meio):
+// fica pendente até MarkViewOnceFilesRemoved.
+func TestViewOnceArquivosPendentes(t *testing.T) {
+	s := newSearchDB(t)
+	repo := MessageRepository(s.db)
+	caio := s.users["caio"]
+	_, pendente := enviarViewOnce(t, s, repo, caio)
+	_, intacto := enviarViewOnce(t, s, repo, caio)
+	_, removido := enviarViewOnce(t, s, repo, caio)
+	for _, id := range []string{pendente, removido} {
+		if _, err := s.db.Exec(s.ctx, `UPDATE message_attachments SET view_once_gone_at = now() WHERE id = $1`, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := repo.MarkViewOnceFilesRemoved(s.ctx, []string{removido}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.PendingViewOnceFiles(s.ctx, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var proprios []string
+	for _, id := range got {
+		if id == pendente || id == intacto || id == removido {
+			proprios = append(proprios, id)
+		}
+	}
+	if !reflect.DeepEqual(proprios, []string{pendente}) {
+		t.Fatalf("pendentes = %v, want [%s]", proprios, pendente)
+	}
+	if err := repo.MarkViewOnceFilesRemoved(s.ctx, nil); err != nil {
+		t.Fatalf("lista vazia: %v", err)
 	}
 }

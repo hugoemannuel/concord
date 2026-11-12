@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// publishTimeout limita o aviso pós-abertura, que ignora o cancelamento do pedido.
+const publishTimeout = 5 * time.Second
+
 var (
 	// ErrViewOnceForbidden: quem pede não pode abrir (é o autor ou não estava
 	// na conversa no envio).
@@ -102,7 +105,9 @@ func (s *ViewOnceService) Open(ctx context.Context, attachmentID, userID string)
 	// A visualização já está gravada: o aviso sai mesmo se o pedido cair. O
 	// arquivo fica até a limpeza periódica (ViewOnceOpenWindow depois da
 	// última abertura), para o token valer os 5 min.
-	s.publishUpdate(context.WithoutCancel(ctx), *a.MessageID, *a.ConversationID)
+	pubCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
+	defer cancel()
+	s.publishUpdate(pubCtx, *a.MessageID, *a.ConversationID)
 	return token, expiresAt, nil
 }
 

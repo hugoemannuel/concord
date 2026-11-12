@@ -39,12 +39,21 @@ func (r *Repository) DeleteExpired(ctx context.Context, now time.Time, limit int
 	return out, rows.Err()
 }
 
+// ExpiredViewOnce é um anexo de visualização única que acabou de ser marcado
+// como apagado, com a mensagem a reavisar.
+type ExpiredViewOnce struct {
+	AttachmentID   string
+	MessageID      string
+	ConversationID string
+}
+
 // ExpireViewOnce marca como apagadas as mídias de visualização única que
 // todos os destinatários já viram, ou que foram enviadas antes de sentBefore,
-// e devolve os ids, para o arquivo sair do disco. Nos dois casos, só se
+// e devolve os anexos, para reavisar a conversa (o arquivo sai do disco pela
+// lista de pendentes). Nos dois casos, só se
 // ninguém abriu desde viewedBefore: quem abriu tem o token por 5 min para
 // carregar e avançar o vídeo.
-func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore, viewedBefore time.Time) ([]string, error) {
+func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore, viewedBefore time.Time) ([]ExpiredViewOnce, error) {
 	rows, err := r.db.Query(ctx, `
 		UPDATE message_attachments a SET view_once_gone_at = now()
 		WHERE a.view_once AND a.view_once_gone_at IS NULL AND a.message_id IS NOT NULL
@@ -55,7 +64,30 @@ func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore, viewedBefor
 		        SELECT 1 FROM view_once_recipients rc
 		        WHERE rc.attachment_id = a.id
 		          AND NOT EXISTS (SELECT 1 FROM attachment_views v WHERE v.attachment_id = a.id AND v.user_id = rc.user_id))))
-		RETURNING a.id::text`, sentBefore, viewedBefore)
+		RETURNING a.id::text, a.message_id::text, a.conversation_id::text`, sentBefore, viewedBefore)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ExpiredViewOnce
+	for rows.Next() {
+		var e ExpiredViewOnce
+		if err := rows.Scan(&e.AttachmentID, &e.MessageID, &e.ConversationID); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// PendingViewOnceFiles devolve até limit anexos marcados como apagados cujo
+// arquivo ainda não foi removido do disco (inclui os de uma queda entre marcar
+// e apagar).
+func (r *Repository) PendingViewOnceFiles(ctx context.Context, limit int) ([]string, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id::text FROM message_attachments
+		WHERE view_once_gone_at IS NOT NULL AND NOT view_once_file_removed
+		LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -69,4 +101,13 @@ func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore, viewedBefor
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// MarkViewOnceFilesRemoved registra que o arquivo desses anexos já saiu do disco.
+func (r *Repository) MarkViewOnceFilesRemoved(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err := r.db.Exec(ctx, `UPDATE message_attachments SET view_once_file_removed = true WHERE id::text = ANY($1)`, ids)
+	return err
 }

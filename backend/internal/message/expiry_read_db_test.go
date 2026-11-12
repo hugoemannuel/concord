@@ -75,6 +75,15 @@ func TestBuscaEscondeVencida(t *testing.T) {
 
 // D11: a busca por has:image/has:video não revela mídia de visualização única.
 func TestBuscaHasImageIgnoraViewOnce(t *testing.T) {
+	buscaHasIgnoraViewOnce(t, "image", "image/png", "a.png")
+}
+
+func TestBuscaHasVideoIgnoraViewOnce(t *testing.T) {
+	buscaHasIgnoraViewOnce(t, "video", "video/mp4", "a.mp4")
+}
+
+func buscaHasIgnoraViewOnce(t *testing.T, kind, contentType, filename string) {
+	t.Helper()
 	s := newSearchDB(t)
 	comum, unica := uuid.NewString(), uuid.NewString()
 	for id, viewOnce := range map[string]bool{comum: false, unica: true} {
@@ -82,15 +91,15 @@ func TestBuscaHasImageIgnoraViewOnce(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := s.db.Exec(s.ctx, `INSERT INTO message_attachments (id, message_id, uploader_id, conversation_id, kind, content_type, filename, size_bytes, view_once)
-			VALUES ($1, $2, $3, $4, 'image', 'image/png', 'a.png', 10, $5)`, uuid.NewString(), id, s.users["caio"], s.convID, viewOnce); err != nil {
+			VALUES ($1, $2, $3, $4, $5, $6, $7, 10, $8)`, uuid.NewString(), id, s.users["caio"], s.convID, kind, contentType, filename, viewOnce); err != nil {
 			t.Fatal(err)
 		}
 	}
 	s.msgs["comum"], s.msgs["unica"] = comum, unica
 
-	labels, _ := s.search(t, "ana", "/api/conversations/"+s.convID+"/messages/search", params("q", "zzfoto", "has", "image"))
+	labels, _ := s.search(t, "ana", "/api/conversations/"+s.convID+"/messages/search", params("q", "zzfoto", "has", kind))
 	if len(labels) != 1 || labels[0] != "comum" {
-		t.Fatalf("has:image = %v, quer só a comum", labels)
+		t.Fatalf("has:%s = %v, quer só a comum", kind, labels)
 	}
 }
 

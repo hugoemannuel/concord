@@ -120,3 +120,50 @@ func TestCriarDMViewOnceErroInternoNaoVaza(t *testing.T) {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body)
 	}
 }
+
+type countingPreparer struct{ calls int }
+
+func (p *countingPreparer) Prepare(context.Context, string, string, []string, *string, *string) error {
+	p.calls++
+	return nil
+}
+
+// Quem não pode escrever na DM leva o erro de acesso ANTES de qualquer marca
+// de visualização única: o Prepare nem roda.
+func TestCriarDMViewOnceSemAcessoNaoPrepara(t *testing.T) {
+	cases := []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"não participa", ErrNoRoomAccess, http.StatusForbidden},
+		{"conversa inexistente", ErrRoomNotFound, http.StatusNotFound},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			r := gin.New()
+			auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+			prep := &countingPreparer{}
+			h := &Handler{service: &Service{}, access: fakeAccess{writeErr: c.err}}
+			h.SetViewOnce(prep)
+			MessageRoutes(r.Group("/api"), h, auth)
+			rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+			if rec.Code != c.status || prep.calls != 0 {
+				t.Fatalf("status %d (quero %d), Prepare chamado %d vezes; body %s", rec.Code, c.status, prep.calls, rec.Body)
+			}
+		})
+	}
+}
+
+// Recurso não ligado: view_once é recusado com 400, nunca ignorado.
+func TestCriarDMViewOnceSemServicoDa400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	MessageRoutes(r.Group("/api"), &Handler{service: &Service{}, access: fakeAccess{}}, auth)
+	rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
