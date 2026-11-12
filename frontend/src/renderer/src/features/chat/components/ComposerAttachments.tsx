@@ -2,14 +2,18 @@ import type { DraftAttachment } from '../lib/attachments'
 import { formatBytes } from '../lib/attachments'
 import { FileIcon, MicIcon, PlayIcon } from '../../../shared/ui/icons'
 import CloseButton from '../../../shared/ui/CloseButton'
+import ViewOnceToggle, { ViewOnceBadge } from '../viewOnce/components/ViewOnceToggle'
 
 /** Fileira de anexos acima do campo de texto, com progresso e erro. */
 function ComposerAttachments({
   drafts,
-  onRemove
+  onRemove,
+  viewOnce
 }: {
   drafts: DraftAttachment[]
   onRemove: (localId: string) => void
+  /** Só no chat de conversa: marca o anexo como visualização única. Sem ela, nada muda. */
+  viewOnce?: { on: boolean; toggle: () => void }
 }): React.JSX.Element | null {
   if (drafts.length === 0) return null
 
@@ -45,6 +49,7 @@ function ComposerAttachments({
             {d.file.name}
           </p>
           <p className="text-ds-xxs text-faint">{formatBytes(d.file.size)}</p>
+          {viewOnce?.on && <ViewOnceBadge />}
           {d.status === 'uploading' && (
             <div className="h-1 overflow-hidden rounded-full bg-fg/10">
               <div
@@ -54,6 +59,11 @@ function ComposerAttachments({
             </div>
           )}
           {d.status === 'error' && <p className="text-ds-xxs text-danger">{d.error}</p>}
+          {viewOnce && (
+            <div className="absolute left-1 top-1">
+              <ViewOnceToggle on={viewOnce.on} onToggle={viewOnce.toggle} />
+            </div>
+          )}
           <CloseButton
             label="Remover anexo"
             size="xs"

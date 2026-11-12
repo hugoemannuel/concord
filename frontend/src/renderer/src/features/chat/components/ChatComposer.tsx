@@ -18,6 +18,7 @@ import ComposerInput from './composer/ComposerInput'
 import SlowmodeBar from './composer/SlowmodeBar'
 import MentionSuggestionList from './MentionSuggestionList'
 import DisappearingBanner from '../disappearing/components/DisappearingBanner'
+import { useViewOnceDraft } from '../viewOnce/hooks/useViewOnceDraft'
 import { useDisappearing } from '../disappearing/hooks/useDisappearing'
 import { conversationIdOfRoom } from '../disappearing/lib/disappearing'
 import {
@@ -69,6 +70,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const typing = useTypingSender(room)
   const [mediaPickerOpen, setMediaPickerOpen] = useRoomState(room, false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const viewOnce = useViewOnceDraft(p.drafts, !p.isChannel)
   const slowmode = useSlowmode(room, permissions.bypassSlowmode)
   const disappearing = useDisappearing(conversationIdOfRoom(room))
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
@@ -88,6 +90,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     draft,
     setDraft,
     slowmode,
+    viewOnce: { on: viewOnce.viewOnce, reset: viewOnce.reset },
     onSent: () => {
       typing.onSent()
       menu.reset()
@@ -111,7 +114,13 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
         onPick={menu.pick}
         onHighlight={menu.setHighlight}
       />
-      <ComposerAttachments drafts={p.drafts} onRemove={p.removeAttachment} />
+      <ComposerAttachments
+        drafts={p.drafts}
+        onRemove={p.removeAttachment}
+        viewOnce={
+          viewOnce.allowed ? { on: viewOnce.viewOnce, toggle: viewOnce.toggle } : undefined
+        }
+      />
       <ReplyBar
         replyingTo={replyingTo}
         authorName={p.replyAuthor}

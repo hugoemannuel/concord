@@ -51,4 +51,19 @@ describe('ComposerAttachments', () => {
     expect(file).toContain('message.txt')
     expect(file).toContain(fileIcon)
   })
+
+  it('sem a prop viewOnce não há botão; com ela, aria-pressed acompanha o estado e o selo aparece ligado', () => {
+    const base = <ComposerAttachments drafts={[draft({})]} onRemove={noop} />
+    expect(renderToStaticMarkup(base)).not.toContain('Visualização única')
+    const off = renderToStaticMarkup(
+      <ComposerAttachments drafts={[draft({})]} onRemove={noop} viewOnce={{ on: false, toggle: noop }} />
+    )
+    expect(off).toContain('aria-pressed="false"')
+    expect(off.match(/Visualização única/g)).toHaveLength(2) // aria-label + title
+    const on = renderToStaticMarkup(
+      <ComposerAttachments drafts={[draft({})]} onRemove={noop} viewOnce={{ on: true, toggle: noop }} />
+    )
+    expect(on).toContain('aria-pressed="true"')
+    expect(on.match(/Visualização única/g)!.length).toBeGreaterThan(2)
+  })
 })
