@@ -305,6 +305,8 @@ func TestForwardRecusa(t *testing.T) {
 	invite := authored(convMsg("inv", "ana", CallInviteContent), "ana", "Ana")
 	invite.CallInvite = &CallInvite{CallID: "c1"}
 	empty := authored(channelMsg("vazia", "ana", ""), "ana", "Ana")
+	viewOnce := authored(convMsg("vo", "ana", "olha"), "ana", "Ana")
+	viewOnce.ViewOnce = &ViewOnceMedia{ID: "a1", Kind: "image"}
 	other := authored(channelMsg("outra", "ana", "oi"), "ana", "Ana")
 	other.ChannelID = strPtr("outro-canal")
 	ok := authored(channelMsg("ok", "ana", "oi"), "ana", "Ana")
@@ -320,6 +322,7 @@ func TestForwardRecusa(t *testing.T) {
 		{"enquete", sender, fakeAccess{}, toDM("poll"), ErrNotForwardable},
 		{"mensagem do sistema", sender, fakeAccess{}, toDM("sys"), ErrNotForwardable},
 		{"convite para call", sender, fakeAccess{}, ForwardRequest{Origin: Room{ConversationID: "dm1"}, MessageID: "inv", UserID: "bia", Target: Room{ConversationID: "dm1"}}, ErrNotForwardable},
+		{"visualização única", sender, fakeAccess{}, ForwardRequest{Origin: Room{ConversationID: "dm1"}, MessageID: "vo", UserID: "bia", Target: Room{ConversationID: "dm1"}}, ErrNotForwardable},
 		{"sem nada para levar", sender, fakeAccess{}, toDM("vazia"), ErrNotForwardable},
 		{"mensagem de outra sala", sender, fakeAccess{}, toDM("outra"), ErrMessageNotFound},
 		{"mensagem que não existe", sender, fakeAccess{}, toDM("nada"), ErrMessageNotFound},
@@ -333,7 +336,7 @@ func TestForwardRecusa(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			env := newForwardEnv(t, tc.perms, tc.access, poll, system, invite, empty, other, ok)
+			env := newForwardEnv(t, tc.perms, tc.access, poll, system, invite, empty, viewOnce, other, ok)
 			env.store.polls["poll"] = true
 			_, err := env.f.Forward(context.Background(), tc.req)
 			if !errors.Is(err, tc.want) {

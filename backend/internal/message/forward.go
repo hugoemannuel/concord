@@ -153,7 +153,7 @@ func (f *Forwarder) source(ctx context.Context, req ForwardRequest) (*Message, e
 }
 
 func (f *Forwarder) checkForwardable(ctx context.Context, src *Message) error {
-	if src.SystemKind != nil || src.CallInvite != nil {
+	if src.SystemKind != nil || src.CallInvite != nil || src.ViewOnce != nil {
 		return ErrNotForwardable
 	}
 	hasPoll, err := f.store.HasPoll(ctx, src.ID)

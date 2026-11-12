@@ -51,3 +51,12 @@ func TestPreview(t *testing.T) {
 		t.Fatalf("exatos 100 não ganham reticências")
 	}
 }
+
+func TestViewOncePreview(t *testing.T) {
+	if got := ViewOncePreview("image"); got != "Foto de visualização única" {
+		t.Fatalf("foto: %q", got)
+	}
+	if got := ViewOncePreview("video"); got != "Vídeo de visualização única" {
+		t.Fatalf("vídeo: %q", got)
+	}
+}

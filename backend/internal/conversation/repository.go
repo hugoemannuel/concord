@@ -312,6 +312,7 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Summary
 				(
 					SELECT CASE
 						WHEN COUNT(*) = 0 THEN NULL
+						WHEN bool_or(a.view_once) THEN CASE MIN(a.kind) WHEN 'video' THEN 'Vídeo de visualização única' ELSE 'Foto de visualização única' END
 						WHEN COUNT(*) > 1 THEN '📎 ' || COUNT(*) || ' anexos'
 						WHEN MIN(a.kind) = 'image' THEN '🖼️ Imagem'
 						WHEN MIN(a.kind) = 'video' THEN '🎬 Vídeo'
