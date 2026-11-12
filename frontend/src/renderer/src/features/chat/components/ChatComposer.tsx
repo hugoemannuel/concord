@@ -70,7 +70,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const typing = useTypingSender(room)
   const [mediaPickerOpen, setMediaPickerOpen] = useRoomState(room, false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const viewOnce = useViewOnceDraft(p.drafts, !p.isChannel)
+  const viewOnce = useViewOnceDraft(room, p.drafts, !p.isChannel)
   const slowmode = useSlowmode(room, permissions.bypassSlowmode)
   const disappearing = useDisappearing(conversationIdOfRoom(room))
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
@@ -117,9 +117,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
       <ComposerAttachments
         drafts={p.drafts}
         onRemove={p.removeAttachment}
-        viewOnce={
-          viewOnce.allowed ? { on: viewOnce.viewOnce, toggle: viewOnce.toggle } : undefined
-        }
+        viewOnce={viewOnce.allowed ? { on: viewOnce.viewOnce, toggle: viewOnce.toggle } : undefined}
       />
       <ReplyBar
         replyingTo={replyingTo}

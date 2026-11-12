@@ -14,9 +14,9 @@ function ViewOnceToggle({
       icon={EyeIcon}
       label="Visualização única"
       size="md"
-      variant={on ? 'filled' : 'media'}
+      variant="media"
       aria-pressed={on}
-      className={on ? 'text-brand' : ''}
+      className={on ? 'text-brand! ring-2 ring-brand' : ''}
       onClick={onToggle}
     />
   )
@@ -25,7 +25,7 @@ function ViewOnceToggle({
 /** Selo no cartão do anexo quando a visualização única está ligada. */
 export function ViewOnceBadge(): React.JSX.Element {
   return (
-    <span className="flex items-center gap-1 text-ds-xxs text-brand">
+    <span className="flex items-center gap-1 text-ds-xs text-brand">
       <EyeIcon size={12} aria-hidden />
       Visualização única
     </span>

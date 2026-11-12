@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { trapTab } from '../../../shared/lib/focusTrap'
 import Button from '../../../shared/ui/Button'
 import CloseButton from '../../../shared/ui/CloseButton'
 import Modal from '../../../shared/ui/Modal'
@@ -23,10 +25,19 @@ export function ViewerStage({
 }): React.JSX.Element {
   const sharing = useCallStore((s) => s.isScreenSharing)
   const showNotice = sharing && typeof window !== 'undefined' && !!window.api
+  const stageRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  // O foco entra no X ao abrir (o portal fica no fim do body, longe do teclado).
+  useEffect(() => {
+    closeRef.current?.focus()
+  }, [])
   return createPortal(
     <div
+      ref={stageRef}
       role="dialog"
+      aria-modal="true"
       aria-label="Visualização única"
+      onKeyDown={(e) => trapTab(e, stageRef.current)}
       className="fixed inset-0 z-[60] flex select-none items-center justify-center bg-black"
       onContextMenu={(e) => e.preventDefault()}
     >
@@ -44,12 +55,16 @@ export function ViewerStage({
         />
       )}
       <CloseButton
+        ref={closeRef}
         variant="media"
-        className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))]"
+        className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))]"
         onClick={onClose}
       />
       {showNotice && (
-        <p className="absolute inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] text-center text-ds-sm text-white">
+        <p
+          role="status"
+          className="absolute inset-x-16 top-[max(1rem,env(safe-area-inset-top))] text-center text-ds-sm text-white"
+        >
           {SHARING_NOTICE}
         </p>
       )}

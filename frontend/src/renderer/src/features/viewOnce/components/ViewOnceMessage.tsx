@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAuthStore } from '../../auth/store/authStore'
 import type { Message } from '../../chat/api/messages'
 import { mediaKey, outcomeState, shownPillState, type LocalPill } from '../lib/viewOnce'
@@ -11,6 +11,7 @@ const myId = (s: { user?: { id: string } | null }): string => s.user?.id ?? ''
 function ViewOnceMessage({ message }: { message: Message }): React.JSX.Element | null {
   const meId = useAuthStore(myId)
   const [viewing, setViewing] = useState(false)
+  const pillRef = useRef<HTMLElement>(null)
   // Até o servidor mandar outra versão da mídia (message:update), mostra o
   // resultado da abertura daqui.
   const [local, setLocal] = useState<LocalPill | null>(null)
@@ -20,13 +21,15 @@ function ViewOnceMessage({ message }: { message: Message }): React.JSX.Element |
 
   const done = (outcome: ViewerOutcome): void => {
     setViewing(false)
+    // Foco de volta à pílula (o palco ocupava a tela).
+    pillRef.current?.focus()
     const next = outcomeState(outcome)
     if (next) setLocal({ state: next, key: mediaKey(media) })
   }
 
   return (
     <>
-      <ViewOncePill state={state} media={media} onOpen={() => setViewing(true)} />
+      <ViewOncePill ref={pillRef} state={state} media={media} onOpen={() => setViewing(true)} />
       {viewing && <ViewOnceViewer media={media} onDone={done} />}
     </>
   )

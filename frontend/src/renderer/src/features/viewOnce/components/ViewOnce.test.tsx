@@ -6,7 +6,8 @@ vi.mock('react-dom', async (original) => ({
 }))
 
 vi.mock('../../call/store/callStore', () => ({
-  useCallStore: (sel: (s: { isScreenSharing: boolean }) => unknown) => sel({ isScreenSharing: false })
+  useCallStore: (sel: (s: { isScreenSharing: boolean }) => unknown) =>
+    sel({ isScreenSharing: false })
 }))
 
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -43,6 +44,8 @@ describe('ViewOncePill', () => {
       )
       expect(html).not.toContain('<button')
       expect(html).toContain(text)
+      expect(html).toContain('text-muted')
+      expect(html).toContain('role="status"')
     }
   })
 })
@@ -61,6 +64,14 @@ describe('ViewerStage', () => {
     vi.stubGlobal('document', { body: {} })
     const html = renderToStaticMarkup(<ViewerStage kind="image" src="/x" onClose={() => {}} />)
     expect(html).toContain('draggable="false"')
+  })
+
+  it('diálogo modal com o X para receber o foco', () => {
+    vi.stubGlobal('document', { body: {} })
+    const html = renderToStaticMarkup(<ViewerStage kind="image" src="/x" onClose={() => {}} />)
+    expect(html).toContain('role="dialog"')
+    expect(html).toContain('aria-modal="true"')
+    expect(html).toContain('aria-label="Fechar"')
   })
 })
 

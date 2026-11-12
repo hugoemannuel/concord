@@ -1,15 +1,16 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { ClockIcon } from '../../../shared/ui/icons'
 import IconButton from '../../../shared/ui/IconButton'
 import { useDismiss } from '../../../shared/hooks/useDismiss'
 import { useMediaQuery } from '../../../shared/hooks/useMediaQuery'
-import { insideAny } from '../../../shared/lib/dismiss'
+import { focusOnEscape, insideAny } from '../../../shared/lib/dismiss'
 import { showToast } from '../../../shared/store/toastStore'
 import { setDisappearing } from '../api/disappearing'
 import { useDisappearing } from '../hooks/useDisappearing'
 import { chooseDisappearing } from '../lib/chooseDisappearing'
 import { shortLabel, type DisappearingSeconds } from '../lib/disappearing'
 import DisappearingMenu from './DisappearingMenu'
+import SheetBackdrop from './SheetBackdrop'
 
 const SHEET_QUERY = '(max-width: 639px)'
 /**
@@ -26,8 +27,18 @@ function DisappearingButton({
   const [open, setOpen] = useState(false)
   const sheet = useMediaQuery(SHEET_QUERY)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuId = useId()
 
-  useDismiss((t) => insideAny([wrapRef.current], t), () => setOpen(false), { enabled: open })
+  // Esc devolve o foco ao relógio; clique fora não rouba o foco.
+  useDismiss(
+    (t) => insideAny([wrapRef.current], t),
+    focusOnEscape(
+      () => setOpen(false),
+      () => triggerRef.current?.focus()
+    ),
+    { enabled: open }
+  )
 
   if (!conversationId) return null
 
@@ -45,20 +56,28 @@ function DisappearingButton({
     <div ref={wrapRef} className="relative flex shrink-0 items-center">
       <IconButton
         icon={ClockIcon}
-        label="Mensagens temporárias"
+        ref={triggerRef}
+        label={
+          current === null
+            ? 'Mensagens temporárias'
+            : `Mensagens temporárias: ${shortLabel(current)}`
+        }
         variant={current === null ? 'ghost' : 'filled'}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
         aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
-        className={current === null ? '' : 'text-brand'}
+        className={current === null ? '' : 'text-brand!'}
       />
       {current !== null && (
-        <span className="ml-1 text-ds-xs font-medium text-brand">{shortLabel(current)}</span>
+        <span className="ml-1 whitespace-nowrap text-ds-xs font-medium text-brand">
+          {shortLabel(current)}
+        </span>
       )}
       {open && (
         <>
-          {sheet && <div aria-hidden="true" className="fixed inset-0 z-50 bg-black/50" />}
-          <DisappearingMenu current={current} sheet={sheet} onChoose={choose} />
+          {sheet && <SheetBackdrop onClose={() => setOpen(false)} />}
+          <DisappearingMenu id={menuId} current={current} sheet={sheet} onChoose={choose} />
         </>
       )}
     </div>

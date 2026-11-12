@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { Message } from '../../chat/api/messages'
 import { isExpired } from '../lib/disappearing'
+import { useNow } from './useNow'
 
 const CHECK_MS = 30_000
 
@@ -10,11 +11,7 @@ const CHECK_MS = 30_000
  * o mesmo array, para não redesenhar a lista à toa.
  */
 export function useHideExpired(messages: Message[]): Message[] {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), CHECK_MS)
-    return () => clearInterval(id)
-  }, [])
+  const now = useNow(CHECK_MS)
   return useMemo(
     () =>
       messages.some((m) => isExpired(m, now))

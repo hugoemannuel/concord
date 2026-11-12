@@ -11,7 +11,7 @@ function DisappearingNotice({ message }: { message: Message }): React.JSX.Elemen
     >
       <span aria-hidden="true" className="h-px min-w-0 flex-1 bg-fg/10" />
       <span className="flex min-w-0 shrink items-center gap-1.5 text-center text-ds-xs text-muted">
-        <ClockIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <ClockIcon size={16} className="shrink-0" aria-hidden />
         {message.content}
       </span>
       <span aria-hidden="true" className="h-px min-w-0 flex-1 bg-fg/10" />

@@ -10,8 +10,8 @@ function DisappearingBanner({
   if (seconds === null) return null
   return (
     <p className="mb-1 flex min-w-0 items-center gap-1.5 px-1 text-ds-sm text-muted">
-      <ClockIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="truncate">{bannerText(seconds)}</span>
+      <ClockIcon size={16} className="shrink-0" aria-hidden />
+      <span className="min-w-0 break-words">{bannerText(seconds)}</span>
     </p>
   )
 }

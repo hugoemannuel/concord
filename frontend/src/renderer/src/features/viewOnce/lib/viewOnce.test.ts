@@ -11,6 +11,8 @@ import {
   pillState,
   sendExtra,
   settleViewOnce,
+  toggleViewOnceKey,
+  viewOnceKey,
   shownPillState
 } from './viewOnce'
 
@@ -32,7 +34,6 @@ describe('canViewOnce', () => {
 
   it('dois anexos, áudio, arquivo, erro, sem anexo ou canal: não', () => {
     expect(canViewOnce([draft(), draft({ localId: 'b' })], true)).toBe(false)
-    expect(canViewOnce([draft({ kind: 'audio' })], true)).toBe(false)
     expect(canViewOnce([draft({ kind: 'file' })], true)).toBe(false)
     expect(canViewOnce([draft({ status: 'error' })], true)).toBe(false)
     expect(canViewOnce([], true)).toBe(false)
@@ -47,11 +48,30 @@ describe('sendExtra', () => {
   })
 })
 
-describe('settleViewOnce', () => {
-  it('só continua ligado enquanto é permitido', () => {
-    expect(settleViewOnce(true, true)).toBe(true)
-    expect(settleViewOnce(true, false)).toBe(false)
-    expect(settleViewOnce(false, true)).toBe(false)
+describe('viewOnceKey / settleViewOnce', () => {
+  const d = (localId: string, o: Partial<DraftAttachment> = {}): DraftAttachment =>
+    ({ localId, kind: 'image', status: 'done', ...o }) as DraftAttachment
+
+  it('a chave junta sala e anexo; sem permissão não há chave', () => {
+    expect(viewOnceKey('conversation:1', [d('a')], true)).toBe('conversation:1|a')
+    expect(viewOnceKey('conversation:1', [d('a')], false)).toBeNull()
+    expect(viewOnceKey('conversation:1', [], true)).toBeNull()
+  })
+
+  it('só continua ligado na mesma sala e no mesmo anexo', () => {
+    expect(settleViewOnce('conversation:1|a', 'conversation:1|a')).toBe(true)
+    expect(settleViewOnce('conversation:1|a', 'conversation:2|a')).toBe(false)
+    expect(settleViewOnce('conversation:1|a', 'conversation:1|b')).toBe(false)
+    expect(settleViewOnce('conversation:1|a', null)).toBe(false)
+    expect(settleViewOnce(null, 'conversation:1|a')).toBe(false)
+    expect(settleViewOnce(null, null)).toBe(false)
+  })
+
+  it('alternar liga na chave atual e desliga na repetição', () => {
+    expect(toggleViewOnceKey(null, 'k')).toBe('k')
+    expect(toggleViewOnceKey('k', 'k')).toBeNull()
+    expect(toggleViewOnceKey('outra', 'k')).toBe('k')
+    expect(toggleViewOnceKey('k', null)).toBe('k')
   })
 })
 

@@ -18,9 +18,27 @@ export function sendExtra(viewOnce: boolean): ExtraMessageData | undefined {
   return viewOnce ? { viewOnce: true } : undefined
 }
 
-/** A marca só vale enquanto o anexo atual permite visualização única. */
-export function settleViewOnce(on: boolean, allowed: boolean): boolean {
-  return on && allowed
+/**
+ * Chave da marca: sala + anexo em rascunho. Sem permissão (ou sem anexo) não há
+ * chave, e a marca de outra sala ou de outro arquivo nunca vale aqui.
+ */
+export function viewOnceKey(
+  room: string,
+  drafts: DraftAttachment[],
+  allowed: boolean
+): string | null {
+  return allowed && drafts[0] ? `${room}|${drafts[0].localId}` : null
+}
+
+/** A marca (chave em que foi ligada) só vale para a chave atual. */
+export function settleViewOnce(on: string | null, key: string | null): boolean {
+  return key !== null && on === key
+}
+
+/** Liga na chave atual ou desliga se já estava ligada nela; sem chave, nada muda. */
+export function toggleViewOnceKey(on: string | null, key: string | null): string | null {
+  if (key === null) return on
+  return on === key ? null : key
 }
 
 /** `locked`: quem não estava entre os destinatários (entrou no grupo depois): nunca abre. */
