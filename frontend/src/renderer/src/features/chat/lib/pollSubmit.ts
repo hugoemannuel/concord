@@ -1,6 +1,7 @@
 import { errorMessage } from '../../../shared/lib/errorMessage'
 import type { CreatePollInput } from '../api/messages'
 import { pollDraftToInput, type PollDraft } from './polls'
+import { slowmodeErrorText, slowmodeRetryAfter } from './slowmode'
 
 /** O que publicar a enquete usa de fora (criar, fechar o modal e aviso). */
 export interface PollSubmitDeps {
@@ -15,6 +16,7 @@ export async function submitPoll(deps: PollSubmitDeps, draft: PollDraft): Promis
     await deps.create(pollDraftToInput(draft))
     deps.done()
   } catch (err) {
-    deps.error(errorMessage(err, 'Falha ao criar a enquete.'))
+    const retryAfter = slowmodeRetryAfter(err)
+    deps.error(retryAfter !== null ? slowmodeErrorText(retryAfter) : errorMessage(err, 'Falha ao criar a enquete.'))
   }
 }
