@@ -59,13 +59,13 @@ func TestPopulateMedia_IgnoraGifInvalidoESemSticker(t *testing.T) {
 	}
 }
 
-// lastBoolRow marca o último destino antes das colunas extras (embeds_suppressed).
+// lastBoolRow marca o penúltimo destino antes das colunas extras (embeds_suppressed; o último é expires_at).
 type lastBoolRow struct{ extra int }
 
 func (r lastBoolRow) Scan(dest ...any) error {
-	b, ok := dest[len(dest)-1-r.extra].(*bool)
+	b, ok := dest[len(dest)-2-r.extra].(*bool)
 	if !ok {
-		return errors.New("embeds_suppressed não é a última coluna de messageColumns")
+		return errors.New("embeds_suppressed não é a penúltima coluna de messageColumns")
 	}
 	*b = true
 	return nil

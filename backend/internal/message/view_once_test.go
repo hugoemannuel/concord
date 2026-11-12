@@ -1,0 +1,169 @@
+package message
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+)
+
+func ptr(s string) *string { return &s }
+
+func TestValidateViewOnce(t *testing.T) {
+	cases := []struct {
+		name  string
+		atts  []string
+		stk   *string
+		gif   *string
+		valid bool
+	}{
+		{"sem anexo", nil, nil, nil, false},
+		{"dois anexos", []string{"a", "b"}, nil, nil, false},
+		{"com figurinha", []string{"a"}, ptr("s"), nil, false},
+		{"com GIF", []string{"a"}, nil, ptr("http://g"), false},
+		{"um anexo", []string{"a"}, nil, nil, true},
+	}
+	for _, c := range cases {
+		err := validateViewOnce(c.atts, c.stk, c.gif)
+		if c.valid && err != nil {
+			t.Errorf("%s: erro inesperado %v", c.name, err)
+		}
+		if !c.valid && !errors.Is(err, ErrInvalidViewOnce) {
+			t.Errorf("%s: quero ErrInvalidViewOnce, veio %v", c.name, err)
+		}
+	}
+}
+
+type fakeViewOnceRepo struct {
+	recipients []string
+	err        error
+}
+
+func (f *fakeViewOnceRepo) MarkViewOnce(_ context.Context, _, _, _ string, recipientIDs []string) error {
+	f.recipients = recipientIDs
+	return f.err
+}
+
+type fakeViewOnceRooms struct{ ids []string }
+
+func (f fakeViewOnceRooms) ConversationParticipantIDs(context.Context, string) ([]string, error) {
+	return f.ids, nil
+}
+
+func TestPrepareDestinatariosSemAutor(t *testing.T) {
+	repo := &fakeViewOnceRepo{}
+	svc := NewViewOnceService(repo, fakeViewOnceRooms{ids: []string{"a", "b", "c"}})
+	if err := svc.Prepare(context.Background(), "conv", "a", []string{"x"}, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(repo.recipients, []string{"b", "c"}) {
+		t.Fatalf("destinatários = %v", repo.recipients)
+	}
+}
+
+type fakePreparer struct{ err error }
+
+func (f fakePreparer) Prepare(context.Context, string, string, []string, *string, *string) error {
+	return f.err
+}
+
+func TestCriarDMViewOnceInvalidoDa400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	h := &Handler{service: &Service{}, access: fakeAccess{}}
+	h.SetViewOnce(NewViewOnceService(&fakeViewOnceRepo{}, fakeViewOnceRooms{}))
+	MessageRoutes(r.Group("/api"), h, auth)
+	rec := postRaw(r, "/api/conversations/dm1/messages", `{"content":"oi","view_once":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCriarDMViewOnceErroDoRepoDa400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	h := &Handler{service: &Service{}, access: fakeAccess{}}
+	h.SetViewOnce(fakePreparer{err: ErrInvalidViewOnce})
+	MessageRoutes(r.Group("/api"), h, auth)
+	rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCriarCanalViewOnceDa400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	MessageRoutes(r.Group("/api"), &Handler{service: &Service{}, access: fakeAccess{}}, auth)
+	rec := postRaw(r, "/api/channels/c1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCriarDMViewOnceErroInternoNaoVaza(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	h := &Handler{service: &Service{}, access: fakeAccess{}}
+	h.SetViewOnce(fakePreparer{err: errors.New("pq: segredo do banco")})
+	MessageRoutes(r.Group("/api"), h, auth)
+	rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "segredo") {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
+
+type countingPreparer struct{ calls int }
+
+func (p *countingPreparer) Prepare(context.Context, string, string, []string, *string, *string) error {
+	p.calls++
+	return nil
+}
+
+// Quem não pode escrever na DM leva o erro de acesso ANTES de qualquer marca
+// de visualização única: o Prepare nem roda.
+func TestCriarDMViewOnceSemAcessoNaoPrepara(t *testing.T) {
+	cases := []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"não participa", ErrNoRoomAccess, http.StatusForbidden},
+		{"conversa inexistente", ErrRoomNotFound, http.StatusNotFound},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			r := gin.New()
+			auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+			prep := &countingPreparer{}
+			h := &Handler{service: &Service{}, access: fakeAccess{writeErr: c.err}}
+			h.SetViewOnce(prep)
+			MessageRoutes(r.Group("/api"), h, auth)
+			rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+			if rec.Code != c.status || prep.calls != 0 {
+				t.Fatalf("status %d (quero %d), Prepare chamado %d vezes; body %s", rec.Code, c.status, prep.calls, rec.Body)
+			}
+		})
+	}
+}
+
+// Recurso não ligado: view_once é recusado com 400, nunca ignorado.
+func TestCriarDMViewOnceSemServicoDa400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	MessageRoutes(r.Group("/api"), &Handler{service: &Service{}, access: fakeAccess{}}, auth)
+	rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}

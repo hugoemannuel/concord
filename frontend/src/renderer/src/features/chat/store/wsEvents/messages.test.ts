@@ -75,6 +75,24 @@ describe('withDeletedMessage', () => {
     expect(next.unreadByServer).toBe(state.unreadByServer)
     expect(next.messagesByRoom?.['conversation:d1']).toEqual([])
   })
+
+  it('apagada pelo prazo (expired) sai da sala sem descontar não lidas', () => {
+    const state = {
+      ...base,
+      messagesByRoom: { 'conversation:d1': [msg('x')] },
+      unreadByRoom: { 'conversation:d1': 3 }
+    } as unknown as ChatState
+    const next = withDeletedMessage(state, {
+      room: 'conversation:d1',
+      messageId: 'x',
+      serverId: null,
+      expired: true
+    })
+    expect(next.messagesByRoom?.['conversation:d1']).toEqual([])
+    // o parcial não toca nas não lidas
+    expect(next.unreadByRoom).toBeUndefined()
+    expect(next.unreadByServer).toBeUndefined()
+  })
 })
 
 describe('eventos de mensagem', () => {
@@ -83,6 +101,26 @@ describe('eventos de mensagem', () => {
     send('message:delete', { message_id: 'a', channel_id: 'c1', server_id: 's1' }, ctx)
     expect(pins.onMessageDelete).toHaveBeenCalledWith('a')
     expect(state().messagesByRoom['channel:c1']).toEqual([])
+  })
+
+  it('message:delete com expired não mexe nas não lidas da DM', () => {
+    const { ctx, state } = fakeCtx({ unreadByRoom: { 'conversation:d1': 2 } })
+    send('message:delete', { message_id: 'x', conversation_id: 'd1', expired: true }, ctx)
+    expect(state().unreadByRoom).toEqual({ 'conversation:d1': 2 })
+    send('message:delete', { message_id: 'y', conversation_id: 'd1' }, ctx)
+    expect(state().unreadByRoom).toEqual({ 'conversation:d1': 1 })
+  })
+
+  it('message:delete da última mensagem da DM recarrega a lista de conversas', () => {
+    const fetchConversations = vi.fn()
+    const { ctx } = fakeCtx({
+      conversations: [{ id: 'd1', last_message: { id: 'x' } }],
+      fetchConversations
+    } as unknown as Partial<ChatState>)
+    send('message:delete', { message_id: 'velha', conversation_id: 'd1', expired: true }, ctx)
+    expect(fetchConversations).not.toHaveBeenCalled()
+    send('message:delete', { message_id: 'x', conversation_id: 'd1', expired: true }, ctx)
+    expect(fetchConversations).toHaveBeenCalledTimes(1)
   })
 
   it('message:update sem id não faz nada', () => {

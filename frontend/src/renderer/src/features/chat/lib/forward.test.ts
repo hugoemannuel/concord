@@ -46,6 +46,11 @@ describe('canForward', () => {
     expect(canForward(msg({ system_kind: 'birthday' }))).toBe(false)
     expect(canForward(msg({ content: '   ' }))).toBe(false)
   })
+
+  it('não encaminha visualização única, nem com legenda', () => {
+    const view_once = { id: 'a1', kind: 'image' as const, gone: false, viewer_ids: [], recipient_ids: ['b'], recipient_count: 1 }
+    expect(canForward(msg({ content: 'olha', view_once }))).toBe(false)
+  })
 })
 
 describe('forwardOrigin', () => {

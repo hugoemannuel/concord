@@ -28,7 +28,7 @@ const favoriteFrom = `
 	FROM message_favorites mf
 	JOIN messages m ON m.id = mf.message_id
 	JOIN users u ON u.id = m.author_id
-	LEFT JOIN messages rm ON rm.id = m.reply_to_id
+	LEFT JOIN messages rm ON rm.id = m.reply_to_id AND (rm.expires_at IS NULL OR rm.expires_at > now())
 	LEFT JOIN users ru ON ru.id = rm.author_id
 	LEFT JOIN server_stickers stk ON stk.id = m.sticker_id
 ` + messageProfileJoins + `
@@ -67,7 +67,7 @@ func (r *Repository) RemoveFavorite(ctx context.Context, userID, messageID strin
 func (r *Repository) ListFavorites(ctx context.Context, userID string) ([]Favorite, error) {
 	rows, err := r.db.Query(ctx,
 		`SELECT `+favoriteColumns+favoriteFrom+`
-		WHERE mf.user_id = $1
+		WHERE mf.user_id = $1 AND `+notExpired+`
 		ORDER BY mf.created_at DESC, mf.message_id`,
 		userID,
 	)
@@ -81,7 +81,8 @@ func (r *Repository) ListFavorites(ctx context.Context, userID string) ([]Favori
 func (r *Repository) FindFavorite(ctx context.Context, userID, messageID string) (*Favorite, error) {
 	row := r.db.QueryRow(ctx,
 		`SELECT `+favoriteColumns+favoriteFrom+`
-		WHERE mf.user_id = $1 AND mf.message_id = $2`,
+		WHERE mf.user_id = $1 AND mf.message_id = $2 AND `+notExpired+`
+		`,
 		userID, messageID,
 	)
 	fav, err := scanFavorite(row)

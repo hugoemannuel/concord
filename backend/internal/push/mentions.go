@@ -32,6 +32,15 @@ func MentionedUsernames(content string) []string {
 
 const previewRunes = 100
 
+// ViewOncePreview é o rótulo da notificação (e da prévia da DM) de uma mídia de
+// visualização única: o conteúdo nunca vai no corpo.
+func ViewOncePreview(kind string) string {
+	if kind == "video" {
+		return "Vídeo de visualização única"
+	}
+	return "Foto de visualização única"
+}
+
 // Preview é o texto curto da notificação: aparado, no máximo 100 caracteres, e "Enviou um anexo" quando
 // a mensagem só tem anexo, figurinha ou GIF.
 func Preview(content string, hasMedia bool) string {

@@ -24,3 +24,8 @@ func AttachmentRoutes(router *gin.RouterGroup, h *AttachmentHandler, authMiddlew
 		media.GET("/:attachmentId", h.ServeFile)
 	}
 }
+
+// ViewOnceRoutes: abrir a mídia de visualização única (devolve o token).
+func ViewOnceRoutes(router *gin.RouterGroup, h *ViewOnceHandler, authMiddleware gin.HandlerFunc) {
+	router.POST("/attachments/:id/open", authMiddleware, h.Open)
+}

@@ -91,12 +91,19 @@ export function applyPollUpdate(
 
 type PreviewSource = Pick<
   Message,
-  'content' | 'poll' | 'attachments' | 'sticker' | 'sticker_id' | 'deleted_sticker_name' | 'gif_url'
+  'content' | 'poll' | 'view_once' | 'attachments' | 'sticker' | 'sticker_id' | 'deleted_sticker_name' | 'gif_url'
 >
+
+/** Prévia da visualização única: o rótulo aprovado, com o ícone do tipo. */
+function viewOncePreview(kind: 'image' | 'video'): Preview {
+  const photo = kind === 'image'
+  return { icon: kind, text: photo ? 'Foto de visualização única' : 'Vídeo de visualização única' }
+}
 
 /** Prévia da mensagem dentro do app (barra de resposta, busca): texto e tipo. */
 export function messagePreviewParts(message: PreviewSource): Preview {
   if (message.poll) return { icon: 'poll', text: message.poll.question }
+  if (!message.content && message.view_once) return viewOncePreview(message.view_once.kind)
   if (message.content) return markdownPreview(message.content)
   if (message.sticker) return { icon: 'sticker', text: `Figurinha :${message.sticker.name}:` }
   if (message.sticker_id) return { icon: 'sticker', text: 'Figurinha' }

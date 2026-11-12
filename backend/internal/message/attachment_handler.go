@@ -33,6 +33,7 @@ type spaceChecker interface{ HasRoom(incoming int64) bool }
 type MediaTokens interface {
 	GenerateMediaToken(userID string) (string, time.Time, error)
 	VerifyMediaToken(token string) (userID string, err error)
+	VerifyViewOnceToken(token, attachmentID string) (userID string, err error)
 }
 
 // AttachmentHandler recebe os uploads (cada arquivo sozinho, antes da
@@ -193,21 +194,19 @@ func (h *AttachmentHandler) MediaToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token, "expires_at": expiresAt.UTC().Format(time.RFC3339)})
 }
 
+// errViewOnceUnavailable: mídia de visualização única sem o token dela ou já
+// apagada. Responde 404, como anexo inexistente.
+var errViewOnceUnavailable = errors.New("view once unavailable")
+
 // ServeFile entrega o arquivo de um anexo. A cada pedido confere de novo se o
 // dono do token ainda acessa a sala; quem não acessa recebe 404, sem saber se
-// o arquivo existe.
+// o arquivo existe. Visualização única só abre com o token view_once dela.
 func (h *AttachmentHandler) ServeFile(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid media token"})
 		return
 	}
-	userID, err := h.tokens.VerifyMediaToken(token)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid media token"})
-		return
-	}
-
 	ctx := c.Request.Context()
 	notFound := func() { c.JSON(http.StatusNotFound, gin.H{"error": "attachment not found"}) }
 
@@ -225,14 +224,17 @@ func (h *AttachmentHandler) ServeFile(c *gin.Context) {
 		notFound()
 		return
 	}
-
-	room := Room{}
-	if a.ChannelID != nil {
-		room.ChannelID = *a.ChannelID
-	} else if a.ConversationID != nil {
-		room.ConversationID = *a.ConversationID
+	userID, err := h.verifyFileToken(a, token)
+	if errors.Is(err, errViewOnceUnavailable) {
+		notFound()
+		return
 	}
-	if err := h.access.CanRead(ctx, room, userID); err != nil {
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid media token"})
+		return
+	}
+
+	if err := h.access.CanRead(ctx, attachmentRoom(a), userID); err != nil {
 		if errors.Is(err, ErrRoomNotFound) || errors.Is(err, ErrNoRoomAccess) {
 			notFound()
 			return
@@ -255,6 +257,34 @@ func (h *AttachmentHandler) ServeFile(c *gin.Context) {
 	http.ServeContent(c.Writer, c.Request, "", a.CreatedAt, file)
 }
 
+// verifyFileToken confere o token pelo tipo do anexo: o de mídia para os
+// comuns; para visualização única, só o token view_once daquele anexo
+// (qualquer outro, ou anexo já apagado, é errViewOnceUnavailable).
+func (h *AttachmentHandler) verifyFileToken(a *storedAttachment, token string) (string, error) {
+	if !a.ViewOnce {
+		return h.tokens.VerifyMediaToken(token)
+	}
+	if a.ViewOnceGone {
+		return "", errViewOnceUnavailable
+	}
+	userID, err := h.tokens.VerifyViewOnceToken(token, a.ID)
+	if err != nil {
+		return "", errViewOnceUnavailable
+	}
+	return userID, nil
+}
+
+// attachmentRoom: a sala (canal ou conversa) do anexo.
+func attachmentRoom(a *storedAttachment) Room {
+	if a.ChannelID != nil {
+		return Room{ChannelID: *a.ChannelID}
+	}
+	if a.ConversationID != nil {
+		return Room{ConversationID: *a.ConversationID}
+	}
+	return Room{}
+}
+
 // setFileHeaders: tipo, cache e as proteções de quem abre o arquivo direto.
 func setFileHeaders(header http.Header, a *storedAttachment) {
 	header.Set("Content-Type", a.ContentType)
@@ -264,5 +294,9 @@ func setFileHeaders(header http.Header, a *storedAttachment) {
 	// vídeo e áudio dentro do app não são afetados.
 	header.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	header.Set("Cache-Control", "private, max-age=3600")
+	if a.ViewOnce {
+		// Visualização única não fica no cache do navegador.
+		header.Set("Cache-Control", "no-store")
+	}
 	header.Set("Content-Disposition", mime.FormatMediaType(disposition(a.Kind), map[string]string{"filename": a.Filename}))
 }

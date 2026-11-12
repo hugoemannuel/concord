@@ -1,8 +1,12 @@
 package message
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
+
+	"gin-quickstart/backend/internal/platform/media"
 
 	"github.com/google/uuid"
 )
@@ -65,5 +69,39 @@ func TestCreateForwardedAnexoInvalidoNaoGravaNada(t *testing.T) {
 	}
 	if _, err := repo.FindByID(db.ctx, msg.ID); err == nil {
 		t.Fatal("a transação não pode deixar a mensagem")
+	}
+}
+
+// Achado da revisão final: FindByID não carrega view_once; a checagem precisa
+// rodar depois de AttachAttachments, senão a legenda é encaminhada.
+func TestForwardRecusaVisualizacaoUnicaComLegendaNoBanco(t *testing.T) {
+	s := newSearchDB(t)
+	repo := MessageRepository(s.db)
+	ana, caio := s.users["ana"], s.users["caio"]
+	att := anexoPendente(t, s, repo, ana, "image")
+	if err := repo.MarkViewOnce(s.ctx, att, ana, s.convID, []string{caio}); err != nil {
+		t.Fatal(err)
+	}
+	conv := s.convID
+	msg := &Message{ID: uuid.NewString(), AuthorID: ana, ConversationID: &conv, Content: "olha só"}
+	if err := repo.CreateWithAttachments(s.ctx, msg, []string{att}); err != nil {
+		t.Fatal(err)
+	}
+	files, err := media.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := NewForwarder(ForwarderDeps{
+		Store:     repo,
+		Files:     files,
+		Space:     fakeSpace{ok: true},
+		Rooms:     NewForwardRooms(fakeAccess{}, allowAll{sender}),
+		Directory: fakeForwardDirectory{},
+		Comments:  &fakeComments{},
+		Events:    NewRoomEvents(&createPublisher{}, fakeRooms{}, fakeRooms{}),
+	})
+	req := ForwardRequest{Origin: Room{ConversationID: conv}, MessageID: msg.ID, UserID: caio, Target: Room{ConversationID: conv}}
+	if _, err := f.Forward(context.Background(), req); !errors.Is(err, ErrNotForwardable) {
+		t.Fatalf("err = %v; quero ErrNotForwardable", err)
 	}
 }

@@ -27,6 +27,7 @@ type createMessageInput struct {
 	StickerID     *string      `json:"sticker_id"`
 	GifURL        *string      `json:"gif_url"`
 	GifMetadata   *GifMetadata `json:"gif_metadata"`
+	ViewOnce      bool         `json:"view_once"` // só existe em conversa
 }
 
 // textOnly: só texto (sem anexo, figurinha nem GIF), o que pode ser comando.
@@ -40,6 +41,11 @@ func (h *Handler) CreateChannelMessage(c *gin.Context) {
 	var input createMessageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if input.ViewOnce {
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidViewOnce.Error()})
 		return
 	}
 

@@ -55,7 +55,8 @@ var messageColumns = `
 	m.tts,
 	m.tts_voice_channel_id,
 	m.call_invite,
-	m.embeds_suppressed
+	m.embeds_suppressed,
+	m.expires_at
 `
 
 // messageProfileJoins: o perfil do servidor do autor e de quem foi respondido
@@ -70,7 +71,7 @@ const messageProfileJoins = `
 const messageFrom = `
 	FROM messages m
 	JOIN users u ON u.id = m.author_id
-	LEFT JOIN messages rm ON rm.id = m.reply_to_id
+	LEFT JOIN messages rm ON rm.id = m.reply_to_id AND (rm.expires_at IS NULL OR rm.expires_at > now())
 	LEFT JOIN users ru ON ru.id = rm.author_id
 	LEFT JOIN server_stickers stk ON stk.id = m.sticker_id
 ` + messageProfileJoins
@@ -82,18 +83,7 @@ func (r *Repository) Create(ctx context.Context, msg *Message) error {
 	}
 	return r.db.QueryRow(
 		ctx,
-		`
-		INSERT INTO messages (id, author_id, channel_id, conversation_id, reply_to_id, content, system_kind, mention_everyone, sticker_id, gif_url, gif_metadata, call_invite, tts, tts_voice_channel_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		RETURNING
-			id,
-			author_id,
-			channel_id,
-			conversation_id,
-			reply_to_id,
-			content,
-			created_at
-		`,
+		insertMessageSQL,
 		msg.ID,
 		msg.AuthorID,
 		msg.ChannelID,
@@ -143,7 +133,7 @@ func (r *Repository) findOne(ctx context.Context, id string) (*Message, error) {
 		`
 		SELECT `+messageColumns+`
 		`+messageFrom+`
-		WHERE m.id = $1
+		WHERE m.id = $1 AND `+notExpired+`
 		`,
 		id,
 	)
@@ -221,7 +211,7 @@ func (r *Repository) ListByConversation(ctx context.Context, conversationID stri
 			`
 			SELECT `+messageColumns+`
 			`+messageFrom+`
-			WHERE m.conversation_id = $1
+			WHERE m.conversation_id = $1 AND `+notExpired+`
 			ORDER BY m.created_at DESC, m.id DESC
 			LIMIT $2
 			`,
@@ -234,7 +224,7 @@ func (r *Repository) ListByConversation(ctx context.Context, conversationID stri
 			`
 			SELECT `+messageColumns+`
 			`+messageFrom+`
-			WHERE m.conversation_id = $1
+			WHERE m.conversation_id = $1 AND `+notExpired+`
 			`+listBeforeCondition+`
 			ORDER BY m.created_at DESC, m.id DESC
 			LIMIT $3

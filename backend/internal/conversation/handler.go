@@ -23,7 +23,12 @@ type Handler struct {
 	service     *Service
 	userService *user.Service
 	images      ImageUploader
+
+	disappearing *DisappearingService
 }
+
+// SetDisappearingService liga o serviço das mensagens temporárias.
+func (h *Handler) SetDisappearingService(s *DisappearingService) { h.disappearing = s }
 
 func ConversationHandler(service *Service, userService *user.Service, images ImageUploader) *Handler {
 	return &Handler{

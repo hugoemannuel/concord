@@ -231,6 +231,8 @@ declare global {
       tts?: TTSApi
       /** Live pelo motor nativo (docs/adr/0031-live-pelo-helper-rust.md): só no Linux. */
       nativeLive?: NativeLiveApi
+      /** Esconde a janela de print/gravação (só no app desktop). */
+      contentProtection?: { set(on: boolean): Promise<void> }
     }
   }
 }

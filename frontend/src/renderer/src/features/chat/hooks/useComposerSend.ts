@@ -17,6 +17,7 @@ import {
 } from '../lib/sendFailure'
 import { slowmodeErrorText, slowmodeRetryAfter } from '../lib/slowmode'
 import { useChatStore } from '../store/chatStore'
+import { sendExtra } from '../../viewOnce/lib/viewOnce'
 import type { Slowmode } from './useSlowmode'
 import { useRoomState } from './useRoomState'
 
@@ -37,6 +38,8 @@ interface Options {
   onSent: () => void
   /** Modo lento da sala: trava o envio na espera e conta a vez depois de enviar. */
   slowmode: Pick<Slowmode, 'blocked' | 'onSent' | 'onFailed'>
+  /** Foto ou vídeo marcado como visualização única (só o envio do campo; o áudio gravado nunca). */
+  viewOnce: { on: boolean; reset: () => void }
 }
 
 /** Ids dos anexos que já subiram: só eles saem do rascunho quando o envio dá certo. */
@@ -101,13 +104,21 @@ export function useComposerSend(o: Options): {
     const sent: SentMessage = { room: o.room, text: o.draft, reply: o.replyingTo }
     // Só sai do rascunho o que foi enviado: arquivo adicionado durante o envio fica.
     const sentDrafts = doneDraftIds(o.drafts)
+    const viewOnceOn = o.viewOnce.on
     // O texto sai do campo na hora: dá para começar a próxima mensagem sem
     // esperar o servidor. Os anexos só saem quando o envio dá certo.
     o.onSent()
     o.setDraft('')
     o.setReplyState(null)
     try {
-      await sendToRoom(o.room, sent.text.trim(), attachmentState.readyIds, replyId)
+      await sendToRoom(
+        o.room,
+        sent.text.trim(),
+        attachmentState.readyIds,
+        replyId,
+        sendExtra(viewOnceOn)
+      )
+      o.viewOnce.reset()
       o.slowmode.onSent(sent.text)
       clearSentDrafts(sent.room, sentDrafts)
     } catch (err) {

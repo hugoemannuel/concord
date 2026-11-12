@@ -23,6 +23,8 @@ import { useChatStore } from '../store/chatStore'
 import UserServerTag from '../../serverprofile/components/ServerTagChip'
 import { messagePreviewParts } from '../lib/polls'
 import { markdownPreview, type Preview } from '../lib/preview'
+import ViewOnceMessage from '../../viewOnce/components/ViewOnceMessage'
+import ExpiryMark from '../../disappearing/components/ExpiryMark'
 
 // Pedaços da linha de mensagem do chat (ver MessageItem).
 
@@ -36,6 +38,7 @@ export function MessageBadges({ message }: { message: Message }): React.JSX.Elem
   return (
     <>
       <TTSBadge show={message.tts} />
+      <ExpiryMark expiresAt={message.expires_at} />
       {message.edited_at && (
         <span className="text-ds-xs text-faint" title={formatEditedAt(message.edited_at)}>
           (editada)
@@ -178,7 +181,7 @@ export function MessageHeader({
   onOpenProfile: (e: React.MouseEvent<HTMLElement>) => void
 }): React.JSX.Element | null {
   if (compact) {
-    return message.tts || message.edited_at || message.pinned_at ? (
+    return message.tts || message.edited_at || message.pinned_at || message.expires_at ? (
       <div className="flex items-baseline gap-2">
         <MessageBadges message={message} />
       </div>
@@ -276,6 +279,7 @@ export function MessageContent({
       {message.attachments?.length ? (
         <MessageAttachments attachments={message.attachments} copyImages />
       ) : null}
+      {message.view_once && <ViewOnceMessage message={message} />}
       <MessageEmbeds message={message} />
       {message.poll && (
         <PollCard poll={message.poll} isAuthor={canEndPoll} onVote={onVote} onEnd={onEndPoll} />

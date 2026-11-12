@@ -15,6 +15,8 @@ type Claims struct {
 	// Version é users.token_version quando o token de acesso foi emitido
 	// (docs/adr/0039). Tokens de antes da migration não têm: valem como 0.
 	Version int `json:"ver,omitempty"`
+	// AttachmentID amarra o token view_once a um único anexo.
+	AttachmentID string `json:"aid,omitempty"`
 	jwt.RegisteredClaims
 }
 

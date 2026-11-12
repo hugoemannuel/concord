@@ -11,6 +11,7 @@ import GroupMembersAside from '../components/GroupMembersAside'
 import MembersToggleButton from '../components/MembersToggleButton'
 import MessageSearchBar from '../components/MessageSearchBar'
 import CollapsibleSearch from '../components/CollapsibleSearch'
+import DisappearingButton from '../../disappearing/components/DisappearingButton'
 import MobileNavButton from '../../navigation/components/MobileNavButton'
 import SearchResultsPanel from '../components/SearchResultsPanel'
 import { useSearchStore } from '../store/searchStore'
@@ -133,6 +134,7 @@ function GroupChat(): React.JSX.Element {
         />
         <div className="ml-auto flex shrink-0 items-center gap-1 text-muted sm:gap-3">
           <IconButton icon={UserPlusIcon} label="Adicionar amigos ao grupo" onClick={() => setAdding(true)} disabled={conv.members.length >= MAX_GROUP_MEMBERS} className="md:size-auto" />
+          <DisappearingButton conversationId={conv.id} />
           <MembersToggleButton shown={showMembers} onToggle={() => setShowMembers((v) => !v)} />
           <button
             type="button"

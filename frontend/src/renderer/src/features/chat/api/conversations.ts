@@ -14,6 +14,8 @@ export interface Conversation {
   name: string
   icon_url?: string | null
   owner_id?: string | null
+  /** Prazo das mensagens temporárias, em segundos (null/ausente = desativado). */
+  disappearing_seconds?: number | null
   /** Só na DM 1:1. */
   user_a_id?: string
   user_b_id?: string
