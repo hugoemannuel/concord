@@ -2,6 +2,7 @@ package message
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -64,11 +65,12 @@ func (h *Handler) prepareViewOnce(c *gin.Context, conversationID, userID string,
 		return false
 	}
 	if err := h.viewOnce.Prepare(c.Request.Context(), conversationID, userID, attachmentIDs, stickerID, gifURL); err != nil {
-		status := http.StatusBadRequest
-		if !errors.Is(err, ErrInvalidViewOnce) {
-			status = http.StatusInternalServerError
+		if errors.Is(err, ErrInvalidViewOnce) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return false
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		log.Printf("view_once: preparar envio na conversa %s: %v", conversationID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return false
 	}
 	return true

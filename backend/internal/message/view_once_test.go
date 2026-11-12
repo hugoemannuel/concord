@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -92,6 +93,30 @@ func TestCriarDMViewOnceErroDoRepoDa400(t *testing.T) {
 	MessageRoutes(r.Group("/api"), h, auth)
 	rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
 	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCriarCanalViewOnceDa400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	MessageRoutes(r.Group("/api"), &Handler{service: &Service{}, access: fakeAccess{}}, auth)
+	rec := postRaw(r, "/api/channels/c1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCriarDMViewOnceErroInternoNaoVaza(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	h := &Handler{service: &Service{}, access: fakeAccess{}}
+	h.SetViewOnce(fakePreparer{err: errors.New("pq: segredo do banco")})
+	MessageRoutes(r.Group("/api"), h, auth)
+	rec := postRaw(r, "/api/conversations/dm1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "segredo") {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body)
 	}
 }
