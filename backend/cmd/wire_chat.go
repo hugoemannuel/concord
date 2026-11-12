@@ -47,7 +47,7 @@ func (a *app) wireChat() {
 	a.roomAccess = message.NewServiceRoomAccess(a.channelService, a.permissionService, a.conversationService, a.friendshipService)
 	viewOnce := message.NewViewOnceService(messageRepository, a.conversationRepository)
 	viewOnce.SetChannels(a.channelService, a.permissionService)
-	viewOnce.SetOpen(message.ViewOnceOpenDeps{Repo: messageRepository, Access: a.roomAccess, Tokens: a.authService, Publisher: messageEvents})
+	viewOnce.SetOpen(message.ViewOnceOpenDeps{Repo: messageRepository, Access: a.roomAccess, Tokens: a.authService, Publisher: messageEvents, Channels: a.cachedChannels()})
 	a.messageHandler.SetViewOnce(viewOnce)
 	attachmentHandler := message.NewAttachmentHandler(messageRepository, uploads, a.uploadSpace, a.roomAccess, a.authService)
 	searchHandler := message.NewSearchHandler(messageRepository, a.permissionService, a.roomAccess)

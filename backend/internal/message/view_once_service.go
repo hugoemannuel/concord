@@ -44,6 +44,8 @@ type ViewOnceOpenDeps struct {
 	Access    RoomAccess
 	Tokens    ViewOnceTokens
 	Publisher EventPublisher
+	// Channels resolve o servidor do canal (aviso pela sala do canal).
+	Channels ChannelResolver
 }
 
 // ViewOncePreparer é o que os handlers (DM e canal) usam para preparar o envio.
@@ -128,7 +130,7 @@ func (s *ViewOnceService) Open(ctx context.Context, attachmentID, userID string)
 	// última abertura), para o token valer os 5 min.
 	pubCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
 	defer cancel()
-	s.publishUpdate(pubCtx, *a.MessageID, *a.ConversationID)
+	s.publishUpdate(pubCtx, *a.MessageID, attachmentRoom(a))
 	return token, expiresAt, nil
 }
 
@@ -139,10 +141,13 @@ func (s *ViewOnceService) openable(ctx context.Context, attachmentID, userID str
 	if err != nil {
 		return nil, err
 	}
-	if !a.ViewOnce || a.MessageID == nil || a.ConversationID == nil {
+	room := attachmentRoom(a)
+	if !a.ViewOnce || a.MessageID == nil || room == (Room{}) {
 		return nil, ErrAttachmentNotFound
 	}
-	if err := s.open.Access.CanRead(ctx, Room{ConversationID: *a.ConversationID}, userID); err != nil {
+	// No canal, o CanRead confere o Ver canal de agora: quem perdeu o acesso
+	// depois do envio não abre, mesmo sendo destinatário.
+	if err := s.open.Access.CanRead(ctx, room, userID); err != nil {
 		return nil, err
 	}
 	if err := s.checkRecipient(ctx, a, userID); err != nil {
@@ -169,9 +174,8 @@ func (s *ViewOnceService) checkRecipient(ctx context.Context, a *storedAttachmen
 }
 
 // publishUpdate relê a mensagem (com o view_once novo) e publica o
-// message:update para os participantes, como a edição na DM (o autor vê
-// "Vista por").
-func (s *ViewOnceService) publishUpdate(ctx context.Context, messageID, conversationID string) {
+// message:update na sala dela, como a edição (o autor vê "Vista por").
+func (s *ViewOnceService) publishUpdate(ctx context.Context, messageID string, room Room) {
 	msg, err := s.open.Repo.FindByID(ctx, messageID)
 	if err != nil {
 		log.Printf("view_once: reler mensagem %s: %v", messageID, err)
@@ -182,13 +186,30 @@ func (s *ViewOnceService) publishUpdate(ctx context.Context, messageID, conversa
 		log.Printf("view_once: anexos da mensagem %s: %v", messageID, err)
 		return
 	}
+	event := s.updateAudience(ctx, room)
+	event.Message = page[0]
+	s.open.Publisher.PublishMessageUpdate(event)
+}
+
+// updateAudience: no canal, a sala do canal e o servidor dele (sem lista de
+// usuários); na conversa, os participantes.
+func (s *ViewOnceService) updateAudience(ctx context.Context, room Room) UpdateEvent {
+	if room.ChannelID != "" {
+		channelID := room.ChannelID
+		event := UpdateEvent{ChannelID: &channelID}
+		if s.open.Channels != nil {
+			serverID, err := s.open.Channels.ChannelServerID(ctx, channelID)
+			if err != nil {
+				log.Printf("view_once: servidor do canal %s: %v", channelID, err)
+			}
+			event.ServerID = serverID
+		}
+		return event
+	}
+	conversationID := room.ConversationID
 	userIDs, err := s.participants.ConversationParticipantIDs(ctx, conversationID)
 	if err != nil {
 		log.Printf("view_once: participantes de %s: %v", conversationID, err)
 	}
-	s.open.Publisher.PublishMessageUpdate(UpdateEvent{
-		ConversationID: page[0].ConversationID,
-		UserIDs:        userIDs,
-		Message:        page[0],
-	})
+	return UpdateEvent{ConversationID: &conversationID, UserIDs: userIDs}
 }
