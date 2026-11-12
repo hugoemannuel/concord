@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"gin-quickstart/backend/internal/permission"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,12 +42,19 @@ func TestValidateViewOnce(t *testing.T) {
 
 type fakeViewOnceRepo struct {
 	recipients []string
+	room       Room
+	marked     bool
+	bots       []string
 	err        error
 }
 
-func (f *fakeViewOnceRepo) MarkViewOnce(_ context.Context, _, _, _ string, recipientIDs []string) error {
-	f.recipients = recipientIDs
+func (f *fakeViewOnceRepo) MarkViewOnce(_ context.Context, _, _ string, room Room, recipientIDs []string) error {
+	f.recipients, f.room, f.marked = recipientIDs, room, true
 	return f.err
+}
+
+func (f *fakeViewOnceRepo) BotIDs(context.Context, []string) ([]string, error) {
+	return f.bots, nil
 }
 
 type fakeViewOnceRooms struct{ ids []string }
@@ -57,17 +66,17 @@ func (f fakeViewOnceRooms) ConversationParticipantIDs(context.Context, string) (
 func TestPrepareDestinatariosSemAutor(t *testing.T) {
 	repo := &fakeViewOnceRepo{}
 	svc := NewViewOnceService(repo, fakeViewOnceRooms{ids: []string{"a", "b", "c"}})
-	if err := svc.Prepare(context.Background(), "conv", "a", []string{"x"}, nil, nil); err != nil {
+	if err := svc.Prepare(context.Background(), Room{ConversationID: "conv"}, "a", []string{"x"}, nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(repo.recipients, []string{"b", "c"}) {
-		t.Fatalf("destinatários = %v", repo.recipients)
+	if !reflect.DeepEqual(repo.recipients, []string{"b", "c"}) || repo.room != (Room{ConversationID: "conv"}) {
+		t.Fatalf("destinatários = %v, sala = %+v", repo.recipients, repo.room)
 	}
 }
 
 type fakePreparer struct{ err error }
 
-func (f fakePreparer) Prepare(context.Context, string, string, []string, *string, *string) error {
+func (f fakePreparer) Prepare(context.Context, Room, string, []string, *string, *string) error {
 	return f.err
 }
 
@@ -97,11 +106,43 @@ func TestCriarDMViewOnceErroDoRepoDa400(t *testing.T) {
 	}
 }
 
-func TestCriarCanalViewOnceDa400(t *testing.T) {
+// Canal sem o recurso ligado: view_once é recusado com 400, nunca ignorado.
+func TestCriarCanalViewOnceSemServicoDa400(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
-	MessageRoutes(r.Group("/api"), &Handler{service: &Service{}, access: fakeAccess{}}, auth)
+	perms := allowAll{perms: membro | permission.AttachFiles}
+	MessageRoutes(r.Group("/api"), &Handler{service: &Service{}, perms: perms}, auth)
+	rec := postRaw(r, "/api/channels/c1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body)
+	}
+}
+
+// Quem não pode escrever no canal leva o 403 ANTES de qualquer marca: o
+// Prepare nem roda.
+func TestCriarCanalViewOnceSemEscritaNaoPrepara(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	prep := &countingPreparer{}
+	h := &Handler{service: &Service{}, perms: allowAll{perms: permission.ViewChannel}}
+	h.SetViewOnce(prep)
+	MessageRoutes(r.Group("/api"), h, auth)
+	rec := postRaw(r, "/api/channels/c1/messages", `{"attachment_ids":["x"],"view_once":true}`)
+	if rec.Code != http.StatusForbidden || prep.calls != 0 {
+		t.Fatalf("status %d, Prepare chamado %d vezes; body %s", rec.Code, prep.calls, rec.Body)
+	}
+}
+
+// A recusa do Prepare no canal vira 400.
+func TestCriarCanalViewOnceRecusadoDa400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	auth := func(ctx *gin.Context) { ctx.Set("userID", "ana"); ctx.Next() }
+	h := &Handler{service: &Service{}, perms: allowAll{perms: membro | permission.AttachFiles}}
+	h.SetViewOnce(fakePreparer{err: ErrInvalidViewOnce})
+	MessageRoutes(r.Group("/api"), h, auth)
 	rec := postRaw(r, "/api/channels/c1/messages", `{"attachment_ids":["x"],"view_once":true}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body)
@@ -121,10 +162,14 @@ func TestCriarDMViewOnceErroInternoNaoVaza(t *testing.T) {
 	}
 }
 
-type countingPreparer struct{ calls int }
+type countingPreparer struct {
+	calls int
+	room  Room
+}
 
-func (p *countingPreparer) Prepare(context.Context, string, string, []string, *string, *string) error {
+func (p *countingPreparer) Prepare(_ context.Context, room Room, _ string, _ []string, _, _ *string) error {
 	p.calls++
+	p.room = room
 	return nil
 }
 

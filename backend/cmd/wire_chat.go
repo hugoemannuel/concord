@@ -46,6 +46,7 @@ func (a *app) wireChat() {
 	a.uploadSpace = media.NewSpace(a.uploadsDir, media.ReserveFromEnv(os.Getenv("UPLOADS_MIN_FREE_GB")))
 	a.roomAccess = message.NewServiceRoomAccess(a.channelService, a.permissionService, a.conversationService, a.friendshipService)
 	viewOnce := message.NewViewOnceService(messageRepository, a.conversationRepository)
+	viewOnce.SetChannels(a.channelService, a.permissionService)
 	viewOnce.SetOpen(message.ViewOnceOpenDeps{Repo: messageRepository, Access: a.roomAccess, Tokens: a.authService, Publisher: messageEvents})
 	a.messageHandler.SetViewOnce(viewOnce)
 	attachmentHandler := message.NewAttachmentHandler(messageRepository, uploads, a.uploadSpace, a.roomAccess, a.authService)

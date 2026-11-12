@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"slices"
 	"time"
 )
 
@@ -19,7 +20,8 @@ var (
 )
 
 type viewOnceRepo interface {
-	MarkViewOnce(ctx context.Context, attachmentID, uploaderID, conversationID string, recipientIDs []string) error
+	MarkViewOnce(ctx context.Context, attachmentID, uploaderID string, room Room, recipientIDs []string) error
+	BotIDs(ctx context.Context, ids []string) ([]string, error)
 }
 
 // viewOnceOpenRepo é o que a abertura usa do banco.
@@ -44,15 +46,16 @@ type ViewOnceOpenDeps struct {
 	Publisher EventPublisher
 }
 
-// ViewOncePreparer é o que o handler da DM usa para preparar o envio.
+// ViewOncePreparer é o que os handlers (DM e canal) usam para preparar o envio.
 type ViewOncePreparer interface {
-	Prepare(ctx context.Context, conversationID, authorID string, attachmentIDs []string, stickerID, gifURL *string) error
+	Prepare(ctx context.Context, room Room, authorID string, attachmentIDs []string, stickerID, gifURL *string) error
 }
 
 // ViewOnceService cuida das mensagens de visualização única.
 type ViewOnceService struct {
 	repo         viewOnceRepo
 	participants ExpiryParticipants
+	channels     viewOnceChannelDeps
 	open         ViewOnceOpenDeps
 }
 
@@ -64,23 +67,41 @@ func NewViewOnceService(repo viewOnceRepo, participants ExpiryParticipants) *Vie
 func (s *ViewOnceService) SetOpen(d ViewOnceOpenDeps) { s.open = d }
 
 // Prepare valida e marca o anexo (ainda pendente) como visualização única,
-// ANTES de a mensagem ser criada: quem pode abrir são os participantes da
-// conversa menos o autor, fixados no envio.
-func (s *ViewOnceService) Prepare(ctx context.Context, conversationID, authorID string, attachmentIDs []string, stickerID, gifURL *string) error {
+// ANTES de a mensagem ser criada. Quem pode abrir fica fixado no envio: na
+// conversa, os participantes menos o autor; no canal, quem vê o canal agora
+// (channelRecipients).
+func (s *ViewOnceService) Prepare(ctx context.Context, room Room, authorID string, attachmentIDs []string, stickerID, gifURL *string) error {
 	if err := validateViewOnce(attachmentIDs, stickerID, gifURL); err != nil {
 		return err
 	}
-	ids, err := s.participants.ConversationParticipantIDs(ctx, conversationID)
+	recipients, err := s.recipients(ctx, room, authorID)
 	if err != nil {
 		return err
 	}
-	recipients := make([]string, 0, len(ids))
+	return s.repo.MarkViewOnce(ctx, attachmentIDs[0], authorID, room, recipients)
+}
+
+// recipients: quem poderá abrir a mídia enviada na sala.
+func (s *ViewOnceService) recipients(ctx context.Context, room Room, authorID string) ([]string, error) {
+	if room.ChannelID != "" {
+		return s.channelRecipients(ctx, room.ChannelID, authorID)
+	}
+	ids, err := s.participants.ConversationParticipantIDs(ctx, room.ConversationID)
+	if err != nil {
+		return nil, err
+	}
+	return withoutIDs(ids, authorID), nil
+}
+
+// withoutIDs devolve ids sem os removidos, na mesma ordem.
+func withoutIDs(ids []string, removed ...string) []string {
+	out := make([]string, 0, len(ids))
 	for _, id := range ids {
-		if id != authorID {
-			recipients = append(recipients, id)
+		if !slices.Contains(removed, id) {
+			out = append(out, id)
 		}
 	}
-	return s.repo.MarkViewOnce(ctx, attachmentIDs[0], authorID, conversationID, recipients)
+	return out
 }
 
 // Open libera a mídia para userID uma única vez: devolve o token view_once do

@@ -79,7 +79,7 @@ func TestForwardRecusaVisualizacaoUnicaComLegendaNoBanco(t *testing.T) {
 	repo := MessageRepository(s.db)
 	ana, caio := s.users["ana"], s.users["caio"]
 	att := anexoPendente(t, s, repo, ana, "image")
-	if err := repo.MarkViewOnce(s.ctx, att, ana, s.convID, []string{caio}); err != nil {
+	if err := repo.MarkViewOnce(s.ctx, att, ana, Room{ConversationID: s.convID}, []string{caio}); err != nil {
 		t.Fatal(err)
 	}
 	conv := s.convID

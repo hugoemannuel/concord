@@ -35,7 +35,7 @@ func (h *Handler) CreateConversationMessage(c *gin.Context) {
 		return
 	}
 
-	if input.ViewOnce && !h.prepareViewOnce(c, conversationID, userID, input.AttachmentIDs, input.StickerID, input.GifURL) {
+	if input.ViewOnce && !h.prepareViewOnce(c, Room{ConversationID: conversationID}, userID, input.AttachmentIDs, input.StickerID, input.GifURL) {
 		return
 	}
 
@@ -54,22 +54,22 @@ func (h *Handler) canSendToConversation(c *gin.Context, conversationID string, u
 	return requireConversationWrite(c, h.access, conversationID, userID)
 }
 
-// SetViewOnce liga o envio de mídia de visualização única na DM.
+// SetViewOnce liga o envio de mídia de visualização única (DM e canal).
 func (h *Handler) SetViewOnce(v ViewOncePreparer) { h.viewOnce = v }
 
 // prepareViewOnce marca o anexo antes de criar a mensagem; se não puder, já
 // responde 400 (sem o recurso ligado, também recusa).
-func (h *Handler) prepareViewOnce(c *gin.Context, conversationID, userID string, attachmentIDs []string, stickerID, gifURL *string) bool {
+func (h *Handler) prepareViewOnce(c *gin.Context, room Room, userID string, attachmentIDs []string, stickerID, gifURL *string) bool {
 	if h.viewOnce == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidViewOnce.Error()})
 		return false
 	}
-	if err := h.viewOnce.Prepare(c.Request.Context(), conversationID, userID, attachmentIDs, stickerID, gifURL); err != nil {
+	if err := h.viewOnce.Prepare(c.Request.Context(), room, userID, attachmentIDs, stickerID, gifURL); err != nil {
 		if errors.Is(err, ErrInvalidViewOnce) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return false
 		}
-		log.Printf("view_once: preparar envio na conversa %s: %v", conversationID, err)
+		log.Printf("view_once: preparar envio na sala %+v: %v", room, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return false
 	}

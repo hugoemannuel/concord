@@ -30,12 +30,12 @@ func TestMarkViewOnceRecusaAudioEJaEnviado(t *testing.T) {
 
 	for _, kind := range []string{"audio", "file"} {
 		id := anexoPendente(t, s, repo, ana, kind)
-		if err := repo.MarkViewOnce(s.ctx, id, ana, s.convID, rec); !errors.Is(err, ErrInvalidViewOnce) {
+		if err := repo.MarkViewOnce(s.ctx, id, ana, Room{ConversationID: s.convID}, rec); !errors.Is(err, ErrInvalidViewOnce) {
 			t.Errorf("%s: err = %v", kind, err)
 		}
 	}
 	outro := anexoPendente(t, s, repo, bia, "image")
-	if err := repo.MarkViewOnce(s.ctx, outro, ana, s.convID, rec); !errors.Is(err, ErrInvalidViewOnce) {
+	if err := repo.MarkViewOnce(s.ctx, outro, ana, Room{ConversationID: s.convID}, rec); !errors.Is(err, ErrInvalidViewOnce) {
 		t.Errorf("de outro usuário: err = %v", err)
 	}
 	enviado := anexoPendente(t, s, repo, ana, "image")
@@ -43,11 +43,11 @@ func TestMarkViewOnceRecusaAudioEJaEnviado(t *testing.T) {
 	if _, err := s.db.Exec(s.ctx, `UPDATE message_attachments SET message_id = $1 WHERE id = $2`, msg.ID, enviado); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.MarkViewOnce(s.ctx, enviado, ana, s.convID, rec); !errors.Is(err, ErrInvalidViewOnce) {
+	if err := repo.MarkViewOnce(s.ctx, enviado, ana, Room{ConversationID: s.convID}, rec); !errors.Is(err, ErrInvalidViewOnce) {
 		t.Errorf("já enviado: err = %v", err)
 	}
 	outraConversa := anexoPendente(t, s, repo, ana, "image")
-	if err := repo.MarkViewOnce(s.ctx, outraConversa, ana, uuid.NewString(), rec); !errors.Is(err, ErrInvalidViewOnce) {
+	if err := repo.MarkViewOnce(s.ctx, outraConversa, ana, Room{ConversationID: uuid.NewString()}, rec); !errors.Is(err, ErrInvalidViewOnce) {
 		t.Errorf("outra conversa: err = %v", err)
 	}
 }
@@ -57,7 +57,7 @@ func TestMarkViewOnceGravaDestinatarios(t *testing.T) {
 	repo := MessageRepository(s.db)
 	ana, bia, caio := s.users["ana"], s.users["bia"], s.users["caio"]
 	id := anexoPendente(t, s, repo, ana, "video")
-	if err := repo.MarkViewOnce(s.ctx, id, ana, s.convID, []string{bia, caio}); err != nil {
+	if err := repo.MarkViewOnce(s.ctx, id, ana, Room{ConversationID: s.convID}, []string{bia, caio}); err != nil {
 		t.Fatal(err)
 	}
 	var vo bool
@@ -76,7 +76,7 @@ func TestEnvioFalhaDepoisDeMarcarDeixaPendente(t *testing.T) {
 	repo := MessageRepository(s.db)
 	ana, bia := s.users["ana"], s.users["bia"]
 	id := anexoPendente(t, s, repo, ana, "image")
-	if err := repo.MarkViewOnce(s.ctx, id, ana, s.convID, []string{bia}); err != nil {
+	if err := repo.MarkViewOnce(s.ctx, id, ana, Room{ConversationID: s.convID}, []string{bia}); err != nil {
 		t.Fatal(err)
 	}
 	// criação da mensagem falha (ex.: texto grande demais): nada é ligado ao anexo
