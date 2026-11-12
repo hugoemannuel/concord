@@ -42,6 +42,13 @@ describe('disappearing', () => {
     expect(expiresInText(at(1000), NOW)).toBe('Some em 1 minuto')
   })
 
+  it('na virada de unidade usa o valor arredondado', () => {
+    expect(expiresInText(at(59 * MIN + 30_000), NOW)).toBe('Some em 1 hora')
+    expect(expiresInText(at(23 * HOUR + 30 * MIN), NOW)).toBe('Some em 1 dia')
+    expect(expiresInText(at(59 * MIN), NOW)).toBe('Some em 59 minutos')
+    expect(expiresInText(at(23 * HOUR), NOW)).toBe('Some em 23 horas')
+  })
+
   it('isExpired: igual a now já venceu; sem prazo nunca', () => {
     expect(isExpired({ expires_at: at(0) }, NOW)).toBe(true)
     expect(isExpired({ expires_at: at(-1) }, NOW)).toBe(true)

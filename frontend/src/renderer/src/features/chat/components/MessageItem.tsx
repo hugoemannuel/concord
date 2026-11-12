@@ -21,6 +21,7 @@ import {
 import { useMessageActionsState, type MessageActionsState } from '../hooks/useMessageActionsState'
 import { useMessageFavorite } from '../../messageFavorites/hooks/useMessageFavorite'
 import SystemMessage from './SystemMessage'
+import DisappearingNotice from '../disappearing/components/DisappearingNotice'
 import EmotePickerPopover from './EmotePickerPopover'
 import MessageActionsBar from './MessageActionsBar'
 import ReactionChips from './ReactionChips'
@@ -281,6 +282,7 @@ function MessageItem(props: MessageItemProps): React.JSX.Element {
   const [revealBlocked, setRevealBlocked] = useState(false)
 
   if (isMaestroMessageKind(message.system_kind)) return <MusicMessage message={message} />
+  if (message.system_kind === 'disappearing') return <DisappearingNotice message={message} />
   if (message.system_kind) return <SystemMessage message={message} />
   if (author.blocked && !revealBlocked) {
     return <BlockedMessageNotice messageId={message.id} onReveal={() => setRevealBlocked(true)} />

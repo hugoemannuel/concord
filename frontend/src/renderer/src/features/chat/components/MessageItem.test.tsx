@@ -189,6 +189,15 @@ describe('MessageItem', () => {
     expect(html).toContain('Feliz aniversário')
   })
 
+  it('aviso temporário vai para a linha centralizada, sem o selo de sistema', () => {
+    const html = render(
+      msg({ system_kind: 'disappearing', content: 'Mensagens temporárias ativadas: 24 horas' })
+    )
+    expect(html).toContain('Mensagens temporárias ativadas: 24 horas')
+    expect(html).not.toContain('Servidor')
+    expect(html).toContain('role="note"')
+  })
+
   it('mensagem da música vai para o card de música', () => {
     expect(render(msg({ system_kind: 'music' }))).toContain('data-music')
   })

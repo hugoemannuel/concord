@@ -47,10 +47,11 @@ function plural(n: number, singular: string, pluralForm: string): string {
 /** Dica do relógio da mensagem: "Some em 3 dias" (arredonda para cima). */
 export function expiresInText(expiresAt: string, now: number): string {
   const ms = Math.max(0, new Date(expiresAt).getTime() - now)
-  if (ms < HOUR) {
-    return `Some em ${plural(Math.max(1, Math.ceil(ms / MINUTE)), 'minuto', 'minutos')}`
-  }
-  if (ms < DAY) return `Some em ${plural(Math.ceil(ms / HOUR), 'hora', 'horas')}`
+  // A unidade sai do valor já arredondado: 59m30s é "1 hora", não "60 minutos".
+  const minutes = Math.max(1, Math.ceil(ms / MINUTE))
+  if (minutes < 60) return `Some em ${plural(minutes, 'minuto', 'minutos')}`
+  const hours = Math.ceil(ms / HOUR)
+  if (hours < 24) return `Some em ${plural(hours, 'hora', 'horas')}`
   return `Some em ${plural(Math.ceil(ms / DAY), 'dia', 'dias')}`
 }
 
