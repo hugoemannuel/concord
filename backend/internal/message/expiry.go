@@ -21,7 +21,8 @@ const (
 // ficaram sem linha e agora precisam sair do disco.
 type ExpiredMessage struct {
 	ID             string
-	ConversationID string
+	ConversationID string // vazio numa mensagem de canal
+	ChannelID      string // vazio numa mensagem de conversa
 	AttachmentIDs  []string
 }
 
@@ -39,18 +40,24 @@ type ExpiryParticipants interface {
 	ConversationParticipantIDs(ctx context.Context, conversationID string) ([]string, error)
 }
 
+// ExpiryChannels resolve o servidor de um canal (para avisar a sala do canal).
+type ExpiryChannels interface {
+	ChannelServerID(ctx context.Context, channelID string) (string, error)
+}
+
 // ExpirySweeper apaga as mensagens temporárias vencidas e as mídias de
 // visualização única que todos viram (passada a janela do token) ou que
 // ninguém terminou de abrir em ViewOnceTTL.
 type ExpirySweeper struct {
 	repo         expiryRepo
 	participants ExpiryParticipants
+	channels     ExpiryChannels
 	files        FileRemover
 	publisher    EventPublisher
 }
 
-func NewExpirySweeper(repo expiryRepo, participants ExpiryParticipants, files FileRemover, publisher EventPublisher) *ExpirySweeper {
-	return &ExpirySweeper{repo: repo, participants: participants, files: files, publisher: publisher}
+func NewExpirySweeper(repo expiryRepo, participants ExpiryParticipants, channels ExpiryChannels, files FileRemover, publisher EventPublisher) *ExpirySweeper {
+	return &ExpirySweeper{repo: repo, participants: participants, channels: channels, files: files, publisher: publisher}
 }
 
 // Run varre agora e depois a cada every, até ctx acabar.
@@ -72,7 +79,7 @@ func (s *ExpirySweeper) Run(ctx context.Context, every time.Duration) {
 // RunOnce apaga as vencidas em lotes (até vir um lote incompleto) e expira as
 // mídias de visualização única antigas.
 func (s *ExpirySweeper) RunOnce(ctx context.Context, now time.Time) error {
-	rooms := map[string][]string{} // participantes por conversa, nesta passada
+	rooms := newExpiryRooms() // participantes por conversa e servidor por canal, nesta passada
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -95,7 +102,7 @@ func (s *ExpirySweeper) RunOnce(ctx context.Context, now time.Time) error {
 
 // expireViewOnce marca as mídias vencidas, reavisa as conversas e remove os
 // arquivos pendentes (os recém-marcados e os de uma passada interrompida).
-func (s *ExpirySweeper) expireViewOnce(ctx context.Context, now time.Time, rooms map[string][]string) error {
+func (s *ExpirySweeper) expireViewOnce(ctx context.Context, now time.Time, rooms *expiryRooms) error {
 	gone, err := s.repo.ExpireViewOnce(ctx, now.Add(-ViewOnceTTL), now.Add(-ViewOnceOpenWindow))
 	if err != nil {
 		return err
@@ -130,7 +137,7 @@ func (s *ExpirySweeper) removeFiles(ids []string) []string {
 
 // publishViewOnceUpdates publica um message:update por mensagem afetada, para
 // o cartão mostrar "Expirou" sem recarregar.
-func (s *ExpirySweeper) publishViewOnceUpdates(ctx context.Context, gone []ExpiredViewOnce, rooms map[string][]string) {
+func (s *ExpirySweeper) publishViewOnceUpdates(ctx context.Context, gone []ExpiredViewOnce, rooms *expiryRooms) {
 	seen := map[string]bool{}
 	for _, g := range gone {
 		if seen[g.MessageID] {
@@ -147,24 +154,65 @@ func (s *ExpirySweeper) publishViewOnceUpdates(ctx context.Context, gone []Expir
 			log.Printf("expiry sweeper: anexos da mensagem %s: %v", g.MessageID, err)
 			continue
 		}
-		s.publisher.PublishMessageUpdate(UpdateEvent{
-			ConversationID: page[0].ConversationID,
-			UserIDs:        s.participantsOf(ctx, g.ConversationID, rooms),
-			Message:        page[0],
-		})
+		ev := UpdateEvent{ConversationID: page[0].ConversationID, ChannelID: page[0].ChannelID, Message: page[0]}
+		ev.ServerID, ev.UserIDs = s.audience(ctx, g.ChannelID, g.ConversationID, rooms)
+		s.publisher.PublishMessageUpdate(ev)
 	}
 }
 
-// publishDelete avisa a conversa. Se não achar os participantes, publica
-// assim mesmo (a linha já sumiu), só para a sala da conversa.
-func (s *ExpirySweeper) publishDelete(ctx context.Context, m ExpiredMessage, rooms map[string][]string) {
-	conv := m.ConversationID
-	s.publisher.PublishMessageDelete(DeleteEvent{ConversationID: &conv, UserIDs: s.participantsOf(ctx, conv, rooms), MessageID: m.ID, Expired: true})
+// expiryRooms guarda, durante uma passada, quem está em cada conversa e o
+// servidor de cada canal, para consultar cada um uma vez só.
+type expiryRooms struct {
+	participants map[string][]string
+	servers      map[string]string
+}
+
+func newExpiryRooms() *expiryRooms {
+	return &expiryRooms{participants: map[string][]string{}, servers: map[string]string{}}
+}
+
+// publishDelete avisa a sala da mensagem: o canal (com o servidor) ou os
+// participantes da conversa. Se não achar quem avisar, publica assim mesmo
+// (a linha já sumiu), só para a sala.
+func (s *ExpirySweeper) publishDelete(ctx context.Context, m ExpiredMessage, rooms *expiryRooms) {
+	ev := DeleteEvent{MessageID: m.ID, Expired: true}
+	if m.ChannelID != "" {
+		ch := m.ChannelID
+		ev.ChannelID = &ch
+	} else {
+		conv := m.ConversationID
+		ev.ConversationID = &conv
+	}
+	ev.ServerID, ev.UserIDs = s.audience(ctx, m.ChannelID, m.ConversationID, rooms)
+	s.publisher.PublishMessageDelete(ev)
+}
+
+// audience devolve o servidor (mensagem de canal) ou os participantes (conversa).
+func (s *ExpirySweeper) audience(ctx context.Context, channelID, conversationID string, rooms *expiryRooms) (string, []string) {
+	if channelID != "" {
+		return s.serverOf(ctx, channelID, rooms), nil
+	}
+	return "", s.participantsOf(ctx, conversationID, rooms)
+}
+
+// serverOf consulta o servidor uma vez por canal na passada.
+func (s *ExpirySweeper) serverOf(ctx context.Context, channelID string, rooms *expiryRooms) string {
+	serverID, ok := rooms.servers[channelID]
+	if !ok {
+		id, err := s.channels.ChannelServerID(ctx, channelID)
+		if err != nil {
+			log.Printf("expiry sweeper: servidor do canal %s: %v", channelID, err)
+		} else {
+			serverID = id
+		}
+		rooms.servers[channelID] = serverID
+	}
+	return serverID
 }
 
 // participantsOf consulta os participantes uma vez por conversa na passada.
-func (s *ExpirySweeper) participantsOf(ctx context.Context, conversationID string, rooms map[string][]string) []string {
-	userIDs, ok := rooms[conversationID]
+func (s *ExpirySweeper) participantsOf(ctx context.Context, conversationID string, rooms *expiryRooms) []string {
+	userIDs, ok := rooms.participants[conversationID]
 	if !ok {
 		ids, err := s.participants.ConversationParticipantIDs(ctx, conversationID)
 		if err != nil {
@@ -172,7 +220,7 @@ func (s *ExpirySweeper) participantsOf(ctx context.Context, conversationID strin
 		} else {
 			userIDs = ids
 		}
-		rooms[conversationID] = userIDs
+		rooms.participants[conversationID] = userIDs
 	}
 	return userIDs
 }

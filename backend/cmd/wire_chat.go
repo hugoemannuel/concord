@@ -41,7 +41,7 @@ func (a *app) wireChat() {
 	// Limpeza horária de arquivos sem dono (cascatas e uploads abandonados).
 	go message.NewJanitor(messageRepository, uploads).Run(a.ctx, time.Hour)
 	// Varredura por minuto das mensagens temporárias vencidas e das mídias de visualização única antigas.
-	go message.NewExpirySweeper(messageRepository, a.conversationRepository, uploads, messageEvents).Run(a.ctx, time.Minute)
+	go message.NewExpirySweeper(messageRepository, a.conversationRepository, a.cachedChannels(), uploads, messageEvents).Run(a.ctx, time.Minute)
 	a.messageHandler = message.MessageHandler(a.messageService, a.channelService, a.conversationService, a.friendshipService, a.permissionService)
 	a.uploadSpace = media.NewSpace(a.uploadsDir, media.ReserveFromEnv(os.Getenv("UPLOADS_MIN_FREE_GB")))
 	a.roomAccess = message.NewServiceRoomAccess(a.channelService, a.permissionService, a.conversationService, a.friendshipService)
