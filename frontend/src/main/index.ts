@@ -346,7 +346,7 @@ app.whenReady().then(() => {
   setupNativeLive()
   setupBackground(() => mainWindow, icon, { small: trayIcon, large: trayIcon2x })
   setupWindowDrag(() => mainWindow)
-  registerContentProtection()
+  registerContentProtection(() => mainWindow)
   setupOverlay(() => mainWindow)
   setupGlobalKeybinds(() => mainWindow)
   setupActivities(() => mainWindow)

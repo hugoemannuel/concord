@@ -1,30 +1,32 @@
+import type { BrowserWindow } from 'electron'
 import { describe, expect, it, vi } from 'vitest'
 
 const h = vi.hoisted(() => ({
-  handlers: {} as Record<string, (...a: unknown[]) => unknown>,
-  windows: new Map<unknown, { setContentProtection: (on: boolean) => void }>()
+  handlers: {} as Record<string, (...a: unknown[]) => unknown>
 }))
 
 vi.mock('electron', () => ({
   ipcMain: {
     handle: (ch: string, fn: (...a: unknown[]) => unknown) => (h.handlers[ch] = fn)
-  },
-  BrowserWindow: { fromWebContents: (wc: unknown) => h.windows.get(wc) ?? null }
+  }
 }))
 
 const { registerContentProtection } = await import('./contentProtection')
 
-function setup() {
-  const sender = {}
-  const win = { setContentProtection: vi.fn() }
-  h.windows.clear()
-  h.windows.set(sender, win)
-  registerContentProtection()
-  return { sender, win, call: (on: unknown) => h.handlers['window:content-protection']({ sender }, on) }
+function setup(destroyed = false) {
+  const win = {
+    webContents: {},
+    isDestroyed: vi.fn(() => destroyed),
+    setContentProtection: vi.fn()
+  }
+  registerContentProtection(() => win as unknown as BrowserWindow)
+  const call = (on: unknown, sender: unknown = win.webContents) =>
+    h.handlers['window:content-protection']({ sender }, on)
+  return { win, call }
 }
 
 describe('registerContentProtection', () => {
-  it('true liga a proteção na janela de quem pediu', () => {
+  it('true liga a proteção na janela principal', () => {
     const { win, call } = setup()
     call(true)
     expect(win.setContentProtection).toHaveBeenCalledWith(true)
@@ -42,8 +44,20 @@ describe('registerContentProtection', () => {
     expect(win.setContentProtection).toHaveBeenCalledWith(false)
   })
 
-  it('sem janela para o sender, não faz nada', () => {
-    setup()
+  it('sender que não é a janela principal (overlay): não faz nada', () => {
+    const { win, call } = setup()
+    call(true, {})
+    expect(win.setContentProtection).not.toHaveBeenCalled()
+  })
+
+  it('janela destruída: não faz nada', () => {
+    const { win, call } = setup(true)
+    call(true)
+    expect(win.setContentProtection).not.toHaveBeenCalled()
+  })
+
+  it('sem janela principal: não faz nada', () => {
+    registerContentProtection(() => null)
     expect(() => h.handlers['window:content-protection']({ sender: {} }, true)).not.toThrow()
   })
 })
