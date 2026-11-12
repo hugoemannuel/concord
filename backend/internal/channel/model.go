@@ -37,10 +37,15 @@ type Channel struct {
 	Managed bool `json:"managed"`
 	// SlowmodeSeconds: modo lento, intervalo mínimo entre as mensagens de cada
 	// membro (0 = desligado). Ver slowmode.go.
-	SlowmodeSeconds int       `json:"slowmode_seconds"`
-	CreatedBy       string    `json:"created_by"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	SlowmodeSeconds int `json:"slowmode_seconds"`
+	// DisappearingSeconds: prazo das mensagens temporárias do canal (nil = desativado).
+	// Ver disappearing.go.
+	DisappearingSeconds *int `json:"disappearing_seconds"`
+	// AllowViewOnce: se o canal aceita mensagens de visualização única.
+	AllowViewOnce bool      `json:"allow_view_once"`
+	CreatedBy     string    `json:"created_by"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 	// Overwrites: sobrescritas de permissão do canal (canal privado = deny de
 	// VIEW_CHANNEL no @everyone). Preenchido a partir do snapshot de permissões.
 	Overwrites []permission.Overwrite `json:"overwrites"`
