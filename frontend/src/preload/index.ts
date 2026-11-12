@@ -7,6 +7,7 @@ import { serverFromArgv, type ServerDiagnostics } from '../shared/serverConnecti
 import { overlayApi } from './overlayApi'
 import { ttsApi } from './ttsApi'
 import { nativeLiveApi } from './nativeLiveApi'
+import { contentProtectionApi } from './contentProtectionApi'
 
 interface ScreenSourceInfo {
   id: string
@@ -336,6 +337,7 @@ const api = {
     }
   },
   overlay: overlayApi,
+  contentProtection: contentProtectionApi,
   /** Voz do /tts baixada no primeiro uso: só no Linux (os outros usam a Web Speech). */
   tts: process.platform === 'linux' ? ttsApi : undefined,
   /** Live pelo motor nativo (helper concord-live): só no Linux por enquanto. */
