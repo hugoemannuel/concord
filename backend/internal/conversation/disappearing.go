@@ -92,18 +92,16 @@ func (s *DisappearingService) Set(ctx context.Context, userID, conversationID st
 	if ok, err := s.isParticipant(ctx, conversationID, userID); err != nil || !ok {
 		return ErrNotParticipant
 	}
-	if err := s.repo.SetDisappearing(ctx, conversationID, seconds); err != nil {
-		return err
-	}
 	name, err := s.actorName(ctx, userID)
 	if err != nil {
 		return err
 	}
-	if err := s.notices.PostConversationNotice(ctx, conversationID, userID, DisappearingNotice(name, seconds), NoticeKindDisappearing); err != nil {
+	if err := s.repo.SetDisappearing(ctx, conversationID, seconds); err != nil {
 		return err
 	}
+	// Publica logo após gravar: se o aviso falhar, os clientes já sabem do modo.
 	s.publish(EventUpdate, conversationID)
-	return nil
+	return s.notices.PostConversationNotice(ctx, conversationID, userID, DisappearingNotice(name, seconds), NoticeKindDisappearing)
 }
 
 // ActorNameFrom devolve display_name, ou o username como reserva.

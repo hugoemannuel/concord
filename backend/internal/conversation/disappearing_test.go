@@ -148,3 +148,33 @@ func TestRespondErrorStatus(t *testing.T) {
 		}
 	}
 }
+
+type failingNotices struct{}
+
+func (failingNotices) PostConversationNotice(context.Context, string, string, string, string) error {
+	return errors.New("falha ao postar")
+}
+
+// Se o aviso falhar, o modo já gravado ainda é publicado aos membros.
+func TestSetDisappearingAvisoFalhaAindaPublica(t *testing.T) {
+	svc, store, _, events := newDisappearingFixture(true)
+	svc.notices = failingNotices{}
+	if err := svc.Set(context.Background(), "u1", "c1", intPtr(86400)); err == nil {
+		t.Fatal("esperava erro do aviso")
+	}
+	if len(store.saved) != 1 || len(*events) != 1 || (*events)[0] != EventUpdate {
+		t.Fatalf("gravou %v, eventos %v", store.saved, *events)
+	}
+}
+
+// Se o nome do autor não resolve, nada é gravado.
+func TestSetDisappearingNomeFalhaNaoGrava(t *testing.T) {
+	svc, store, _, events := newDisappearingFixture(true)
+	svc.actorName = func(context.Context, string) (string, error) { return "", errors.New("sem usuário") }
+	if err := svc.Set(context.Background(), "u1", "c1", intPtr(86400)); err == nil {
+		t.Fatal("esperava erro")
+	}
+	if len(store.saved) != 0 || len(*events) != 0 {
+		t.Fatal("não deveria gravar nem publicar")
+	}
+}
