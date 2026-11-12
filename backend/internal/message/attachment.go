@@ -43,6 +43,8 @@ type storedAttachment struct {
 	ChannelID      *string
 	ConversationID *string
 	CreatedAt      time.Time
+	ViewOnce       bool // visualização única: só abre com o token view_once
+	ViewOnceGone   bool // todos viram ou venceu: o arquivo já foi apagado
 }
 
 // validateContent: texto de até MaxMessageLength caracteres; só mensagem com

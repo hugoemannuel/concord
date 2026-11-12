@@ -8,10 +8,11 @@ import type { ForwardTarget, ForwardTargetServer } from '../api/forward'
 import type { ForwardedFrom, Message } from '../api/messages'
 import { isBotUser } from '../../music/lib/bots'
 import { conversationTitle } from './conversations'
+import { slowmodeErrorText, slowmodeRetryAfter } from './slowmode'
 
-/** Tem o que copiar e não é enquete, convite para call nem aviso do sistema. */
+/** Tem o que copiar e não é enquete, convite para call, aviso do sistema nem visualização única. */
 export function canForward(message: Message): boolean {
-  if (message.system_kind || message.poll || message.call_invite) return false
+  if (message.system_kind || message.poll || message.call_invite || message.view_once) return false
   return Boolean(
     message.content.trim() ||
     message.attachments?.length ||
@@ -102,6 +103,8 @@ const ERROR_BY_STATUS: Record<number, string> = {
 }
 
 export function forwardErrorMessage(err: unknown): string {
+  const retryAfter = slowmodeRetryAfter(err)
+  if (retryAfter !== null) return slowmodeErrorText(retryAfter)
   if (err instanceof ApiError) {
     const text = (err.code && ERROR_BY_CODE[err.code]) || ERROR_BY_STATUS[err.status]
     if (text) return text

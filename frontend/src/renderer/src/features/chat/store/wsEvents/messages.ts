@@ -19,16 +19,27 @@ const dropOne = (map: Record<string, number>, key: string): Record<string, numbe
   return current > 0 ? { ...map, [key]: current - 1 } : map
 }
 
-/** A mensagem sai da sala e desconta uma não lida da sala (e do servidor, se é canal). */
+/**
+ * A mensagem sai da sala e desconta uma não lida da sala (e do servidor, se é
+ * canal). Apagada pelo prazo (`expired`) não desconta: quase sempre já foi lida.
+ */
 export function withDeletedMessage(
   state: ChatState,
-  del: { room: RoomKey; messageId: string; channelId?: string; serverId: string | null }
+  del: {
+    room: RoomKey
+    messageId: string
+    channelId?: string
+    serverId: string | null
+    expired?: boolean
+  }
 ): Partial<ChatState> {
+  const messagesByRoom = {
+    ...state.messagesByRoom,
+    [del.room]: clearDeletedReplyTarget(state.messagesByRoom[del.room] ?? [], del.messageId)
+  }
+  if (del.expired) return { messagesByRoom }
   return {
-    messagesByRoom: {
-      ...state.messagesByRoom,
-      [del.room]: clearDeletedReplyTarget(state.messagesByRoom[del.room] ?? [], del.messageId)
-    },
+    messagesByRoom,
     unreadByRoom: dropOne(state.unreadByRoom, del.room),
     unreadByServer:
       del.serverId && del.channelId
@@ -36,6 +47,10 @@ export function withDeletedMessage(
         : state.unreadByServer
   }
 }
+
+/** A mensagem apagada era a prévia da DM na lista de conversas. */
+const isConversationPreview = (state: ChatState, conversationId: string, messageId: string): boolean =>
+  state.conversations.some((c) => c.id === conversationId && c.last_message?.id === messageId)
 
 const handleUpdate: WsHandler = (payload, ctx) => {
   const msg = payload.message as Message | undefined
@@ -49,9 +64,14 @@ const handleDelete: WsHandler = (payload, ctx) => {
   const messageId = payload.message_id as string
   if (messageId) usePinStore.getState().onMessageDelete(messageId)
   const channelId = payload.channel_id as string | undefined
-  const room = roomKeyOf(channelId, payload.conversation_id as string | undefined)
+  const conversationId = payload.conversation_id as string | undefined
+  const room = roomKeyOf(channelId, conversationId)
   const serverId = (payload.server_id as string) || null
-  ctx.set((state) => withDeletedMessage(state, { room, messageId, channelId, serverId }))
+  const expired = payload.expired === true
+  ctx.set((state) => withDeletedMessage(state, { room, messageId, channelId, serverId, expired }))
+  if (conversationId && isConversationPreview(ctx.get(), conversationId, messageId)) {
+    void ctx.get().fetchConversations()
+  }
 }
 
 /** Marca (ou desmarca, com null) a mensagem como fixada na lista do canal. */

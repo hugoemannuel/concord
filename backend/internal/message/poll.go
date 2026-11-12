@@ -149,7 +149,9 @@ func buildAnswer(id int, in PollAnswerInput) (PollAnswer, error) {
 		answer.Emoji = &emoji
 	}
 	if imageURL != "" {
-		if len(imageURL) > PollImageURLMaxLength || !strings.HasPrefix(imageURL, "https://") {
+		// Só a cópia guardada no servidor (a de fora é trocada antes, em
+		// PollImages.Localize): nunca uma URL que o app carregue de fora.
+		if !validPollImage(imageURL) {
 			return PollAnswer{}, ErrPollImageInvalid
 		}
 		answer.ImageURL = &imageURL

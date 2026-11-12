@@ -29,6 +29,8 @@ type Conversation struct {
 	UserBID   string    `json:"user_b_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	// DisappearingSeconds é o prazo das mensagens novas; nil = desativado.
+	DisappearingSeconds *int `json:"disappearing_seconds"`
 }
 
 func (c *Conversation) IsGroup() bool { return c.Type == TypeGroup }

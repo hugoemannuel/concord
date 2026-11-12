@@ -3,7 +3,6 @@ package linkpreview
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"os"
 	"time"
@@ -89,36 +88,7 @@ func (h *Handler) preview(ctx context.Context, key, userID string) (*Preview, ti
 // Authorization). Só serve imagem já baixada: nunca dispara busca, então não
 // é proxy aberto; o id é um UUID aleatório, não derivado da URL.
 func (h *Handler) Image(c *gin.Context) {
-	f, contentType, ok := h.openImage(c.Param("id"))
-	if !ok {
+	if !media.ServeImage(c.Writer, c.Request, h.images, c.Param("id")) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-		return
 	}
-	defer f.Close()
-	var modTime time.Time
-	if info, err := f.Stat(); err == nil {
-		modTime = info.ModTime()
-	}
-	header := c.Writer.Header()
-	header.Set("Content-Type", contentType)
-	header.Set("X-Content-Type-Options", "nosniff")
-	header.Set("Content-Security-Policy", "default-src 'none'; sandbox")
-	header.Set("Cache-Control", "public, max-age=86400")
-	http.ServeContent(c.Writer, c.Request, "", modTime, f)
-}
-
-// openImage abre o arquivo e confere pelos bytes que é imagem.
-func (h *Handler) openImage(id string) (*os.File, string, bool) {
-	f, err := h.images.Open(id)
-	if err != nil {
-		return nil, "", false
-	}
-	head := make([]byte, media.SniffLen)
-	n, _ := io.ReadFull(f, head)
-	kind, contentType, ok := media.Sniff(head[:n], "")
-	if _, err := f.Seek(0, io.SeekStart); err != nil || !ok || kind != media.KindImage {
-		f.Close()
-		return nil, "", false
-	}
-	return f, contentType, true
 }

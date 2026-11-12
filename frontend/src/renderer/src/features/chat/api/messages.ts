@@ -91,6 +91,16 @@ export interface ForwardedFrom {
   created_at: string
 }
 
+export interface ViewOnceMedia {
+  id: string
+  kind: 'image' | 'video'
+  gone: boolean
+  viewer_ids: string[]
+  /** Quem podia abrir (fixado no envio): quem entrou no grupo depois não está aqui. */
+  recipient_ids: string[]
+  recipient_count: number
+}
+
 export interface Message {
   id: string
   author_id: string
@@ -122,6 +132,10 @@ export interface Message {
   deleted_sticker_name?: string | null
   gif_url?: string | null
   gif_metadata?: { width?: number; height?: number; preview_url?: string } | null
+  /** Quando a mensagem some (conversa com mensagens temporárias); ausente = não expira. */
+  expires_at?: string | null
+  /** Foto/vídeo de visualização única (nunca vem em attachments). */
+  view_once?: ViewOnceMedia | null
   created_at: string
   /** Quando o autor editou o texto pela última vez; ausente = nunca editada. */
   edited_at?: string | null
@@ -164,6 +178,8 @@ export interface ExtraMessageData {
   stickerId?: string | null
   gifUrl?: string | null
   gifMetadata?: { width?: number; height?: number; preview_url?: string } | null
+  /** Só em conversa: o anexo é foto/vídeo de visualização única. */
+  viewOnce?: boolean
 }
 
 export function sendChannelMessage(
@@ -262,7 +278,8 @@ export function sendConversationMessage(
       ...(replyToId ? { reply_to_id: replyToId } : {}),
       ...(extra?.stickerId ? { sticker_id: extra.stickerId } : {}),
       ...(extra?.gifUrl ? { gif_url: extra.gifUrl } : {}),
-      ...(extra?.gifMetadata ? { gif_metadata: extra.gifMetadata } : {})
+      ...(extra?.gifMetadata ? { gif_metadata: extra.gifMetadata } : {}),
+      ...(extra?.viewOnce ? { view_once: true } : {})
     })
   })
 }

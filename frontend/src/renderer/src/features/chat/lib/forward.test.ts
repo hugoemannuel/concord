@@ -46,6 +46,11 @@ describe('canForward', () => {
     expect(canForward(msg({ system_kind: 'birthday' }))).toBe(false)
     expect(canForward(msg({ content: '   ' }))).toBe(false)
   })
+
+  it('não encaminha visualização única, nem com legenda', () => {
+    const view_once = { id: 'a1', kind: 'image' as const, gone: false, viewer_ids: [], recipient_ids: ['b'], recipient_count: 1 }
+    expect(canForward(msg({ content: 'olha', view_once }))).toBe(false)
+  })
 })
 
 describe('forwardOrigin', () => {
@@ -104,5 +109,10 @@ describe('forwardErrorMessage', () => {
     expect(forwardErrorMessage(new ApiError(400, 'x', 'not_forwardable'))).toBe('Essa mensagem não pode ser encaminhada.')
     expect(forwardErrorMessage(new ApiError(507, 'x'))).toBe('O servidor está sem espaço para os arquivos.')
     expect(forwardErrorMessage(new Error('rede'))).toBe('Não foi possível encaminhar a mensagem.')
+  })
+
+  it('modo lento no destino: diz quanto falta', () => {
+    const err = new ApiError(429, 'slowmode: retry after 30s', 'slowmode', { retry_after: 30 })
+    expect(forwardErrorMessage(err)).toBe('Modo lento: aguarde 30 s para mandar outra mensagem.')
   })
 })

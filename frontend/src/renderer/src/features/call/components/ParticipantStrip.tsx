@@ -2,7 +2,8 @@ import { useId, type ReactNode } from 'react'
 import { ChevronDownIcon, ChevronUpIcon } from '../../../shared/ui/icons'
 
 /**
- * Faixa de participantes embaixo da live em destaque, com o botão de ocultar
+ * Faixa de participantes embaixo da live em destaque (ou de quem está sem vídeo,
+ * embaixo do mosaico), com o botão de ocultar
  * (mesmo padrão dos controles da chamada). Oculta, ela recolhe com transição
  * e fica inerte (sem foco nem leitor de tela), mas segue montada: o áudio das
  * transmissões que estão nela não pode cortar.

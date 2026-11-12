@@ -1,6 +1,6 @@
 module gin-quickstart/backend
 
-go 1.26.8
+go 1.26.10
 
 require (
 	github.com/coder/websocket v1.8.15
@@ -15,7 +15,7 @@ require (
 	github.com/pion/webrtc/v4 v4.2.25
 	github.com/twitchtv/twirp v8.1.3+incompatible
 	golang.org/x/crypto v0.57.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 )
 
 require (

@@ -80,6 +80,8 @@ type ForwarderDeps struct {
 	Directory ForwardDirectory
 	Comments  commentSender
 	Events    *RoomEvents
+	// Slowmode: o modo lento dos canais (nil = sem modo lento).
+	Slowmode *Slowmode
 }
 
 type Forwarder struct {
@@ -90,10 +92,11 @@ type Forwarder struct {
 	directory ForwardDirectory
 	comments  commentSender
 	events    *RoomEvents
+	slowmode  *Slowmode
 }
 
 func NewForwarder(d ForwarderDeps) *Forwarder {
-	return &Forwarder{store: d.Store, files: d.Files, space: d.Space, rooms: d.Rooms, directory: d.Directory, comments: d.Comments, events: d.Events}
+	return &Forwarder{store: d.Store, files: d.Files, space: d.Space, rooms: d.Rooms, directory: d.Directory, comments: d.Comments, events: d.Events, slowmode: d.Slowmode}
 }
 
 // Forward copia a mensagem para o destino e publica. Recusa o que não sabe
@@ -109,12 +112,12 @@ func (f *Forwarder) Forward(ctx context.Context, req ForwardRequest) (*ForwardRe
 	if err := f.rooms.CanSend(ctx, req.Target, req.UserID, len(src.Attachments) > 0); err != nil {
 		return nil, err
 	}
-	msg, err := f.copy(ctx, req, src)
+	msg, turn, err := f.copyInTurn(ctx, req, src)
 	if err != nil {
 		return nil, err
 	}
 	f.events.Created(ctx, msg)
-	return &ForwardResult{Message: msg, Comment: f.comment(ctx, req)}, nil
+	return &ForwardResult{Message: msg, Comment: f.comment(ctx, req, turn)}, nil
 }
 
 func validateForwardRequest(req ForwardRequest) error {
@@ -143,7 +146,9 @@ func (f *Forwarder) source(ctx context.Context, req ForwardRequest) (*Message, e
 	if err := f.store.AttachAttachments(ctx, page); err != nil {
 		return nil, err
 	}
-	if !hasForwardableContent(&page[0]) {
+	// a visualização única só aparece depois de AttachAttachments (FindByID não
+	// lê view_once): checar antes deixaria a legenda passar.
+	if page[0].ViewOnce != nil || !hasForwardableContent(&page[0]) {
 		return nil, ErrNotForwardable
 	}
 	return &page[0], nil
@@ -277,8 +282,9 @@ func (f *Forwarder) reload(ctx context.Context, id string) (*Message, error) {
 }
 
 // comment envia o comentário depois da encaminhada. Se ele falhar, o
-// encaminhamento fica (já foi publicado) e o app mostra só ele.
-func (f *Forwarder) comment(ctx context.Context, req ForwardRequest) *Message {
+// encaminhamento fica (já foi publicado) e o app mostra só ele. No canal, ele
+// sai na vez do modo lento que o encaminhamento já marcou (turn).
+func (f *Forwarder) comment(ctx context.Context, req ForwardRequest, turn slowTurn) *Message {
 	text := strings.TrimSpace(req.Comment)
 	if text == "" {
 		return nil
@@ -286,7 +292,9 @@ func (f *Forwarder) comment(ctx context.Context, req ForwardRequest) *Message {
 	var msg *Message
 	var err error
 	if req.Target.ChannelID != "" {
-		msg, err = f.comments.CreateChannelMessage(ctx, req.Target.ChannelID, req.UserID, text, nil, nil, nil, nil, nil)
+		msg, err = turn.lendTo(ctx, func() (*Message, error) {
+			return f.comments.CreateChannelMessage(ctx, req.Target.ChannelID, req.UserID, text, nil, nil, nil, nil, nil)
+		})
 	} else {
 		msg, err = f.comments.CreateConversationMessage(ctx, req.Target.ConversationID, req.UserID, text, nil, nil, nil, nil, nil)
 	}

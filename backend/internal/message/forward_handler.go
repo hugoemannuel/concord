@@ -72,6 +72,8 @@ func respondForwardError(c *gin.Context, err error) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	case errors.Is(err, ErrForwardNoSpace):
 		c.JSON(http.StatusInsufficientStorage, gin.H{"error": err.Error()})
+	case errors.As(err, new(*SlowmodeError)):
+		respondCreateError(c, err)
 	default:
 		respondRoomError(c, err)
 	}

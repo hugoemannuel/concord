@@ -29,7 +29,8 @@ const convColumns = `
 	c.user_a_id,
 	c.user_b_id,
 	c.created_at,
-	c.updated_at
+	c.updated_at,
+	c.disappearing_seconds
 `
 
 func scanConversation(row pgx.Row, extra ...any) (*Conversation, error) {
@@ -45,6 +46,7 @@ func scanConversation(row pgx.Row, extra ...any) (*Conversation, error) {
 		&userB,
 		&conv.CreatedAt,
 		&conv.UpdatedAt,
+		&conv.DisappearingSeconds,
 	}, extra...)
 	if err := row.Scan(dest...); err != nil {
 		return nil, err
@@ -287,6 +289,7 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Summary
 				SELECT COUNT(*)
 				FROM messages m
 				WHERE m.conversation_id = c.id
+				AND (m.expires_at IS NULL OR m.expires_at > now())
 				AND m.created_at > cm.last_read_at
 				AND m.author_id <> $1
 			),
@@ -309,6 +312,7 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Summary
 				(
 					SELECT CASE
 						WHEN COUNT(*) = 0 THEN NULL
+						WHEN bool_or(a.view_once) THEN CASE MIN(a.kind) WHEN 'video' THEN 'Vídeo de visualização única' ELSE 'Foto de visualização única' END
 						WHEN COUNT(*) > 1 THEN '📎 ' || COUNT(*) || ' anexos'
 						WHEN MIN(a.kind) = 'image' THEN '🖼️ Imagem'
 						WHEN MIN(a.kind) = 'video' THEN '🎬 Vídeo'
@@ -323,6 +327,7 @@ func (r *Repository) ListByUserID(ctx context.Context, userID string) ([]Summary
 			FROM messages m
 			LEFT JOIN polls p ON p.message_id = m.id
 			WHERE m.conversation_id = c.id
+			AND (m.expires_at IS NULL OR m.expires_at > now())
 			ORDER BY m.created_at DESC
 			LIMIT 1
 		) lm ON TRUE

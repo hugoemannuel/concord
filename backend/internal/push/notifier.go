@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"gin-quickstart/backend/internal/message"
@@ -146,6 +147,15 @@ func authorName(m message.Message) string {
 	return "Alguém"
 }
 
+// previewBody é o corpo da notificação: o texto, se houver; senão o rótulo da
+// visualização única; senão "Enviou um anexo" quando só há mídia.
+func previewBody(m message.Message) string {
+	if m.ViewOnce != nil && strings.TrimSpace(m.Content) == "" {
+		return ViewOncePreview(m.ViewOnce.Kind)
+	}
+	return Preview(m.Content, hasMedia(m))
+}
+
 func hasMedia(m message.Message) bool {
 	return len(m.Attachments) > 0 || m.StickerID != nil || m.GifURL != nil
 }
@@ -174,7 +184,7 @@ func (n *Notifier) directMessage(ctx context.Context, ev message.CreateEvent) {
 	}
 	msg := fcm.Message{
 		Title: title,
-		Body:  Preview(ev.Message.Content, hasMedia(ev.Message)),
+		Body:  previewBody(ev.Message),
 		Data: map[string]string{
 			"type": "dm", "conversation_id": conversationID, "conversation_type": kind,
 			"name": header, "message_id": ev.Message.ID,
@@ -212,7 +222,7 @@ func (n *Notifier) channelMention(ctx context.Context, ev message.CreateEvent) {
 	}
 	msg := fcm.Message{
 		Title: authorName(ev.Message) + " em #" + channelName,
-		Body:  Preview(ev.Message.Content, hasMedia(ev.Message)),
+		Body:  previewBody(ev.Message),
 		Data: map[string]string{
 			"type": "mention", "channel_id": channelID, "server_id": ev.ServerID,
 			"name": channelName, "message_id": ev.Message.ID,

@@ -20,7 +20,7 @@ function save(hidden: boolean): void {
 }
 
 interface ParticipantStripState {
-  /** Faixa de participantes embaixo da live em destaque oculta. */
+  /** Faixa de participantes (embaixo da live em destaque ou do mosaico) oculta. */
   hidden: boolean
   toggle: () => void
 }

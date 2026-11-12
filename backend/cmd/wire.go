@@ -14,6 +14,7 @@ import (
 	"gin-quickstart/backend/internal/message"
 	"gin-quickstart/backend/internal/music"
 	"gin-quickstart/backend/internal/permission"
+	"gin-quickstart/backend/internal/platform/bodylimit"
 	"gin-quickstart/backend/internal/platform/livekit"
 	"gin-quickstart/backend/internal/platform/media"
 	"gin-quickstart/backend/internal/platform/websocket"
@@ -104,7 +105,8 @@ func (a *app) route(register func(router *gin.Engine, api *gin.RouterGroup)) {
 }
 
 func (a *app) registerRoutes(router *gin.Engine) {
-	api := router.Group("/api")
+	// Teto do corpo antes de qualquer rota (internal/platform/bodylimit).
+	api := router.Group("/api", bodylimit.Middleware(bodylimit.APIConfig()))
 	for _, register := range a.routes {
 		register(router, api)
 	}

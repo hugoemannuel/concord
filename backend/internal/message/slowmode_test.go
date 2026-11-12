@@ -212,3 +212,20 @@ func TestSlowmodeReleaseNaoApagaVezDeOutroEnvio(t *testing.T) {
 		t.Fatal("o Release do envio velho apagou a vez do novo")
 	}
 }
+
+func TestSlowmodeRunMarcaAVezEDevolveSeOEnvioFalhar(t *testing.T) {
+	s := newTestSlowmode(&fakeClock{now: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)})
+	ctx := context.Background()
+	if _, err := s.Run(ctx, "lento", "ana", func() (*Message, error) { return nil, errors.New("falhou") }); err == nil {
+		t.Fatal("Run deveria devolver o erro do envio")
+	}
+	msg, err := s.Run(ctx, "lento", "ana", func() (*Message, error) { return &Message{ID: "m1"}, nil })
+	if err != nil || msg.ID != "m1" {
+		t.Fatalf("envio que falhou gastou a vez: msg = %v, err = %v", msg, err)
+	}
+	called := false
+	_, err = s.Run(ctx, "lento", "ana", func() (*Message, error) { called = true; return nil, nil })
+	if retryAfter(t, err) <= 0 || called {
+		t.Fatalf("sem vez: err = %v, send chamado = %v", err, called)
+	}
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../../../shared/api/client'
 import { submitPoll } from './pollSubmit'
 import { pollDraftToInput, type PollDraft } from './polls'
 
@@ -36,5 +37,13 @@ describe('submitPoll', () => {
     const deps = { create: vi.fn(async () => Promise.reject('x')), done: vi.fn(), error: vi.fn() }
     await submitPoll(deps, draft)
     expect(deps.error).toHaveBeenCalledWith('Falha ao criar a enquete.')
+  })
+
+  it('modo lento: avisa quanto falta, não o texto cru do servidor', async () => {
+    const err = new ApiError(429, 'slowmode: retry after 30s', 'slowmode', { retry_after: 30 })
+    const deps = { create: vi.fn(async () => Promise.reject(err)), done: vi.fn(), error: vi.fn() }
+    await submitPoll(deps, draft)
+    expect(deps.done).not.toHaveBeenCalled()
+    expect(deps.error).toHaveBeenCalledWith('Modo lento: aguarde 30 s para mandar outra mensagem.')
   })
 })

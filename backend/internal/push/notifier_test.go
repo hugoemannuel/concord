@@ -272,6 +272,26 @@ func TestDM(t *testing.T) {
 		}
 	})
 
+	t.Run("TestNotificacaoViewOnceSemTexto: usa o rótulo da visualização única", func(t *testing.T) {
+		r := newRig()
+		ev := dmEvent("", "u-ana")
+		ev.Message.ViewOnce = &message.ViewOnceMedia{ID: "a1", Kind: "image"}
+		r.n.OnMessage(ev)
+		if got := r.sender.sent[0].Body; got != "Foto de visualização única" {
+			t.Fatalf("texto = %q", got)
+		}
+	})
+
+	t.Run("visualização única com texto: o texto vai no corpo", func(t *testing.T) {
+		r := newRig()
+		ev := dmEvent("olha isso", "u-ana")
+		ev.Message.ViewOnce = &message.ViewOnceMedia{ID: "a1", Kind: "video"}
+		r.n.OnMessage(ev)
+		if got := r.sender.sent[0].Body; got != "olha isso" {
+			t.Fatalf("texto = %q", got)
+		}
+	})
+
 	t.Run("vários aparelhos: um envio para cada token", func(t *testing.T) {
 		r := newRig()
 		r.tokens.tokens["u-ana"] = []string{"tok-1", "tok-2"}

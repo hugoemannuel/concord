@@ -18,5 +18,6 @@ func ConversationRoutes(router *gin.RouterGroup, handler *Handler, authMiddlewar
 		conversations.DELETE("/:id/members/:userId", handler.RemoveMember)
 		conversations.POST("/:id/hide", handler.Hide)
 		conversations.POST("/:id/read", handler.MarkRead)
+		conversations.PUT("/:id/disappearing", handler.SetDisappearing)
 	}
 }

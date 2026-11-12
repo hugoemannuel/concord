@@ -38,16 +38,22 @@ func (a *app) wireChat() {
 	a.messageService.SetSlowmode(slowmode)
 	// Limpeza horária de arquivos sem dono (cascatas e uploads abandonados).
 	go message.NewJanitor(messageRepository, uploads).Run(a.ctx, time.Hour)
+	// Varredura por minuto das mensagens temporárias vencidas e das mídias de visualização única antigas.
+	go message.NewExpirySweeper(messageRepository, a.conversationRepository, uploads, messageEvents).Run(a.ctx, time.Minute)
 	a.messageHandler = message.MessageHandler(a.messageService, a.channelService, a.conversationService, a.friendshipService, a.permissionService)
 	a.uploadSpace = media.NewSpace(a.uploadsDir, media.ReserveFromEnv(os.Getenv("UPLOADS_MIN_FREE_GB")))
 	a.roomAccess = message.NewServiceRoomAccess(a.channelService, a.permissionService, a.conversationService, a.friendshipService)
+	viewOnce := message.NewViewOnceService(messageRepository, a.conversationRepository)
+	viewOnce.SetOpen(message.ViewOnceOpenDeps{Repo: messageRepository, Access: a.roomAccess, Tokens: a.authService, Publisher: messageEvents})
+	a.messageHandler.SetViewOnce(viewOnce)
 	attachmentHandler := message.NewAttachmentHandler(messageRepository, uploads, a.uploadSpace, a.roomAccess, a.authService)
 	searchHandler := message.NewSearchHandler(messageRepository, a.permissionService, a.roomAccess)
 	suppressor := message.NewEmbedSuppressor(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository)
 	suppressHandler := message.NewSuppressEmbedsHandler(suppressor, a.permissionService, a.roomAccess)
 	favoriteHandler := message.NewFavoriteHandler(message.NewFavoriteService(messageRepository, a.roomAccess))
 	a.wireTTS(messageRepository, slowmode)
-	a.wireForward(messageRepository, uploads, messageEvents)
+	a.wireForward(messageRepository, uploads, messageEvents, slowmode)
+	a.wirePollImages(messageRepository)
 	a.wireEmojis()
 
 	a.serverService.OnMemberJoined(func(ctx context.Context, serverID string, member server.ServerMember) {
@@ -85,6 +91,7 @@ func (a *app) wireChat() {
 	entranceSounds := mustStore(filepath.Join(profileMediaDir, user.EntranceSoundDir), "entrance sounds dir")
 	entranceSoundHandler := user.NewEntranceSoundHandler(profileService, entranceSounds, a.uploadSpace)
 	conversationHandler := conversation.ConversationHandler(a.conversationService, a.userService, a.profileHandler)
+	conversationHandler.SetDisappearingService(conversation.NewDisappearingService(a.conversationRepository, a.conversationService, conversation.ActorNameFrom(a.userService), a.messageService))
 	// O ícone do servidor usa o mesmo upload do avatar.
 	serverHandler := server.ServerHandler(a.serverService, a.friendshipService, a.channelService, a.permissionService, a.roleService, a.moderationService, a.nicknameService, a.profileHandler)
 	serverHandler.SetAudit(a.audit)
@@ -98,6 +105,7 @@ func (a *app) wireChat() {
 		conversation.ConversationRoutes(api, conversationHandler, a.authMiddleware)
 		message.MessageRoutes(api, a.messageHandler, a.authMiddleware)
 		message.AttachmentRoutes(api, attachmentHandler, a.authMiddleware)
+		message.ViewOnceRoutes(api, message.NewViewOnceHandler(viewOnce), a.authMiddleware)
 		message.SearchRoutes(api, searchHandler, a.authMiddleware)
 		message.SuppressEmbedsRoutes(api, suppressHandler, a.authMiddleware)
 		message.FavoriteRoutes(api, favoriteHandler, a.authMiddleware)
