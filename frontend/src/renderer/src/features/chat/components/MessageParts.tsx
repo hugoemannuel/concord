@@ -23,6 +23,7 @@ import { useChatStore } from '../store/chatStore'
 import UserServerTag from '../../serverprofile/components/ServerTagChip'
 import { messagePreviewParts } from '../lib/polls'
 import { markdownPreview, type Preview } from '../lib/preview'
+import ViewOnceMessage from '../viewOnce/components/ViewOnceMessage'
 import ExpiryMark from '../disappearing/components/ExpiryMark'
 
 // Pedaços da linha de mensagem do chat (ver MessageItem).
@@ -278,6 +279,7 @@ export function MessageContent({
       {message.attachments?.length ? (
         <MessageAttachments attachments={message.attachments} copyImages />
       ) : null}
+      {message.view_once && <ViewOnceMessage message={message} />}
       <MessageEmbeds message={message} />
       {message.poll && (
         <PollCard poll={message.poll} isAuthor={canEndPoll} onVote={onVote} onEnd={onEndPoll} />

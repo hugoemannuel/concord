@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { DraftAttachment } from '../../lib/attachments'
-import { canViewOnce, sendExtra, settleViewOnce } from './viewOnce'
+import type { ViewOnceMedia } from '../../api/messages'
+import {
+  canViewOnce,
+  confirmText,
+  outcomeState,
+  pillLabel,
+  pillState,
+  sendExtra,
+  settleViewOnce
+} from './viewOnce'
 
 const draft = (over: Partial<DraftAttachment> = {}): DraftAttachment => ({
   localId: 'a',
@@ -40,5 +49,48 @@ describe('settleViewOnce', () => {
     expect(settleViewOnce(true, true)).toBe(true)
     expect(settleViewOnce(true, false)).toBe(false)
     expect(settleViewOnce(false, true)).toBe(false)
+  })
+})
+
+describe('pílula', () => {
+  const v = (o: Partial<ViewOnceMedia> = {}): ViewOnceMedia => ({
+    id: 'a',
+    kind: 'image',
+    gone: false,
+    viewer_ids: [],
+    recipient_count: 1,
+    ...o
+  })
+
+  it('os 4 estados', () => {
+    expect(pillState(v(), 'au', 'me')).toBe('unseen')
+    expect(pillState(v({ viewer_ids: ['me'], gone: true }), 'au', 'me')).toBe('seen')
+    expect(pillState(v(), 'me', 'me')).toBe('sender')
+    expect(pillState(v({ gone: true }), 'au', 'me')).toBe('expired')
+  })
+
+  it('textos exatos', () => {
+    expect(pillLabel('unseen', 'image', v())).toBe('Foto')
+    expect(pillLabel('unseen', 'video', v())).toBe('Vídeo')
+    expect(pillLabel('seen', 'image', v())).toBe('Aberta')
+    expect(pillLabel('expired', 'image', v())).toBe('Expirou')
+    expect(pillLabel('sender', 'image', v())).toBe('Foto de visualização única')
+    expect(pillLabel('sender', 'video', v())).toBe('Vídeo de visualização única')
+    expect(pillLabel('sender', 'image', v({ viewer_ids: ['x', 'y'], recipient_count: 3 }))).toBe(
+      'Foto de visualização única · Vista por 2 de 3'
+    )
+  })
+
+  it('confirmação de foto e de vídeo', () => {
+    expect(confirmText('image')).toBe('Esta foto só pode ser vista uma vez. Ao fechar, ela some.')
+    expect(confirmText('video')).toBe('Este vídeo só pode ser visto uma vez. Ao fechar, ele some.')
+  })
+})
+
+describe('outcomeState', () => {
+  it('visto e vencido mudam a pílula; cancelar não', () => {
+    expect(outcomeState('seen')).toBe('seen')
+    expect(outcomeState('gone')).toBe('expired')
+    expect(outcomeState('cancelled')).toBeNull()
   })
 })

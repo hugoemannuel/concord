@@ -193,3 +193,28 @@ describe('votesLabel / pollHint', () => {
     expect(pollHint(false, false)).toBe('Selecione uma resposta')
   })
 })
+
+describe('prévia da visualização única', () => {
+  const once = (kind: 'image' | 'video') => ({
+    id: 'a',
+    kind,
+    gone: false,
+    viewer_ids: [],
+    recipient_count: 1
+  })
+
+  it('sem texto, mostra o rótulo aprovado com o ícone do tipo', () => {
+    expect(messagePreviewParts({ content: '', view_once: once('image') })).toEqual({
+      icon: 'image',
+      text: 'Foto de visualização única'
+    })
+    expect(messagePreviewParts({ content: '', view_once: once('video') })).toEqual({
+      icon: 'video',
+      text: 'Vídeo de visualização única'
+    })
+  })
+
+  it('com texto, vale o texto', () => {
+    expect(messagePreviewParts({ content: 'oi', view_once: once('image') }).text).toBe('oi')
+  })
+})
