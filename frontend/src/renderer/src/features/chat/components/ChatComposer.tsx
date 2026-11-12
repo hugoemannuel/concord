@@ -17,6 +17,9 @@ import ComposerAttachments from './ComposerAttachments'
 import ComposerInput from './composer/ComposerInput'
 import SlowmodeBar from './composer/SlowmodeBar'
 import MentionSuggestionList from './MentionSuggestionList'
+import DisappearingBanner from '../disappearing/components/DisappearingBanner'
+import { useDisappearing } from '../disappearing/hooks/useDisappearing'
+import { conversationIdOfRoom } from '../disappearing/lib/disappearing'
 import {
   AttachButton,
   ComposerGate,
@@ -67,6 +70,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const [mediaPickerOpen, setMediaPickerOpen] = useRoomState(room, false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const slowmode = useSlowmode(room, permissions.bypassSlowmode)
+  const disappearing = useDisappearing(conversationIdOfRoom(room))
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
   const menu = useMentionMenu({
     room,
@@ -115,6 +119,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
       />
       <ComposerGate disabledReason={p.disabledReason}>
         <SlowmodeBar text={slowmode.text} />
+        <DisappearingBanner seconds={disappearing} />
         <div className="relative">
           <MediaPicker
             open={mediaPickerOpen}

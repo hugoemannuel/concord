@@ -43,6 +43,7 @@ import {
   RoomLoadingGate
 } from './MessageListStates'
 import { useRoomMessages } from '../hooks/useRoomMessages'
+import { useHideExpired } from '../disappearing/hooks/useHideExpired'
 import { useChannelPins } from '../hooks/useChannelPins'
 import { useJumpRequests } from '../hooks/useJumpRequests'
 import { useReactToMessage } from '../hooks/useReactToMessage'
@@ -89,7 +90,8 @@ function ChatPane({
 }: ChatPaneProps): React.JSX.Element {
   // Sem SEND_MESSAGES o campo de mensagem dá lugar ao aviso.
   const disabledReason = composerDisabledReason(disabledReasonProp, permissions)
-  const { messages, hasMore, loading, pendingCount } = useRoomMessages(room)
+  const { messages: stored, hasMore, loading, pendingCount } = useRoomMessages(room)
+  const messages = useHideExpired(stored)
   const openRoom = useChatStore((s) => s.openRoom)
   const deleteFromRoom = useChatStore((s) => s.deleteFromRoom)
   const reactToMessage = useReactToMessage(room)
