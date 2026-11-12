@@ -44,6 +44,8 @@ function DisappearingButton({
 
   const choose = (seconds: DisappearingSeconds | null): void => {
     setOpen(false)
+    // A opção focada some junto com o menu: o foco volta ao relógio.
+    triggerRef.current?.focus()
     void chooseDisappearing(
       { set: setDisappearing, onError: showToast.error },
       conversationId,
@@ -57,11 +59,7 @@ function DisappearingButton({
       <IconButton
         icon={ClockIcon}
         ref={triggerRef}
-        label={
-          current === null
-            ? 'Mensagens temporárias'
-            : `Mensagens temporárias: ${shortLabel(current)}`
-        }
+        label="Mensagens temporárias"
         variant={current === null ? 'ghost' : 'filled'}
         aria-haspopup="dialog"
         aria-expanded={open}

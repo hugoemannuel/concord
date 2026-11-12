@@ -35,6 +35,22 @@ export function settleViewOnce(on: string | null, key: string | null): boolean {
   return key !== null && on === key
 }
 
+/** Estado da marca: a chave vista por último e a chave em que foi ligada. */
+export interface ViewOnceState {
+  seen: string | null
+  on: string | null
+}
+
+/** Chave nova (outra sala, outro arquivo, perda de permissão) zera a marca; a mesma mantém. */
+export function syncViewOnce(s: ViewOnceState, key: string | null): ViewOnceState {
+  return s.seen === key ? s : { seen: key, on: null }
+}
+
+/** O visualizador acabou de fechar: o foco volta para a pílula (depois do commit). */
+export function restoreFocusOnClose(wasViewing: boolean, viewing: boolean): boolean {
+  return wasViewing && !viewing
+}
+
 /** Liga na chave atual ou desliga se já estava ligada nela; sem chave, nada muda. */
 export function toggleViewOnceKey(on: string | null, key: string | null): string | null {
   if (key === null) return on

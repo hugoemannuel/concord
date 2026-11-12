@@ -1,7 +1,13 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../../auth/store/authStore'
 import type { Message } from '../../chat/api/messages'
-import { mediaKey, outcomeState, shownPillState, type LocalPill } from '../lib/viewOnce'
+import {
+  mediaKey,
+  outcomeState,
+  restoreFocusOnClose,
+  shownPillState,
+  type LocalPill
+} from '../lib/viewOnce'
 import ViewOncePill from './ViewOncePill'
 import ViewOnceViewer, { type ViewerOutcome } from './ViewOnceViewer'
 
@@ -12,6 +18,12 @@ function ViewOnceMessage({ message }: { message: Message }): React.JSX.Element |
   const meId = useAuthStore(myId)
   const [viewing, setViewing] = useState(false)
   const pillRef = useRef<HTMLElement>(null)
+  const wasViewing = useRef(false)
+  // Depois do commit (a pílula já virou texto, se for o caso), devolve o foco a ela.
+  useEffect(() => {
+    if (restoreFocusOnClose(wasViewing.current, viewing)) pillRef.current?.focus()
+    wasViewing.current = viewing
+  }, [viewing])
   // Até o servidor mandar outra versão da mídia (message:update), mostra o
   // resultado da abertura daqui.
   const [local, setLocal] = useState<LocalPill | null>(null)
@@ -21,8 +33,6 @@ function ViewOnceMessage({ message }: { message: Message }): React.JSX.Element |
 
   const done = (outcome: ViewerOutcome): void => {
     setViewing(false)
-    // Foco de volta à pílula (o palco ocupava a tela).
-    pillRef.current?.focus()
     const next = outcomeState(outcome)
     if (next) setLocal({ state: next, key: mediaKey(media) })
   }

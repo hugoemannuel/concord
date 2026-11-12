@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import type { DraftAttachment } from '../../chat/lib/attachments'
-import { canViewOnce, settleViewOnce, toggleViewOnceKey, viewOnceKey } from '../lib/viewOnce'
+import {
+  canViewOnce,
+  settleViewOnce,
+  syncViewOnce,
+  toggleViewOnceKey,
+  viewOnceKey,
+  type ViewOnceState
+} from '../lib/viewOnce'
 
 /**
  * Marca "visualização única" do anexo em rascunho. Fica presa à sala e ao
  * anexo: trocar de sala, de arquivo ou perder a permissão (removido, 2º anexo,
- * áudio) a desliga, e `reset` a desliga depois do envio.
+ * áudio) a desliga de vez, e `reset` a desliga depois do envio.
  */
 export function useViewOnceDraft(
   room: string,
@@ -14,11 +21,17 @@ export function useViewOnceDraft(
 ): { viewOnce: boolean; toggle: () => void; allowed: boolean; reset: () => void } {
   const allowed = canViewOnce(drafts, isConversation)
   const key = viewOnceKey(room, drafts, allowed)
-  const [onKey, setOnKey] = useState<string | null>(null)
+  const [state, setState] = useState<ViewOnceState>({ seen: key, on: null })
+  const current = syncViewOnce(state, key)
+  if (current !== state) setState(current)
   return {
-    viewOnce: settleViewOnce(onKey, key),
-    toggle: () => setOnKey((v) => toggleViewOnceKey(v, key)),
+    viewOnce: settleViewOnce(current.on, key),
+    toggle: () =>
+      setState((s) => {
+        const c = syncViewOnce(s, key)
+        return { seen: key, on: toggleViewOnceKey(c.on, key) }
+      }),
     allowed,
-    reset: () => setOnKey(null)
+    reset: () => setState({ seen: key, on: null })
   }
 }

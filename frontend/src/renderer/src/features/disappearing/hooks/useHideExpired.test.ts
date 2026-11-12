@@ -2,28 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Message } from '../../chat/api/messages'
 
 // Sem DOM nem testing-library no projeto: um mini React que roda o hook de
-// forma síncrona (um useState, um useEffect e useMemo), o bastante para o relógio.
+// forma síncrona (useSyncExternalStore e useMemo), o bastante para o relógio.
 const h = vi.hoisted(() => ({
-  state: undefined as unknown,
   has: false,
+  unsub: (() => {}) as () => void,
   rerender: () => {}
 }))
 vi.mock('react', () => ({
-  useState: (init: () => unknown) => {
+  useSyncExternalStore: (subscribe: (cb: () => void) => () => void, getSnapshot: () => unknown) => {
     if (!h.has) {
-      h.state = init()
       h.has = true
+      h.unsub = subscribe(() => h.rerender())
     }
-    return [
-      h.state,
-      (v: unknown) => {
-        h.state = v
-        h.rerender()
-      }
-    ]
-  },
-  useEffect: (fn: () => void) => {
-    fn()
+    return getSnapshot()
   },
   useMemo: (fn: () => unknown) => fn()
 }))
@@ -45,7 +36,10 @@ describe('useHideExpired', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-11-12T12:00:00Z'))
   })
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => {
+    h.unsub()
+    vi.useRealTimers()
+  })
 
   it('a mensagem some quando o relógio passa do prazo', () => {
     mount([msg('a'), msg('b', '2026-11-12T12:00:45Z')])

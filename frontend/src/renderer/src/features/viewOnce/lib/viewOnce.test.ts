@@ -11,6 +11,8 @@ import {
   pillState,
   sendExtra,
   settleViewOnce,
+  syncViewOnce,
+  restoreFocusOnClose,
   toggleViewOnceKey,
   viewOnceKey,
   shownPillState
@@ -34,6 +36,7 @@ describe('canViewOnce', () => {
 
   it('dois anexos, áudio, arquivo, erro, sem anexo ou canal: não', () => {
     expect(canViewOnce([draft(), draft({ localId: 'b' })], true)).toBe(false)
+    expect(canViewOnce([draft({ kind: 'audio' })], true)).toBe(false)
     expect(canViewOnce([draft({ kind: 'file' })], true)).toBe(false)
     expect(canViewOnce([draft({ status: 'error' })], true)).toBe(false)
     expect(canViewOnce([], true)).toBe(false)
@@ -72,6 +75,26 @@ describe('viewOnceKey / settleViewOnce', () => {
     expect(toggleViewOnceKey('k', 'k')).toBeNull()
     expect(toggleViewOnceKey('outra', 'k')).toBe('k')
     expect(toggleViewOnceKey('k', null)).toBe('k')
+  })
+})
+
+describe('syncViewOnce', () => {
+  it('mesma chave mantém o estado (mesma referência); chave nova desliga', () => {
+    const s = { seen: 'k', on: 'k' as string | null }
+    expect(syncViewOnce(s, 'k')).toBe(s)
+    expect(syncViewOnce(s, 'outra')).toEqual({ seen: 'outra', on: null })
+    // voltar à chave antiga depois de sair não religa
+    expect(syncViewOnce(syncViewOnce(s, 'outra'), 'k')).toEqual({ seen: 'k', on: null })
+    expect(syncViewOnce(s, null)).toEqual({ seen: null, on: null })
+  })
+})
+
+describe('restoreFocusOnClose', () => {
+  it('só quando o visualizador passa de aberto para fechado', () => {
+    expect(restoreFocusOnClose(true, false)).toBe(true)
+    expect(restoreFocusOnClose(false, false)).toBe(false)
+    expect(restoreFocusOnClose(false, true)).toBe(false)
+    expect(restoreFocusOnClose(true, true)).toBe(false)
   })
 })
 
