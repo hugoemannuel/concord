@@ -58,7 +58,9 @@ func (r *Repository) FindAttachment(ctx context.Context, id string) (*storedAtta
 			message_id,
 			channel_id,
 			conversation_id,
-			created_at
+			created_at,
+			view_once,
+			view_once_gone_at IS NOT NULL
 		FROM message_attachments
 		WHERE id = $1
 		`,
@@ -77,6 +79,8 @@ func (r *Repository) FindAttachment(ctx context.Context, id string) (*storedAtta
 		&a.ChannelID,
 		&a.ConversationID,
 		&a.CreatedAt,
+		&a.ViewOnce,
+		&a.ViewOnceGone,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrAttachmentNotFound
@@ -157,6 +161,8 @@ func (r *Repository) CreateWithAttachments(ctx context.Context, msg *Message, at
 }
 
 // AttachAttachments preenche Attachments nas mensagens (uma query por página).
+// O anexo de visualização única nunca vai em Attachments: vai em ViewOnce, sem
+// URL (placeAttachment).
 func (r *Repository) AttachAttachments(ctx context.Context, messages []Message) error {
 	if len(messages) == 0 {
 		return nil
@@ -171,10 +177,10 @@ func (r *Repository) AttachAttachments(ctx context.Context, messages []Message) 
 	rows, err := r.db.Query(
 		ctx,
 		`
-		SELECT message_id, `+attachmentColumns+`
-		FROM message_attachments
-		WHERE message_id = ANY($1::uuid[])
-		ORDER BY message_id, position
+		SELECT a.message_id, `+attachmentColumns+`, `+viewOnceColumns+`
+		FROM message_attachments a
+		WHERE a.message_id = ANY($1::uuid[])
+		ORDER BY a.message_id, a.position
 		`,
 		ids,
 	)
@@ -183,23 +189,12 @@ func (r *Repository) AttachAttachments(ctx context.Context, messages []Message) 
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var messageID string
-		var a Attachment
-		if err := rows.Scan(
-			&messageID,
-			&a.ID,
-			&a.Kind,
-			&a.ContentType,
-			&a.Filename,
-			&a.SizeBytes,
-			&a.Width,
-			&a.Height,
-			&a.DurationMs,
-		); err != nil {
+		messageID, a, vo, err := scanAttachmentRow(rows)
+		if err != nil {
 			return err
 		}
 		if i, ok := index[messageID]; ok {
-			messages[i].Attachments = append(messages[i].Attachments, a)
+			placeAttachment(&messages[i], a, vo)
 		}
 	}
 	return rows.Err()
