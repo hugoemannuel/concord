@@ -1,6 +1,6 @@
 # 0064. Mensagens temporárias e foto/vídeo de visualização única nas DMs
 
-- Status: proposto
+- Status: aceito
 - Data: 2026-11-12
 - Relacionado: spec [2026-11-12-mensagens-temporarias-design](../superpowers/specs/2026-11-12-mensagens-temporarias-design.md)
 

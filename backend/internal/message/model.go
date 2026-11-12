@@ -66,6 +66,10 @@ type Message struct {
 	// ninguém ouve em canal sem ele.
 	TTSVoiceChannelID *string `json:"tts_voice_channel_id,omitempty"`
 	CreatedAt       time.Time    `json:"created_at"`
+	// Quando a mensagem some (conversa com prazo); nil = não expira.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// Mídia de visualização única (view_once.go); nil = mensagem comum.
+	ViewOnce *ViewOnceMedia `json:"view_once,omitempty"`
 	// Quando o autor editou o texto pela última vez; nil = nunca editada.
 	EditedAt *time.Time `json:"edited_at,omitempty"`
 	// Quando a mensagem foi fixada no canal; nil = não fixada.

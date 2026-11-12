@@ -29,7 +29,8 @@ const convColumns = `
 	c.user_a_id,
 	c.user_b_id,
 	c.created_at,
-	c.updated_at
+	c.updated_at,
+	c.disappearing_seconds
 `
 
 func scanConversation(row pgx.Row, extra ...any) (*Conversation, error) {
@@ -45,6 +46,7 @@ func scanConversation(row pgx.Row, extra ...any) (*Conversation, error) {
 		&userB,
 		&conv.CreatedAt,
 		&conv.UpdatedAt,
+		&conv.DisappearingSeconds,
 	}, extra...)
 	if err := row.Scan(dest...); err != nil {
 		return nil, err
