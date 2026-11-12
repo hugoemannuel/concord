@@ -41,6 +41,7 @@ func (a *app) wireChat() {
 	// Varredura por minuto das mensagens temporárias vencidas e das mídias de visualização única antigas.
 	go message.NewExpirySweeper(messageRepository, a.conversationRepository, uploads, messageEvents).Run(a.ctx, time.Minute)
 	a.messageHandler = message.MessageHandler(a.messageService, a.channelService, a.conversationService, a.friendshipService, a.permissionService)
+	a.messageHandler.SetViewOnce(message.NewViewOnceService(messageRepository, a.conversationRepository))
 	a.uploadSpace = media.NewSpace(a.uploadsDir, media.ReserveFromEnv(os.Getenv("UPLOADS_MIN_FREE_GB")))
 	a.roomAccess = message.NewServiceRoomAccess(a.channelService, a.permissionService, a.conversationService, a.friendshipService)
 	attachmentHandler := message.NewAttachmentHandler(messageRepository, uploads, a.uploadSpace, a.roomAccess, a.authService)

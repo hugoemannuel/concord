@@ -22,6 +22,7 @@ type Handler struct {
 	perms               PermissionChecker
 	access              RoomAccess
 	commands            CommandHandler
+	viewOnce            ViewOncePreparer
 }
 
 func MessageHandler(service *Service, channelService *channel.Service, conversationService *conversation.Service, friendService *friendship.Service, perms PermissionChecker) *Handler {
