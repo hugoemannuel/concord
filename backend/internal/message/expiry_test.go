@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 )
 
 type fakeExpiryRepo struct {
+	mu         sync.Mutex
+	onBatch    func()
 	batches    [][]ExpiredMessage
 	calls      int
 	limits     []int
@@ -18,7 +21,12 @@ type fakeExpiryRepo struct {
 }
 
 func (r *fakeExpiryRepo) DeleteExpired(_ context.Context, _ time.Time, limit int) ([]ExpiredMessage, error) {
+	r.mu.Lock()
 	r.limits = append(r.limits, limit)
+	r.mu.Unlock()
+	if r.onBatch != nil {
+		defer r.onBatch()
+	}
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -28,6 +36,12 @@ func (r *fakeExpiryRepo) DeleteExpired(_ context.Context, _ time.Time, limit int
 		return nil, nil
 	}
 	return r.batches[i], nil
+}
+
+func (r *fakeExpiryRepo) chamadas() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.limits)
 }
 
 func (r *fakeExpiryRepo) ExpireViewOnce(_ context.Context, before time.Time) ([]string, error) {
@@ -167,7 +181,7 @@ func TestSweeperRunVarreEPara(t *testing.T) {
 		NewExpirySweeper(repo, &fakeExpiryRooms{}, &fakeExpiryFiles{}, &deletePublisher{}).Run(ctx, time.Hour)
 		close(done)
 	}()
-	for i := 0; i < 200 && len(repo.limits) == 0; i++ {
+	for i := 0; i < 200 && repo.chamadas() == 0; i++ {
 		time.Sleep(10 * time.Millisecond)
 	}
 	cancel()
@@ -176,7 +190,25 @@ func TestSweeperRunVarreEPara(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run não parou com o ctx cancelado")
 	}
-	if len(repo.limits) == 0 {
+	if repo.chamadas() == 0 {
 		t.Fatal("Run não varreu ao começar")
+	}
+}
+
+// Cancelado depois do primeiro lote cheio: não pede o próximo e devolve o erro do ctx.
+func TestSweeperParaEntreLotesSeCtxCancelado(t *testing.T) {
+	full := make([]ExpiredMessage, 500)
+	for i := range full {
+		full[i] = ExpiredMessage{ID: "m", ConversationID: "c1"}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	repo := &fakeExpiryRepo{batches: [][]ExpiredMessage{full, full[:3]}, onBatch: cancel}
+
+	err := NewExpirySweeper(repo, &fakeExpiryRooms{}, &fakeExpiryFiles{}, &deletePublisher{}).RunOnce(ctx, time.Now())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if repo.calls != 1 {
+		t.Fatalf("chamadas = %d, want 1", repo.calls)
 	}
 }

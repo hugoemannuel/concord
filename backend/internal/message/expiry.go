@@ -66,6 +66,9 @@ func (s *ExpirySweeper) Run(ctx context.Context, every time.Duration) {
 func (s *ExpirySweeper) RunOnce(ctx context.Context, now time.Time) error {
 	rooms := map[string][]string{} // participantes por conversa, nesta passada
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		batch, err := s.repo.DeleteExpired(ctx, now, expiryBatch)
 		if err != nil {
 			return err
