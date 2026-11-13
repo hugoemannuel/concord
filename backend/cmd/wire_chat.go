@@ -34,17 +34,20 @@ func (a *app) wireChat() {
 	messageEvents := push.WrapMessages(a.hub, a.pushTap)
 	a.messageService = message.MessageService(messageRepository, messageEvents, a.cachedChannels(), a.conversationRepository, uploads, a.permissionService)
 	a.messageService.SetAudit(a.audit)
+	// Aviso no canal quando o prazo das mensagens temporárias muda.
+	a.channelService.SetNoticePoster(a.messageService, conversation.ActorNameFrom(a.userService))
 	slowmode := a.wireSlowmode()
 	a.messageService.SetSlowmode(slowmode)
 	// Limpeza horária de arquivos sem dono (cascatas e uploads abandonados).
 	go message.NewJanitor(messageRepository, uploads).Run(a.ctx, time.Hour)
 	// Varredura por minuto das mensagens temporárias vencidas e das mídias de visualização única antigas.
-	go message.NewExpirySweeper(messageRepository, a.conversationRepository, uploads, messageEvents).Run(a.ctx, time.Minute)
+	go message.NewExpirySweeper(messageRepository, a.conversationRepository, a.cachedChannels(), uploads, messageEvents).Run(a.ctx, time.Minute)
 	a.messageHandler = message.MessageHandler(a.messageService, a.channelService, a.conversationService, a.friendshipService, a.permissionService)
 	a.uploadSpace = media.NewSpace(a.uploadsDir, media.ReserveFromEnv(os.Getenv("UPLOADS_MIN_FREE_GB")))
 	a.roomAccess = message.NewServiceRoomAccess(a.channelService, a.permissionService, a.conversationService, a.friendshipService)
 	viewOnce := message.NewViewOnceService(messageRepository, a.conversationRepository)
-	viewOnce.SetOpen(message.ViewOnceOpenDeps{Repo: messageRepository, Access: a.roomAccess, Tokens: a.authService, Publisher: messageEvents})
+	viewOnce.SetChannels(a.channelService, a.permissionService)
+	viewOnce.SetOpen(message.ViewOnceOpenDeps{Repo: messageRepository, Access: a.roomAccess, Tokens: a.authService, Publisher: messageEvents, Channels: a.cachedChannels()})
 	a.messageHandler.SetViewOnce(viewOnce)
 	attachmentHandler := message.NewAttachmentHandler(messageRepository, uploads, a.uploadSpace, a.roomAccess, a.authService)
 	searchHandler := message.NewSearchHandler(messageRepository, a.permissionService, a.roomAccess)

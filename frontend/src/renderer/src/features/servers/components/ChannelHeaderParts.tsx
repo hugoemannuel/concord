@@ -5,6 +5,8 @@ import PinnedMessagesPopover from '../../chat/components/PinnedMessagesPopover'
 import PluginHeaderButtons from '../../plugins/components/PluginHeaderButtons'
 import MessageSearchBar from '../../chat/components/MessageSearchBar'
 import type { Channel } from '../api/channels'
+import ChannelDisappearingMark from '../../disappearing/components/ChannelDisappearingMark'
+import type { DisappearingSeconds } from '../../disappearing/lib/disappearing'
 import type { Server } from '../api/servers'
 
 /** Ícone (# ou alto-falante) e nome do canal aberto; sem canal, o do servidor. */
@@ -26,6 +28,9 @@ export function ChannelTitle({
       <span title={name} className="truncate text-ds-md font-semibold text-strong">
         {name}
       </span>
+      <ChannelDisappearingMark
+        seconds={channel?.disappearing_seconds as DisappearingSeconds | null | undefined}
+      />
     </div>
   )
 }

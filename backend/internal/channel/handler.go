@@ -198,8 +198,10 @@ func (h *Handler) Update(c *gin.Context) {
 	channelID := c.Param("channelId")
 
 	var input struct {
-		Name            string `json:"name"`
-		SlowmodeSeconds *int   `json:"slowmode_seconds"`
+		Name                string `json:"name"`
+		SlowmodeSeconds     *int   `json:"slowmode_seconds"`
+		DisappearingSeconds *int   `json:"disappearing_seconds"`
+		AllowViewOnce       *bool  `json:"allow_view_once"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -221,12 +223,13 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.service.Update(c.Request.Context(), channelID, UpdateInput{Name: input.Name, SlowmodeSeconds: input.SlowmodeSeconds})
+	updated, err := h.service.Update(c.Request.Context(), channelID, UpdateInput{Name: input.Name, SlowmodeSeconds: input.SlowmodeSeconds, DisappearingSeconds: input.DisappearingSeconds, AllowViewOnce: input.AllowViewOnce})
 	if err != nil {
 		respondUpdateError(c, err)
 		return
 	}
 	updated.Overwrites = OverwritesOf(snap, channelID)
+	h.service.AnnounceDisappearing(c.Request.Context(), userID, current, updated)
 	h.recordUpdate(c.Request.Context(), userID, current, updated)
 
 	c.JSON(http.StatusOK, updated)
@@ -239,6 +242,8 @@ func respondUpdateError(c *gin.Context, err error) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "code": "system_channel"})
 	case errors.Is(err, ErrInvalidSlowmode):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_slowmode"})
+	case errors.Is(err, ErrInvalidDisappearing):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_disappearing"})
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}

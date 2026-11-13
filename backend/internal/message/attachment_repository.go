@@ -63,6 +63,9 @@ func (r *Repository) FindAttachment(ctx context.Context, id string) (*storedAtta
 			view_once_gone_at IS NOT NULL
 		FROM message_attachments
 		WHERE id = $1
+		  AND NOT (view_once AND EXISTS (
+			SELECT 1 FROM messages m
+			WHERE m.id = message_attachments.message_id AND m.expires_at <= now()))
 		`,
 		id,
 	).Scan(

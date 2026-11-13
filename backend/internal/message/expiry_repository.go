@@ -10,8 +10,8 @@ import (
 func (r *Repository) DeleteExpired(ctx context.Context, now time.Time, limit int) ([]ExpiredMessage, error) {
 	rows, err := r.db.Query(ctx, `
 		WITH due AS (
-			SELECT id, conversation_id FROM messages
-			WHERE expires_at IS NOT NULL AND expires_at <= $1 AND conversation_id IS NOT NULL
+			SELECT id, conversation_id, channel_id FROM messages
+			WHERE expires_at IS NOT NULL AND expires_at <= $1
 			ORDER BY expires_at
 			LIMIT $2
 		), atts AS (
@@ -20,9 +20,9 @@ func (r *Repository) DeleteExpired(ctx context.Context, now time.Time, limit int
 			GROUP BY a.message_id
 		), gone AS (
 			DELETE FROM messages m USING due WHERE m.id = due.id
-			RETURNING m.id, due.conversation_id
+			RETURNING m.id, due.conversation_id, due.channel_id
 		)
-		SELECT gone.id::text, gone.conversation_id::text, COALESCE(atts.ids, '{}')
+		SELECT gone.id::text, COALESCE(gone.conversation_id::text, ''), COALESCE(gone.channel_id::text, ''), COALESCE(atts.ids, '{}')
 		FROM gone LEFT JOIN atts ON atts.message_id = gone.id`, now, limit)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (r *Repository) DeleteExpired(ctx context.Context, now time.Time, limit int
 	var out []ExpiredMessage
 	for rows.Next() {
 		var m ExpiredMessage
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.AttachmentIDs); err != nil {
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.ChannelID, &m.AttachmentIDs); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -44,7 +44,8 @@ func (r *Repository) DeleteExpired(ctx context.Context, now time.Time, limit int
 type ExpiredViewOnce struct {
 	AttachmentID   string
 	MessageID      string
-	ConversationID string
+	ConversationID string // vazio numa mensagem de canal
+	ChannelID      string // vazio numa mensagem de conversa
 }
 
 // ExpireViewOnce marca como apagadas as mídias de visualização única que
@@ -64,7 +65,7 @@ func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore, viewedBefor
 		        SELECT 1 FROM view_once_recipients rc
 		        WHERE rc.attachment_id = a.id
 		          AND NOT EXISTS (SELECT 1 FROM attachment_views v WHERE v.attachment_id = a.id AND v.user_id = rc.user_id))))
-		RETURNING a.id::text, a.message_id::text, a.conversation_id::text`, sentBefore, viewedBefore)
+		RETURNING a.id::text, a.message_id::text, COALESCE(a.conversation_id::text, ''), COALESCE(a.channel_id::text, '')`, sentBefore, viewedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (r *Repository) ExpireViewOnce(ctx context.Context, sentBefore, viewedBefor
 	var out []ExpiredViewOnce
 	for rows.Next() {
 		var e ExpiredViewOnce
-		if err := rows.Scan(&e.AttachmentID, &e.MessageID, &e.ConversationID); err != nil {
+		if err := rows.Scan(&e.AttachmentID, &e.MessageID, &e.ConversationID, &e.ChannelID); err != nil {
 			return nil, err
 		}
 		out = append(out, e)

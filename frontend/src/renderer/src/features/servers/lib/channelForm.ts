@@ -13,6 +13,9 @@ export interface ChannelFormInput {
   categoryId?: string
   /** Modo lento escolhido ao editar (segundos; 0 = desligado). */
   slowmodeSeconds?: number
+  /** Prazo das mensagens temporárias ao editar (segundos; 0 = desativadas). */
+  disappearingSeconds?: number
+  allowViewOnce?: boolean
 }
 
 export interface ChannelFormApi {
@@ -27,6 +30,20 @@ export interface ChannelFormApi {
   refresh: (serverId: string) => void
 }
 
+/** Prazo temporário e visualização única do canal (0 = prazo desativado). */
+export interface TemporarySettings {
+  disappearingSeconds: number
+  allowViewOnce: boolean
+}
+
+/** Valores do Editar canal: os do canal (visualização única nasce ligada). */
+export function temporaryDefaults(editing: Channel | null): TemporarySettings {
+  return {
+    disappearingSeconds: editing?.disappearing_seconds ?? 0,
+    allowViewOnce: editing?.allow_view_once ?? true
+  }
+}
+
 /** Dá para enviar: tem nome, não está salvando e há servidor aberto. */
 export function canSubmitChannel(name: string, saving: boolean, serverId: string): boolean {
   return name !== '' && !saving && serverId !== ''
@@ -37,7 +54,9 @@ export async function saveChannel(input: ChannelFormInput, api: ChannelFormApi):
   if (input.editing) {
     await api.update(input.serverId, input.editing.id, {
       name: input.name,
-      slowmode_seconds: input.slowmodeSeconds
+      slowmode_seconds: input.slowmodeSeconds,
+      disappearing_seconds: input.disappearingSeconds,
+      allow_view_once: input.allowViewOnce
     })
     api.refresh(input.serverId)
     return 'Canal atualizado!'

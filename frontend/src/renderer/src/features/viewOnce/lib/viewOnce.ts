@@ -3,11 +3,13 @@ import type { DraftAttachment } from '../../chat/lib/attachments'
 import type { ExtraMessageData } from '../../chat/api/messages'
 
 /**
- * Visualização única só em conversa e com um único anexo, foto ou vídeo, que
- * já subiu ou está subindo (áudio, arquivo e canal ficam de fora).
+ * Visualização única só com um único anexo, foto ou vídeo, que já subiu ou
+ * está subindo (áudio e arquivo ficam de fora). `allowedInRoom` diz se a sala
+ * aceita o recurso (DM e grupo sempre; canal só com ele liberado, ver
+ * `viewOnceAllowedIn`).
  */
-export function canViewOnce(drafts: DraftAttachment[], isConversation: boolean): boolean {
-  if (!isConversation || drafts.length !== 1) return false
+export function canViewOnce(drafts: DraftAttachment[], allowedInRoom: boolean): boolean {
+  if (!allowedInRoom || drafts.length !== 1) return false
   const [d] = drafts
   const media = d.kind === 'image' || d.kind === 'video'
   return media && (d.status === 'done' || d.status === 'uploading')
@@ -130,4 +132,16 @@ const OUTCOME_STATE: Record<Outcome, PillState | null> = {
 /** O que a pílula mostra logo após o visualizador fechar, até o servidor confirmar. */
 export function outcomeState(outcome: Outcome): PillState | null {
   return OUTCOME_STATE[outcome]
+}
+
+/**
+ * O olho de visualização única vale na sala? DM e grupo sempre; canal só com
+ * `allow_view_once` ligado e fora dos canais de sistema.
+ */
+export function viewOnceAllowedIn(
+  room: string,
+  channel: { allow_view_once?: boolean; is_system?: boolean } | undefined
+): boolean {
+  if (!room.startsWith('channel:')) return true
+  return channel?.allow_view_once === true && !channel.is_system
 }

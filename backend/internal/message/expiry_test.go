@@ -117,7 +117,7 @@ func TestSweeperApagaEPublica(t *testing.T) {
 	rooms := &fakeExpiryRooms{users: map[string][]string{"c1": {"ana", "bia"}, "c2": {"caio"}}}
 	files, pub := &fakeExpiryFiles{failOn: "a2"}, &deletePublisher{}
 
-	if err := NewExpirySweeper(repo, rooms, files, pub).RunOnce(context.Background(), time.Now()); err != nil {
+	if err := NewExpirySweeper(repo, rooms, nil, files, pub).RunOnce(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{"a1", "a2", "a3"}; !reflect.DeepEqual(files.removed, want) {
@@ -142,7 +142,7 @@ func TestSweeperRepeteEnquantoLoteCheio(t *testing.T) {
 	rooms := &fakeExpiryRooms{users: map[string][]string{"c1": {"ana"}}}
 	pub := &deletePublisher{}
 
-	if err := NewExpirySweeper(repo, rooms, &fakeExpiryFiles{}, pub).RunOnce(context.Background(), time.Now()); err != nil {
+	if err := NewExpirySweeper(repo, rooms, nil, &fakeExpiryFiles{}, pub).RunOnce(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if repo.calls != 2 || !reflect.DeepEqual(repo.limits, []int{500, 500}) {
@@ -167,7 +167,7 @@ func TestSweeperExpiraVisualizacaoUnicaApos14Dias(t *testing.T) {
 
 	pub := &deletePublisher{}
 	rooms := &fakeExpiryRooms{users: map[string][]string{"c1": {"ana", "bia"}}}
-	if err := NewExpirySweeper(repo, rooms, files, pub).RunOnce(context.Background(), now); err != nil {
+	if err := NewExpirySweeper(repo, rooms, nil, files, pub).RunOnce(context.Background(), now); err != nil {
 		t.Fatal(err)
 	}
 	// Um message:update por mensagem (dois anexos da mesma), para os participantes.
@@ -193,7 +193,7 @@ func TestSweeperErroNoRepoNaoPublica(t *testing.T) {
 	repo := &fakeExpiryRepo{err: errors.New("banco")}
 	files, pub := &fakeExpiryFiles{}, &deletePublisher{}
 
-	if err := NewExpirySweeper(repo, &fakeExpiryRooms{}, files, pub).RunOnce(context.Background(), time.Now()); err == nil {
+	if err := NewExpirySweeper(repo, &fakeExpiryRooms{}, nil, files, pub).RunOnce(context.Background(), time.Now()); err == nil {
 		t.Fatal("RunOnce deveria devolver o erro do repositório")
 	}
 	if len(pub.deleted) != 0 || len(files.removed) != 0 {
@@ -207,7 +207,7 @@ func TestSweeperPublicaMesmoSemParticipantes(t *testing.T) {
 	rooms := &fakeExpiryRooms{err: errors.New("banco")}
 	pub := &deletePublisher{}
 
-	if err := NewExpirySweeper(repo, rooms, &fakeExpiryFiles{}, pub).RunOnce(context.Background(), time.Now()); err != nil {
+	if err := NewExpirySweeper(repo, rooms, nil, &fakeExpiryFiles{}, pub).RunOnce(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if len(pub.deleted) != 1 || len(pub.deleted[0].UserIDs) != 0 || pub.deleted[0].MessageID != "m1" {
@@ -221,7 +221,7 @@ func TestSweeperRunVarreEPara(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
-		NewExpirySweeper(repo, &fakeExpiryRooms{}, &fakeExpiryFiles{}, &deletePublisher{}).Run(ctx, time.Hour)
+		NewExpirySweeper(repo, &fakeExpiryRooms{}, nil, &fakeExpiryFiles{}, &deletePublisher{}).Run(ctx, time.Hour)
 		close(done)
 	}()
 	for i := 0; i < 200 && repo.chamadas() == 0; i++ {
@@ -247,7 +247,7 @@ func TestSweeperParaEntreLotesSeCtxCancelado(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	repo := &fakeExpiryRepo{batches: [][]ExpiredMessage{full, full[:3]}, onBatch: cancel}
 
-	err := NewExpirySweeper(repo, &fakeExpiryRooms{}, &fakeExpiryFiles{}, &deletePublisher{}).RunOnce(ctx, time.Now())
+	err := NewExpirySweeper(repo, &fakeExpiryRooms{}, nil, &fakeExpiryFiles{}, &deletePublisher{}).RunOnce(ctx, time.Now())
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
 	}
@@ -262,7 +262,7 @@ func TestSweeperRetomaArquivosPendentes(t *testing.T) {
 	repo := &fakeExpiryRepo{pending: []string{"p1", "p2", "p3"}}
 	files := &fakeExpiryFiles{failOn: "p2"}
 
-	if err := NewExpirySweeper(repo, &fakeExpiryRooms{}, files, &deletePublisher{}).RunOnce(context.Background(), time.Now()); err != nil {
+	if err := NewExpirySweeper(repo, &fakeExpiryRooms{}, nil, files, &deletePublisher{}).RunOnce(context.Background(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{"p1", "p2", "p3"}; !reflect.DeepEqual(files.removed, want) {
@@ -270,5 +270,50 @@ func TestSweeperRetomaArquivosPendentes(t *testing.T) {
 	}
 	if want := []string{"p1", "p3"}; !reflect.DeepEqual(repo.marked, want) {
 		t.Fatalf("marcados = %v, want %v", repo.marked, want)
+	}
+}
+
+type fakeExpiryChannels struct {
+	servers map[string]string
+	calls   map[string]int
+}
+
+func (f *fakeExpiryChannels) ChannelServerID(_ context.Context, id string) (string, error) {
+	if f.calls == nil {
+		f.calls = map[string]int{}
+	}
+	f.calls[id]++
+	return f.servers[id], nil
+}
+
+func TestSweeperPublicaPeloCanalSemParticipantes(t *testing.T) {
+	ch1 := "ch1"
+	repo := &fakeExpiryRepo{
+		batches: [][]ExpiredMessage{{
+			{ID: "m1", ChannelID: "ch1"},
+			{ID: "m2", ChannelID: "ch1"},
+		}},
+		viewOnce: []ExpiredViewOnce{{AttachmentID: "a1", MessageID: "m3", ChannelID: "ch1"}},
+		messages: map[string]*Message{"m3": {ID: "m3", ChannelID: &ch1}},
+	}
+	rooms, chans, pub := &fakeExpiryRooms{}, &fakeExpiryChannels{servers: map[string]string{"ch1": "s1"}}, &deletePublisher{}
+
+	if err := NewExpirySweeper(repo, rooms, chans, &fakeExpiryFiles{}, pub).RunOnce(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	ch := "ch1"
+	want := []DeleteEvent{
+		{ChannelID: &ch, ServerID: "s1", MessageID: "m1", Expired: true},
+		{ChannelID: &ch, ServerID: "s1", MessageID: "m2", Expired: true},
+	}
+	if !reflect.DeepEqual(pub.deleted, want) {
+		t.Fatalf("eventos = %+v, want %+v", pub.deleted, want)
+	}
+	if len(pub.updated) != 1 || pub.updated[0].ChannelID == nil || *pub.updated[0].ChannelID != "ch1" ||
+		pub.updated[0].ServerID != "s1" || pub.updated[0].UserIDs != nil {
+		t.Fatalf("update = %+v", pub.updated)
+	}
+	if len(rooms.calls) != 0 || chans.calls["ch1"] != 1 {
+		t.Fatalf("participantes %v, servidor %v (queria 1 consulta de servidor, 0 de participantes)", rooms.calls, chans.calls)
 	}
 }

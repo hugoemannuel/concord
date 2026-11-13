@@ -47,6 +47,10 @@ type Service struct {
 	onSystemCreated []func(ctx context.Context, ch *Channel)
 	// Chamados depois de editar um canal (o modo lento do message se atualiza).
 	onUpdated []func(ctx context.Context, ch *Channel)
+
+	// Aviso de sistema ao trocar o prazo das mensagens temporárias.
+	noticePoster ChannelNoticePoster
+	actorName    func(ctx context.Context, userID string) (string, error)
 }
 
 func ChannelService(repository *Repository, publisher EventPublisher) *Service {

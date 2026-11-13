@@ -5,6 +5,7 @@ import {
   DISAPPEARING_OPTIONS,
   expiresInText,
   isExpired,
+  roomDisappearing,
   shortLabel
 } from './disappearing'
 
@@ -60,5 +61,23 @@ describe('disappearing', () => {
   it('conversationIdOfRoom só para conversa', () => {
     expect(conversationIdOfRoom('conversation:abc')).toBe('abc')
     expect(conversationIdOfRoom('channel:abc')).toBeNull()
+  })
+})
+
+describe('roomDisappearing', () => {
+  const conversations = [{ id: 'c1', disappearing_seconds: 86400 }, { id: 'c2' }]
+  const channels = [
+    { id: 'k1', disappearing_seconds: 604800 },
+    { id: 'k2', disappearing_seconds: null }
+  ]
+  it('lê o prazo da conversa e do canal', () => {
+    expect(roomDisappearing('conversation:c1', conversations, channels)).toBe(86400)
+    expect(roomDisappearing('channel:k1', conversations, channels)).toBe(604800)
+  })
+  it('sem prazo ou sala desconhecida dá null', () => {
+    expect(roomDisappearing('conversation:c2', conversations, channels)).toBeNull()
+    expect(roomDisappearing('channel:k2', conversations, channels)).toBeNull()
+    expect(roomDisappearing('channel:zz', conversations, channels)).toBeNull()
+    expect(roomDisappearing('server:1', conversations, channels)).toBeNull()
   })
 })

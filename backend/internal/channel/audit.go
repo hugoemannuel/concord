@@ -44,6 +44,8 @@ func createdChanges(ch *Channel, private bool) []audit.Change {
 func (h *Handler) recordUpdate(ctx context.Context, actorID string, before, after *Channel) {
 	changes := audit.Diff(nil, "name", before.Name, after.Name)
 	changes = audit.Diff(changes, "slowmode_seconds", before.SlowmodeSeconds, after.SlowmodeSeconds)
+	changes = audit.DiffPtr(changes, "disappearing_seconds", before.DisappearingSeconds, after.DisappearingSeconds)
+	changes = audit.Diff(changes, "allow_view_once", before.AllowViewOnce, after.AllowViewOnce)
 	if len(changes) > 0 {
 		h.record(ctx, channelEvent(audit.ChannelUpdate, actorID, after, changes))
 	}

@@ -83,6 +83,8 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 			system_kind,
 			managed,
 			slowmode_seconds,
+			disappearing_seconds,
+			allow_view_once,
 			created_by,
 			created_at,
 			updated_at
@@ -100,6 +102,8 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Channel, error) 
 		&ch.SystemKind,
 		&ch.Managed,
 		&ch.SlowmodeSeconds,
+		&ch.DisappearingSeconds,
+		&ch.AllowViewOnce,
 		&ch.CreatedBy,
 		&ch.CreatedAt,
 		&ch.UpdatedAt,
@@ -164,14 +168,22 @@ func (r *Repository) SlowmodeSeconds(ctx context.Context, channelID string) (int
 	return seconds, err
 }
 
-// Update grava o nome e, se veio, o modo lento (nil mantém o atual).
+// Update grava o nome e, se vieram, o modo lento, o prazo temporário (0 grava
+// NULL) e a visualização única (nil mantém o atual).
 func (r *Repository) Update(ctx context.Context, id string, in UpdateInput) error {
 	tag, err := r.db.Exec(
 		ctx,
-		`UPDATE channels SET name = $1, slowmode_seconds = COALESCE($3, slowmode_seconds), updated_at = NOW() WHERE id = $2`,
+		`UPDATE channels SET name = $1,
+			slowmode_seconds = COALESCE($3, slowmode_seconds),
+			disappearing_seconds = CASE WHEN $4::int IS NULL THEN disappearing_seconds WHEN $4 = 0 THEN NULL ELSE $4 END,
+			allow_view_once = COALESCE($5, allow_view_once),
+			updated_at = NOW()
+		WHERE id = $2`,
 		in.Name,
 		id,
 		in.SlowmodeSeconds,
+		in.DisappearingSeconds,
+		in.AllowViewOnce,
 	)
 	if err != nil {
 		return err
@@ -207,6 +219,8 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			system_kind,
 			managed,
 			slowmode_seconds,
+			disappearing_seconds,
+			allow_view_once,
 			created_by,
 			created_at,
 			updated_at
@@ -234,6 +248,8 @@ func (r *Repository) ListByServerID(ctx context.Context, serverID string) ([]Cha
 			&ch.SystemKind,
 			&ch.Managed,
 			&ch.SlowmodeSeconds,
+			&ch.DisappearingSeconds,
+			&ch.AllowViewOnce,
 			&ch.CreatedBy,
 			&ch.CreatedAt,
 			&ch.UpdatedAt,

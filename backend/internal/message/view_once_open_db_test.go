@@ -45,7 +45,7 @@ func enviarViewOnce(t *testing.T, s *searchDB, repo *Repository, recipients ...s
 	t.Helper()
 	ana := s.users["ana"]
 	att := anexoPendente(t, s, repo, ana, "image")
-	if err := repo.MarkViewOnce(s.ctx, att, ana, s.convID, recipients); err != nil {
+	if err := repo.MarkViewOnce(s.ctx, att, ana, Room{ConversationID: s.convID}, recipients); err != nil {
 		t.Fatal(err)
 	}
 	conv := s.convID
