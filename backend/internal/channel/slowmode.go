@@ -22,8 +22,10 @@ func ValidSlowmode(seconds int) bool {
 
 // UpdateInput: o que a edição do canal muda. SlowmodeSeconds nil = não mexe.
 type UpdateInput struct {
-	Name            string
-	SlowmodeSeconds *int
+	Name                string
+	SlowmodeSeconds     *int
+	DisappearingSeconds *int  // nil = não mexe; 0 = desliga (ver disappearing.go)
+	AllowViewOnce       *bool // nil = não mexe
 }
 
 // validate confere o pedido de edição.
@@ -33,6 +35,9 @@ func (in UpdateInput) validate() error {
 	}
 	if in.SlowmodeSeconds != nil && !ValidSlowmode(*in.SlowmodeSeconds) {
 		return ErrInvalidSlowmode
+	}
+	if in.DisappearingSeconds != nil && !ValidChannelDisappearing(*in.DisappearingSeconds) {
+		return ErrInvalidDisappearing
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ import { PERMISSION_GROUPS } from '../../servers/lib/permissionCatalog'
 import { Perm } from '../../servers/lib/permissions'
 import { actionInfo } from './auditActions'
 import { slowmodeLabel } from '../../chat/lib/slowmode'
+import { DISAPPEARING_OPTIONS } from '../../disappearing/lib/disappearing'
 import { castigoEffectsLabel, durationLabel } from '../../castigo/lib/castigoCopy'
 
 /** Um campo que mudou: antes e depois já em texto. */
@@ -75,6 +76,10 @@ const art = (v: unknown): string => {
 /** Modo lento do canal: "Desligado" ou "30 s", "2 min", "6 h". */
 const slowmode = (v: unknown): string => (Number(v) ? slowmodeLabel(Number(v)) : 'Desligado')
 
+/** Prazo das mensagens temporárias: "Desativadas" ou "7 dias". */
+const disappearing = (v: unknown): string =>
+  DISAPPEARING_OPTIONS.find((o) => o.seconds === (Number(v) || null))?.label ?? 'Desativadas'
+
 const lookup = (table: Record<string, string>) => (v: unknown) => table[String(v)] ?? text(v)
 
 /** Rótulo e formato de cada campo que o backend grava (backend/internal/<domínio>/audit.go). */
@@ -87,6 +92,8 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   type: { label: 'Tipo', format: lookup(CHANNEL_TYPE) },
   private: { label: 'Privado', format: yesNo },
   slowmode_seconds: { label: 'Modo lento', format: slowmode },
+  disappearing_seconds: { label: 'Mensagens temporárias', format: disappearing },
+  allow_view_once: { label: 'Visualização única', format: (v) => (v ? 'Ligada' : 'Desligada') },
   color: { label: 'Cor', format: color },
   hoist: { label: 'Mostrar separado', format: yesNo },
   nick: { label: 'Apelido', format: (v) => (v ? String(v) : 'sem apelido') },

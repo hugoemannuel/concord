@@ -20,6 +20,10 @@ export interface Channel {
   managed?: boolean
   /** Modo lento: intervalo mínimo (s) entre as mensagens de cada membro; 0 = desligado. */
   slowmode_seconds?: number
+  /** Prazo das mensagens temporárias do canal (s); null/ausente = desativadas. */
+  disappearing_seconds?: number | null
+  /** O canal aceita foto/vídeo de visualização única. */
+  allow_view_once?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -101,6 +105,9 @@ export function deleteChannelOverwrite(
 export interface UpdateChannelInput {
   name: string
   slowmode_seconds?: number
+  /** 0 desliga; ausente deixa como está. */
+  disappearing_seconds?: number
+  allow_view_once?: boolean
 }
 
 export function updateChannel(

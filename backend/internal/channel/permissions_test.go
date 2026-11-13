@@ -56,7 +56,7 @@ func newPermStore() *permStore {
 	return &permStore{
 		snap: snap,
 		channels: map[string]*Channel{
-			"geral":   {ID: "geral", ServerID: "s1", Name: "geral", Type: TypeText},
+			"geral":   {ID: "geral", ServerID: "s1", Name: "geral", Type: TypeText, AllowViewOnce: true},
 			"segredo": {ID: "segredo", ServerID: "s1", Name: "segredo", Type: TypeText, Position: 1},
 		},
 	}
@@ -98,6 +98,15 @@ func (f *permStore) Update(_ context.Context, id string, in UpdateInput) error {
 		ch.Name = in.Name
 		if in.SlowmodeSeconds != nil {
 			ch.SlowmodeSeconds = *in.SlowmodeSeconds
+		}
+		if in.DisappearingSeconds != nil {
+			ch.DisappearingSeconds = nil
+			if *in.DisappearingSeconds != 0 {
+				ch.DisappearingSeconds = in.DisappearingSeconds
+			}
+		}
+		if in.AllowViewOnce != nil {
+			ch.AllowViewOnce = *in.AllowViewOnce
 		}
 	}
 	return nil

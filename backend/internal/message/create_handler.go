@@ -27,7 +27,7 @@ type createMessageInput struct {
 	StickerID     *string      `json:"sticker_id"`
 	GifURL        *string      `json:"gif_url"`
 	GifMetadata   *GifMetadata `json:"gif_metadata"`
-	ViewOnce      bool         `json:"view_once"` // só existe em conversa
+	ViewOnce      bool         `json:"view_once"`
 }
 
 // textOnly: só texto (sem anexo, figurinha nem GIF), o que pode ser comando.
@@ -44,11 +44,6 @@ func (h *Handler) CreateChannelMessage(c *gin.Context) {
 		return
 	}
 
-	if input.ViewOnce {
-		c.JSON(http.StatusBadRequest, gin.H{"error": ErrInvalidViewOnce.Error()})
-		return
-	}
-
 	userID, ok := h.getUserID(c)
 	if !ok {
 		return
@@ -59,6 +54,14 @@ func (h *Handler) CreateChannelMessage(c *gin.Context) {
 		want |= permission.AttachFiles
 	}
 	if !h.requireChannel(c, channelID, userID, want) {
+		return
+	}
+
+	// Depois do CanWrite: quem não escreve no canal não marca nada.
+	if input.ViewOnce && !h.prepareViewOnce(c, Room{ChannelID: channelID}, userID, input.AttachmentIDs, input.StickerID, input.GifURL) {
+		return
+	}
+	if !input.ViewOnce && !h.clearViewOnce(c, Room{ChannelID: channelID}, userID, input.AttachmentIDs) {
 		return
 	}
 

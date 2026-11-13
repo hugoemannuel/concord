@@ -19,8 +19,10 @@ import SlowmodeBar from './composer/SlowmodeBar'
 import MentionSuggestionList from './MentionSuggestionList'
 import DisappearingBanner from '../../disappearing/components/DisappearingBanner'
 import { useViewOnceDraft } from '../../viewOnce/hooks/useViewOnceDraft'
-import { useDisappearing } from '../../disappearing/hooks/useDisappearing'
-import { conversationIdOfRoom } from '../../disappearing/lib/disappearing'
+import { useRoomDisappearing } from '../../disappearing/hooks/useDisappearing'
+import { viewOnceAllowedIn } from '../../viewOnce/lib/viewOnce'
+import { useServerStore } from '../../servers/store/serverStore'
+import { channelIdOf } from '../lib/chatPaneView'
 import {
   AttachButton,
   ComposerGate,
@@ -70,9 +72,10 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const typing = useTypingSender(room)
   const [mediaPickerOpen, setMediaPickerOpen] = useRoomState(room, false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const viewOnce = useViewOnceDraft(room, p.drafts, !p.isChannel)
+  const channel = useServerStore((s) => s.channels.find((c) => c.id === channelIdOf(room)))
+  const viewOnce = useViewOnceDraft(room, p.drafts, viewOnceAllowedIn(room, channel))
   const slowmode = useSlowmode(room, permissions.bypassSlowmode)
-  const disappearing = useDisappearing(conversationIdOfRoom(room))
+  const disappearing = useRoomDisappearing(room)
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
   const menu = useMentionMenu({
     room,

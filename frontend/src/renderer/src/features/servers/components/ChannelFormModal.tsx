@@ -12,10 +12,11 @@ import Input from '../../../shared/ui/Input'
 import Switch from '../../../shared/ui/Switch'
 import ChannelCategoryPicker from './ChannelCategoryPicker'
 import ChannelSlowmodeField from './ChannelSlowmodeField'
+import ChannelTemporaryFields from './ChannelTemporaryFields'
 import { VolumeIcon } from '../../../shared/ui/icons'
 import { actionErrorMessage } from '../lib/permissionErrors'
 import { channelSlug } from '../lib/channelSidebar'
-import { canSubmitChannel, saveChannel, toggleRole, type ChannelFormApi } from '../lib/channelForm'
+import { canSubmitChannel, saveChannel, temporaryDefaults, toggleRole, type ChannelFormApi } from '../lib/channelForm'
 
 const TYPE_BUTTON =
   'flex cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-ds-md font-medium transition-colors'
@@ -157,6 +158,7 @@ function ChannelFormDialog({
   const [roleIds, setRoleIds] = useState<string[]>([])
   const [categoryId, setCategoryId] = useState(form.categoryId ?? '')
   const [slowmodeSeconds, setSlowmodeSeconds] = useState(form.editing?.slowmode_seconds ?? 0)
+  const [temporary, setTemporary] = useState(() => temporaryDefaults(form.editing))
   const [saving, setSaving] = useState(false)
   const editing = form.editing
 
@@ -166,7 +168,7 @@ function ChannelFormDialog({
     if (!canSubmitChannel(slug, saving, server.id)) return
     setSaving(true)
     try {
-      const input = { serverId: server.id, name: slug, editing, type, private: isPrivate, roleIds, categoryId, slowmodeSeconds }
+      const input = { serverId: server.id, name: slug, editing, type, private: isPrivate, roleIds, categoryId, slowmodeSeconds, ...temporary }
       const done = await saveChannel(input, formApi)
       closeForm()
       showToast.success(done)
@@ -198,6 +200,7 @@ function ChannelFormDialog({
           />
         </div>
         {editing && <ChannelSlowmodeField value={slowmodeSeconds} onChange={setSlowmodeSeconds} />}
+        {editing && <ChannelTemporaryFields value={temporary} onChange={setTemporary} />}
         {!editing && <ChannelTypePicker type={type} onChange={setType} />}
         {!editing && <ChannelCategoryPicker serverId={server.id} value={categoryId} onChange={setCategoryId} />}
         {!editing && (

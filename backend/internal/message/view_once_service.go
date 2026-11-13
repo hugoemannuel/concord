@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"slices"
 	"time"
 )
 
@@ -19,7 +20,9 @@ var (
 )
 
 type viewOnceRepo interface {
-	MarkViewOnce(ctx context.Context, attachmentID, uploaderID, conversationID string, recipientIDs []string) error
+	MarkViewOnce(ctx context.Context, attachmentID, uploaderID string, room Room, recipientIDs []string) error
+	ClearViewOnce(ctx context.Context, attachmentIDs []string, uploaderID string, room Room) error
+	BotIDs(ctx context.Context, ids []string) ([]string, error)
 }
 
 // viewOnceOpenRepo é o que a abertura usa do banco.
@@ -42,17 +45,22 @@ type ViewOnceOpenDeps struct {
 	Access    RoomAccess
 	Tokens    ViewOnceTokens
 	Publisher EventPublisher
+	// Channels resolve o servidor do canal (aviso pela sala do canal).
+	Channels ChannelResolver
 }
 
-// ViewOncePreparer é o que o handler da DM usa para preparar o envio.
+// ViewOncePreparer é o que os handlers (DM e canal) usam para preparar o envio.
 type ViewOncePreparer interface {
-	Prepare(ctx context.Context, conversationID, authorID string, attachmentIDs []string, stickerID, gifURL *string) error
+	Prepare(ctx context.Context, room Room, authorID string, attachmentIDs []string, stickerID, gifURL *string) error
+	// Clear desfaz a marca de um envio anterior que falhou, quando o reenvio é comum.
+	Clear(ctx context.Context, room Room, authorID string, attachmentIDs []string) error
 }
 
 // ViewOnceService cuida das mensagens de visualização única.
 type ViewOnceService struct {
 	repo         viewOnceRepo
 	participants ExpiryParticipants
+	channels     viewOnceChannelDeps
 	open         ViewOnceOpenDeps
 }
 
@@ -64,23 +72,50 @@ func NewViewOnceService(repo viewOnceRepo, participants ExpiryParticipants) *Vie
 func (s *ViewOnceService) SetOpen(d ViewOnceOpenDeps) { s.open = d }
 
 // Prepare valida e marca o anexo (ainda pendente) como visualização única,
-// ANTES de a mensagem ser criada: quem pode abrir são os participantes da
-// conversa menos o autor, fixados no envio.
-func (s *ViewOnceService) Prepare(ctx context.Context, conversationID, authorID string, attachmentIDs []string, stickerID, gifURL *string) error {
+// ANTES de a mensagem ser criada. Quem pode abrir fica fixado no envio: na
+// conversa, os participantes menos o autor; no canal, quem vê o canal agora
+// (channelRecipients).
+func (s *ViewOnceService) Prepare(ctx context.Context, room Room, authorID string, attachmentIDs []string, stickerID, gifURL *string) error {
 	if err := validateViewOnce(attachmentIDs, stickerID, gifURL); err != nil {
 		return err
 	}
-	ids, err := s.participants.ConversationParticipantIDs(ctx, conversationID)
+	recipients, err := s.recipients(ctx, room, authorID)
 	if err != nil {
 		return err
 	}
-	recipients := make([]string, 0, len(ids))
+	return s.repo.MarkViewOnce(ctx, attachmentIDs[0], authorID, room, recipients)
+}
+
+// Clear tira a marca de visualização única dos anexos pendentes do autor na
+// sala: o envio comum não pode herdar o olho de uma tentativa anterior.
+func (s *ViewOnceService) Clear(ctx context.Context, room Room, authorID string, attachmentIDs []string) error {
+	if len(attachmentIDs) == 0 {
+		return nil
+	}
+	return s.repo.ClearViewOnce(ctx, attachmentIDs, authorID, room)
+}
+
+// recipients: quem poderá abrir a mídia enviada na sala.
+func (s *ViewOnceService) recipients(ctx context.Context, room Room, authorID string) ([]string, error) {
+	if room.ChannelID != "" {
+		return s.channelRecipients(ctx, room.ChannelID, authorID)
+	}
+	ids, err := s.participants.ConversationParticipantIDs(ctx, room.ConversationID)
+	if err != nil {
+		return nil, err
+	}
+	return withoutIDs(ids, authorID), nil
+}
+
+// withoutIDs devolve ids sem os removidos, na mesma ordem.
+func withoutIDs(ids []string, removed ...string) []string {
+	out := make([]string, 0, len(ids))
 	for _, id := range ids {
-		if id != authorID {
-			recipients = append(recipients, id)
+		if !slices.Contains(removed, id) {
+			out = append(out, id)
 		}
 	}
-	return s.repo.MarkViewOnce(ctx, attachmentIDs[0], authorID, conversationID, recipients)
+	return out
 }
 
 // Open libera a mídia para userID uma única vez: devolve o token view_once do
@@ -107,7 +142,7 @@ func (s *ViewOnceService) Open(ctx context.Context, attachmentID, userID string)
 	// última abertura), para o token valer os 5 min.
 	pubCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
 	defer cancel()
-	s.publishUpdate(pubCtx, *a.MessageID, *a.ConversationID)
+	s.publishUpdate(pubCtx, *a.MessageID, attachmentRoom(a))
 	return token, expiresAt, nil
 }
 
@@ -118,10 +153,13 @@ func (s *ViewOnceService) openable(ctx context.Context, attachmentID, userID str
 	if err != nil {
 		return nil, err
 	}
-	if !a.ViewOnce || a.MessageID == nil || a.ConversationID == nil {
+	room := attachmentRoom(a)
+	if !a.ViewOnce || a.MessageID == nil || room == (Room{}) {
 		return nil, ErrAttachmentNotFound
 	}
-	if err := s.open.Access.CanRead(ctx, Room{ConversationID: *a.ConversationID}, userID); err != nil {
+	// No canal, o CanRead confere o Ver canal de agora: quem perdeu o acesso
+	// depois do envio não abre, mesmo sendo destinatário.
+	if err := s.open.Access.CanRead(ctx, room, userID); err != nil {
 		return nil, err
 	}
 	if err := s.checkRecipient(ctx, a, userID); err != nil {
@@ -148,9 +186,8 @@ func (s *ViewOnceService) checkRecipient(ctx context.Context, a *storedAttachmen
 }
 
 // publishUpdate relê a mensagem (com o view_once novo) e publica o
-// message:update para os participantes, como a edição na DM (o autor vê
-// "Vista por").
-func (s *ViewOnceService) publishUpdate(ctx context.Context, messageID, conversationID string) {
+// message:update na sala dela, como a edição (o autor vê "Vista por").
+func (s *ViewOnceService) publishUpdate(ctx context.Context, messageID string, room Room) {
 	msg, err := s.open.Repo.FindByID(ctx, messageID)
 	if err != nil {
 		log.Printf("view_once: reler mensagem %s: %v", messageID, err)
@@ -161,13 +198,30 @@ func (s *ViewOnceService) publishUpdate(ctx context.Context, messageID, conversa
 		log.Printf("view_once: anexos da mensagem %s: %v", messageID, err)
 		return
 	}
+	event := s.updateAudience(ctx, room)
+	event.Message = page[0]
+	s.open.Publisher.PublishMessageUpdate(event)
+}
+
+// updateAudience: no canal, a sala do canal e o servidor dele (sem lista de
+// usuários); na conversa, os participantes.
+func (s *ViewOnceService) updateAudience(ctx context.Context, room Room) UpdateEvent {
+	if room.ChannelID != "" {
+		channelID := room.ChannelID
+		event := UpdateEvent{ChannelID: &channelID}
+		if s.open.Channels != nil {
+			serverID, err := s.open.Channels.ChannelServerID(ctx, channelID)
+			if err != nil {
+				log.Printf("view_once: servidor do canal %s: %v", channelID, err)
+			}
+			event.ServerID = serverID
+		}
+		return event
+	}
+	conversationID := room.ConversationID
 	userIDs, err := s.participants.ConversationParticipantIDs(ctx, conversationID)
 	if err != nil {
 		log.Printf("view_once: participantes de %s: %v", conversationID, err)
 	}
-	s.open.Publisher.PublishMessageUpdate(UpdateEvent{
-		ConversationID: page[0].ConversationID,
-		UserIDs:        userIDs,
-		Message:        page[0],
-	})
+	return UpdateEvent{ConversationID: &conversationID, UserIDs: userIDs}
 }

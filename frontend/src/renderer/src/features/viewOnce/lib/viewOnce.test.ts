@@ -14,6 +14,7 @@ import {
   syncViewOnce,
   restoreFocusOnClose,
   toggleViewOnceKey,
+  viewOnceAllowedIn,
   viewOnceKey,
   shownPillState
 } from './viewOnce'
@@ -168,5 +169,17 @@ describe('outcomeState', () => {
     expect(isForbiddenError({ status: 403 })).toBe(true)
     expect(isForbiddenError({ status: 410 })).toBe(false)
     expect(isForbiddenError(null)).toBe(false)
+  })
+})
+
+describe('viewOnceAllowedIn', () => {
+  it('DM e grupo sempre', () => {
+    expect(viewOnceAllowedIn('conversation:1', undefined)).toBe(true)
+  })
+  it('canal só com allow_view_once e fora do sistema', () => {
+    expect(viewOnceAllowedIn('channel:1', { allow_view_once: true })).toBe(true)
+    expect(viewOnceAllowedIn('channel:1', { allow_view_once: false })).toBe(false)
+    expect(viewOnceAllowedIn('channel:1', { allow_view_once: true, is_system: true })).toBe(false)
+    expect(viewOnceAllowedIn('channel:1', undefined)).toBe(false)
   })
 })

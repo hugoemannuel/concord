@@ -202,3 +202,57 @@ func TestViewOnceArquivosPendentes(t *testing.T) {
 		t.Fatalf("lista vazia: %v", err)
 	}
 }
+
+func TestDeleteExpiredApagaTambemDoCanal(t *testing.T) {
+	s := newSearchDB(t)
+	repo := MessageRepository(s.db)
+	now := time.Now()
+	id := uuid.NewString()
+	if _, err := s.db.Exec(s.ctx, `INSERT INTO messages (id, author_id, channel_id, content, expires_at) VALUES ($1, $2, $3, 'x', $4)`,
+		id, s.users["ana"], s.geral, now.Add(-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.DeleteExpired(s.ctx, now, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var achou bool
+	for _, m := range got {
+		if m.ID == id {
+			achou = true
+			if m.ChannelID != s.geral || m.ConversationID != "" {
+				t.Fatalf("ExpiredMessage = %+v", m)
+			}
+		}
+	}
+	if !achou || existeMensagem(t, s, id) {
+		t.Fatal("mensagem vencida do canal deveria ter sido apagada")
+	}
+}
+
+func TestExpireViewOnceCobreAnexoDeCanal(t *testing.T) {
+	s := newSearchDB(t)
+	repo := MessageRepository(s.db)
+	id, att := uuid.NewString(), uuid.NewString()
+	if _, err := s.db.Exec(s.ctx, `INSERT INTO messages (id, author_id, channel_id, content) VALUES ($1, $2, $3, 'x')`,
+		id, s.users["ana"], s.geral); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(s.ctx, `INSERT INTO message_attachments (id, message_id, uploader_id, channel_id, kind, content_type, filename, size_bytes, view_once, created_at)
+		VALUES ($1, $2, $3, $4, 'image', 'image/png', 'a.png', 10, true, now() - interval '15 days')`, att, id, s.users["ana"], s.geral); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.ExpireViewOnce(s.ctx, time.Now().Add(-ViewOnceTTL), time.Now().Add(-ViewOnceOpenWindow))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range got {
+		if g.AttachmentID == att {
+			if g.ChannelID != s.geral || g.ConversationID != "" {
+				t.Fatalf("ExpiredViewOnce = %+v", g)
+			}
+			return
+		}
+	}
+	t.Fatal("anexo de canal não foi expirado")
+}

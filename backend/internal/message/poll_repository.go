@@ -13,8 +13,8 @@ func (r *Repository) CreateWithPoll(ctx context.Context, msg *Message, poll *Pol
 	if _, err := tx.Exec(
 		ctx,
 		`
-		INSERT INTO messages (id, author_id, channel_id, conversation_id, content)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO messages (id, author_id, channel_id, conversation_id, content, expires_at)
+		VALUES ($1, $2, $3, $4, $5, `+expiresAtDaSalaSQL+`)
 		`,
 		msg.ID,
 		msg.AuthorID,

@@ -32,6 +32,25 @@ describe('detalhes do que mudou', () => {
     expect(rows).toEqual([{ label: 'Modo lento', before: 'Desligado', after: '2 min' }])
   })
 
+  it('canal editado: prazo das mensagens temporárias e visualização única', () => {
+    const rows = describeChanges(
+      entry({
+        action: 'channel.update',
+        target_type: 'channel',
+        changes: [
+          { field: 'disappearing_seconds', before: null, after: 604800 },
+          { field: 'disappearing_seconds', before: 604800, after: null },
+          { field: 'allow_view_once', before: true, after: false }
+        ]
+      })
+    )
+    expect(rows).toEqual([
+      { label: 'Mensagens temporárias', before: 'Desativadas', after: '7 dias' },
+      { label: 'Mensagens temporárias', before: '7 dias', after: 'Desativadas' },
+      { label: 'Visualização única', before: 'Ligada', after: 'Desligada' }
+    ])
+  })
+
   it('castigo: o que tirou e por quanto tempo, sem o antes; a votação fica na frase', () => {
     const rows = describeChanges(
       entry({

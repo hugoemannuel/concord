@@ -183,5 +183,115 @@ await waitFor(
 check('o token não serve mais (404)', (await fetchFile(att.id, biaOpen.body.token)).status === 404)
 if (UPLOADS_DIR) check('o arquivo saiu do disco', !existsSync(join(UPLOADS_DIR, att.id)))
 
+// ─── Canal de servidor: prazo e visualização única ─────────────────────────
+// Cenário: ana (dona) cria o servidor; bia e caio têm o cargo "A"; davi não tem
+// cargo; eva ganha o "A" depois do envio; moda (cargo "M" com Gerenciar
+// mensagens) também ganha o "A" depois do envio, então não é destinatária.
+const [eva, moda] = [await makeUser('eva'), await makeUser('moda')]
+const members = [bia, caio, davi, eva, moda]
+for (const m of [eva, moda]) await befriend(ana, m)
+const server = await api('/servers', { token: ana.token, method: 'POST', body: { name: `Temp ${run}` } })
+const serverId = server.id ?? server.server?.id
+for (const m of members) {
+  await api(`/servers/${serverId}/invite`, { token: ana.token, method: 'POST', body: { user_id: m.id } })
+  const invites = await api('/invites', { token: m.token })
+  const invite = (Array.isArray(invites) ? invites : invites.invites).find((i) => (i.server_id ?? i.server?.id) === serverId)
+  await api(`/invites/${invite.id}/accept`, { token: m.token, method: 'POST' })
+}
+const MANAGE_MESSAGES = 4096
+const roleA = await api(`/servers/${serverId}/roles`, { token: ana.token, method: 'POST', body: { name: 'A' } })
+const roleM = await api(`/servers/${serverId}/roles`, {
+  token: ana.token,
+  method: 'POST',
+  body: { name: 'M', permissions: MANAGE_MESSAGES }
+})
+const giveRole = (user, role) =>
+  api(`/servers/${serverId}/members/${user.id}/roles/${role.id}`, { token: ana.token, method: 'PUT' })
+await giveRole(bia, roleA)
+await giveRole(caio, roleA)
+await giveRole(moda, roleM)
+const chan = await api(`/servers/${serverId}/channels`, {
+  token: ana.token,
+  method: 'POST',
+  body: { name: 'privado', type: 'text', private: true, role_ids: [roleA.id] }
+})
+const chId = chan.id ?? chan.channel?.id
+console.log('setup canal ok', { serverId, chId })
+
+const chMessages = (user) => api(`/channels/${chId}/messages`, { token: user.token })
+const chSend = (user, body) => request(`/channels/${chId}/messages`, { token: user.token, method: 'POST', body })
+const chUpdate = (user, body) =>
+  request(`/servers/${serverId}/channels/${chId}`, { token: user.token, method: 'PUT', body })
+const chUpload = async (token) => {
+  const form = new FormData()
+  form.append('file', new Blob([PNG], { type: 'image/png' }), 'foto.png')
+  const res = await fetch(`${API}/channels/${chId}/attachments`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form
+  })
+  if (!res.ok) throw new Error(`upload canal: ${res.status} ${await res.text()}`)
+  return res.json()
+}
+
+check('canal: prazo inválido (3600) dá 400', (await chUpdate(ana, { name: 'privado', disappearing_seconds: 3600 })).status === 400)
+check('canal: sem Gerenciar canais dá 403', (await chUpdate(bia, { name: 'privado', disappearing_seconds: 86400 })).status === 403)
+const on = await chUpdate(ana, { name: 'privado', disappearing_seconds: 86400 })
+check('canal: ligar 24 h dá 200 com disappearing_seconds', on.status === 200 && on.body?.disappearing_seconds === 86400, on.status)
+
+const chNotice = (await chMessages(bia)).find((m) => m.system_kind === 'disappearing')
+check(
+  'canal: aviso de sistema com o texto aprovado',
+  chNotice?.content === 'ana ativou as mensagens temporárias. Novas mensagens vão sumir após 24 horas.',
+  chNotice?.content
+)
+check('canal: o aviso não expira', chNotice && !chNotice.expires_at, chNotice?.expires_at)
+
+const chSent = await chSend(ana, { content: 'some em 24h no canal' })
+const chTtl = new Date(chSent.body.expires_at) - new Date(chSent.body.created_at)
+check('canal: mensagem nova sai com expires_at ≈ envio + 24 h', Math.abs(chTtl - 86400000) < 5000, chTtl)
+sql(`UPDATE messages SET expires_at = now() - interval '1 minute' WHERE id = '${chSent.body.id}';`)
+check('canal: vencida some da lista na hora', !(await chMessages(bia)).some((m) => m.id === chSent.body.id))
+await waitFor(
+  'canal: a limpeza apaga a vencida do banco (até ~1 min)',
+  () => sql(`SELECT count(*) FROM messages WHERE id = '${chSent.body.id}';`),
+  (n) => n === '0'
+)
+
+// Visualização única no canal.
+const chAtt = await chUpload(ana.token)
+const chVo = await chSend(ana, { content: '', attachment_ids: [chAtt.id], view_once: true })
+check('canal: envio com view_once dá 201', chVo.status === 201, chVo.status)
+check(
+  'canal: recipient_ids = só quem tem o cargo A (sem o autor)',
+  JSON.stringify([...(chVo.body?.view_once?.recipient_ids ?? [])].sort()) === JSON.stringify([bia.id, caio.id].sort()),
+  chVo.body?.view_once?.recipient_ids
+)
+const chOpen = (user) => request(`/attachments/${chAtt.id}/open`, { token: user.token, method: 'POST' })
+// Quem não vê o canal privado nem sabe que a mensagem existe: 404, como no ServeFile.
+const daviOpen = (await chOpen(davi)).status
+check('canal: membro sem o cargo A não abre (404, não vê o canal)', daviOpen === 404, daviOpen)
+
+await giveRole(eva, roleA)
+await giveRole(moda, roleA)
+check('canal: quem ganhou o cargo A depois do envio não abre (403)', (await chOpen(eva)).status === 403)
+check('canal: moderador não destinatário não abre (403)', (await chOpen(moda)).status === 403)
+
+const chBia = await chOpen(bia)
+check('canal: destinatário abre (200 com token)', chBia.status === 200 && !!chBia.body?.token, chBia.status)
+const chFile = await fetchFile(chAtt.id, chBia.body.token)
+check('canal: o token entrega o arquivo (200)', chFile.status === 200 && chFile.bytes.equals(PNG), chFile.status)
+check('canal: Range funciona (206)', (await fetchFile(chAtt.id, chBia.body.token, 'bytes=0-3')).status === 206)
+check('canal: segunda abertura dá 410', (await chOpen(bia)).status === 410)
+
+const del = await request(`/channels/${chId}/messages/${chVo.body.id}`, { token: moda.token, method: 'DELETE' })
+check('canal: moderador apaga a mensagem de visualização única', del.status >= 200 && del.status < 300, del.status)
+check('canal: a mensagem sumiu da lista', !(await chMessages(ana)).some((m) => m.id === chVo.body.id))
+
+check('canal: desligar allow_view_once dá 200', (await chUpdate(ana, { name: 'privado', allow_view_once: false })).status === 200)
+const chAtt2 = await chUpload(ana.token)
+const refused = await chSend(ana, { content: '', attachment_ids: [chAtt2.id], view_once: true })
+check('canal: view_once com allow_view_once = false dá 400', refused.status === 400, refused.status)
+
 console.log(failures ? `\n${failures} falha(s)` : '\ntudo PASS')
 process.exit(failures ? 1 : 0)
