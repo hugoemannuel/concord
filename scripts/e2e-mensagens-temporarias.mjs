@@ -268,7 +268,9 @@ check(
   chVo.body?.view_once?.recipient_ids
 )
 const chOpen = (user) => request(`/attachments/${chAtt.id}/open`, { token: user.token, method: 'POST' })
-check('canal: membro sem o cargo A não abre (403)', (await chOpen(davi)).status === 403)
+// Quem não vê o canal privado nem sabe que a mensagem existe: 404, como no ServeFile.
+const daviOpen = (await chOpen(davi)).status
+check('canal: membro sem o cargo A não abre (404, não vê o canal)', daviOpen === 404, daviOpen)
 
 await giveRole(eva, roleA)
 await giveRole(moda, roleA)
