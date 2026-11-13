@@ -53,7 +53,8 @@ describe('marca do canal', () => {
   it('só com prazo, com rótulo curto e aria-label aprovado', () => {
     expect(renderToStaticMarkup(<ChannelDisappearingMark seconds={null} />)).toBe('')
     const out = renderToStaticMarkup(<ChannelDisappearingMark seconds={604800} />)
-    expect(out).toContain('aria-label="Mensagens temporárias"')
+    expect(out).toContain('aria-label="Mensagens temporárias ativadas: 7 dias"')
+    expect(out).toContain('title="Mensagens temporárias ativadas: 7 dias"')
     expect(out).toContain('7 d')
     expect(out).not.toContain('<button')
   })

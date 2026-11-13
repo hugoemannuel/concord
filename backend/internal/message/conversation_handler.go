@@ -38,6 +38,9 @@ func (h *Handler) CreateConversationMessage(c *gin.Context) {
 	if input.ViewOnce && !h.prepareViewOnce(c, Room{ConversationID: conversationID}, userID, input.AttachmentIDs, input.StickerID, input.GifURL) {
 		return
 	}
+	if !input.ViewOnce && !h.clearViewOnce(c, Room{ConversationID: conversationID}, userID, input.AttachmentIDs) {
+		return
+	}
 
 	msg, err := h.service.CreateConversationMessage(c.Request.Context(), conversationID, userID, input.Content, input.ReplyToID, input.AttachmentIDs, input.StickerID, input.GifURL, input.GifMetadata)
 	if err != nil {
@@ -56,6 +59,20 @@ func (h *Handler) canSendToConversation(c *gin.Context, conversationID string, u
 
 // SetViewOnce liga o envio de mídia de visualização única (DM e canal).
 func (h *Handler) SetViewOnce(v ViewOncePreparer) { h.viewOnce = v }
+
+// clearViewOnce tira a marca de uma tentativa anterior quando o envio é comum
+// e tem anexos; se não puder, já responde 500.
+func (h *Handler) clearViewOnce(c *gin.Context, room Room, userID string, attachmentIDs []string) bool {
+	if h.viewOnce == nil || len(attachmentIDs) == 0 {
+		return true
+	}
+	if err := h.viewOnce.Clear(c.Request.Context(), room, userID, attachmentIDs); err != nil {
+		log.Printf("view_once: limpar marca na sala %+v: %v", room, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return false
+	}
+	return true
+}
 
 // prepareViewOnce marca o anexo antes de criar a mensagem; se não puder, já
 // responde 400 (sem o recurso ligado, também recusa).

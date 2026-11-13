@@ -3,11 +3,13 @@ import type { DraftAttachment } from '../../chat/lib/attachments'
 import type { ExtraMessageData } from '../../chat/api/messages'
 
 /**
- * Visualização única só em conversa e com um único anexo, foto ou vídeo, que
- * já subiu ou está subindo (áudio, arquivo e canal ficam de fora).
+ * Visualização única só com um único anexo, foto ou vídeo, que já subiu ou
+ * está subindo (áudio e arquivo ficam de fora). `allowedInRoom` diz se a sala
+ * aceita o recurso (DM e grupo sempre; canal só com ele liberado, ver
+ * `viewOnceAllowedIn`).
  */
-export function canViewOnce(drafts: DraftAttachment[], isConversation: boolean): boolean {
-  if (!isConversation || drafts.length !== 1) return false
+export function canViewOnce(drafts: DraftAttachment[], allowedInRoom: boolean): boolean {
+  if (!allowedInRoom || drafts.length !== 1) return false
   const [d] = drafts
   const media = d.kind === 'image' || d.kind === 'video'
   return media && (d.status === 'done' || d.status === 'uploading')

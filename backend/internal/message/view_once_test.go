@@ -44,12 +44,18 @@ type fakeViewOnceRepo struct {
 	recipients []string
 	room       Room
 	marked     bool
+	cleared    []string
 	bots       []string
 	err        error
 }
 
 func (f *fakeViewOnceRepo) MarkViewOnce(_ context.Context, _, _ string, room Room, recipientIDs []string) error {
 	f.recipients, f.room, f.marked = recipientIDs, room, true
+	return f.err
+}
+
+func (f *fakeViewOnceRepo) ClearViewOnce(_ context.Context, ids []string, _ string, room Room) error {
+	f.cleared, f.room = ids, room
 	return f.err
 }
 
@@ -79,6 +85,8 @@ type fakePreparer struct{ err error }
 func (f fakePreparer) Prepare(context.Context, Room, string, []string, *string, *string) error {
 	return f.err
 }
+
+func (f fakePreparer) Clear(context.Context, Room, string, []string) error { return f.err }
 
 func TestCriarDMViewOnceInvalidoDa400(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -163,8 +171,15 @@ func TestCriarDMViewOnceErroInternoNaoVaza(t *testing.T) {
 }
 
 type countingPreparer struct {
-	calls int
-	room  Room
+	calls  int
+	clears int
+	room   Room
+}
+
+func (p *countingPreparer) Clear(_ context.Context, room Room, _ string, _ []string) error {
+	p.clears++
+	p.room = room
+	return nil
 }
 
 func (p *countingPreparer) Prepare(_ context.Context, room Room, _ string, _ []string, _, _ *string) error {

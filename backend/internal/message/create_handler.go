@@ -61,6 +61,9 @@ func (h *Handler) CreateChannelMessage(c *gin.Context) {
 	if input.ViewOnce && !h.prepareViewOnce(c, Room{ChannelID: channelID}, userID, input.AttachmentIDs, input.StickerID, input.GifURL) {
 		return
 	}
+	if !input.ViewOnce && !h.clearViewOnce(c, Room{ChannelID: channelID}, userID, input.AttachmentIDs) {
+		return
+	}
 
 	if h.runChannelCommand(c, channelID, userID, input) {
 		c.JSON(http.StatusAccepted, gin.H{"command": true})

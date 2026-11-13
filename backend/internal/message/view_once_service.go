@@ -21,6 +21,7 @@ var (
 
 type viewOnceRepo interface {
 	MarkViewOnce(ctx context.Context, attachmentID, uploaderID string, room Room, recipientIDs []string) error
+	ClearViewOnce(ctx context.Context, attachmentIDs []string, uploaderID string, room Room) error
 	BotIDs(ctx context.Context, ids []string) ([]string, error)
 }
 
@@ -51,6 +52,8 @@ type ViewOnceOpenDeps struct {
 // ViewOncePreparer é o que os handlers (DM e canal) usam para preparar o envio.
 type ViewOncePreparer interface {
 	Prepare(ctx context.Context, room Room, authorID string, attachmentIDs []string, stickerID, gifURL *string) error
+	// Clear desfaz a marca de um envio anterior que falhou, quando o reenvio é comum.
+	Clear(ctx context.Context, room Room, authorID string, attachmentIDs []string) error
 }
 
 // ViewOnceService cuida das mensagens de visualização única.
@@ -81,6 +84,15 @@ func (s *ViewOnceService) Prepare(ctx context.Context, room Room, authorID strin
 		return err
 	}
 	return s.repo.MarkViewOnce(ctx, attachmentIDs[0], authorID, room, recipients)
+}
+
+// Clear tira a marca de visualização única dos anexos pendentes do autor na
+// sala: o envio comum não pode herdar o olho de uma tentativa anterior.
+func (s *ViewOnceService) Clear(ctx context.Context, room Room, authorID string, attachmentIDs []string) error {
+	if len(attachmentIDs) == 0 {
+		return nil
+	}
+	return s.repo.ClearViewOnce(ctx, attachmentIDs, authorID, room)
 }
 
 // recipients: quem poderá abrir a mídia enviada na sala.

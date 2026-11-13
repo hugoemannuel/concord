@@ -32,11 +32,48 @@ func (r *Repository) MarkViewOnce(ctx context.Context, attachmentID, uploaderID 
 	if tag.RowsAffected() == 0 {
 		return ErrInvalidViewOnce
 	}
+	// Reenvio (ex.: depois de um 429): ficam só os destinatários do último envio.
+	if _, err := tx.Exec(ctx, `DELETE FROM view_once_recipients WHERE attachment_id = $1`, attachmentID); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO view_once_recipients (attachment_id, user_id)
 		SELECT $1, unnest($2::uuid[])
 		ON CONFLICT DO NOTHING`, attachmentID, recipientIDs); err != nil {
 		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// ClearViewOnce desfaz a marca de anexos ainda pendentes do autor na sala (o
+// envio anterior marcou e falhou, ex.: modo lento; o reenvio é sem o olho).
+// Anexo já enviado ou de outra sala não é tocado.
+func (r *Repository) ClearViewOnce(ctx context.Context, attachmentIDs []string, uploaderID string, room Room) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx, `
+		UPDATE message_attachments SET view_once = false
+		WHERE id = ANY($1::uuid[]) AND uploader_id = $2 AND view_once
+		  AND channel_id IS NOT DISTINCT FROM $3::uuid
+		  AND conversation_id IS NOT DISTINCT FROM $4::uuid
+		  AND message_id IS NULL
+		RETURNING id::text`,
+		attachmentIDs, uploaderID, nilIfEmpty(room.ChannelID), nilIfEmpty(room.ConversationID))
+	if err != nil {
+		return err
+	}
+	cleared, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	if len(cleared) > 0 {
+		if _, err := tx.Exec(ctx, `DELETE FROM view_once_recipients WHERE attachment_id = ANY($1::uuid[])`, cleared); err != nil {
+			return err
+		}
 	}
 	return tx.Commit(ctx)
 }
