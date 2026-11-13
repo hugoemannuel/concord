@@ -35,7 +35,6 @@ import {
   startHidden
 } from './window/background'
 import { watchWindowActivity } from './window/windowActivity'
-import { setupWindowDrag } from './window/windowDrag'
 import { registerContentProtection } from './window/contentProtection'
 import { setupUpdater } from './updates/updater'
 import { updateFeedFor } from './server/serverChoice'
@@ -345,7 +344,6 @@ app.whenReady().then(() => {
   registerScreenAudio()
   setupNativeLive()
   setupBackground(() => mainWindow, icon, { small: trayIcon, large: trayIcon2x })
-  setupWindowDrag(() => mainWindow)
   registerContentProtection(() => mainWindow)
   setupOverlay(() => mainWindow)
   setupGlobalKeybinds(() => mainWindow)
