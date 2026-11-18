@@ -3,8 +3,14 @@ import { joinFriendCall } from './joinFriendCall'
 
 const target = { serverId: 's1', channelId: 'ch1' }
 
-function deps(join: () => Promise<void>) {
-  return { join: vi.fn(join), navigate: vi.fn(), toastError: vi.fn() }
+function deps(join: () => Promise<void>, opts: { inDmCall?: boolean; landed?: boolean } = {}) {
+  return {
+    join: vi.fn(join),
+    navigate: vi.fn(),
+    toastError: vi.fn(),
+    inDmCall: () => opts.inDmCall ?? false,
+    landed: vi.fn(() => opts.landed ?? true)
+  }
 }
 
 describe('joinFriendCall', () => {
@@ -27,5 +33,20 @@ describe('joinFriendCall', () => {
     const d = deps(() => Promise.reject('x'))
     await joinFriendCall(target, d)
     expect(d.toastError).toHaveBeenCalledWith('Falha ao conectar ao canal de voz.')
+  })
+
+  it('em call de DM recusa sem tentar entrar', async () => {
+    const d = deps(() => Promise.resolve(), { inDmCall: true })
+    await joinFriendCall(target, d)
+    expect(d.join).not.toHaveBeenCalled()
+    expect(d.toastError).toHaveBeenCalledWith('Você já está em uma chamada.')
+    expect(d.navigate).not.toHaveBeenCalled()
+  })
+
+  it('entrada que falhou sem lançar (o store já avisou) não navega', async () => {
+    const d = deps(() => Promise.resolve(), { landed: false })
+    await joinFriendCall(target, d)
+    expect(d.landed).toHaveBeenCalledWith('ch1')
+    expect(d.navigate).not.toHaveBeenCalled()
   })
 })

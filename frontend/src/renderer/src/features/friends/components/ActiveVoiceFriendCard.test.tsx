@@ -52,4 +52,13 @@ describe('ActiveVoiceFriendCard', () => {
   it('mais de 5 pessoas mostra +N', () => {
     expect(render(7)).toContain('+2')
   })
+
+  it('o clique chama a ação com servidor e canal', () => {
+    const onJoin = vi.fn()
+    const item: FriendInVoice = { friend: ana, serverId: 's1', channelId: 'ch1', people: people(2) }
+    // Os hooks do card estão mockados: dá para chamar o componente e pegar o <button>.
+    const button = ActiveVoiceFriendCard({ item, serverName: 'Os Brabos', onJoin })
+    button.props.onClick()
+    expect(onJoin).toHaveBeenCalledWith({ serverId: 's1', channelId: 'ch1' })
+  })
 })
