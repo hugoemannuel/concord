@@ -35,3 +35,16 @@ export async function joinFriendCall(
     deps.navigate(`/servers/${target.serverId}/channels/${target.channelId}`)
   }
 }
+
+/** Em call de DM/grupo (qualquer call que não seja de canal). */
+export function isInDmCall(s: { status: string; type: string | null }): boolean {
+  return s.status !== 'idle' && s.type !== 'channel'
+}
+
+/** Conectado ao canal ou batendo na porta dele. */
+export function landedIn(
+  s: { status: string; channelId: string | null; knock: { channelId: string } | null },
+  channelId: string
+): boolean {
+  return (s.status !== 'idle' && s.channelId === channelId) || s.knock?.channelId === channelId
+}

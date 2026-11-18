@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { joinFriendCall } from './joinFriendCall'
+import { isInDmCall, joinFriendCall, landedIn } from './joinFriendCall'
 
 const target = { serverId: 's1', channelId: 'ch1' }
 
@@ -48,5 +48,26 @@ describe('joinFriendCall', () => {
     await joinFriendCall(target, d)
     expect(d.landed).toHaveBeenCalledWith('ch1')
     expect(d.navigate).not.toHaveBeenCalled()
+  })
+})
+
+describe('isInDmCall', () => {
+  it('só call que não é de canal conta', () => {
+    expect(isInDmCall({ status: 'active', type: 'dm' })).toBe(true)
+    expect(isInDmCall({ status: 'active', type: 'channel' })).toBe(false)
+    expect(isInDmCall({ status: 'idle', type: null })).toBe(false)
+  })
+})
+
+describe('landedIn', () => {
+  const idle = { status: 'idle', channelId: null, knock: null }
+  it('conectado no canal ou batendo na porta dele', () => {
+    expect(landedIn({ status: 'active', channelId: 'ch1', knock: null }, 'ch1')).toBe(true)
+    expect(landedIn({ ...idle, knock: { channelId: 'ch1' } }, 'ch1')).toBe(true)
+  })
+  it('parado, em outro canal ou batendo em outra porta não conta', () => {
+    expect(landedIn(idle, 'ch1')).toBe(false)
+    expect(landedIn({ status: 'active', channelId: 'ch2', knock: null }, 'ch1')).toBe(false)
+    expect(landedIn({ ...idle, knock: { channelId: 'ch2' } }, 'ch1')).toBe(false)
   })
 })
