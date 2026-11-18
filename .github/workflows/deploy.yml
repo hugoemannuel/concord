@@ -42,7 +42,9 @@ jobs:
     # Só a main vai para a VPS (workflow_dispatch numa branch ou tag antiga não:
     # um binário antigo não sobe com o socket do systemd ativo).
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    # Fixo no 24.04: no ubuntu-26.04 (kernel 7) o wine do electronuserland/builder:wine
+    # falha ("wine: socket : Function not implemented") e o instalador não sai.
+    runs-on: ubuntu-24.04
     # Criar a GitHub Release com os instaladores (scripts/github-release.mjs).
     permissions:
       contents: write
