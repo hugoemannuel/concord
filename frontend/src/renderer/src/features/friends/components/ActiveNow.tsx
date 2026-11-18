@@ -44,8 +44,8 @@ export default function ActiveNow({ friends }: { friends: PublicUser[] }): React
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-2">
-          {inVoice.map((f) => (
-            <ActiveVoiceFriendCard key={f.id} friend={f} />
+          {inVoice.map((item) => (
+            <ActiveVoiceFriendCard key={item.friend.id} friend={item.friend} />
           ))}
         </div>
       )}
