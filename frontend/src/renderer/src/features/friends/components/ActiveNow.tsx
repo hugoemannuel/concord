@@ -1,34 +1,17 @@
 import { useMemo } from 'react'
 import type { PublicUser } from '../../auth/store/authStore'
 import { useCallStore } from '../../call/store/callStore'
-import { useUserLook } from '../../profile/store/profileStore'
-import Avatar from '../../../shared/ui/Avatar'
-import StyledName from '../../profile/components/StyledName'
+import { useJoinFriendCall } from '../../call/hooks/useJoinFriendCall'
+import { useServerStore } from '../../servers/store/serverStore'
 import { FriendsActivity } from '../../activity/components/FriendsActivity'
 import { friendsInVoice } from '../lib/onlineFriends'
+import ActiveVoiceFriendCard from './ActiveVoiceFriendCard'
 
-function ActiveVoiceFriendCard({ friend }: { friend: PublicUser }): React.JSX.Element {
-  const look = useUserLook(friend.id, {
-    name: friend.display_name || friend.username,
-    avatarUrl: friend.avatar_url,
-    decorationUrl: friend.avatar_decoration_url
-  })
-  return (
-    <div className="flex items-center gap-3 rounded-lg bg-floating p-3">
-      <Avatar userId={friend.id} name={look.name} avatarUrl={look.avatarUrl} decorationUrl={look.decorationUrl} size={32} />
-      <div className="min-w-0">
-        <p className="truncate text-ds-md font-medium text-strong">
-          <StyledName name={look.name} userId={friend.id} style={friend.name_style} />
-        </p>
-        <p className="truncate text-ds-xs text-muted">Em um canal de voz</p>
-      </div>
-    </div>
-  )
-}
-
-/** Coluna "Ativo agora": amigos em canais de voz que o app conhece. */
+/** Coluna "Ativo agora": amigos em canais de voz que o app conhece; clicar entra na call. */
 export default function ActiveNow({ friends }: { friends: PublicUser[] }): React.JSX.Element {
   const serverCalls = useCallStore((s) => s.serverCalls)
+  const servers = useServerStore((s) => s.servers)
+  const join = useJoinFriendCall()
   const inVoice = useMemo(() => friendsInVoice(friends, serverCalls), [serverCalls, friends])
 
   return (
@@ -45,7 +28,12 @@ export default function ActiveNow({ friends }: { friends: PublicUser[] }): React
       ) : (
         <div className="mt-4 flex flex-col gap-2">
           {inVoice.map((item) => (
-            <ActiveVoiceFriendCard key={item.friend.id} friend={item.friend} />
+            <ActiveVoiceFriendCard
+              key={item.friend.id}
+              item={item}
+              serverName={servers.find((s) => s.id === item.serverId)?.name}
+              onJoin={join}
+            />
           ))}
         </div>
       )}

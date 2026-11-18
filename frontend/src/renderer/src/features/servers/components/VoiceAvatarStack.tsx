@@ -16,7 +16,7 @@ export function VoiceAvatarStack({
   const { visible, extra } = summarizeVoicePeople(people)
   if (visible.length === 0) return null
   return (
-    <div className="flex items-center -space-x-1.5">
+    <span className="flex items-center -space-x-1.5">
       {visible.map((person) => (
         <Avatar
           key={person.id}
@@ -35,6 +35,6 @@ export function VoiceAvatarStack({
           +{extra}
         </span>
       )}
-    </div>
+    </span>
   )
 }
