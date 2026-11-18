@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import Avatar from '../../../shared/ui/Avatar'
 import { VolumeIcon } from '../../../shared/ui/icons'
 import type { VoiceMember } from '../../call/lib/voiceServer'
-import { summarizeVoicePeople, voicePeopleLabel } from '../lib/serverHoverCard'
+import { voicePeopleLabel } from '../lib/serverHoverCard'
+import { VoiceAvatarStack } from './VoiceAvatarStack'
 
 const GAP = 14
 
@@ -15,35 +15,17 @@ export function ServerHoverCardBody({
   name: string
   people: VoiceMember[]
 }): React.JSX.Element {
-  const { visible, extra } = summarizeVoicePeople(people)
   return (
     <>
       <p className="truncate text-ds-sm font-bold text-strong">{name}</p>
-      {visible.length > 0 && (
+      {people.length > 0 && (
         <div
           role="img"
           aria-label={voicePeopleLabel(people)}
           className="mt-1.5 flex items-center gap-2"
         >
           <VolumeIcon className="h-4 w-4 shrink-0 text-success" />
-          <div className="flex items-center -space-x-1.5">
-            {visible.map((person) => (
-              <Avatar
-                key={person.id}
-                userId={person.id}
-                name={person.name}
-                avatarUrl={person.avatarUrl}
-                size={24}
-                animate="always"
-                className="rounded-full ring-2 ring-[var(--bg-floating)]"
-              />
-            ))}
-            {extra > 0 && (
-              <span className="z-10 flex h-6 min-w-6 items-center justify-center rounded-full bg-fg/20 px-1 text-ds-xxs font-bold text-strong ring-2 ring-[var(--bg-floating)]">
-                +{extra}
-              </span>
-            )}
-          </div>
+          <VoiceAvatarStack people={people} ringClass="ring-[var(--bg-floating)]" />
         </div>
       )}
     </>
