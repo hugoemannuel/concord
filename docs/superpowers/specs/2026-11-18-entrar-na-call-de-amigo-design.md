@@ -47,7 +47,7 @@ Não foge do padrão do repo: não precisa de ADR.
 - Avatares empilhados com `Avatar` de `shared/ui`; ícone de alto-falante SVG de
   `shared/ui/icons`; cores e tamanhos só por tokens.
 
-## Textos (aguardando aprovação)
+## Textos aprovados
 
 | Onde | Texto |
 |---|---|
