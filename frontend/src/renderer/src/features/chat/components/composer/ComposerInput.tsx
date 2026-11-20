@@ -1,7 +1,7 @@
 import { useLayoutEffect } from 'react'
 import { composerKeyAction, type ComposerKeyAction } from '../../lib/composerKeys'
 import { hasFinePointer } from '../../lib/composerFocus'
-import type { SuggestionMenu } from '../../../../shared/lib/suggestionNav'
+import { suggestionFieldProps, type SuggestionMenu } from '../../../../shared/lib/suggestionNav'
 
 type KeyEvent = React.KeyboardEvent<HTMLTextAreaElement>
 type KeyHandlers = Record<ComposerKeyAction, (e: KeyEvent) => void>
@@ -87,6 +87,7 @@ export default function ComposerInput(p: ComposerInputProps): React.JSX.Element 
       onKeyDown={handleKeyDown}
       onPaste={p.onPaste}
       onBlur={p.onBlur}
+      {...suggestionFieldProps(menu)}
       placeholder={p.placeholder}
       maxLength={2000}
       className="max-h-[50dvh] min-w-0 flex-1 resize-none self-center overflow-y-auto bg-transparent text-ds-chat text-strong placeholder:text-gray-500 outline-none"
