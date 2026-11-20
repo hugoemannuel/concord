@@ -140,8 +140,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       },
       {
         name: 'MENTION_EVERYONE',
-        label: 'Mencionar @all e @here',
-        description: 'Avisar todo mundo do canal de uma vez.',
+        label: 'Mencionar @all, @here e cargos',
+        description: 'Avisar todo mundo do canal de uma vez e mencionar qualquer cargo.',
         scope: 'text'
       },
       {

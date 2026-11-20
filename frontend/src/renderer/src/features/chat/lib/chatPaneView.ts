@@ -6,6 +6,7 @@ import type { Message, PinnedMessage } from '../api/messages'
 import { serverDisplayName } from '../../servers/lib/serverNames'
 import { sendDeniedReason, type ChatPermissions } from './chatPermissions'
 import { mentionSuggestions, type MentionSuggestion, type UserSuggestionInput } from './mentions'
+import type { MentionableRole } from './roleMentions'
 import type { User } from '../../auth/store/authStore'
 import { MUSIC_COMMANDS, type SlashSuggestion } from '../../music/lib/music'
 import { TTS_SUGGESTION } from '../../tts/lib/ttsCommand'
@@ -46,12 +47,14 @@ export function mentionMenu(
   users: UserSuggestionInput[],
   canMentionEveryone: boolean,
   exclude: string | undefined,
-  max: number
+  max: number,
+  roles: MentionableRole[] = []
 ): { suggestions: MentionSuggestion[]; highlight: number } {
   if (!mention) return { suggestions: [], highlight: -1 }
   const { items, defaultIndex } = mentionSuggestions(mention.query, users, canMentionEveryone, {
     exclude,
-    max
+    max,
+    roles
   })
   return { suggestions: items, highlight: highlightChoice ?? defaultIndex }
 }

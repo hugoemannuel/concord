@@ -71,6 +71,15 @@ describe('mentionMenu', () => {
     expect(mentionMenu({ query: '', start: 0 }, 1, users, false, undefined, 6).highlight).toBe(1)
   })
 
+  it('com cargos do servidor: entram depois das pessoas', () => {
+    const roles = [
+      { id: 'r1', name: 'Apoio', color: null, position: 1, mentionable: true, is_default: false }
+    ]
+    const menu = mentionMenu({ query: 'a', start: 0 }, null, users, false, undefined, 6, roles)
+    expect(menu.suggestions.map((s) => `${s.kind}:${s.username}`)).toEqual(['user:ana', 'role:apoio'])
+    expect(menu.highlight).toBe(0)
+  })
+
   it('não sugere a própria pessoa', () => {
     const menu = mentionMenu({ query: '', start: 0 }, null, users, false, 'ana', 6)
     expect(menu.suggestions.map((s) => s.username)).toEqual(['bia'])

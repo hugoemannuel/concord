@@ -3,6 +3,8 @@ import type { Role } from '../lib/permissions'
 import { useServerStore } from './serverStore'
 import { useInviteCodeStore } from './inviteCodeStore'
 import { useServerLayoutStore } from './serverLayoutStore'
+import { useMyRolesStore } from './myRolesStore'
+import { useAuthStore } from '../../auth/store/authStore'
 import { normalizeInviteCode } from '../lib/inviteLink'
 
 /** Como o evento mudou o que a pessoa vê (quem chama decide o que fazer na tela). */
@@ -50,7 +52,12 @@ function onMemberRoles(payload: Record<string, unknown>): void {
   const serverId = payload.server_id as string | undefined
   const userId = payload.user_id as string | undefined
   const roleIds = payload.role_ids as string[] | undefined
-  if (serverId && userId) useServerStore.getState().setMemberRoleIds(serverId, userId, roleIds ?? [])
+  if (!serverId || !userId) return
+  useServerStore.getState().setMemberRoleIds(serverId, userId, roleIds ?? [])
+  // Os meus cargos valem também fora do servidor aberto (menção de cargo).
+  if (userId === useAuthStore.getState().user?.id) {
+    useMyRolesStore.getState().setServerRoles(userId, serverId, roleIds ?? [])
+  }
 }
 
 function onMemberNickname(payload: Record<string, unknown>): void {
@@ -73,7 +80,9 @@ function onInviteCode(payload: Record<string, unknown>): void {
 
 function onServerRemoved(payload: Record<string, unknown>, deps: ServerEventDeps): void {
   const serverId = payload.server_id as string | undefined
-  if (serverId) deps.onServerRemoved(serverId, (payload.reason as string | undefined) ?? '')
+  if (!serverId) return
+  useMyRolesStore.getState().removeServer(serverId)
+  deps.onServerRemoved(serverId, (payload.reason as string | undefined) ?? '')
 }
 
 const ROLE_EVENT_HANDLERS: Record<string, RoleEventHandler> = {

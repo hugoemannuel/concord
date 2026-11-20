@@ -39,6 +39,7 @@ func roleChanges(before, after Role) []audit.Change {
 	changes := audit.Diff(nil, "name", before.Name, after.Name)
 	changes = audit.DiffPtr(changes, "color", before.Color, after.Color)
 	changes = audit.Diff(changes, "hoist", before.Hoist, after.Hoist)
+	changes = audit.Diff(changes, "mentionable", before.Mentionable, after.Mentionable)
 	return audit.Diff(changes, "permissions", before.Permissions, after.Permissions)
 }
 

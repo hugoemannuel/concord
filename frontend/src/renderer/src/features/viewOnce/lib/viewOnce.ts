@@ -15,9 +15,16 @@ export function canViewOnce(drafts: DraftAttachment[], allowedInRoom: boolean): 
   return media && (d.status === 'done' || d.status === 'uploading')
 }
 
-/** O `extra` do envio: só leva viewOnce quando ligado. */
-export function sendExtra(viewOnce: boolean): ExtraMessageData | undefined {
-  return viewOnce ? { viewOnce: true } : undefined
+/** O `extra` do envio: só leva viewOnce quando ligado, e os cargos mencionados quando há. */
+export function sendExtra(
+  viewOnce: boolean,
+  mentionRoleIds: string[] = []
+): ExtraMessageData | undefined {
+  if (!viewOnce && mentionRoleIds.length === 0) return undefined
+  return {
+    ...(viewOnce ? { viewOnce: true } : {}),
+    ...(mentionRoleIds.length > 0 ? { mentionRoleIds } : {})
+  }
 }
 
 /**

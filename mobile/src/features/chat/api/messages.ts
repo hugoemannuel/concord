@@ -56,6 +56,10 @@ export interface Message {
   content: string
   /** Mensagem do próprio servidor (o Maestro escreve como "music" e "music_commands"). */
   system_kind?: string | null
+  /** "all"/"here" quando o servidor liberou o @all/@here; ausente = não pinga, mesmo com o texto. */
+  mention_everyone?: 'all' | 'here' | null
+  /** Cargos que a mensagem pingou, com o handle escrito no texto; ausente = nenhum. */
+  mention_roles?: { id: string; handle: string }[] | null
   attachments?: Attachment[] | null
   sticker_id?: string | null
   sticker?: MessageSticker | null

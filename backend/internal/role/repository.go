@@ -18,10 +18,10 @@ func RoleRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
-const columns = `id, server_id, name, color, position, permissions, hoist, is_default, is_system, created_at, updated_at`
+const columns = `id, server_id, name, color, position, permissions, hoist, is_default, is_system, mentionable, created_at, updated_at`
 
 func scan(row pgx.Row, r *Role) error {
-	return row.Scan(&r.ID, &r.ServerID, &r.Name, &r.Color, &r.Position, &r.Permissions, &r.Hoist, &r.IsDefault, &r.IsSystem, &r.CreatedAt, &r.UpdatedAt)
+	return row.Scan(&r.ID, &r.ServerID, &r.Name, &r.Color, &r.Position, &r.Permissions, &r.Hoist, &r.IsDefault, &r.IsSystem, &r.Mentionable, &r.CreatedAt, &r.UpdatedAt)
 }
 
 // List: cargos do servidor, do mais alto para o mais baixo (@everyone por último).
@@ -76,17 +76,18 @@ func (r *Repository) Create(ctx context.Context, role *Role) error {
 	err = scan(tx.QueryRow(
 		ctx,
 		`
-		INSERT INTO roles (server_id, name, color, position, permissions, hoist)
+		INSERT INTO roles (server_id, name, color, position, permissions, hoist, mentionable)
 		VALUES (
 			$1,
 			$2,
 			$3,
 			(SELECT COALESCE(MAX(position) + 1, 1) FROM roles WHERE server_id = $1 AND (is_default OR is_system)),
 			$4,
-			$5
+			$5,
+			$6
 		)
 		RETURNING `+columns,
-		role.ServerID, role.Name, role.Color, role.Permissions, role.Hoist,
+		role.ServerID, role.Name, role.Color, role.Permissions, role.Hoist, role.Mentionable,
 	), role)
 	if err != nil {
 		return err
@@ -98,10 +99,10 @@ func (r *Repository) Update(ctx context.Context, role *Role) error {
 	return scan(r.db.QueryRow(
 		ctx,
 		`
-		UPDATE roles SET name = $3, color = $4, permissions = $5, hoist = $6, updated_at = NOW()
+		UPDATE roles SET name = $3, color = $4, permissions = $5, hoist = $6, mentionable = $7, updated_at = NOW()
 		WHERE id = $1 AND server_id = $2
 		RETURNING `+columns,
-		role.ID, role.ServerID, role.Name, role.Color, role.Permissions, role.Hoist,
+		role.ID, role.ServerID, role.Name, role.Color, role.Permissions, role.Hoist, role.Mentionable,
 	), role)
 }
 

@@ -150,10 +150,10 @@ func checkEditable(snap *permission.Snapshot, actorID string, current Role, in I
 	if !snap.CanManageRole(actorID, current) {
 		return ErrRoleHierarchy
 	}
-	if current.IsDefault && (in.Name != nil || in.Color != nil || in.ClearColor || in.Hoist != nil) {
+	if current.IsDefault && in.changesIdentity() {
 		return ErrEveryoneRole
 	}
-	if current.IsSystem && (in.Name != nil || in.Hoist != nil) {
+	if current.IsSystem && (in.Name != nil || in.Hoist != nil || in.Mentionable != nil) {
 		return ErrBotRole
 	}
 	return nil
@@ -164,7 +164,7 @@ func checkEditable(snap *permission.Snapshot, actorID string, current Role, in I
 func apply(role *Role, in Input, actorPerms int64) error {
 	if in.Name != nil {
 		name := strings.TrimSpace(*in.Name)
-		if name == "" || utf8.RuneCountInString(name) > maxNameLength || name == permission.EveryoneName || (!role.IsSystem && strings.EqualFold(name, permission.BotsRoleName)) {
+		if !validName(name, role.IsSystem) {
 			return ErrInvalidName
 		}
 		role.Name = name
@@ -181,6 +181,9 @@ func apply(role *Role, in Input, actorPerms int64) error {
 	if in.Hoist != nil {
 		role.Hoist = *in.Hoist
 	}
+	if in.Mentionable != nil {
+		role.Mentionable = *in.Mentionable
+	}
 	if in.Permissions != nil {
 		next := permission.Normalize(*in.Permissions)
 		if !permission.CanGrant(actorPerms, role.Permissions^next) {
@@ -189,6 +192,15 @@ func apply(role *Role, in Input, actorPerms int64) error {
 		role.Permissions = next
 	}
 	return nil
+}
+
+// validName: de 1 a 32 caracteres, sem tomar o nome dos cargos fixos (só o
+// próprio Bots continua se chamando Bots).
+func validName(name string, isSystem bool) bool {
+	if name == "" || utf8.RuneCountInString(name) > maxNameLength || name == permission.EveryoneName {
+		return false
+	}
+	return isSystem || !strings.EqualFold(name, permission.BotsRoleName)
 }
 
 func (s *Service) Delete(ctx context.Context, serverID, actorID, roleID string) error {

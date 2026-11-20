@@ -413,3 +413,109 @@ describe('mentionLabels / mentionChipText', () => {
     expect(keepSameLabels(undefined, changed)).toBe(changed)
   })
 })
+
+describe('@everyone (outro jeito de escrever @all)', () => {
+  it('vira chip quando o backend liberou o @all', () => {
+    expect(splitMentions('@everyone bora', 'all')).toEqual([
+      { text: '@everyone', mention: 'all' },
+      { text: ' bora' }
+    ])
+  })
+
+  it('sem o mention_everyone (ou com @here) é texto puro', () => {
+    expect(splitMentions('@everyone bora')).toEqual([{ text: '@everyone bora' }])
+    expect(splitMentions('@everyone bora', 'here')).toEqual([{ text: '@everyone bora' }])
+  })
+
+  it('só entra nas sugestões quando o que foi digitado começa com "e"', () => {
+    expect(everyoneSuggestions('', true).map((s) => s.username)).toEqual(['all', 'here'])
+    expect(everyoneSuggestions('e', true).map((s) => s.username)).toEqual(['everyone'])
+    expect(everyoneSuggestions('EVE', true).map((s) => s.username)).toEqual(['everyone'])
+    expect(everyoneSuggestions('e', false)).toEqual([])
+  })
+})
+
+describe('menção de cargo', () => {
+  const pinged = [{ id: 'r1', handle: 'equipe-de-suporte' }]
+  const roles = [
+    { id: 'r1', name: 'Equipe de Suporte', color: 0x3366ff, position: 2, mentionable: true, is_default: false },
+    { id: 'r2', name: 'Ana', color: null, position: 1, mentionable: true, is_default: false }
+  ]
+  const users = [
+    { username: 'ana', display_name: 'Ana' },
+    { username: 'edu', display_name: 'Edu' }
+  ]
+  const names = (r: ReturnType<typeof mentionSuggestions>): string[] =>
+    r.items.map((i) => `${i.kind}:${i.username}`)
+
+  it('o "@" continua aberto enquanto se digita um handle com hífen ou acento', () => {
+    expect(mentionQuery('oi @equipe-de', 13)).toEqual({ query: 'equipe-de', start: 3 })
+    expect(mentionQuery('@moderaç', 8)).toEqual({ query: 'moderaç', start: 0 })
+  })
+
+  it('o cargo pingado vira um pedaço próprio; as pessoas continuam como antes', () => {
+    expect(splitMentions('@equipe-de-suporte e @ana', null, pinged)).toEqual([
+      { text: '@equipe-de-suporte', role: 'r1' },
+      { text: ' e ' },
+      { text: '@ana', mention: 'ana' }
+    ])
+  })
+
+  it('sem mention_roles o mesmo texto não tem cargo', () => {
+    expect(splitMentions('@equipe-de-suporte', null).some((p) => p.role)).toBe(false)
+  })
+
+  it('cargo pingado com o handle igual a um nick: é o cargo, não a pessoa', () => {
+    expect(splitMentions('@ana', null, [{ id: 'r2', handle: 'ana' }])).toEqual([
+      { text: '@ana', role: 'r2' }
+    ])
+  })
+
+  it('sugestões: cargos depois das pessoas, só com algo digitado; o padrão é a pessoa', () => {
+    expect(names(mentionSuggestions('', users, false, { roles }))).toEqual(['user:ana', 'user:edu'])
+    const e = mentionSuggestions('e', users, false, { roles })
+    expect(names(e)).toEqual(['user:edu', 'role:equipe-de-suporte'])
+    expect(e.defaultIndex).toBe(0)
+  })
+
+  it('conflito de nome: a pessoa e o cargo aparecem, a pessoa primeiro', () => {
+    const a = mentionSuggestions('an', users, false, { roles })
+    expect(names(a)).toEqual(['user:ana', 'role:ana'])
+    expect(a.defaultIndex).toBe(0)
+  })
+
+  it('só o cargo bate: ele é o padrão', () => {
+    const r = mentionSuggestions('equ', users, false, { roles })
+    expect(names(r)).toEqual(['role:equipe-de-suporte'])
+    expect(r.defaultIndex).toBe(0)
+  })
+
+  it('sem ninguém para marcar, o "@" sozinho já lista os cargos (sem padrão)', () => {
+    const r = mentionSuggestions('', [], false, { roles })
+    expect(names(r)).toEqual(['role:equipe-de-suporte', 'role:ana'])
+    expect(r.defaultIndex).toBe(-1)
+  })
+
+  const me = { id: 'eu', username: 'ana' }
+  const msg = (extra: object): Parameters<typeof messageMentionsMe>[0] => ({
+    author_id: 'outro',
+    content: '@equipe-de-suporte',
+    mention_everyone: null,
+    ...extra
+  })
+
+  it('destaca para quem tem um dos cargos pingados', () => {
+    expect(messageMentionsMe(msg({ mention_roles: pinged }), me, ['r1'])).toBe(true)
+    expect(messageMentionsMe(msg({ mention_roles: pinged }), me, ['outro-cargo'])).toBe(false)
+    expect(messageMentionsMe(msg({ mention_roles: pinged }), me)).toBe(false)
+    expect(messageMentionsMe(msg({ mention_roles: null }), me, ['r1'])).toBe(false)
+  })
+
+  it('cargo pingado com o meu nick não me destaca se eu não tenho o cargo', () => {
+    const ping = { content: '@ana', mention_roles: [{ id: 'r2', handle: 'ana' }] }
+    expect(messageMentionsMe(msg(ping), me, [])).toBe(false)
+    expect(messageMentionsMe(msg(ping), me, ['r2'])).toBe(true)
+    // Sem o cargo pingado, o mesmo texto sou eu.
+    expect(messageMentionsMe(msg({ content: '@ana' }), me, [])).toBe(true)
+  })
+})

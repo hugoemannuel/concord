@@ -64,6 +64,12 @@ export interface Attachment {
 /** Menção em massa num canal: @all (todo mundo) ou @here (quem está online). */
 export type MentionEveryone = 'all' | 'here'
 
+/** Cargo que a mensagem pingou, com o handle escrito no texto (ADR 0065). */
+export interface RoleMention {
+  id: string
+  handle: string
+}
+
 /** Convite para a call de um canal de voz, embutido numa mensagem da DM. */
 export interface CallInvite {
   call_id: string
@@ -118,6 +124,11 @@ export interface Message {
    * anti-spam). null = ninguém, mesmo com "@all" no texto.
    */
   mention_everyone?: MentionEveryone | null
+  /**
+   * Cargos que a mensagem pinga (validados pelo backend). null = nenhum, mesmo
+   * com "@cargo" no texto.
+   */
+  mention_roles?: RoleMention[] | null
   poll?: Poll | null
   /** Cartão de convite para a call (mensagem do convidador na DM). */
   call_invite?: CallInvite | null
@@ -180,6 +191,8 @@ export interface ExtraMessageData {
   gifMetadata?: { width?: number; height?: number; preview_url?: string } | null
   /** Só em conversa: o anexo é foto/vídeo de visualização única. */
   viewOnce?: boolean
+  /** Só em canal: cargos escolhidos no "@" (o backend valida cada um). */
+  mentionRoleIds?: string[]
 }
 
 export function sendChannelMessage(
@@ -200,7 +213,8 @@ export function sendChannelMessage(
       ...(replyToId ? { reply_to_id: replyToId } : {}),
       ...(extra?.stickerId ? { sticker_id: extra.stickerId } : {}),
       ...(extra?.gifUrl ? { gif_url: extra.gifUrl } : {}),
-      ...(extra?.gifMetadata ? { gif_metadata: extra.gifMetadata } : {})
+      ...(extra?.gifMetadata ? { gif_metadata: extra.gifMetadata } : {}),
+      ...(extra?.mentionRoleIds?.length ? { mention_role_ids: extra.mentionRoleIds } : {})
     })
   })
 }

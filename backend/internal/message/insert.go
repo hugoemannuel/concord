@@ -5,8 +5,8 @@ package message
 // ligado (conversa ou canal) e nunca em aviso de sistema (system_kind
 // preenchido, D5).
 const insertMessageSQL = `
-	INSERT INTO messages (id, author_id, channel_id, conversation_id, reply_to_id, content, system_kind, mention_everyone, sticker_id, gif_url, gif_metadata, call_invite, tts, tts_voice_channel_id, expires_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+	INSERT INTO messages (id, author_id, channel_id, conversation_id, reply_to_id, content, system_kind, mention_everyone, sticker_id, gif_url, gif_metadata, call_invite, tts, tts_voice_channel_id, mention_roles, expires_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
 		CASE WHEN $7::varchar IS NULL THEN
 			` + expiresAtDaSalaSQL + `
 		END)

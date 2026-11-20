@@ -1,4 +1,4 @@
-import type { MentionEveryone } from '../../api/messages'
+import type { MentionEveryone, RoleMention } from '../../api/messages'
 import { messageParts } from '../../lib/linkify'
 import type { MentionLabels } from '../../lib/mentions'
 import type { MdInline } from '../../lib/markdown/types'
@@ -8,6 +8,8 @@ import Spoiler from './Spoiler'
 /** O que as folhas de texto precisam para virar links, emojis e menções. */
 export interface RichTextOptions {
   everyone: MentionEveryone | null
+  /** Cargos que a mensagem pingou (mention_roles). */
+  mentionRoles?: readonly RoleMention[]
   mentionLabels?: MentionLabels
   emojiSize: EmojiSize
 }
@@ -20,7 +22,7 @@ function InlineNode({ node, opts }: { node: MdInline; opts: RichTextOptions }): 
     case 'autolink':
       return (
         <RichTextParts
-          parts={messageParts(node.text, opts.everyone)}
+          parts={messageParts(node.text, opts.everyone, opts.mentionRoles)}
           mentionLabels={opts.mentionLabels}
           emojiSize={opts.emojiSize}
         />

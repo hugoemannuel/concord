@@ -81,6 +81,27 @@ describe('mentionNotification', () => {
     })
   })
 
+  it('menção de um cargo que eu tenho: o título diz qual cargo', () => {
+    const mention_roles = [{ id: 'r1', handle: 'equipe-de-suporte' }]
+    const message = inChannel({ content: '@equipe-de-suporte alguém?', mention_roles })
+    expect(mentionNotification(message, { ...me, roleIds: ['r1'] }, 'srv1')).toEqual({
+      kind: 'mention',
+      title: 'Ana mencionou @equipe-de-suporte',
+      body: '@equipe-de-suporte alguém?',
+      route: '/servers/srv1/channels/ch1'
+    })
+    expect(mentionNotification(message, { ...me, roleIds: ['outro'] }, 'srv1')).toBeNull()
+    expect(mentionNotification(message, me, 'srv1')).toBeNull()
+  })
+
+  it('citado pelo nome e pelo cargo: vale "mencionou você"', () => {
+    const mention_roles = [{ id: 'r1', handle: 'suporte' }]
+    const message = inChannel({ content: '@suporte e @fulano', mention_roles })
+    expect(mentionNotification(message, { ...me, roleIds: ['r1'] }, 'srv1')?.title).toBe(
+      'Ana mencionou você'
+    )
+  })
+
   it('quem tem apelido no servidor aparece pelo apelido', () => {
     expect(mentionNotification(inChannel(), me, 'srv1', { ana: 'Aninha' })?.title).toBe(
       'Aninha mencionou você'

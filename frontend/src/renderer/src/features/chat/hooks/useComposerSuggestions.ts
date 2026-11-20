@@ -3,6 +3,7 @@ import type { SlashSuggestion } from '../../music/lib/music'
 import type { SuggestionMenu } from '../../../shared/lib/suggestionNav'
 import { composerCommands } from '../lib/chatPaneView'
 import type { UserSuggestionInput } from '../lib/mentions'
+import type { MentionableRole } from '../lib/roleMentions'
 import { useMentionMenu, type MentionMenu } from './useMentionMenu'
 import { useSlashMenu, type SlashMenu } from './useSlashMenu'
 
@@ -15,6 +16,7 @@ interface Options {
   inputRef: React.RefObject<HTMLTextAreaElement | null>
   mentionable: UserSuggestionInput[]
   canMentionEveryone: boolean
+  roles: MentionableRole[]
   isChannel: boolean
   canSendTTS: boolean
 }
@@ -46,7 +48,8 @@ export function useComposerSuggestions(o: Options): ComposerSuggestions {
     },
     inputRef: o.inputRef,
     mentionable: o.mentionable,
-    canMentionEveryone: o.canMentionEveryone
+    canMentionEveryone: o.canMentionEveryone,
+    roles: o.roles
   })
   const slash = useSlashMenu({
     room: o.room,

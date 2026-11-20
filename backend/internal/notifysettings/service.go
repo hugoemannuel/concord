@@ -74,9 +74,10 @@ func (s *Service) SetServer(ctx context.Context, userID, serverID string, in Set
 }
 
 // SetChannel grava a preferência para um canal que a pessoa pode ver. O
-// suppress_everyone só vale por servidor.
+// suppress_everyone e o suppress_roles só valem por servidor.
 func (s *Service) SetChannel(ctx context.Context, userID, channelID string, in Settings) (Settings, error) {
 	in.SuppressEveryone = false
+	in.SuppressRoles = false
 	norm, err := in.normalize(s.now())
 	if err != nil {
 		return Settings{}, err

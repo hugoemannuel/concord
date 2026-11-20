@@ -8,15 +8,17 @@ import (
 // Role é um cargo do servidor. O @everyone (IsDefault) tem posição 0 e vale
 // para todo membro; os demais somam permissões por cima dele.
 type Role struct {
-	ID          string    `json:"id"`
-	ServerID    string    `json:"server_id"`
-	Name        string    `json:"name"`
-	Color       *int      `json:"color"`
-	Position    int       `json:"position"`
-	Permissions int64     `json:"permissions"`
-	Hoist       bool      `json:"hoist"`
-	IsDefault   bool      `json:"is_default"`
-	IsSystem    bool      `json:"is_system"`
+	ID          string `json:"id"`
+	ServerID    string `json:"server_id"`
+	Name        string `json:"name"`
+	Color       *int   `json:"color"`
+	Position    int    `json:"position"`
+	Permissions int64  `json:"permissions"`
+	Hoist       bool   `json:"hoist"`
+	IsDefault   bool   `json:"is_default"`
+	IsSystem    bool   `json:"is_system"`
+	// Mentionable: qualquer pessoa pode mencionar este cargo no chat (ADR 0065).
+	Mentionable bool      `json:"mentionable"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

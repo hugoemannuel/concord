@@ -154,6 +154,17 @@ function Form({
           />
         </section>
       )}
+
+      {isServer && (
+        <section className="flex items-center justify-between gap-4">
+          <div className="text-ds-sm font-semibold text-strong">Ignorar menções de cargo</div>
+          <Switch
+            label="Ignorar menções de cargo"
+            checked={Boolean(current.suppress_roles)}
+            onChange={(v) => void save({ ...current, suppress_roles: v })}
+          />
+        </section>
+      )}
     </div>
   )
 }
