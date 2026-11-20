@@ -2,46 +2,13 @@ import type { Message, MentionEveryone } from '../api/messages'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 import { serverDisplayName } from '../../servers/lib/serverNames'
 import { stripCode } from './markdown/stripCode'
+import { OPENER, tokenEndsAt } from './mentionToken'
 
 // Menções @nick no chat de texto, mais @all/@here (menção em massa num canal
 // de servidor). Quem decide se @all/@here pinga é o backend, no campo
 // mention_everyone da mensagem; o texto sozinho não pinga ninguém.
 
 const NICK = '[A-Za-z0-9_.]+'
-
-/**
- * O que pode vir logo antes do "@": começo, espaço ou pontuação de abertura.
- * Assim "x.com/@ana" ou "medium.com/@here" (links) não viram menção. Mesma
- * regra do backend (internal/message/mention.go).
- */
-const OPENER = `(^|[\\s([{"'<*~“‘«])`
-
-/** Pontuação que pode vir logo depois do nick (apóstrofo e ponto têm regra própria). */
-const CLOSERS = ',!?:;)]}"”»>*~'
-
-/**
- * O nick acaba em `end`? Só se vier fim, espaço ou pontuação de fechamento.
- * Letra, número, "-", "_", "@", "/" ou apóstrofo seguido de letra ("@all's")
- * continuam a palavra; ponto seguido de nick também ("@ana.bot"), mas ponto
- * final conta ("@ana."). Mesma regra do backend (tokenEndsAt em mention.go).
- */
-function tokenEndsAt(text: string, end: number): boolean {
-  if (end >= text.length) return true
-  const ch = text[end]
-  if (/\s/.test(ch)) return true
-  if (ch === '.') {
-    let j = end
-    while (j < text.length && text[j] === '.') j++
-    if (j >= text.length) return true
-    if (/[A-Za-z0-9_]/.test(text[j])) return false
-    return tokenEndsAt(text, j)
-  }
-  if (ch === "'" || ch === '’') {
-    const next = text.codePointAt(end + 1)
-    return next === undefined || !/\p{L}/u.test(String.fromCodePoint(next))
-  }
-  return CLOSERS.includes(ch)
-}
 
 /** Nomes que nunca são menção pessoal: @all/@here só valem pelo mention_everyone. */
 const RESERVED = ['all', 'here', 'everyone']
