@@ -18,7 +18,7 @@ func (r *Repository) All(ctx context.Context, userID string) (All, error) {
 	out := All{Servers: map[string]Settings{}, Channels: map[string]Settings{}}
 
 	rows, err := r.db.Query(ctx,
-		`SELECT server_id, muted, muted_until, level, suppress_everyone
+		`SELECT server_id, muted, muted_until, level, suppress_everyone, suppress_roles
 		 FROM server_notification_settings WHERE user_id = $1`, userID)
 	if err != nil {
 		return out, err
@@ -27,7 +27,7 @@ func (r *Repository) All(ctx context.Context, userID string) (All, error) {
 	for rows.Next() {
 		var id string
 		var s Settings
-		if err := rows.Scan(&id, &s.Muted, &s.MutedUntil, &s.Level, &s.SuppressEveryone); err != nil {
+		if err := rows.Scan(&id, &s.Muted, &s.MutedUntil, &s.Level, &s.SuppressEveryone, &s.SuppressRoles); err != nil {
 			return out, err
 		}
 		out.Servers[id] = s
@@ -57,13 +57,14 @@ func (r *Repository) All(ctx context.Context, userID string) (All, error) {
 func (r *Repository) SetServer(ctx context.Context, userID, serverID string, s Settings) error {
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO server_notification_settings
-			(user_id, server_id, muted, muted_until, level, suppress_everyone, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, NOW())
+			(user_id, server_id, muted, muted_until, level, suppress_everyone, suppress_roles, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 		 ON CONFLICT (user_id, server_id) DO UPDATE SET
 			muted = EXCLUDED.muted, muted_until = EXCLUDED.muted_until,
 			level = EXCLUDED.level, suppress_everyone = EXCLUDED.suppress_everyone,
+			suppress_roles = EXCLUDED.suppress_roles,
 			updated_at = NOW()`,
-		userID, serverID, s.Muted, s.MutedUntil, s.Level, s.SuppressEveryone)
+		userID, serverID, s.Muted, s.MutedUntil, s.Level, s.SuppressEveryone, s.SuppressRoles)
 	return err
 }
 

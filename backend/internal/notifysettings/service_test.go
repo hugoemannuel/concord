@@ -156,6 +156,28 @@ func TestSetChannelIgnoraSuppressEveryone(t *testing.T) {
 	}
 }
 
+// Ignorar menções de cargo é uma preferência própria do servidor: sozinha já
+// não é o padrão (a linha fica), e por canal não vale.
+func TestSuppressRolesValeSoPorServidor(t *testing.T) {
+	st := newFakeStore()
+	svc := testService(st, fakePerms{}, &fakePublisher{})
+
+	out, err := svc.SetServer(context.Background(), "u1", "s1", Settings{Level: LevelAll, SuppressRoles: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.SuppressRoles || !st.servers["s1"].SuppressRoles || st.servers["s1"].SuppressEveryone {
+		t.Fatalf("servidor: %+v", st.servers["s1"])
+	}
+	out, err = svc.SetChannel(context.Background(), "u1", "c1", Settings{Muted: true, Level: LevelAll, SuppressRoles: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.SuppressRoles || st.channels["c1"].SuppressRoles {
+		t.Fatal("suppress_roles não vale por canal")
+	}
+}
+
 func TestSemPermissaoNaoGravaNemPublica(t *testing.T) {
 	st, pub := newFakeStore(), &fakePublisher{}
 	svc := testService(st, fakePerms{err: permission.ErrNotMember}, pub)

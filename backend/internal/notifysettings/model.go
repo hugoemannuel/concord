@@ -21,6 +21,8 @@ type Settings struct {
 	MutedUntil       *time.Time `json:"muted_until"`
 	Level            string     `json:"level"`
 	SuppressEveryone bool       `json:"suppress_everyone"`
+	// SuppressRoles: ignorar menções de cargo (só por servidor; ADR 0065).
+	SuppressRoles bool `json:"suppress_roles"`
 }
 
 // All é tudo que a pessoa configurou, por id de servidor e de canal.
@@ -31,7 +33,7 @@ type All struct {
 
 // IsDefault: o padrão não ocupa linha no banco.
 func (s Settings) IsDefault() bool {
-	return !s.Muted && s.Level == LevelAll && !s.SuppressEveryone
+	return !s.Muted && s.Level == LevelAll && !s.SuppressEveryone && !s.SuppressRoles
 }
 
 // normalize valida e arruma: sem mute não há prazo, e prazo já vencido vira

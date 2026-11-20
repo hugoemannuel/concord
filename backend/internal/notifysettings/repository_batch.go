@@ -28,14 +28,14 @@ func defaultsFor(userIDs []string) map[string]All {
 
 func (r *Repository) serverSettingsFor(ctx context.Context, userIDs []string, out map[string]All) error {
 	rows, err := r.db.Query(ctx,
-		`SELECT user_id, server_id, muted, muted_until, level, suppress_everyone
+		`SELECT user_id, server_id, muted, muted_until, level, suppress_everyone, suppress_roles
 		 FROM server_notification_settings WHERE user_id = ANY($1)`, userIDs)
 	if err != nil {
 		return err
 	}
 	var userID, id string
 	var s Settings
-	_, err = pgx.ForEachRow(rows, []any{&userID, &id, &s.Muted, &s.MutedUntil, &s.Level, &s.SuppressEveryone}, func() error {
+	_, err = pgx.ForEachRow(rows, []any{&userID, &id, &s.Muted, &s.MutedUntil, &s.Level, &s.SuppressEveryone, &s.SuppressRoles}, func() error {
 		out[userID].Servers[id] = s
 		return nil
 	})
