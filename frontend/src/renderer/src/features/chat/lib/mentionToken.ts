@@ -8,6 +8,13 @@
  */
 export const OPENER = `(^|[\\s([{"'<*~“‘«])`
 
+const OPENS_BEFORE = new RegExp(`${OPENER}$`)
+
+/** O "@" em `at` pode abrir uma menção? (começo do texto ou OPENER logo antes) */
+export function opensToken(text: string, at: number): boolean {
+  return at === 0 || OPENS_BEFORE.test(text[at - 1])
+}
+
 /** Pontuação que pode vir logo depois do nick (apóstrofo e ponto têm regra própria). */
 const CLOSERS = ',!?:;)]}"”»>*~'
 
