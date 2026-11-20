@@ -9,7 +9,7 @@ import (
 
 // Criar uma mensagem (de canal ou de conversa): validar, gravar e reler para publicar.
 
-func (s *Service) create(ctx context.Context, channelID string, conversationID string, authorID string, content string, replyToID *string, attachmentIDs []string, mentionEveryone *string, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {
+func (s *Service) create(ctx context.Context, channelID string, conversationID string, authorID string, content string, replyToID *string, attachmentIDs []string, mention massMention, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {
 	hasMedia := len(attachmentIDs) > 0 || stickerID != nil || gifURL != nil
 	if err := validateNewMessageWithMedia(content, attachmentIDs, hasMedia); err != nil {
 		return nil, err
@@ -26,7 +26,8 @@ func (s *Service) create(ctx context.Context, channelID string, conversationID s
 		ConversationID:  nilIfEmpty(conversationID),
 		ReplyToID:       normalizedReplyID,
 		Content:         content,
-		MentionEveryone: mentionEveryone,
+		MentionEveryone: mention.Everyone,
+		MentionRoles:    mention.Roles,
 		StickerID:       stickerID,
 		GifURL:          gifURL,
 		GifMetadata:     gifMetadata,
@@ -87,6 +88,13 @@ func nilIfEmpty(s string) *string {
 func (s *Service) SetSlowmode(gate *Slowmode) { s.slowmode = gate }
 
 func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {
+	return s.CreateChannelMessageWithRoles(ctx, channelID, authorID, content, replyToID, attachmentIDs, stickerID, gifURL, gifMetadata, nil)
+}
+
+// CreateChannelMessageWithRoles é a mensagem de canal em que o app marcou
+// cargos: mentionRoleIDs são os ids escolhidos na lista do "@" (ADR 0065). O
+// que não puder pingar é ignorado; a mensagem sai do mesmo jeito.
+func (s *Service) CreateChannelMessageWithRoles(ctx context.Context, channelID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata, mentionRoleIDs []string) (*Message, error) {
 	var err error
 	stickerID, gifURL, err = normalizeMediaPointers(stickerID, gifURL)
 	if err != nil {
@@ -100,7 +108,7 @@ func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, au
 	if err != nil {
 		return nil, err
 	}
-	msg, err := s.postToChannel(ctx, channelID, authorID, content, replyToID, attachmentIDs, stickerID, gifURL, gifMetadata)
+	msg, err := s.postToChannel(ctx, channelID, authorID, content, replyToID, attachmentIDs, stickerID, gifURL, gifMetadata, mentionRoleIDs)
 	if err != nil {
 		// Mensagem que não saiu não gasta a vez do modo lento.
 		s.slowmode.Release(channelID, authorID, takenAt)
@@ -110,7 +118,7 @@ func (s *Service) CreateChannelMessage(ctx context.Context, channelID string, au
 }
 
 // postToChannel grava a mensagem já validada e publica o message:create.
-func (s *Service) postToChannel(ctx context.Context, channelID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata) (*Message, error) {
+func (s *Service) postToChannel(ctx context.Context, channelID string, authorID string, content string, replyToID *string, attachmentIDs []string, stickerID *string, gifURL *string, gifMetadata *GifMetadata, mentionRoleIDs []string) (*Message, error) {
 	dest := s.channelDestination(ctx, channelID)
 	serverID := dest.ServerID
 	content, err := s.expressions.message(ctx, dest, authorID, content, stickerID)
@@ -118,11 +126,11 @@ func (s *Service) postToChannel(ctx context.Context, channelID string, authorID 
 		return nil, err
 	}
 
-	mentionEveryone := s.resolveMentionEveryone(ctx, serverID, channelID, authorID, content)
-	msg, err := s.create(ctx, channelID, "", authorID, content, replyToID, attachmentIDs, mentionEveryone, stickerID, gifURL, gifMetadata)
+	mention := s.resolveMassMention(ctx, serverID, channelID, authorID, content, mentionRoleIDs)
+	msg, err := s.create(ctx, channelID, "", authorID, content, replyToID, attachmentIDs, mention, stickerID, gifURL, gifMetadata)
 	if err != nil {
 		// Mensagem que não saiu não gasta a vez do anti-spam.
-		if mentionEveryone != nil {
+		if mention.pings() {
 			s.mentionLimiter.Release(authorID, channelID)
 		}
 		return nil, err

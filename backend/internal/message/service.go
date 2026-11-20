@@ -63,10 +63,12 @@ type Service struct {
 	convResolver    ConversationResolver
 	files           FileRemover
 	perms           PermissionChecker
-	mentionLimiter  *mentionLimiter
-	slowmode        *Slowmode
-	expressions     *expressionUse
-	audit           AuditRecorder
+	// roles lê os cargos do servidor para a menção de cargo (mention_role.go).
+	roles          RoleSource
+	mentionLimiter *mentionLimiter
+	slowmode       *Slowmode
+	expressions    *expressionUse
+	audit          AuditRecorder
 	// pollImages copia as imagens das respostas de enquete (poll_image.go).
 	pollImages *PollImages
 }
@@ -134,7 +136,7 @@ func (s *Service) CreateConversationMessage(ctx context.Context, conversationID 
 		return nil, err
 	}
 	// Em DM @all/@here é texto puro.
-	msg, err := s.create(ctx, "", conversationID, authorID, content, replyToID, attachmentIDs, nil, stickerID, gifURL, gifMetadata)
+	msg, err := s.create(ctx, "", conversationID, authorID, content, replyToID, attachmentIDs, massMention{}, stickerID, gifURL, gifMetadata)
 	if err != nil {
 		return nil, err
 	}

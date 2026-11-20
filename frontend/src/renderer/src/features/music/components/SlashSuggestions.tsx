@@ -1,36 +1,41 @@
-import { slashSuggestions, type SlashSuggestion } from '../lib/music'
+import SuggestionList from '../../../shared/ui/SuggestionList'
+import type { SlashSuggestion } from '../lib/music'
 
-/** Lista dos comandos (Maestro, /tts) ao digitar "/" no chat. */
+/** Lista dos comandos (Maestro, /tts) ao digitar "/" no chat. Mouse e setas mudam o destaque. */
 function SlashSuggestions({
-  input,
-  commands,
-  onPick
+  listId,
+  items,
+  highlight,
+  onPick,
+  onHighlight
 }: {
-  input: string
-  commands: SlashSuggestion[]
-  onPick: (command: string) => void
-}): React.JSX.Element | null {
-  const items = slashSuggestions(input, commands)
-  if (items.length === 0) return null
+  listId: string
+  items: SlashSuggestion[]
+  highlight: number
+  onPick: (command: SlashSuggestion) => void
+  onHighlight: (index: number) => void
+}): React.JSX.Element {
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-subtle bg-floating p-1 shadow-2xl">
-      {items.map((s) => (
-        <button
-          key={s.command}
-          type="button"
-          onMouseDown={(e) => {
-            e.preventDefault() // não tira o foco do campo
-            onPick(s.command + ' ')
-          }}
-          className="flex w-full cursor-pointer items-baseline gap-2 rounded px-2 py-1.5 text-left text-ds-sm hover:bg-fg/10"
-        >
+    <SuggestionList
+      id={listId}
+      label="Comandos"
+      items={items}
+      highlight={highlight}
+      itemKey={(s) => s.command}
+      onPick={onPick}
+      onHighlight={onHighlight}
+      className="absolute bottom-full left-0 right-0 mb-2"
+      itemClassName="items-baseline"
+    >
+      {(s) => (
+        <>
           <span className="shrink-0 whitespace-nowrap font-semibold text-strong">{s.usage}</span>
           <span className="min-w-0 truncate text-ds-xs text-faint">
             {s.description ?? s.aliases.join(' · ')}
           </span>
-        </button>
-      ))}
-    </div>
+        </>
+      )}
+    </SuggestionList>
   )
 }
 

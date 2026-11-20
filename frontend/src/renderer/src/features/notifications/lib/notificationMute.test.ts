@@ -7,6 +7,7 @@ import {
   mentionKindOf,
   muteDecision,
   resolveScope,
+  settingsSummary,
   type NotifySettings,
   type ResolvedScope
 } from './notificationMute'
@@ -107,8 +108,89 @@ describe('mentionKindOf', () => {
   it('mensagem minha não me menciona', () => {
     expect(mentionKindOf(msg({ author_id: 'eu', content: '@eu' }), me)).toEqual({
       direct: false,
+      role: false,
       everyone: false
     })
+  })
+})
+
+describe('settingsSummary', () => {
+  it('junta o que foge do padrão, na ordem da tela', () => {
+    expect(settingsSummary(settings(), NOW)).toBe('')
+    expect(settingsSummary(settings({ muted: true }), NOW)).toBe('Silenciado')
+    expect(settingsSummary(settings({ level: 'mentions' }), NOW)).toBe('Só @menções')
+    expect(settingsSummary(settings({ level: 'nothing' }), NOW)).toBe('Nada')
+    expect(
+      settingsSummary(
+        settings({ muted: true, level: 'mentions', suppress_everyone: true, suppress_roles: true }),
+        NOW
+      )
+    ).toBe('Silenciado · Só @menções · Ignora @all e @here · Ignora menções de cargo')
+  })
+
+  it('silêncio com prazo vencido não aparece', () => {
+    const past = new Date(NOW - 1000).toISOString()
+    expect(settingsSummary(settings({ muted: true, muted_until: past, suppress_roles: true }), NOW)).toBe(
+      'Ignora menções de cargo'
+    )
+  })
+})
+
+describe('mentionKindOf com cargo', () => {
+  const pinged = [{ id: 'r1', handle: 'suporte' }]
+
+  it('cargo pingado que eu tenho me alcança pelo cargo', () => {
+    const kind = mentionKindOf(msg({ content: '@suporte', mention_roles: pinged }), me, ['r1'])
+    expect(kind).toEqual({ direct: false, role: true, everyone: false })
+  })
+
+  it('sem o cargo (ou sem saber os meus cargos) não me alcança', () => {
+    const message = msg({ content: '@suporte', mention_roles: pinged })
+    expect(mentionKindOf(message, me, ['outro']).role).toBe(false)
+    expect(mentionKindOf(message, me).role).toBe(false)
+  })
+
+  it('cargo pingado com o meu nick é o cargo, não menção direta', () => {
+    const message = msg({ content: '@eu', mention_roles: [{ id: 'r9', handle: 'eu' }] })
+    expect(mentionKindOf(message, me, [])).toEqual({ direct: false, role: false, everyone: false })
+  })
+})
+
+describe('ignorar menções de cargo', () => {
+  const scope = (over: Partial<ResolvedScope> = {}): ResolvedScope => ({
+    muted: false,
+    level: 'all',
+    suppressEveryone: false,
+    suppressRoles: false,
+    ...over
+  })
+  const role = { direct: false, role: true, everyone: false }
+
+  it('menção de cargo avisa e vira selo, como a direta', () => {
+    expect(muteDecision(scope(), role)).toEqual({ notify: true, unread: true, mention: true })
+    expect(muteDecision(scope({ level: 'mentions' }), role).notify).toBe(true)
+  })
+
+  it('com "ignorar menções de cargo" não avisa nem vira selo', () => {
+    expect(muteDecision(scope({ suppressRoles: true }), role)).toEqual({
+      notify: false,
+      unread: true,
+      mention: false
+    })
+  })
+
+  it('ignorar cargo não corta a menção direta nem o @all, e vice-versa', () => {
+    const both = scope({ suppressRoles: true })
+    expect(muteDecision(both, { direct: true, role: true, everyone: false }).mention).toBe(true)
+    expect(muteDecision(both, { direct: false, role: true, everyone: true }).mention).toBe(true)
+    expect(muteDecision(scope({ suppressEveryone: true }), role).mention).toBe(true)
+  })
+
+  it('a preferência é do servidor', () => {
+    const server = settings({ suppress_roles: true })
+    expect(resolveScope(server, undefined, NOW).suppressRoles).toBe(true)
+    expect(resolveScope(undefined, settings({ suppress_roles: true }), NOW).suppressRoles).toBe(false)
+    expect(isActive(server, NOW)).toBe(true)
   })
 })
 
@@ -117,11 +199,12 @@ describe('muteDecision', () => {
     muted: false,
     level: 'all',
     suppressEveryone: false,
+    suppressRoles: false,
     ...over
   })
-  const none = { direct: false, everyone: false }
-  const direct = { direct: true, everyone: false }
-  const everyone = { direct: false, everyone: true }
+  const none = { direct: false, role: false, everyone: false }
+  const direct = { direct: true, role: false, everyone: false }
+  const everyone = { direct: false, role: false, everyone: true }
 
   it('padrão: não lida sempre, aviso só com menção', () => {
     expect(muteDecision(scope(), none)).toEqual({ notify: false, unread: true, mention: false })

@@ -266,6 +266,7 @@ export function MessageContent({
           <MessageText
             content={message.content}
             everyone={message.mention_everyone ?? null}
+            mentionRoles={message.mention_roles}
             mentionLabels={mentionLabels}
           />
         )

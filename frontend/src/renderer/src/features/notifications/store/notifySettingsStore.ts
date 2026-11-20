@@ -7,6 +7,7 @@ import {
 import type { WsEvent } from '../../../shared/api/ws'
 import {
   DEFAULT_NOTIFY_SETTINGS,
+  isCustom,
   resolveScope,
   type NotifySettings,
   type ResolvedScope
@@ -44,7 +45,7 @@ function withEntry(
   settings: NotifySettings
 ): Record<string, NotifySettings> {
   const next = { ...map }
-  if (settings.muted || settings.level !== 'all' || settings.suppress_everyone) next[id] = settings
+  if (settings.muted || isCustom(settings)) next[id] = settings
   else delete next[id]
   return next
 }

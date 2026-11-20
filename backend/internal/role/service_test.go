@@ -446,3 +446,37 @@ func TestOnlyOwnerSetsOwnerRoles(t *testing.T) {
 		t.Fatalf("gerente se dando vip: %v", err)
 	}
 }
+
+func TestMentionableRole(t *testing.T) {
+	svc, f, _ := setup()
+	// Nasce desligado; quem gerencia cargos liga e desliga.
+	role, err := svc.Create(ctx, "s1", "dono", Input{Name: ptr("Suporte")})
+	if err != nil || role.Mentionable {
+		t.Fatalf("cargo novo: mentionable = %v, err = %v", role.Mentionable, err)
+	}
+	if _, err := svc.Update(ctx, "s1", "dono", role.ID, Input{Mentionable: ptr(true)}); err != nil {
+		t.Fatalf("ligar: %v", err)
+	}
+	if !f.snap.Roles[role.ID].Mentionable {
+		t.Fatal("mentionable não foi gravado")
+	}
+	// Outra edição não mexe nele.
+	if _, err := svc.Update(ctx, "s1", "dono", role.ID, Input{Name: ptr("Ajuda")}); err != nil || !f.snap.Roles[role.ID].Mentionable {
+		t.Fatalf("renomear desligou o mentionable (err = %v)", err)
+	}
+	created, err := svc.Create(ctx, "s1", "dono", Input{Name: ptr("Plantão"), Mentionable: ptr(true)})
+	if err != nil || !created.Mentionable {
+		t.Fatalf("criar já mencionável: mentionable = %v, err = %v", created.Mentionable, err)
+	}
+}
+
+func TestFixedRolesAreNeverMentionable(t *testing.T) {
+	svc, f, _ := setup()
+	f.snap.Roles["bots"] = Role{ID: "bots", ServerID: "s1", Name: permission.BotsRoleName, Position: 1, IsSystem: true}
+	if _, err := svc.Update(ctx, "s1", "dono", "everyone", Input{Mentionable: ptr(true)}); !errors.Is(err, ErrEveryoneRole) {
+		t.Fatalf("@everyone mencionável: err = %v, want ErrEveryoneRole", err)
+	}
+	if _, err := svc.Update(ctx, "s1", "dono", "bots", Input{Mentionable: ptr(true)}); !errors.Is(err, ErrBotRole) {
+		t.Fatalf("Bots mencionável: err = %v, want ErrBotRole", err)
+	}
+}

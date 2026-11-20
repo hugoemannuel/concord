@@ -23,6 +23,13 @@ func TestDetectEveryoneMention(t *testing.T) {
 		{"linha 1\n@here", MentionHere},
 		// @all vale mais que @here: avisa todo mundo.
 		{"@here e @all", MentionAll},
+		// @everyone é o @all de quem vem do Discord.
+		{"@everyone bora", MentionAll},
+		{"ei @Everyone.", MentionAll},
+		{"@here e @everyone", MentionAll},
+		{"@everyones", ""},
+		{"x.com/@everyone", ""},
+		{"`@everyone`", ""},
 		{"sem menção nenhuma", ""},
 		{"all here", ""},
 		{"@allan oi", ""},
@@ -140,6 +147,11 @@ func (f fakeModerators) ChannelPerms(_ context.Context, channelID string, userID
 	return perms, nil
 }
 
+// everyoneOf: o mention_everyone que a mensagem (sem cargos pedidos) ganharia.
+func everyoneOf(s *Service, ctx context.Context, serverID, channelID, authorID, content string) *string {
+	return s.resolveMassMention(ctx, serverID, channelID, authorID, content, nil).Everyone
+}
+
 func TestResolveMentionEveryone(t *testing.T) {
 	clock := &fakeClock{now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
 	newService := func(mods PermissionChecker) *Service {
@@ -152,11 +164,11 @@ func TestResolveMentionEveryone(t *testing.T) {
 
 	t.Run("moderador ou dono marcam @all/@here", func(t *testing.T) {
 		s := newService(mods)
-		got := s.resolveMentionEveryone(ctx, "srv", "ch1", "mod", "@all bora")
+		got := everyoneOf(s, ctx, "srv", "ch1", "mod", "@all bora")
 		if got == nil || *got != MentionAll {
 			t.Fatalf("got %v, want all", got)
 		}
-		got = s.resolveMentionEveryone(ctx, "srv", "ch1", "dono", "@here alguém?")
+		got = everyoneOf(s, ctx, "srv", "ch1", "dono", "@here alguém?")
 		if got == nil || *got != MentionHere {
 			t.Fatalf("got %v, want here", got)
 		}
@@ -164,50 +176,50 @@ func TestResolveMentionEveryone(t *testing.T) {
 
 	t.Run("membro comum: texto puro, não pinga", func(t *testing.T) {
 		s := newService(mods)
-		if got := s.resolveMentionEveryone(ctx, "srv", "ch1", "membro", "@all bora"); got != nil {
+		if got := everyoneOf(s, ctx, "srv", "ch1", "membro", "@all bora"); got != nil {
 			t.Fatalf("got %v, want nil", *got)
 		}
 	})
 
 	t.Run("sem @all/@here não consulta nada", func(t *testing.T) {
 		s := newService(fakeModerators{err: errors.New("não devia consultar")})
-		if got := s.resolveMentionEveryone(ctx, "srv", "ch1", "mod", "oi @ana"); got != nil {
+		if got := everyoneOf(s, ctx, "srv", "ch1", "mod", "oi @ana"); got != nil {
 			t.Fatalf("got %v, want nil", *got)
 		}
 	})
 
 	t.Run("erro ao checar cargo não pinga", func(t *testing.T) {
 		s := newService(fakeModerators{allowed: mods.allowed, err: errors.New("db fora")})
-		if got := s.resolveMentionEveryone(ctx, "srv", "ch1", "mod", "@all"); got != nil {
+		if got := everyoneOf(s, ctx, "srv", "ch1", "mod", "@all"); got != nil {
 			t.Fatalf("got %v, want nil", *got)
 		}
 	})
 
 	t.Run("sem servidor (DM) ou sem checador, não pinga", func(t *testing.T) {
-		if got := newService(mods).resolveMentionEveryone(ctx, "", "ch1", "mod", "@all"); got != nil {
+		if got := everyoneOf(newService(mods), ctx, "", "ch1", "mod", "@all"); got != nil {
 			t.Fatalf("got %v, want nil", *got)
 		}
-		if got := newService(nil).resolveMentionEveryone(ctx, "srv", "ch1", "mod", "@all"); got != nil {
+		if got := everyoneOf(newService(nil), ctx, "srv", "ch1", "mod", "@all"); got != nil {
 			t.Fatalf("got %v, want nil", *got)
 		}
 	})
 
 	t.Run("anti-spam: um @all/@here por autor por canal a cada 30s", func(t *testing.T) {
 		s := newService(mods)
-		if got := s.resolveMentionEveryone(ctx, "srv", "ch1", "mod", "@all"); got == nil {
+		if got := everyoneOf(s, ctx, "srv", "ch1", "mod", "@all"); got == nil {
 			t.Fatal("first should ping")
 		}
 		clock.now = clock.now.Add(5 * time.Second)
-		if got := s.resolveMentionEveryone(ctx, "srv", "ch1", "mod", "@here"); got != nil {
+		if got := everyoneOf(s, ctx, "srv", "ch1", "mod", "@here"); got != nil {
 			t.Fatalf("second within 30s should not ping, got %v", *got)
 		}
 		// Membro comum tentando @all não gasta a vez de ninguém.
-		s.resolveMentionEveryone(ctx, "srv", "ch2", "membro", "@all")
-		if got := s.resolveMentionEveryone(ctx, "srv", "ch2", "dono", "@all"); got == nil {
+		everyoneOf(s, ctx, "srv", "ch2", "membro", "@all")
+		if got := everyoneOf(s, ctx, "srv", "ch2", "dono", "@all"); got == nil {
 			t.Fatal("other author in other channel should ping")
 		}
 		clock.now = clock.now.Add(30 * time.Second)
-		if got := s.resolveMentionEveryone(ctx, "srv", "ch1", "mod", "@all"); got == nil {
+		if got := everyoneOf(s, ctx, "srv", "ch1", "mod", "@all"); got == nil {
 			t.Fatal("after 30s should ping again")
 		}
 	})

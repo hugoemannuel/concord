@@ -1,5 +1,5 @@
 import type { Message } from '../../chat/api/messages'
-import { everyonePingsMe, textMentionsUser } from '../../chat/lib/mentions'
+import { everyonePingsMe, rolePingsMe, textMentionsUser } from '../../chat/lib/mentions'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 
 export type NotificationLevel = 'all' | 'mentions' | 'nothing'
@@ -11,13 +11,16 @@ export interface NotifySettings {
   muted_until: string | null
   level: NotificationLevel
   suppress_everyone: boolean
+  /** Ignorar menções de cargo (só por servidor). */
+  suppress_roles?: boolean
 }
 
 export const DEFAULT_NOTIFY_SETTINGS: NotifySettings = {
   muted: false,
   muted_until: null,
   level: 'all',
-  suppress_everyone: false
+  suppress_everyone: false,
+  suppress_roles: false
 }
 
 /** Durações do menu "Silenciar" (null = até eu reativar). */
@@ -41,16 +44,38 @@ export function isMutedNow(s: NotifySettings | undefined, now: number): boolean 
   return Date.parse(s.muted_until) > now
 }
 
+/** Tem nível próprio ou ignora algum tipo de menção (fora o silenciar). */
+export function isCustom(s: NotifySettings): boolean {
+  return s.level !== 'all' || s.suppress_everyone || Boolean(s.suppress_roles)
+}
+
 /** O mute (ou o nível) está valendo? Usado para esmaecer e listar. */
 export function isActive(s: NotifySettings | undefined, now: number): boolean {
   if (!s) return false
-  return isMutedNow(s, now) || s.level !== 'all' || s.suppress_everyone
+  return isMutedNow(s, now) || isCustom(s)
+}
+
+const LEVEL_SUMMARY: Partial<Record<NotificationLevel, string>> = {
+  mentions: 'Só @menções',
+  nothing: 'Nada'
+}
+
+/** Resumo de uma preferência em Configurações → Notificações ("Silenciado · Só @menções"). */
+export function settingsSummary(s: NotifySettings, now: number): string {
+  const parts = [
+    isMutedNow(s, now) && 'Silenciado',
+    LEVEL_SUMMARY[s.level],
+    s.suppress_everyone && 'Ignora @all e @here',
+    s.suppress_roles && 'Ignora menções de cargo'
+  ]
+  return parts.filter(Boolean).join(' · ')
 }
 
 export interface ResolvedScope {
   muted: boolean
   level: NotificationLevel
   suppressEveryone: boolean
+  suppressRoles: boolean
 }
 
 /**
@@ -66,26 +91,34 @@ export function resolveScope(
   return {
     muted: isMutedNow(server, now) || isMutedNow(channel, now),
     level: channelLevel !== 'all' ? channelLevel : (server?.level ?? 'all'),
-    suppressEveryone: server?.suppress_everyone ?? false
+    suppressEveryone: server?.suppress_everyone ?? false,
+    suppressRoles: server?.suppress_roles ?? false
   }
 }
 
 export interface MentionKind {
   /** @nick ou resposta a uma mensagem sua. */
   direct: boolean
+  /** Um cargo que eu tenho foi pingado (mention_roles). */
+  role: boolean
   /** @all/@here que vale para mim. */
   everyone: boolean
 }
 
-/** Como a mensagem de canal me alcança (a lógica de mentionNotification, sem o texto). */
+/**
+ * Como a mensagem de canal me alcança (a lógica de mentionNotification, sem o
+ * texto). `myRoleIds`: os meus cargos no servidor da mensagem.
+ */
 export function mentionKindOf(
   message: Message,
-  me: { id: string; username: string; status?: ChosenStatus }
+  me: { id: string; username: string; status?: ChosenStatus },
+  myRoleIds: readonly string[] = []
 ): MentionKind {
-  if (message.author_id === me.id) return { direct: false, everyone: false }
+  if (message.author_id === me.id) return { direct: false, role: false, everyone: false }
   return {
     direct:
       message.reply_to?.author_id === me.id || textMentionsUser(message, me.username),
+    role: rolePingsMe(message.mention_roles, myRoleIds),
     everyone: everyonePingsMe(message.mention_everyone, me.status)
   }
 }
@@ -105,7 +138,10 @@ export interface MuteDecision {
  * não deixa nem isso.
  */
 export function muteDecision(scope: ResolvedScope, kind: MentionKind): MuteDecision {
-  const mention = kind.direct || (kind.everyone && !scope.suppressEveryone)
+  const mention =
+    kind.direct ||
+    (kind.role && !scope.suppressRoles) ||
+    (kind.everyone && !scope.suppressEveryone)
   if (scope.level === 'nothing') return { notify: false, unread: false, mention: false }
   if (scope.muted) return { notify: false, unread: false, mention }
   if (scope.level === 'mentions') return { notify: mention, unread: false, mention }

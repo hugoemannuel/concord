@@ -49,7 +49,7 @@ func (s *fakeEditStore) HasPoll(_ context.Context, id string) (bool, error) {
 	return s.polls[id], nil
 }
 
-func (s *fakeEditStore) UpdateContent(_ context.Context, id string, authorID string, content string, mentionEveryone *string) error {
+func (s *fakeEditStore) UpdateContent(_ context.Context, id string, authorID string, content string, mentionEveryone *string, mentionRoles []RoleMention) error {
 	m, ok := s.msgs[id]
 	if !ok || m.AuthorID != authorID {
 		return ErrMessageNotFound
@@ -58,6 +58,7 @@ func (s *fakeEditStore) UpdateContent(_ context.Context, id string, authorID str
 	now := time.Date(2026, 10, 25, 15, 0, 0, 0, time.UTC)
 	m.Content = content
 	m.MentionEveryone = mentionEveryone
+	m.MentionRoles = mentionRoles
 	m.EditedAt = &now
 	return nil
 }
@@ -301,6 +302,8 @@ func TestEditedMentionEveryone(t *testing.T) {
 		{"pingou @here e tem os dois: fica @here", here, "@all e @here bora", here},
 		{"pingou @all e tem os dois: fica @all", all, "@here e @all bora", all},
 		{"pingou @all e só sobrou @allan: não marca mais", all, "@allan bora", nil},
+		{"pingou com @everyone e manteve: continua @all", all, "@everyone bora, gente", all},
+		{"pingou @all e trocou por @everyone: é o mesmo aviso", all, "@everyone bora", all},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

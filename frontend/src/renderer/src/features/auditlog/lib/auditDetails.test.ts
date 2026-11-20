@@ -92,14 +92,16 @@ describe('detalhes do que mudou', () => {
         changes: [
           { field: 'name', before: 'VIP', after: 'Super VIP' },
           { field: 'color', after: 0xff8800 },
-          { field: 'hoist', before: false, after: true }
+          { field: 'hoist', before: false, after: true },
+          { field: 'mentionable', before: false, after: true }
         ]
       })
     )
     expect(rows).toEqual([
       { label: 'Nome', before: 'VIP', after: 'Super VIP' },
       { label: 'Cor', before: 'sem cor', after: '#FF8800' },
-      { label: 'Mostrar separado', before: 'Não', after: 'Sim' }
+      { label: 'Mostrar separado', before: 'Não', after: 'Sim' },
+      { label: 'Qualquer pessoa pode mencionar', before: 'Não', after: 'Sim' }
     ])
   })
 

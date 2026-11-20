@@ -80,6 +80,11 @@ func (r *Repository) MemberIDsByUsername(ctx context.Context, serverID string, u
 		 WHERE m.server_id = $1 AND lower(u.username) = ANY($2)`, serverID, usernames)
 }
 
+func (r *Repository) RoleMemberIDs(ctx context.Context, serverID string, roleIDs []string) ([]string, error) {
+	return r.strings(ctx,
+		`SELECT DISTINCT user_id::text FROM member_roles WHERE server_id = $1 AND role_id::text = ANY($2)`, serverID, roleIDs)
+}
+
 func (r *Repository) strings(ctx context.Context, sql string, args ...any) ([]string, error) {
 	rows, err := r.db.Query(ctx, sql, args...)
 	if err != nil {

@@ -1,17 +1,8 @@
-import { isActive, isMutedNow, type NotifySettings } from '../lib/notificationMute'
+import { isActive, settingsSummary } from '../lib/notificationMute'
 import { useChannelNameStore } from '../../servers/store/channelNameStore'
 import { useNotifySettingsStore } from '../store/notifySettingsStore'
 import { useServerStore } from '../../servers/store/serverStore'
 import { useNow } from '../../../shared/hooks/useNow'
-
-function summary(s: NotifySettings, now: number): string {
-  const parts: string[] = []
-  if (isMutedNow(s, now)) parts.push('Silenciado')
-  if (s.level === 'mentions') parts.push('Só @menções')
-  if (s.level === 'nothing') parts.push('Nada')
-  if (s.suppress_everyone) parts.push('Ignora @all e @here')
-  return parts.join(' · ')
-}
 
 /** Configurações → Notificações: servidores e canais com mute ou nível próprio. */
 export default function MutedNotifications(): React.JSX.Element | null {
@@ -46,7 +37,7 @@ export default function MutedNotifications(): React.JSX.Element | null {
           <li key={r.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5">
             <div className="min-w-0">
               <div className="truncate text-ds-sm text-normal">{r.name}</div>
-              <div className="text-ds-xs text-faint">{summary(r.s, now)}</div>
+              <div className="text-ds-xs text-faint">{settingsSummary(r.s, now)}</div>
             </div>
             <button
               type="button"
@@ -64,7 +55,7 @@ export default function MutedNotifications(): React.JSX.Element | null {
                 {r.name}
                 {r.server && <span className="text-faint"> · {r.server}</span>}
               </div>
-              <div className="text-ds-xs text-faint">{summary(r.s, now)}</div>
+              <div className="text-ds-xs text-faint">{settingsSummary(r.s, now)}</div>
             </div>
             <button
               type="button"

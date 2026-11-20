@@ -62,7 +62,8 @@ type fakeDir struct {
 	convName    string
 	group       bool
 	members     []string
-	byUsername  map[string]string // username -> id
+	byUsername  map[string]string   // username -> id
+	roleMembers map[string][]string // id do cargo -> ids de quem tem
 }
 
 func (d fakeDir) ChannelName(context.Context, string) (string, error) { return d.channelName, nil }
@@ -76,6 +77,14 @@ func (d fakeDir) MemberIDsByUsername(_ context.Context, _ string, names []string
 		if id, ok := d.byUsername[n]; ok {
 			ids = append(ids, id)
 		}
+	}
+	return ids, nil
+}
+
+func (d fakeDir) RoleMemberIDs(_ context.Context, _ string, roleIDs []string) ([]string, error) {
+	var ids []string
+	for _, roleID := range roleIDs {
+		ids = append(ids, d.roleMembers[roleID]...)
 	}
 	return ids, nil
 }
@@ -381,6 +390,94 @@ func TestMencaoEmCanal(t *testing.T) {
 		if got := sentTo(r); len(got) != 3 {
 			t.Fatalf("com menção direta a Ana, os três recebem: %v", got)
 		}
+	})
+}
+
+// roleEvent: mensagem de canal que pingou o cargo Suporte (r-suporte).
+func roleEvent(content string) message.CreateEvent {
+	ev := channelEvent(content, nil)
+	ev.Message.MentionRoles = []message.RoleMention{{ID: "r-suporte", Handle: "suporte"}}
+	return ev
+}
+
+func TestMencaoDeCargo(t *testing.T) {
+	// Ana e Bia têm o cargo; Caio não.
+	newRoleRig := func() *rig {
+		r := newRig()
+		r.dir.roleMembers = map[string][]string{"r-suporte": {"u-ana", "u-bia", "u-autor"}}
+		r.build()
+		return r
+	}
+	serverWith := func(s notifysettings.Settings) notifysettings.All {
+		return notifysettings.All{Servers: map[string]notifysettings.Settings{"srv-1": s}}
+	}
+
+	t.Run("quem tem o cargo recebe, menos o autor", func(t *testing.T) {
+		r := newRoleRig()
+		r.tokens.tokens["u-autor"] = []string{"tok-autor"}
+		r.n.OnMessage(roleEvent("@suporte alguém ajuda?"))
+		expectTokens(t, r, "tok-ana", "tok-bia")
+	})
+
+	t.Run("texto com @cargo que o servidor não liberou não avisa ninguém", func(t *testing.T) {
+		r := newRoleRig()
+		r.n.OnMessage(channelEvent("@suporte alguém ajuda?", nil))
+		expectTokens(t, r)
+	})
+
+	t.Run("quem não vê o canal não recebe", func(t *testing.T) {
+		r := newRoleRig()
+		r.access.deny["u-ana"] = true
+		r.build()
+		r.n.OnMessage(roleEvent("@suporte"))
+		expectTokens(t, r, "tok-bia")
+	})
+
+	t.Run("ignorar menções de cargo corta o cargo, não a menção pelo nome", func(t *testing.T) {
+		r := newRoleRig()
+		r.settings.all["u-ana"] = serverWith(notifysettings.Settings{Level: notifysettings.LevelAll, SuppressRoles: true})
+		r.build()
+		r.n.OnMessage(roleEvent("@suporte"))
+		expectTokens(t, r, "tok-bia")
+		r.sender.sent = nil
+		r.n.OnMessage(roleEvent("@suporte e @ana_mobile"))
+		expectTokens(t, r, "tok-ana", "tok-bia")
+	})
+
+	t.Run("ignorar @all não corta o cargo, e ignorar cargo não corta o @all", func(t *testing.T) {
+		r := newRoleRig()
+		r.settings.all["u-ana"] = serverWith(notifysettings.Settings{Level: notifysettings.LevelAll, SuppressEveryone: true})
+		r.settings.all["u-caio"] = serverWith(notifysettings.Settings{Level: notifysettings.LevelAll, SuppressRoles: true})
+		r.build()
+		ev := roleEvent("@all @suporte")
+		ev.Message.MentionEveryone = ptr("all")
+		r.n.OnMessage(ev)
+		// Ana (cargo) recebe pelo cargo; Caio (sem cargo) recebe pelo @all.
+		expectTokens(t, r, "tok-ana", "tok-bia", "tok-caio")
+	})
+
+	t.Run("nick igual ao handle do cargo pingado não é menção pessoal", func(t *testing.T) {
+		r := newRoleRig()
+		// Caio se chama "suporte" e não tem o cargo.
+		r.dir.byUsername["suporte"] = "u-caio"
+		r.build()
+		r.n.OnMessage(roleEvent("@suporte alguém?"))
+		expectTokens(t, r, "tok-ana", "tok-bia")
+		// Sem o cargo pingado, o mesmo texto é a pessoa.
+		r.sender.sent = nil
+		r.n.OnMessage(channelEvent("@suporte alguém?", nil))
+		expectTokens(t, r, "tok-caio")
+	})
+
+	t.Run("pedaço do handle não vira menção de outra pessoa", func(t *testing.T) {
+		r := newRoleRig()
+		r.dir.roleMembers["r-equipe"] = []string{"u-ana"}
+		r.dir.byUsername["equipe"] = "u-caio"
+		r.build()
+		ev := channelEvent("@equipe-de-suporte", nil)
+		ev.Message.MentionRoles = []message.RoleMention{{ID: "r-equipe", Handle: "equipe-de-suporte"}}
+		r.n.OnMessage(ev)
+		expectTokens(t, r, "tok-ana")
 	})
 }
 

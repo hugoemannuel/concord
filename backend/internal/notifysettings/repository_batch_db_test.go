@@ -46,7 +46,7 @@ func TestDBAllForMatchesAllPerUser(t *testing.T) {
 	exec(`INSERT INTO channels (id, server_id, name, type, created_by, position, is_system) VALUES ($1, $2, 'geral', 'text', $3, 0, false)`, channelID, serverID, ana)
 
 	repo := NotifySettingsRepository(db)
-	if err := repo.SetServer(ctx, ana, serverID, Settings{Level: LevelMentions, SuppressEveryone: true}); err != nil {
+	if err := repo.SetServer(ctx, ana, serverID, Settings{Level: LevelMentions, SuppressEveryone: true, SuppressRoles: true}); err != nil {
 		t.Fatal(err)
 	}
 	if err := repo.SetChannel(ctx, ana, channelID, Settings{Muted: true, Level: LevelAll}); err != nil {
@@ -59,6 +59,9 @@ func TestDBAllForMatchesAllPerUser(t *testing.T) {
 	batch, err := repo.AllFor(ctx, []string{ana, bia, caio})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got := batch[ana].Servers[serverID]; !got.SuppressRoles || !got.SuppressEveryone {
+		t.Fatalf("preferências da Ana no servidor: %+v", got)
 	}
 	for _, id := range []string{ana, bia, caio} {
 		one, err := repo.All(ctx, id)

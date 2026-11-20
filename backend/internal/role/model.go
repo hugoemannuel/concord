@@ -36,6 +36,14 @@ type Input struct {
 	ClearColor  bool    `json:"clear_color"`
 	Hoist       *bool   `json:"hoist"`
 	Permissions *int64  `json:"permissions"`
+	// Mentionable: qualquer pessoa pode mencionar o cargo no chat (ADR 0065).
+	Mentionable *bool `json:"mentionable"`
+}
+
+// changesIdentity: mexe no que é fixo no @everyone (nome, cor, lista
+// separada e ser mencionável).
+func (in Input) changesIdentity() bool {
+	return in.Name != nil || in.Color != nil || in.ClearColor || in.Hoist != nil || in.Mentionable != nil
 }
 
 type RoleEvent struct {

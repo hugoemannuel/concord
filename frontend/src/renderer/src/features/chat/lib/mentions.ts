@@ -1,47 +1,22 @@
-import type { Message, MentionEveryone } from '../api/messages'
+import type { Message, MentionEveryone, RoleMention } from '../api/messages'
 import type { ChosenStatus } from '../../friends/lib/presenceStatus'
 import { serverDisplayName } from '../../servers/lib/serverNames'
 import { stripCode } from './markdown/stripCode'
+import { OPENER, tokenEndsAt } from './mentionToken'
+import {
+  roleSuggestions,
+  splitRoleMentions,
+  withoutRoleMentions,
+  type MentionableRole,
+  type RoleSuggestion
+} from './roleMentions'
 
 // Menções @nick no chat de texto, mais @all/@here (menção em massa num canal
-// de servidor). Quem decide se @all/@here pinga é o backend, no campo
-// mention_everyone da mensagem; o texto sozinho não pinga ninguém.
+// de servidor) e @cargo (lib/roleMentions.ts). Quem decide se @all/@here e o
+// cargo pingam é o backend, nos campos mention_everyone e mention_roles da
+// mensagem; o texto sozinho não pinga ninguém.
 
 const NICK = '[A-Za-z0-9_.]+'
-
-/**
- * O que pode vir logo antes do "@": começo, espaço ou pontuação de abertura.
- * Assim "x.com/@ana" ou "medium.com/@here" (links) não viram menção. Mesma
- * regra do backend (internal/message/mention.go).
- */
-const OPENER = `(^|[\\s([{"'<*~“‘«])`
-
-/** Pontuação que pode vir logo depois do nick (apóstrofo e ponto têm regra própria). */
-const CLOSERS = ',!?:;)]}"”»>*~'
-
-/**
- * O nick acaba em `end`? Só se vier fim, espaço ou pontuação de fechamento.
- * Letra, número, "-", "_", "@", "/" ou apóstrofo seguido de letra ("@all's")
- * continuam a palavra; ponto seguido de nick também ("@ana.bot"), mas ponto
- * final conta ("@ana."). Mesma regra do backend (tokenEndsAt em mention.go).
- */
-function tokenEndsAt(text: string, end: number): boolean {
-  if (end >= text.length) return true
-  const ch = text[end]
-  if (/\s/.test(ch)) return true
-  if (ch === '.') {
-    let j = end
-    while (j < text.length && text[j] === '.') j++
-    if (j >= text.length) return true
-    if (/[A-Za-z0-9_]/.test(text[j])) return false
-    return tokenEndsAt(text, j)
-  }
-  if (ch === "'" || ch === '’') {
-    const next = text.codePointAt(end + 1)
-    return next === undefined || !/\p{L}/u.test(String.fromCodePoint(next))
-  }
-  return CLOSERS.includes(ch)
-}
 
 /** Nomes que nunca são menção pessoal: @all/@here só valem pelo mention_everyone. */
 const RESERVED = ['all', 'here', 'everyone']
@@ -74,7 +49,12 @@ export interface MessagePart {
   text: string
   /** nick mencionado, se este pedaço é uma menção */
   mention?: string
+  /** id do cargo, se este pedaço é uma menção de cargo */
+  role?: string
 }
+
+const NO_ROLES: readonly RoleMention[] = []
+const NO_ROLE_IDS: readonly string[] = []
 
 const EVERYONE: readonly MentionEveryone[] = ['all', 'here']
 
@@ -82,15 +62,29 @@ function isEveryone(nick: string): nick is MentionEveryone {
   return (EVERYONE as readonly string[]).includes(nick)
 }
 
+/** "@everyone" é outro jeito de escrever "@all" (quem vem do Discord). */
+const EVERYONE_ALIAS = 'everyone'
+
+const canonicalEveryone = (lower: string): string => (lower === EVERYONE_ALIAS ? 'all' : lower)
+
 /**
  * Quebra o texto em pedaços normais e menções, para destacar. @all/@here só
- * viram menção quando batem com o mention_everyone da mensagem; senão ficam
- * como texto puro.
+ * viram menção quando batem com o mention_everyone da mensagem, e o @cargo
+ * só quando está no mention_roles; senão ficam como texto puro.
  */
 export function splitMentions(
   content: string,
-  everyone: MentionEveryone | null = null
+  everyone: MentionEveryone | null = null,
+  roles: readonly RoleMention[] = NO_ROLES
 ): MessagePart[] {
+  if (roles.length === 0) return splitPeople(content, everyone)
+  return splitRoleMentions(content, roles).flatMap((p) =>
+    p.role ? [p] : splitPeople(p.text, everyone)
+  )
+}
+
+/** As menções de pessoa e o @all/@here de um trecho sem menção de cargo. */
+function splitPeople(content: string, everyone: MentionEveryone | null): MessagePart[] {
   const parts: MessagePart[] = []
   const pushText = (text: string): void => {
     const prev = parts[parts.length - 1]
@@ -103,14 +97,14 @@ export function splitMentions(
     const start = match.index + match[1].length
     // não engole o ponto final ("@ana.")
     const nick = match[2].replace(/\.+$/, '')
-    const lower = nick.toLowerCase()
+    const lower = canonicalEveryone(nick.toLowerCase())
     if (start > last) pushText(content.slice(last, start))
     if (!tokenEndsAt(content, start + 1 + nick.length)) {
       // "@all-hands", "@ana's": parte de uma palavra, não menção.
       pushText(`@${nick}`)
     } else if (isEveryone(lower) && lower === everyone) {
       parts.push({ text: `@${nick}`, mention: lower })
-    } else if (isReserved(lower)) {
+    } else if (isReserved(nick)) {
       pushText(`@${nick}`)
     } else {
       parts.push({ text: `@${nick}`, mention: nick })
@@ -147,42 +141,72 @@ export function everyonePingsMe(
  * citava não é avisado de novo (o backend também não pinga).
  */
 export function textMentionsUser(
-  message: Pick<Message, 'content' | 'forwarded_from'>,
+  message: Pick<Message, 'content' | 'forwarded_from' | 'mention_roles'>,
   username: string
 ): boolean {
-  return !message.forwarded_from && mentionsUser(message.content, username)
+  if (message.forwarded_from) return false
+  // O "@handle" de um cargo pingado é o cargo, não a pessoa de mesmo nick.
+  return mentionsUser(withoutRoleMentions(message.content, message.mention_roles), username)
 }
 
+/** A mensagem pingou (pelo backend, em mention_roles) algum dos meus cargos? */
+export function rolePingsMe(
+  roles: readonly RoleMention[] | null | undefined,
+  myRoleIds: readonly string[]
+): boolean {
+  return Boolean(roles?.some((r) => myRoleIds.includes(r.id)))
+}
+
+/**
+ * `myRoleIds`: os meus cargos no servidor da mensagem (myRolesStore); sem
+ * eles, menção de cargo não destaca.
+ */
 export function messageMentionsMe(
-  message: Pick<Message, 'author_id' | 'content' | 'mention_everyone' | 'forwarded_from'> & {
+  message: Pick<
+    Message,
+    'author_id' | 'content' | 'mention_everyone' | 'forwarded_from' | 'mention_roles'
+  > & {
     reply_to?: { author_id: string } | null
   },
-  me: { id: string; username: string } | null | undefined
+  me: { id: string; username: string } | null | undefined,
+  myRoleIds: readonly string[] = NO_ROLE_IDS
 ): boolean {
   if (!me || message.author_id === me.id) return false
   return (
     textMentionsUser(message, me.username) ||
     message.reply_to?.author_id === me.id ||
-    Boolean(message.mention_everyone)
+    Boolean(message.mention_everyone) ||
+    rolePingsMe(message.mention_roles, myRoleIds)
   )
 }
 
 export interface EveryoneSuggestion {
-  username: MentionEveryone
+  /** O que vai para o texto: "everyone" vale como "all". */
+  username: MentionEveryone | typeof EVERYONE_ALIAS
   description: string
 }
 
 const EVERYONE_SUGGESTIONS: EveryoneSuggestion[] = [
   { username: 'all', description: 'Notifica todos do canal' },
-  { username: 'here', description: 'Notifica quem está online' }
+  { username: 'here', description: 'Notifica quem está online' },
+  { username: EVERYONE_ALIAS, description: 'Notifica todos do canal' }
 ]
 
-/** Sugestões de @all/@here no autocompletar — só para dono e moderadores. */
+/**
+ * Sugestões de @all/@here no autocompletar — só para dono e moderadores.
+ * @everyone só entra quando o que foi digitado começa com "e": com só "@" a
+ * lista não ganha um item igual ao @all.
+ */
 export function everyoneSuggestions(query: string, allowed: boolean): EveryoneSuggestion[] {
   if (!allowed) return []
   const q = query.toLowerCase()
-  return EVERYONE_SUGGESTIONS.filter((s) => s.username.startsWith(q))
+  return EVERYONE_SUGGESTIONS.filter(
+    (s) => s.username.startsWith(q) && (q !== '' || s.username !== EVERYONE_ALIAS)
+  )
 }
+
+/** O "@xx" em digitação: nick, ou handle de cargo (letra com acento e "-"). */
+const MENTION_QUERY = /(^|\s)@([\p{L}\p{N}_.-]+)?$/u
 
 /** "@xx" sendo digitado logo antes do cursor → o que buscar e onde começa. */
 export function mentionQuery(
@@ -190,7 +214,7 @@ export function mentionQuery(
   caret: number
 ): { query: string; start: number } | null {
   const before = draft.slice(0, caret)
-  const match = new RegExp(`(^|\\s)@(${NICK})?$`).exec(before)
+  const match = MENTION_QUERY.exec(before)
   if (!match) return null
   return { query: match[2] ?? '', start: match.index + match[1].length }
 }
@@ -213,10 +237,11 @@ export interface UserSuggestionInput {
   nickname?: string | null
 }
 
-/** Item do autocompletar: alguém do canal ou @all/@here. */
+/** Item do autocompletar: alguém do canal, @all/@here ou um cargo. */
 export type MentionSuggestion =
   | { kind: 'user'; username: string; display_name: string; nickname?: string | null }
-  | { kind: 'everyone'; username: MentionEveryone; description: string }
+  | ({ kind: 'everyone' } & EveryoneSuggestion)
+  | RoleSuggestion
 
 /**
  * Monta o autocompletar do "@". Casa pelo apelido no servidor, pelo nick ou
@@ -224,13 +249,14 @@ export type MentionSuggestion =
  * aparecem no topo quando o que foi digitado bate com eles ("@a", "@h"), ou
  * com só "@" se ninguém mais bate. O item padrão (Tab/Enter) é sempre uma
  * pessoa quando há alguma, para nunca marcar @all sem querer; com só "@" e
- * nenhuma pessoa, não há padrão (-1).
+ * nenhuma pessoa, não há padrão (-1). Os cargos que a pessoa pode mencionar
+ * (`roles`) vêm depois das pessoas, pela mesma regra do @all/@here.
  */
 export function mentionSuggestions(
   query: string,
   users: UserSuggestionInput[],
   canMentionEveryone: boolean,
-  { exclude, max = 6 }: { exclude?: string; max?: number } = {}
+  { exclude, max = 6, roles = [] }: { exclude?: string; max?: number; roles?: MentionableRole[] } = {}
 ): { items: MentionSuggestion[]; defaultIndex: number } {
   const q = query.toLowerCase()
   const people: MentionSuggestion[] = users
@@ -245,11 +271,14 @@ export function mentionSuggestions(
       display_name: u.display_name,
       nickname: u.nickname
     }))
-  const everyone: MentionSuggestion[] =
-    q || people.length === 0
-      ? everyoneSuggestions(q, canMentionEveryone).map((e) => ({ kind: 'everyone', ...e }))
-      : []
-  const items = [...everyone, ...people]
+  const showGroups = Boolean(q) || people.length === 0
+  const everyone: MentionSuggestion[] = showGroups
+    ? everyoneSuggestions(q, canMentionEveryone).map((e) => ({ kind: 'everyone', ...e }))
+    : []
+  const roleItems: MentionSuggestion[] = showGroups
+    ? roleSuggestions(query, roles, canMentionEveryone, max)
+    : []
+  const items = [...everyone, ...people, ...roleItems]
   const defaultIndex = people.length > 0 ? everyone.length : q && items.length > 0 ? 0 : -1
   return { items, defaultIndex }
 }
