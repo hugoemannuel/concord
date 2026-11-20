@@ -90,12 +90,13 @@ export function proposalMentionNotification(mention: {
 /**
  * Notificação para uma mensagem de canal que menciona você (@nick), responde
  * sua mensagem ou pinga o canal (@all/@here, pelo mention_everyone que o
- * backend liberou). `status` é o escolhido por você: @here não pinga ausente.
- * `nicknames`: apelidos do servidor (o autor aparece pelo apelido).
+ * backend liberou) ou um cargo seu (mention_roles; `roleIds` são os seus
+ * cargos naquele servidor). `status` é o escolhido por você: @here não pinga
+ * ausente. `nicknames`: apelidos do servidor (o autor aparece pelo apelido).
  */
 export function mentionNotification(
   message: Message,
-  me: { id: string; username: string; status?: ChosenStatus },
+  me: { id: string; username: string; status?: ChosenStatus; roleIds?: readonly string[] },
   serverId: string | null,
   nicknames?: Record<string, string>
 ): AppNotification | null {
@@ -105,7 +106,8 @@ export function mentionNotification(
   const everyone = everyonePingsMe(message.mention_everyone, me.status)
     ? message.mention_everyone
     : null
-  if (!isMention && !isReplyToMe && !everyone) return null
+  const role = message.mention_roles?.find((r) => me.roleIds?.includes(r.id))
+  if (!isMention && !isReplyToMe && !everyone && !role) return null
   const author = serverDisplayName(
     { nickname: nicknames?.[message.author_id] },
     message.author,
@@ -123,7 +125,7 @@ export function mentionNotification(
             ? `${author} mencionou você`
             : isReplyToMe
               ? `${author} respondeu você`
-              : `${author} mencionou @${everyone}`,
+              : `${author} mencionou @${role?.handle ?? everyone}`,
     body: truncate(messagePreview(message)),
     route: `/servers/${serverId}/channels/${message.channel_id}`
   }

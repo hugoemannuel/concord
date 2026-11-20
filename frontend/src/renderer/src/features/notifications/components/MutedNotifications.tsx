@@ -10,6 +10,7 @@ function summary(s: NotifySettings, now: number): string {
   if (s.level === 'mentions') parts.push('Só @menções')
   if (s.level === 'nothing') parts.push('Nada')
   if (s.suppress_everyone) parts.push('Ignora @all e @here')
+  if (s.suppress_roles) parts.push('Ignora menções de cargo')
   return parts.join(' · ')
 }
 

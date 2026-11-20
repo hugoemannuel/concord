@@ -12,6 +12,7 @@ import { useAuthStore } from '../../../auth/store/authStore'
 import { useServerStore } from '../../../servers/store/serverStore'
 import { useFriendStore } from '../../../friends/store/friendStore'
 import { useNotifySettingsStore } from '../../../notifications/store/notifySettingsStore'
+import { myRoleIdsIn } from '../../../servers/store/myRolesStore'
 import {
   mentionKindOf,
   muteDecision,
@@ -67,7 +68,7 @@ export function arrivalDecision(msg: Message, serverId: string | null): MuteDeci
   if (!me || !serverId || !msg.channel_id) return null
   return muteDecision(
     useNotifySettingsStore.getState().resolve(serverId, msg.channel_id),
-    mentionKindOf(msg, me)
+    mentionKindOf(msg, me, myRoleIdsIn(serverId))
   )
 }
 
@@ -145,7 +146,7 @@ function arrivalNotification(
     messageNotification(a.msg, me.id, group) ??
     mentionNotification(
       a.msg,
-      { id: me.id, username: me.username, status: me.status },
+      { id: me.id, username: me.username, status: me.status, roleIds: myRoleIdsIn(a.serverId) },
       a.serverId,
       a.serverId ? useServerStore.getState().nicknames?.[a.serverId] : undefined
     )

@@ -10,6 +10,7 @@ import { serverDisplayName } from '../../servers/lib/serverNames'
 import MusicMessage from '../../music/components/MusicMessage'
 import { isMaestroMessageKind } from '../../music/lib/music'
 import { messageMentionsMe, type MentionLabels } from '../lib/mentions'
+import { useRolePingsMe } from '../hooks/useRolePingsMe'
 import { canForward } from '../lib/forward'
 import { useForwardStore } from '../store/forwardStore'
 import {
@@ -207,13 +208,14 @@ function MessageRow({
   const { message } = item
   // Autor bloqueado e revelado: sem agrupar, para a linha não ficar sem nome.
   const compact = Boolean(item.grouped) && !author.blocked
+  const rolePing = useRolePingsMe(message)
   return (
     <div
       id={`msg-${message.id}`}
       data-message-row=""
       className={messageRowClass(
         compact,
-        messageMentionsMe(message, author.me),
+        messageMentionsMe(message, author.me) || rolePing,
         item.isHighlighted
       )}
       {...actions.rowProps}
