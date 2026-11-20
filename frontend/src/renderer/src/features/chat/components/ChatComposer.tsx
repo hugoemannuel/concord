@@ -1,4 +1,4 @@
-import { useRef, type Dispatch, type SetStateAction } from 'react'
+import { useId, useRef, type Dispatch, type SetStateAction } from 'react'
 import type { Message } from '../api/messages'
 import type { DraftAttachment } from '../lib/attachments'
 import type { ChatPermissions } from '../lib/chatPermissions'
@@ -77,8 +77,10 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const slowmode = useSlowmode(room, permissions.bypassSlowmode)
   const disappearing = useRoomDisappearing(room)
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
+  const mentionListId = useId()
   const menu = useMentionMenu({
     room,
+    listId: mentionListId,
     draft,
     replaceDraft: (text) => {
       setDraft(text)
@@ -112,6 +114,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   return (
     <>
       <MentionSuggestionList
+        listId={menu.listId}
         suggestions={menu.suggestions}
         highlight={menu.highlight}
         onPick={menu.pick}
@@ -183,6 +186,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
                 menu.onInput(text, caret)
               }}
               onPaste={p.onPaste}
+              onBlur={menu.close}
               onEditLast={p.onEditLast}
               onCancelReply={() => setReplyState(null)}
             />

@@ -1,13 +1,14 @@
 /**
  * Teclas do campo de mensagem (ComposerInput): Enter envia (Shift+Enter quebra
- * a linha), menu de @, ↑ para editar a última mensagem e Esc para largar a
- * resposta. Função pura: o componente só executa.
+ * a linha), lista de sugestões (@ e comandos do "/"), ↑ para editar a última
+ * mensagem e Esc para largar a resposta. Função pura: o componente só executa.
  */
+import { suggestionKeyAction, type SuggestionKeyAction } from '../../../shared/lib/suggestionNav'
 
 export type ComposerKeyAction =
-  | 'mention-step'
-  | 'mention-pick'
-  | 'mention-close'
+  | 'suggestion-step'
+  | 'suggestion-pick'
+  | 'suggestion-close'
   | 'edit-last'
   | 'cancel-reply'
   | 'send'
@@ -22,9 +23,9 @@ export interface ComposerKey {
 }
 
 export interface ComposerKeyContext {
-  /** Menu de sugestões do @ aberto com itens. */
+  /** Lista de sugestões (@ ou /) aberta com itens. */
   suggesting: boolean
-  /** Há item destacado no menu. */
+  /** Há item destacado na lista. */
   highlighted: boolean
   draftEmpty: boolean
   replying: boolean
@@ -34,18 +35,19 @@ export interface ComposerKeyContext {
   touch: boolean
 }
 
-const isArrow = (key: string): boolean => key === 'ArrowDown' || key === 'ArrowUp'
-const isConfirm = (key: string): boolean => key === 'Enter' || key === 'Tab'
+const SUGGESTION_ACTION: Record<SuggestionKeyAction, ComposerKeyAction> = {
+  step: 'suggestion-step',
+  pick: 'suggestion-pick',
+  close: 'suggestion-close'
+}
 
 /** Com Alt/Ctrl/Meta as setas são atalhos de navegação (useGlobalShortcuts). */
 const navModifier = (e: ComposerKey): boolean => e.altKey || e.ctrlKey || e.metaKey
 
-/** Menu de @ aberto: null deixa a tecla seguir para as regras do campo. */
-function mentionKeyAction(e: ComposerKey, highlighted: boolean): ComposerKeyAction | null {
-  if (isArrow(e.key) && !navModifier(e)) return 'mention-step'
-  if (isConfirm(e.key) && highlighted) return 'mention-pick'
-  if (e.key === 'Tab') return 'none' // nada de @all sem querer; Enter sem destaque envia
-  return e.key === 'Escape' ? 'mention-close' : null
+/** Lista aberta: null deixa a tecla seguir para as regras do campo. */
+function suggestionAction(e: ComposerKey, ctx: ComposerKeyContext): ComposerKeyAction | null {
+  const action = ctx.suggesting ? suggestionKeyAction(e, ctx.highlighted) : null
+  return action && SUGGESTION_ACTION[action]
 }
 
 /** ↑ no campo vazio edita a sua última mensagem (como no Discord). */
@@ -59,15 +61,9 @@ function isSend(e: ComposerKey, ctx: ComposerKeyContext): boolean {
 }
 
 export function composerKeyAction(e: ComposerKey, ctx: ComposerKeyContext): ComposerKeyAction {
-  const mention = ctx.suggesting ? mentionKeyAction(e, ctx.highlighted) : null
-  if (mention) return mention
+  const suggestion = suggestionAction(e, ctx)
+  if (suggestion) return suggestion
   if (isSend(e, ctx)) return 'send'
   if (isEditLast(e, ctx.draftEmpty)) return 'edit-last'
   return e.key === 'Escape' && ctx.replying ? 'cancel-reply' : 'none'
-}
-
-/** Próximo item do menu com as setas; sem destaque, ↓ vai ao primeiro e ↑ ao último. */
-export function nextHighlight(highlight: number, step: 1 | -1, length: number): number {
-  const from = highlight >= 0 ? highlight : step > 0 ? -1 : 0
-  return (from + step + length) % length
 }
