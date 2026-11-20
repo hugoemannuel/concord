@@ -2,12 +2,11 @@ import { useAuthStore } from '../../auth/store/authStore'
 import { mentionMenu } from '../lib/chatPaneView'
 import { stepHighlight, type SuggestionMenu } from '../../../shared/lib/suggestionNav'
 import { applyMention, mentionQuery, type MentionSuggestion, type UserSuggestionInput } from '../lib/mentions'
-import { roleIdsToSend, withRolePick, type MentionableRole, type RolePicks } from '../lib/roleMentions'
+import { picksInText, roleIdsToSend, withRolePick, type MentionableRole, type RolePicks } from '../lib/roleMentions'
+import { picksOf, useMentionPicksStore } from '../store/mentionPicksStore'
 import { useRoomState } from './useRoomState'
 
 const MAX_SUGGESTIONS = 6
-/** Nenhum cargo escolhido (o mesmo objeto, para o estado da sala não mudar à toa). */
-const NO_PICKS: RolePicks = {}
 
 interface Options {
   room: string
@@ -32,7 +31,12 @@ export interface MentionMenu extends SuggestionMenu {
   /** Ids dos cargos que `text` menciona (as escolhas da lista e os escritos à mão). */
   roleIdsFor: (text: string) => string[]
   setHighlight: (index: number | null) => void
-  /** Fecha e esquece o destaque e os cargos escolhidos (mensagem enviada). */
+  /**
+   * Esquece os cargos escolhidos que não estão mais em `text` (o que está no
+   * campo depois de a mensagem sair).
+   */
+  keepPicksIn: (text: string) => void
+  /** Fecha e esquece o destaque (mensagem enviada). */
   reset: () => void
 }
 
@@ -53,7 +57,11 @@ export function useMentionMenu({
   const meUsername = useAuthStore((s) => s.user?.username)
   const [mention, setMention] = useRoomState<{ query: string; start: number } | null>(room, null)
   const [highlightChoice, setHighlight] = useRoomState<number | null>(room, null)
-  const [rolePicks, setRolePicks] = useRoomState<RolePicks>(room, NO_PICKS)
+  // Os cargos escolhidos ficam num store, como o rascunho: valem se o envio
+  // falhar e o texto voltar, e se a pessoa sair da sala e voltar.
+  const rolePicks = useMentionPicksStore((s) => picksOf(s, room))
+  const setRolePicks = (next: (prev: RolePicks) => RolePicks): void =>
+    useMentionPicksStore.getState().update(room, next)
   const { suggestions, highlight } = mentionMenu(
     mention,
     highlightChoice,
@@ -86,7 +94,9 @@ export function useMentionMenu({
     onInput: (text, caret) => {
       setMention(mentionQuery(text, caret))
       setHighlight(null)
+      setRolePicks((picks) => picksInText(picks, text))
     },
+    keepPicksIn: (text) => setRolePicks((picks) => picksInText(picks, text)),
     pick,
     pickHighlighted: () => pick(suggestions[highlight]),
     roleIdsFor: (text) =>
@@ -103,7 +113,6 @@ export function useMentionMenu({
     reset: () => {
       setMention(null)
       setHighlight(null)
-      setRolePicks(NO_PICKS)
     }
   }
 }

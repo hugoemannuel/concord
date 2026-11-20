@@ -59,6 +59,19 @@ describe('myRolesStore', () => {
     expect(useMyRolesStore.getState().byServer).toEqual({})
   })
 
+  it('evento que chega no meio da carga não é atropelado pela resposta antiga: relê', async () => {
+    let finish: (v: Record<string, string[]>) => void = () => {}
+    listMyServerRoles
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+      .mockResolvedValueOnce({ s1: ['vip', 'suporte'] })
+    const loading = useMyRolesStore.getState().fetchMyRoles()
+    send('server:member:roles', { server_id: 's1', user_id: 'eu', role_ids: ['vip', 'suporte'] })
+    finish({ s1: ['vip'] }) // foto tirada antes do evento
+    await loading
+    expect(myRoleIdsIn('s1')).toEqual(['vip', 'suporte'])
+    expect(listMyServerRoles).toHaveBeenCalledTimes(2)
+  })
+
   it('falha na rota não derruba nada: fica sem os cargos', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     listMyServerRoles.mockRejectedValue(new Error('fora do ar'))

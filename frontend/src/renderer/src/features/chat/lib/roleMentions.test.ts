@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   mentionsHandle,
+  picksInText,
   roleChipView,
   roleHandle,
   roleIdsToSend,
@@ -211,6 +212,23 @@ describe('withRolePick', () => {
     const picks = { suporte: 'r1' }
     expect(withRolePick(picks, { kind: 'user', username: 'ana' })).toBe(picks)
     expect(withRolePick(picks, { kind: 'everyone', username: 'all' })).toBe(picks)
+  })
+})
+
+describe('picksInText', () => {
+  const picks = { suporte: 'r1', 'equipe-de-suporte': 'r2' }
+
+  it('fica só a escolha cujo @handle ainda está no texto', () => {
+    expect(picksInText(picks, 'oi @suporte')).toEqual({ suporte: 'r1' })
+    expect(picksInText(picks, '')).toEqual({})
+  })
+
+  it('apagar um pedaço do handle já desfaz a escolha (redigitar à mão não é escolher)', () => {
+    expect(picksInText({ suporte: 'r1' }, 'oi @suport')).toEqual({})
+  })
+
+  it('nada a tirar: devolve o mesmo objeto (o estado não muda à toa)', () => {
+    expect(picksInText(picks, '@suporte e @equipe-de-suporte')).toBe(picks)
   })
 })
 

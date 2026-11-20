@@ -97,6 +97,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     setDraft,
     slowmode,
     mentionRoleIds: (text) => mention.roleIdsFor(text),
+    onDelivered: (text) => mention.keepPicksIn(text),
     viewOnce: { on: viewOnce.viewOnce, reset: viewOnce.reset },
     onSent: () => {
       typing.onSent()

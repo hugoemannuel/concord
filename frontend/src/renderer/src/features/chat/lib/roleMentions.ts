@@ -45,6 +45,14 @@ const RESERVED_HANDLES = ['all', 'here', 'everyone']
 const WORD_CHAR = /[\p{L}\p{Nd}_]/u
 
 /**
+ * Minúsculas do mesmo jeito que o backend (foldCase em mention_role.go): o
+ * sigma final do grego ("ς") vira "σ". O toLowerCase escolhe entre os dois
+ * pela posição e o Go não; sem isso o handle de um cargo grego nunca casaria.
+ * O tamanho do texto não muda.
+ */
+const lowerFold = (text: string): string => text.toLowerCase().replace(/ς/g, 'σ')
+
+/**
  * Como o cargo se escreve numa menção: minúsculas, espaços e "-" viram um "-"
  * só (nunca nas pontas) e o que não é letra, dígito ou "_" some. "" = o nome
  * não dá handle (só símbolos ou emoji).
@@ -52,7 +60,7 @@ const WORD_CHAR = /[\p{L}\p{Nd}_]/u
 export function roleHandle(name: string): string {
   let out = ''
   let gap = false
-  for (const ch of name.toLowerCase()) {
+  for (const ch of lowerFold(name)) {
     if (WORD_CHAR.test(ch)) {
       if (gap && out) out += '-'
       gap = false
@@ -78,7 +86,7 @@ function handleSpans(lower: string, handle: string): [number, number][] {
 
 /** O texto tem "@handle" como palavra inteira, fora de código? */
 export function mentionsHandle(content: string, handle: string): boolean {
-  return handleSpans(stripCode(content).toLowerCase(), handle).length > 0
+  return handleSpans(lowerFold(stripCode(content)), handle).length > 0
 }
 
 interface Candidate {
@@ -172,6 +180,16 @@ export function withRolePick(
 }
 
 /**
+ * Só as escolhas cujo "@handle" ainda está no texto. Apagar um pedaço do
+ * handle desfaz a escolha: redigitar à mão depois não é escolher o cargo.
+ * Sem nada a tirar, devolve o mesmo objeto.
+ */
+export function picksInText(picks: RolePicks, text: string): RolePicks {
+  const kept = Object.entries(picks).filter(([handle]) => mentionsHandle(text, handle))
+  return kept.length === Object.keys(picks).length ? picks : Object.fromEntries(kept)
+}
+
+/**
  * O que o chip do cargo mostra: o nome e a cor de agora. Cargo apagado (ou de
  * um servidor cujos cargos o app não conhece) fica com o texto como foi escrito.
  */
@@ -184,7 +202,7 @@ export function roleChipView(
 
 /** Os trechos "@handle" dos cargos pingados, em ordem e sem sobrepor. */
 function pingedSpans(content: string, roles: readonly RoleMention[]): [number, number, string][] {
-  const lower = content.toLowerCase()
+  const lower = lowerFold(content)
   // Minúscula que muda de tamanho desalinharia os índices: fica como texto.
   if (lower.length !== content.length) return []
   const spans = roles.flatMap((r) =>
