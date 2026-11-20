@@ -21,7 +21,7 @@ O **dono** (quem criou o servidor, `owner_id`) **não é um cargo**: é um níve
    1. a do @everyone;
    2. as dos cargos do membro (somadas: se um cargo permite, vale);
    3. a do próprio membro (vence tudo).
-5. Sem **Ver canais** o resultado é zero: o canal nem aparece. Sem *Enviar mensagens* caem *Enviar arquivos*, *Mencionar @all* e *Enviar mensagens TTS* (no canal de texto e no chat do canal de voz). Em voz, sem *Conectar* caem falar, transmitir, mesa de áudio e moderação.
+5. Sem **Ver canais** o resultado é zero: o canal nem aparece. Sem *Enviar mensagens* caem *Enviar arquivos*, *Mencionar @all, @here e cargos* e *Enviar mensagens TTS* (no canal de texto e no chat do canal de voz). Em voz, sem *Conectar* caem falar, transmitir, mesa de áudio e moderação.
 
 6. Canal dentro de uma categoria só existe para quem **vê a categoria**: a conta da categoria é a mesma de um canal, e sem *Ver canais* nela o resultado no canal é zero, mesmo com permissão própria. O dono e o Administrador sempre veem. Ver "Categorias privadas" abaixo.
 
@@ -46,7 +46,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | Texto | Enviar mensagens, Enviar arquivos, Adicionar reações, Ver histórico | Uso normal do chat. |
 | | Encaminhar (sem permissão própria) | Encaminha quem lê a mensagem (*Ver canais* na origem, ou participa da DM) para onde pode escrever: *Enviar mensagens* no canal de destino, mais *Enviar arquivos* se ela tem anexo; numa DM, a regra de escrever nela. A encaminhada não pinga ninguém e não pode ser editada. Ver [ADR 0062](adr/0062-encaminhar-mensagens.md). |
 | | Usar emojis e figurinhas de outros servidores | Usar em mensagens e reações deste servidor os emojis e figurinhas de outros servidores de que a pessoa participa. Vem ligada no @everyone e vale por canal. Em DM e grupo não há servidor de destino: basta ser membro do servidor de origem. Sem ela, os itens de fora aparecem desabilitados no seletor; quem mandar assim mesmo vê o emoji virar `:nome:` no texto e a figurinha e a reação serem recusadas. Somar-se a uma reação que já está na mensagem não pede a permissão. Ver [ADR 0054](adr/0054-emojis-de-outros-servidores.md). |
-| | Mencionar @all e @here | Avisar o canal inteiro. |
+| | Mencionar @all, @here e cargos | Avisar o canal inteiro (`@everyone` vale como `@all`) e mencionar qualquer cargo. Ver "Menção de cargo" abaixo. |
 | | Enviar mensagens TTS | Usar `/tts`: a mensagem é lida em voz para quem está em call no servidor (até 200 caracteres, uma a cada 10 s). Vem ligada no @everyone (no Discord vem desligada); quem quiser restringir desliga no cargo ou no canal. Ver [ADR 0012](adr/0012-tts-no-cliente.md). |
 | | Gerenciar mensagens | Apagar mensagem de outros e encerrar enquetes. Isenta do modo lento. |
 | Voz | Conectar, Falar, Transmitir | Entrar, usar o microfone, compartilhar tela/câmera. |
@@ -57,6 +57,19 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir, histórico, convidar, conectar, falar, transmitir, mesa de áudio, alterar o próprio apelido, adicionar sons e figurinhas, mensagens TTS, usar emojis e figurinhas de outros servidores) e o cargo fixo **Bots** (dos bots do servidor). Não há mais cargo **Moderador** padrão: quem quiser cria os seus. Nos servidores antigos o Moderador que já existia continua, como um cargo comum (dá para editar, mover e apagar).
 
 **Perfil por servidor** ([ADR 0051](adr/0051-perfil-por-servidor.md)): todo membro edita o próprio perfil em cada servidor (avatar, banner, cor, estilo do nome, pronomes, nota, Sobre mim, links, tema, faixa e moldura), sem permissão nenhuma. O nome nesse perfil é o apelido: *Alterar o próprio apelido* controla só ele. Sem ela, o nome fica travado e o resto continua liberado; um apelido imposto pela moderação não some ao apagar o perfil. Ninguém edita o perfil de servidor de outra pessoa.
+
+## Menção de cargo
+
+`@nome-do-cargo` num canal avisa quem tem o cargo ([ADR 0065](adr/0065-mencao-de-cargo-pelo-nome.md)).
+
+- O texto guarda o **handle** do cargo: o nome em minúsculas, com `-` no lugar dos espaços e sem símbolos ("Equipe de Suporte" → `@equipe-de-suporte`). A lista do `@` escreve o handle; os cargos aparecem nela com a bolinha na cor do cargo e a etiqueta "Cargo".
+- **Quem pode**: quem tem *Mencionar @all, @here e cargos* no canal menciona qualquer cargo; os outros, só os cargos com **Permitir que qualquer pessoa mencione este cargo** ligado (aba Exibição do cargo, desligado por padrão).
+- O `@everyone`, o Bots, cargo sem letra nem número no nome e cargo chamado `all`, `here` ou `everyone` não são mencionáveis.
+- Quem decide é o servidor: o app manda os ids dos cargos escolhidos (`mention_role_ids`) e a mensagem volta com `mention_roles` (id e handle). O texto sozinho não pinga cargo. Vale o mesmo anti-spam do `@all` (um aviso em massa por autor, por canal, a cada 30 s).
+- **Cargo e pessoa com o mesmo nome**: vale o que foi escolhido na lista. Escrito à mão, vale a pessoa. Um `@handle` é uma coisa só por mensagem: cargo ou pessoa.
+- Editar nunca avisa de novo (só tira o cargo que saiu do texto); encaminhada não avisa; em DM e grupo é texto.
+- Cada pessoa pode **Ignorar menções de cargo** por servidor (Notificações do servidor), separado do "Ignorar @all e @here".
+- No celular (Android) a menção de cargo chega (push e aviso com o app aberto), mas ainda não dá para mencionar por lá.
 
 ## Hierarquia
 
@@ -124,7 +137,9 @@ Convite de visitante para uma call ([ADR 0017](adr/0017-visitante-na-call.md)).
 
 | Rota | Permissão |
 |---|---|
-| `GET/POST /servers/:id/roles`, `PATCH/DELETE …/roles/:roleId`, `PUT …/roles/order` | membro / Gerenciar cargos |
+| `GET/POST /servers/:id/roles`, `PATCH/DELETE …/roles/:roleId` (com `mentionable`), `PUT …/roles/order` | membro / Gerenciar cargos |
+| `GET /users/me/server-roles` | com login: os próprios cargos em cada servidor (`{id do servidor: [ids dos cargos]}`) |
+| `POST /channels/:id/messages` com `mention_role_ids` | Enviar mensagens; cada cargo pede a permissão de mencionar ou o cargo aberto |
 | `PUT/DELETE /servers/:id/members/:userId/roles/:roleId` | Gerenciar cargos (cargo abaixo do seu; nos cargos do dono, só o dono) |
 | `PUT/DELETE /servers/:id/channels/:channelId/overwrites/:role\|member/:targetId` | Gerenciar cargos no canal |
 | `PUT /servers/:id/channels/:channelId` com `name` e `slowmode_seconds` | Gerenciar canais |

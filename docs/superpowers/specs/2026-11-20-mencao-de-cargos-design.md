@@ -2,7 +2,7 @@
 
 - Data: 2026-11-20
 - Branch: `feat/mencao-de-cargos` (de `origin/develop`)
-- ADR: [0065](../../adr/0065-mencao-de-cargo-pelo-nome.md) (proposto)
+- ADR: [0065](../../adr/0065-mencao-de-cargo-pelo-nome.md)
 - Depende de: a base compartilhada da lista de sugestões (`shared/ui/SuggestionList`, branch
   `feat/navegacao-teclado-sugestoes`) já estar na `develop`.
 
@@ -39,7 +39,7 @@ servidor.
 | D7 | Conflito de nome (handle do cargo igual ao nick de um membro): vale o que foi escolhido na lista. Escrito à mão, sem escolher, vale a pessoa. | Decidido pelo usuário. Deixar de avisar um cargo é menos grave que avisar um cargo inteiro por engano. |
 | D8 | Cargo escolhido com handle igual a um nick: só o cargo é avisado; o membro com aquele nick não recebe menção pessoal por esse texto. | Consequência de D7: um `@handle` tem um significado só por mensagem. |
 | D9 | Dois cargos com o mesmo handle: vale o escolhido na lista; sem escolha, o de posição mais alta. | Nome de cargo não é único no banco. *Decisão do agente.* |
-| D10 | O `@everyone` (cargo padrão) e o cargo Bots não são mencionáveis como cargo. Cargo cujo nome não gera handle (só símbolos ou emoji) não aparece na lista. | Para todos já existe `@all`; bot não recebe aviso. |
+| D10 | O `@everyone` (cargo padrão) e o cargo Bots não são mencionáveis como cargo. Cargo cujo nome não gera handle (só símbolos ou emoji) ou gera `all`, `here` ou `everyone` não aparece na lista. | Para todos já existe `@all`; bot não recebe aviso; um cargo não toma o lugar do `@all`. |
 | D11 | Editar nunca pinga: a edição só pode **tirar** um cargo de `mention_roles` (quando o `@handle` some do texto). Encaminhada não pinga. | Mesma regra do `@all` hoje. |
 | D12 | "Ignorar menções de cargo" é uma preferência nova, por servidor, separada do "Ignora @all e @here". | Decidido pelo usuário. |
 | D13 | `@everyone` é tratado como `@all` e gravado como `mention_everyone = 'all'`. Na lista do `@` ele só aparece quando o que foi digitado começa com "e". | Sem mudança de banco; com só "@" a lista não ganha um terceiro item quase igual. *Decisão do agente.* |
@@ -69,7 +69,8 @@ O `@handle` vale como menção com a regra de token que já existe: o `@` abre a
 acaba em fim de texto, espaço ou pontuação de fechamento, e nada dentro de código conta. Como `-`
 e letra continuam a palavra, `@equipe-de-suporte` nunca casa com o cargo `equipe`.
 
-Os casos ficam em `backend/internal/message/testdata/role_handles.json` e rodam nos dois lados,
+Os casos (handles e onde o `@handle` vale no texto) ficam em
+`backend/internal/message/testdata/role_mentions.json` e rodam nos dois lados,
 como o `permission/testdata/vectors.json`.
 
 ## Arquitetura
@@ -95,7 +96,7 @@ ALTER TABLE server_notification_settings ADD COLUMN suppress_roles BOOLEAN NOT N
 | `PATCH /servers/:id/roles/:roleId` | aceita `mentionable`; recusado no `@everyone` e no Bots, como o `hoist` |
 | cargo (REST e `role:create`/`role:update`) | campo `mentionable` |
 | preferências de notificação do servidor | campo `suppress_roles` |
-| `GET /users/me/server-roles` (nova) | `{ "<server_id>": ["<role_id>", ...] }` de todos os servidores da pessoa |
+| `GET /users/me/server-roles` (nova) | `{ "<server_id>": ["<role_id>", ...] }`, só os servidores em que a pessoa tem cargo |
 
 Nenhum evento novo de WebSocket: `server:member:roles` já leva `user_id` e `role_ids`.
 
@@ -218,7 +219,8 @@ Propostos, **aguardando aprovação**:
 | Chave no editor de cargo | Permitir que qualquer pessoa mencione este cargo |
 | Chave nas notificações do servidor | Ignorar menções de cargo |
 | Resumo em "Notificações silenciadas" | Ignora menções de cargo |
-| Título do aviso no desktop | `{autor} mencionou @{nome do cargo}` |
+| Título do aviso no desktop | `{autor} mencionou @{handle do cargo}` (o handle vem na mensagem; o nome o app só conhece no servidor aberto) |
+| Registro de auditoria (campo do cargo) | Qualquer pessoa pode mencionar |
 | Novidade no changelog | Dá para mencionar um cargo no chat com @nome-do-cargo, e @everyone vale como @all. |
 
 Reaproveitado, sem texto novo: `@everyone` na lista usa "Notifica todos do canal", o mesmo do `@all`.
@@ -234,7 +236,7 @@ Reaproveitado, sem texto novo: `@everyone` na lista usa "Notifica todos do canal
 
 ## Testes
 
-- Go: casos do handle (JSON compartilhado); validação dos ids (permissão, chave do cargo, cargo
+- Go: casos do handle e do token (JSON compartilhado); validação dos ids (permissão, chave do cargo, cargo
   fixo, handle fora do texto, dentro de código, anti-spam compartilhado); edição só tira;
   `@everyone` vira `all`; alvos do push (ordem de força, D8, `suppress_roles`); `mentionable`
   recusado nos cargos fixos.

@@ -1,6 +1,6 @@
 # 0065. Mencionar cargo pelo nome no texto, com os ids escolhidos enviados pelo app
 
-- Status: proposto
+- Status: aceito
 - Data: 2026-11-20
 
 ## Contexto
@@ -47,7 +47,7 @@ o id e o handle usado. O texto sozinho nunca pinga um cargo.
   id acha o cargo atual.
 - Um `@handle` tem um significado só por mensagem: cargo ou pessoa, nunca os dois.
 - A regra do handle existe no Go e no TypeScript; um arquivo de casos compartilhado
-  (`message/testdata/role_handles.json`) mantém os dois iguais.
+  (`message/testdata/role_mentions.json`) mantém os dois iguais.
 - App sem a lista do `@` (o Android de hoje) não consegue mencionar cargo.
 - O texto e a lista podem divergir numa edição; por isso editar só tira cargo da lista, nunca
   põe.
