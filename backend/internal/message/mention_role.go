@@ -156,3 +156,46 @@ func parseMentionRoles(raw []byte) []RoleMention {
 	}
 	return roles
 }
+
+// StripRoleMentions tira do texto os "@handle" dos cargos que a mensagem
+// pingou (cada um vira um espaço). Quem procura @nick depois disso não
+// confunde o cargo com uma pessoa de mesmo nome: um "@handle" tem um
+// significado só por mensagem (ADR 0065).
+func StripRoleMentions(content string, roles []RoleMention) string {
+	if len(roles) == 0 {
+		return content
+	}
+	lower := strings.ToLower(content)
+	if len(lower) != len(content) {
+		// Minúscula que muda de tamanho: segue pelo texto em minúsculas, para
+		// os índices das duas cópias baterem.
+		content = lower
+	}
+	for _, role := range roles {
+		content, lower = cutWord(content, lower, role.Handle)
+	}
+	return content
+}
+
+// cutWord troca cada "@word" inteiro por um espaço em text e na cópia em
+// minúsculas (as duas têm os mesmos índices).
+func cutWord(text string, lower string, word string) (string, string) {
+	if word == "" {
+		return text, lower
+	}
+	needle := "@" + word
+	for from := 0; from < len(lower); {
+		i := strings.Index(lower[from:], needle)
+		if i < 0 {
+			break
+		}
+		at := from + i
+		end := at + len(needle)
+		if opensToken(lower[:at]) && tokenEndsAt(lower, end) {
+			text = text[:at] + " " + text[end:]
+			lower = lower[:at] + " " + lower[end:]
+		}
+		from = at + 1
+	}
+	return text, lower
+}

@@ -226,3 +226,27 @@ func TestEditedMentionRoles(t *testing.T) {
 		})
 	}
 }
+
+func TestStripRoleMentions(t *testing.T) {
+	suporte := []RoleMention{{ID: "r1", Handle: "suporte"}}
+	equipe := []RoleMention{{ID: "r2", Handle: "equipe-de-suporte"}}
+	cases := []struct {
+		name    string
+		content string
+		roles   []RoleMention
+		want    string
+	}{
+		{"tira o @handle do cargo pingado", "oi @Suporte, e @ana", suporte, "oi  , e @ana"},
+		{"todas as ocorrências", "@suporte @suporte", suporte, "   "},
+		{"handle com hífen sai inteiro", "@equipe-de-suporte ajuda", equipe, "  ajuda"},
+		{"nick maior não é o cargo", "@suportes", suporte, "@suportes"},
+		{"sem cargo pingado, o texto fica igual", "@Suporte e @Ana", nil, "@Suporte e @Ana"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := StripRoleMentions(tc.content, tc.roles); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

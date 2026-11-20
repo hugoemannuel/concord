@@ -32,6 +32,8 @@ type Directory interface {
 	ConversationName(ctx context.Context, conversationID string) (name string, group bool, err error)
 	ServerMemberIDs(ctx context.Context, serverID string) ([]string, error)
 	MemberIDsByUsername(ctx context.Context, serverID string, usernames []string) ([]string, error)
+	// RoleMemberIDs: quem tem algum destes cargos do servidor (menção de cargo).
+	RoleMemberIDs(ctx context.Context, serverID string, roleIDs []string) ([]string, error)
 }
 
 type ChannelAccess interface {
@@ -204,14 +206,14 @@ func (n *Notifier) pushableRecipients(userIDs []string, authorID string) []strin
 	return out
 }
 
-// channelMention: mensagem comum de canal não notifica; só quem foi citado (@usuário) ou o @all.
+// channelMention: mensagem comum de canal não notifica; só quem foi citado (@usuário), o cargo ou o @all.
 func (n *Notifier) channelMention(ctx context.Context, ev message.CreateEvent) {
-	direct, everyone, err := n.mentionTargets(ctx, ev)
+	targets, err := n.mentionTargets(ctx, ev)
 	if err != nil {
 		log.Printf("[push] menções de %s: %v", ev.Message.ID, err)
 		return
 	}
-	if len(direct)+len(everyone) == 0 {
+	if len(targets) == 0 {
 		return
 	}
 	channelID := *ev.ChannelID
@@ -228,7 +230,6 @@ func (n *Notifier) channelMention(ctx context.Context, ev message.CreateEvent) {
 			"name": channelName, "message_id": ev.Message.ID,
 		},
 	}
-	targets := mergeTargets(direct, everyone, ev.Message.AuthorID)
 	ids := n.reachable(ctx, channelID, targets)
 	if len(ids) == 0 {
 		return
@@ -251,7 +252,7 @@ func (n *Notifier) channelMention(ctx context.Context, ev message.CreateEvent) {
 // reachable: dos alvos, quem vê o canal e pode receber push agora (offline
 // e fora do "não perturbe"), em ordem estável. Só memória e o cache de
 // permissões: o banco fica para quem sobra.
-func (n *Notifier) reachable(ctx context.Context, channelID string, targets map[string]bool) []string {
+func (n *Notifier) reachable(ctx context.Context, channelID string, targets map[string]reach) []string {
 	ids := make([]string, 0, len(targets))
 	for id := range targets {
 		if n.pushable(id) && n.Access.CanView(ctx, channelID, id) {

@@ -11,39 +11,78 @@ import (
 // Quem uma mensagem de canal alcança (menção pelo nome e @all) e quem, pelas
 // próprias preferências, quer receber.
 
-// mentionTargets separa quem foi citado pelo nome (direct) de quem só é alcançado pelo @all (everyone).
-// @here não gera push: quem recebe está online, por definição. Encaminhada
-// não pinga quem a original citava (o @all dela já sai nil).
-func (n *Notifier) mentionTargets(ctx context.Context, ev message.CreateEvent) (direct, everyone []string, err error) {
-	if names := MentionedUsernames(ev.Message.Content); len(names) > 0 && ev.Message.ForwardedFrom == nil {
-		if direct, err = n.Directory.MemberIDsByUsername(ctx, ev.ServerID, names); err != nil {
-			return nil, nil, err
+// reach é como a mensagem alcança a pessoa. O mais forte vence: citada pelo
+// nome, depois pelo cargo, depois pelo @all.
+type reach int
+
+const (
+	reachEveryone reach = iota + 1
+	reachRole
+	reachDirect
+)
+
+// mentionTargets diz quem a mensagem alcança e como, sem o autor. @here não
+// gera push: quem recebe está online, por definição. Encaminhada não pinga
+// quem a original citava (o @all e os cargos dela já saem vazios).
+func (n *Notifier) mentionTargets(ctx context.Context, ev message.CreateEvent) (map[string]reach, error) {
+	targets := map[string]reach{}
+	for _, find := range []func(context.Context, message.CreateEvent) ([]string, reach, error){
+		n.everyoneTargets, n.roleTargets, n.directTargets,
+	} {
+		ids, how, err := find(ctx, ev)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			if targets[id] < how {
+				targets[id] = how
+			}
 		}
 	}
-	if ev.Message.MentionEveryone != nil && *ev.Message.MentionEveryone == "all" {
-		if everyone, err = n.Directory.ServerMemberIDs(ctx, ev.ServerID); err != nil {
-			return nil, nil, err
-		}
-	}
-	return direct, everyone, nil
+	delete(targets, ev.Message.AuthorID)
+	return targets, nil
 }
 
-// mergeTargets junta as duas listas sem repetir e sem o autor; o valor diz se a pessoa foi citada pelo nome.
-func mergeTargets(direct, everyone []string, authorID string) map[string]bool {
-	out := map[string]bool{}
-	for _, id := range everyone {
-		out[id] = false
+// everyoneTargets: todo mundo do servidor, se a mensagem tem @all liberado.
+func (n *Notifier) everyoneTargets(ctx context.Context, ev message.CreateEvent) ([]string, reach, error) {
+	if ev.Message.MentionEveryone == nil || *ev.Message.MentionEveryone != message.MentionAll {
+		return nil, reachEveryone, nil
 	}
-	for _, id := range direct {
-		out[id] = true
+	ids, err := n.Directory.ServerMemberIDs(ctx, ev.ServerID)
+	return ids, reachEveryone, err
+}
+
+// roleTargets: quem tem um dos cargos que a mensagem pingou (ADR 0065).
+func (n *Notifier) roleTargets(ctx context.Context, ev message.CreateEvent) ([]string, reach, error) {
+	if len(ev.Message.MentionRoles) == 0 {
+		return nil, reachRole, nil
 	}
-	delete(out, authorID)
-	return out
+	roleIDs := make([]string, 0, len(ev.Message.MentionRoles))
+	for _, role := range ev.Message.MentionRoles {
+		roleIDs = append(roleIDs, role.ID)
+	}
+	ids, err := n.Directory.RoleMemberIDs(ctx, ev.ServerID, roleIDs)
+	return ids, reachRole, err
+}
+
+// directTargets: quem foi citado pelo @nick. O "@handle" de um cargo pingado
+// não conta: ali é o cargo, não a pessoa de mesmo nome.
+func (n *Notifier) directTargets(ctx context.Context, ev message.CreateEvent) ([]string, reach, error) {
+	if ev.Message.ForwardedFrom != nil {
+		return nil, reachDirect, nil
+	}
+	names := MentionedUsernames(message.StripRoleMentions(ev.Message.Content, ev.Message.MentionRoles))
+	if len(names) == 0 {
+		return nil, reachDirect, nil
+	}
+	ids, err := n.Directory.MemberIDsByUsername(ctx, ev.ServerID, names)
+	return ids, reachDirect, err
 }
 
 // allowed aplica o silêncio e o nível do notifysettings. O canal vale mais que o servidor quando define um
-// nível; silenciar (canal ou servidor) corta tudo; "suprimir @everyone" corta só quem não foi citado pelo nome.
-func allowed(all notifysettings.All, serverID, channelID string, direct bool, now time.Time) bool {
+// nível; silenciar (canal ou servidor) corta tudo; ignorar @all ou ignorar cargos corta só quem foi
+// alcançado desse jeito (quem foi citado pelo nome recebe).
+func allowed(all notifysettings.All, serverID, channelID string, how reach, now time.Time) bool {
 	server, hasServer := all.Servers[serverID]
 	channel, hasChannel := all.Channels[channelID]
 	for _, s := range []notifysettings.Settings{server, channel} {
@@ -61,5 +100,16 @@ func allowed(all notifysettings.All, serverID, channelID string, direct bool, no
 	if level == notifysettings.LevelNothing {
 		return false
 	}
-	return direct || !server.SuppressEveryone
+	return !ignored(server, how)
+}
+
+// ignored: a pessoa pediu para não ser avisada por este tipo de menção?
+func ignored(server notifysettings.Settings, how reach) bool {
+	switch how {
+	case reachDirect:
+		return false
+	case reachRole:
+		return server.SuppressRoles
+	}
+	return server.SuppressEveryone
 }
