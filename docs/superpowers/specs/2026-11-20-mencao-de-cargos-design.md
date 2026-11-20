@@ -36,7 +36,7 @@ servidor.
 | D4 | Pode mencionar o cargo quem tem *Mencionar @all, @here e cargos* no canal, ou qualquer pessoa se o cargo estiver com "qualquer pessoa pode mencionar" ligado (desligado por padrão). | Decidido pelo usuário. Não há bit de permissão livre (ADR 0054). |
 | D5 | Uma janela de anti-spam só (30 s por autor, por canal) para `@all`, `@here` e cargos. | Já existe; uma mensagem com `@all` e um cargo gasta uma vez só. *Decisão do agente.* |
 | D6 | Id inválido ou sem permissão é ignorado: a mensagem sai, só não pinga. | É como o `@all` sem permissão se comporta hoje. |
-| D7 | Conflito de nome (handle do cargo igual ao nick de um membro): vale o que foi escolhido na lista. Escrito à mão, sem escolher, vale a pessoa. | Decidido pelo usuário. Deixar de avisar um cargo é menos grave que avisar um cargo inteiro por engano. |
+| D7 | Conflito de nome (handle do cargo igual ao nick de um membro): vale o que foi escolhido na lista, enquanto o `@handle` estiver no texto (a escolha fica guardada por sala, como o rascunho: vale se o envio falhar ou a pessoa sair e voltar). Escrito à mão, sem escolher, vale a pessoa. | Decidido pelo usuário. Deixar de avisar um cargo é menos grave que avisar um cargo inteiro por engano. |
 | D8 | Cargo escolhido com handle igual a um nick: só o cargo é avisado; o membro com aquele nick não recebe menção pessoal por esse texto. | Consequência de D7: um `@handle` tem um significado só por mensagem. |
 | D9 | Dois cargos com o mesmo handle: vale o escolhido na lista; sem escolha, o de posição mais alta. | Nome de cargo não é único no banco. *Decisão do agente.* |
 | D10 | O `@everyone` (cargo padrão) e o cargo Bots não são mencionáveis como cargo. Cargo cujo nome não gera handle (só símbolos ou emoji) ou gera `all`, `here` ou `everyone` não aparece na lista. | Para todos já existe `@all`; bot não recebe aviso; um cargo não toma o lugar do `@all`. |
@@ -56,6 +56,9 @@ Regra única, igual no Go e no TypeScript:
 3. remove tudo que não é letra (`\p{L}`), dígito decimal (`\p{Nd}`), `_` ou `-`;
 4. junta `-` repetidos e tira `-` das pontas;
 5. vazio = o cargo não tem handle.
+
+"Minúsculas" é a mesma conta nos dois lados: o sigma final do grego (`ς`) vira `σ`, porque o JavaScript
+escolhe entre os dois pela posição e o Go não.
 
 | Nome do cargo | Handle |
 |---|---|
@@ -228,6 +231,8 @@ Reaproveitado, sem texto novo: `@everyone` na lista usa "Notifica todos do canal
 ## Fora de escopo
 
 - Mencionar cargo a partir do Android (precisa da lista do `@` lá).
+- Preferências de notificação no aviso do Android com o app aberto: ele ainda não lê silenciar, nível nem
+  "ignorar" (já era assim para `@usuário` e `@all`). O push, com o app fechado, respeita.
 - Chip clicável, com os membros do cargo.
 - "Só quem está online" de um cargo.
 - Menções em comentários de propostas (`features/proposals`), que têm fluxo próprio.

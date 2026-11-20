@@ -69,7 +69,7 @@ Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir
 - **Cargo e pessoa com o mesmo nome**: vale o que foi escolhido na lista. Escrito à mão, vale a pessoa. Um `@handle` é uma coisa só por mensagem: cargo ou pessoa.
 - Editar nunca avisa de novo (só tira o cargo que saiu do texto); encaminhada não avisa; em DM e grupo é texto.
 - Cada pessoa pode **Ignorar menções de cargo** por servidor (Notificações do servidor), separado do "Ignorar @all e @here".
-- No celular (Android) a menção de cargo chega (push e aviso com o app aberto), mas ainda não dá para mencionar por lá.
+- No celular (Android) a menção de cargo chega (push e aviso com o app aberto), mas ainda não dá para mencionar por lá. Com o app aberto, o aviso do celular ainda não olha silenciar nem "ignorar"; o push olha.
 
 ## Hierarquia
 
