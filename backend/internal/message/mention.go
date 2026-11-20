@@ -61,6 +61,14 @@ func everyoneMentions(content string) (hasAll bool, hasHere bool) {
 	return hasAll, mentionsWord(lower, MentionHere)
 }
 
+// MentionsWord: o texto tem "@word" como palavra inteira, fora de código e sem
+// diferenciar maiúsculas? É a regra de token do @nick do app; o push usa para
+// não tomar o começo de uma palavra maior ("@equipe-de-suporte", "@anação")
+// por uma menção a outra pessoa.
+func MentionsWord(content string, word string) bool {
+	return word != "" && mentionsWord(strings.ToLower(StripCode(content)), strings.ToLower(word))
+}
+
 // mentionsWord: o texto (já sem código e em minúsculas) tem "@word" como
 // palavra inteira? Vale para @all/@here e para o handle de um cargo.
 func mentionsWord(lower string, word string) bool {

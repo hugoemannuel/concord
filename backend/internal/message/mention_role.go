@@ -42,7 +42,7 @@ func (s *Service) SetRoleSource(roles RoleSource) { s.roles = roles }
 func RoleHandle(name string) string {
 	var out strings.Builder
 	gap := false
-	for _, r := range strings.ToLower(name) {
+	for _, r := range foldCase(name) {
 		switch {
 		case unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_':
 			if gap && out.Len() > 0 {
@@ -57,6 +57,15 @@ func RoleHandle(name string) string {
 	return out.String()
 }
 
+// foldCase põe o texto em minúsculas do mesmo jeito no Go e no app. O sigma
+// final do grego ("ς") vira "σ": o toLowerCase do JavaScript escolhe entre os
+// dois pela posição e o strings.ToLower não, e sem isso o handle de um cargo
+// grego nunca casaria com o texto. As duas letras têm o mesmo tamanho em
+// UTF-8, então os índices do texto não mudam.
+func foldCase(text string) string {
+	return strings.ReplaceAll(strings.ToLower(text), "ς", "σ")
+}
+
 // reservedHandle: @all, @here e @everyone são menções em massa do canal; um
 // cargo com esse nome não toma o lugar delas.
 func reservedHandle(handle string) bool {
@@ -65,7 +74,7 @@ func reservedHandle(handle string) bool {
 
 // mentionsHandle: o texto tem "@handle" como palavra inteira, fora de código?
 func mentionsHandle(content string, handle string) bool {
-	return handle != "" && mentionsWord(strings.ToLower(StripCode(content)), handle)
+	return handle != "" && mentionsWord(foldCase(StripCode(content)), handle)
 }
 
 // mentionableBy: o cargo pode ser mencionado por este autor? Os fixos
@@ -84,7 +93,7 @@ func roleMentions(content string, ids []string, roles map[string]permission.Role
 	if len(ids) > maxMentionRoleIDs {
 		ids = ids[:maxMentionRoleIDs]
 	}
-	lower := strings.ToLower(StripCode(content))
+	lower := foldCase(StripCode(content))
 	var out []RoleMention
 	used := map[string]bool{}
 	for _, id := range ids {
@@ -165,7 +174,7 @@ func StripRoleMentions(content string, roles []RoleMention) string {
 	if len(roles) == 0 {
 		return content
 	}
-	lower := strings.ToLower(content)
+	lower := foldCase(content)
 	if len(lower) != len(content) {
 		// Minúscula que muda de tamanho: segue pelo texto em minúsculas, para
 		// os índices das duas cópias baterem.

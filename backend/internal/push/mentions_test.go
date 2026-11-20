@@ -22,6 +22,13 @@ func TestMentionedUsernames(t *testing.T) {
 		{"sem menção", "mensagem comum", nil},
 		{"vazio", "", nil},
 		{"dentro de código não pinga", "`@ana_mobile` e ```\n@bia_web\n``` mas @caio_dev", []string{"caio_dev"}},
+		// O nick tem que ser a palavra inteira, como no app: pedaço de um handle de
+		// cargo (ou de uma palavra maior) não é menção a outra pessoa.
+		{"começo de um handle com hífen não é o nick", "chama o @equipe-de-suporte", nil},
+		{"começo de uma palavra com acento não é o nick", "@moderação, bora", nil},
+		{"apóstrofo seguido de letra continua a palavra", "é o @ana_mobile's", nil},
+		{"ponto final e vírgula fecham o nick", "foi o @ana_mobile. e a @bia_web, né", []string{"ana_mobile", "bia_web"}},
+		{"ponto seguido de nick continua a palavra", "@ana_mobile.bot", nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

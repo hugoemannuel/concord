@@ -15,13 +15,15 @@ var mentionPattern = regexp.MustCompile(`(?i)(?:^|[\s(\[{,;:!?"'])@([a-z0-9_]{3,
 var reservedMentions = map[string]bool{"all": true, "here": true, "everyone": true}
 
 // MentionedUsernames devolve os @usuários citados no texto, em minúsculas, sem repetir. Menção dentro
-// de código não conta (message.StripCode), como no Discord.
+// de código não conta (message.StripCode), como no Discord. O padrão acha os candidatos; quem decide se
+// o nick é a palavra inteira é a regra de token do app (message.MentionsWord): o começo de uma palavra
+// maior ("@equipe-de-suporte", "@anação") não é menção a "equipe" nem a "ana".
 func MentionedUsernames(content string) []string {
 	var names []string
 	seen := map[string]bool{}
 	for _, m := range mentionPattern.FindAllStringSubmatch(message.StripCode(content), -1) {
 		name := strings.ToLower(m[1])
-		if reservedMentions[name] || seen[name] {
+		if reservedMentions[name] || seen[name] || !message.MentionsWord(content, name) {
 			continue
 		}
 		seen[name] = true

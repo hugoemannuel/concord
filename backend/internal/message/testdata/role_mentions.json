@@ -13,7 +13,9 @@
     { "name": "nível_10", "handle": "nível_10" },
     { "name": "a - b", "handle": "a-b" },
     { "name": "-- x --", "handle": "x" },
-    { "name": "Tab\tSeparado", "handle": "tab-separado" }
+    { "name": "Tab\tSeparado", "handle": "tab-separado" },
+    { "name": "ΟΔΟΣ", "handle": "οδοσ" },
+    { "name": "οδός", "handle": "οδόσ" }
   ],
   "tokens": [
     { "content": "@suporte ajuda aqui", "handle": "suporte", "mentioned": true },
@@ -34,6 +36,9 @@
     { "content": "`@suporte`", "handle": "suporte", "mentioned": false },
     { "content": "```\n@suporte\n```", "handle": "suporte", "mentioned": false },
     { "content": "suporte sem arroba", "handle": "suporte", "mentioned": false },
-    { "content": "x.com/@suporte mas @suporte vale", "handle": "suporte", "mentioned": true }
+    { "content": "x.com/@suporte mas @suporte vale", "handle": "suporte", "mentioned": true },
+    { "content": "@ΟΔΟΣ ajuda", "handle": "οδοσ", "mentioned": true },
+    { "content": "@οδος ajuda", "handle": "οδοσ", "mentioned": true },
+    { "content": "@οδοσ ajuda", "handle": "οδοσ", "mentioned": true }
   ]
 }
