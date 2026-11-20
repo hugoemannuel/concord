@@ -59,7 +59,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 	var replyAvatarURL, replyDecorationURL *string
 	var replyStyle namestyle.Style
 	var stickerServerID, stickerName, stickerContentType *string
-	var rawGifMeta, rawCallInvite, rawForwarded []byte
+	var rawGifMeta, rawCallInvite, rawForwarded, rawMentionRoles []byte
 
 	msg.Author = &Author{}
 	dest := []any{
@@ -76,6 +76,7 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 		&msg.Content,
 		&msg.SystemKind,
 		&msg.MentionEveryone,
+		&rawMentionRoles,
 		&msg.CreatedAt,
 		&msg.EditedAt,
 		&replyID,
@@ -125,5 +126,6 @@ func scanMessageRow(row scannable, extra ...any) (Message, error) {
 	populateMedia(&msg, stickerServerID, stickerName, stickerContentType, rawGifMeta)
 	msg.CallInvite = parseCallInvite(rawCallInvite)
 	msg.ForwardedFrom = parseForwardedFrom(rawForwarded)
+	msg.MentionRoles = parseMentionRoles(rawMentionRoles)
 	return msg, nil
 }

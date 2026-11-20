@@ -132,6 +132,7 @@ func (r *Repository) CreateWithAttachments(ctx context.Context, msg *Message, at
 		nil,   // call_invite
 		false, // tts
 		nil,   // tts_voice_channel_id
+		mentionRolesJSON(msg.MentionRoles),
 	); err != nil {
 		return err
 	}

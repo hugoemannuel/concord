@@ -18,7 +18,7 @@ type editStore interface {
 	FindByID(ctx context.Context, id string) (*Message, error)
 	MessageAttachmentIDs(ctx context.Context, messageID string) ([]string, error)
 	HasPoll(ctx context.Context, messageID string) (bool, error)
-	UpdateContent(ctx context.Context, id string, authorID string, content string, mentionEveryone *string) error
+	UpdateContent(ctx context.Context, id string, authorID string, content string, mentionEveryone *string, mentionRoles []RoleMention) error
 	AttachAttachments(ctx context.Context, messages []Message) error
 }
 
@@ -51,7 +51,8 @@ func (s *Service) editMessage(ctx context.Context, channelID string, conversatio
 
 	if content != current.Content {
 		mentionEveryone := editedMentionEveryone(current.MentionEveryone, content)
-		if err := s.edits.UpdateContent(ctx, messageID, userID, content, mentionEveryone); err != nil {
+		mentionRoles := editedMentionRoles(current.MentionRoles, content)
+		if err := s.edits.UpdateContent(ctx, messageID, userID, content, mentionEveryone, mentionRoles); err != nil {
 			return nil, false, err
 		}
 		changed = true

@@ -199,10 +199,10 @@ func TestUpdateContentDB(t *testing.T) {
 		}
 	}
 
-	if err := repo.UpdateContent(ctx, first.ID, other, "x", nil); !errors.Is(err, ErrMessageNotFound) {
+	if err := repo.UpdateContent(ctx, first.ID, other, "x", nil, nil); !errors.Is(err, ErrMessageNotFound) {
 		t.Fatalf("outra pessoa: err = %v, want ErrMessageNotFound", err)
 	}
-	if err := repo.UpdateContent(ctx, first.ID, author, "primeira, editada", nil); err != nil {
+	if err := repo.UpdateContent(ctx, first.ID, author, "primeira, editada", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 

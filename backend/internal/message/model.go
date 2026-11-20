@@ -50,6 +50,9 @@ type Message struct {
 	// "all"/"here" quando a mensagem pinga o canal (só dono/moderador, com
 	// anti-spam); nil = não pinga ninguém, mesmo com "@all" no texto.
 	MentionEveryone *string      `json:"mention_everyone"`
+	// Cargos que a mensagem pinga, com o handle escrito no texto (ADR 0065);
+	// nil = nenhum, mesmo com "@cargo" no texto.
+	MentionRoles []RoleMention `json:"mention_roles"`
 	Poll            *Poll        `json:"poll,omitempty"`
 	Attachments     []Attachment    `json:"attachments,omitempty"`
 	StickerID       *string         `json:"sticker_id,omitempty"`

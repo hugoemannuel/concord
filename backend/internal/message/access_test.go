@@ -168,13 +168,13 @@ func TestResolveMentionEveryoneUsesChannelPermission(t *testing.T) {
 	s := MessageService(nil, nil, nil, nil, nil, newSnapPerms(snap))
 	ctx := context.Background()
 
-	if got := s.resolveMentionEveryone(ctx, "s1", "geral", "mod", "@all"); got == nil {
+	if got := everyoneOf(s, ctx, "s1", "geral", "mod", "@all"); got == nil {
 		t.Fatal("moderador pinga no geral")
 	}
-	if got := s.resolveMentionEveryone(ctx, "s1", "sem-ping", "mod", "@all"); got != nil {
+	if got := everyoneOf(s, ctx, "s1", "sem-ping", "mod", "@all"); got != nil {
 		t.Fatal("deny de MENTION_EVERYONE no canal tem que valer")
 	}
-	if got := s.resolveMentionEveryone(ctx, "s1", "geral", "ana", "@all"); got != nil {
+	if got := everyoneOf(s, ctx, "s1", "geral", "ana", "@all"); got != nil {
 		t.Fatal("membro comum não pinga")
 	}
 }

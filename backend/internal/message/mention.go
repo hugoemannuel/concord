@@ -18,6 +18,9 @@ import (
 const (
 	MentionAll  = "all"
 	MentionHere = "here"
+	// mentionEveryoneAlias: "@everyone" é outro jeito de escrever "@all" (quem
+	// vem do Discord); é gravado como "all".
+	mentionEveryoneAlias = "everyone"
 )
 
 // Janela do anti-spam: um @all/@here que pinga por autor, por canal.
@@ -32,7 +35,7 @@ func isNickByte(b byte) bool {
 // abertura), então não vale dentro de palavra, e-mail ("x@all.com") nem link
 // ("x.com/@all"); também não vale nick maior ("@allan", "@all.bot"). Se as duas aparecem, @all ganha. Mesma regra
 // de token do @nick do app (lib/mentions.ts). Dentro de código (`trecho` ou
-// bloco ```) não vale, como no Discord (StripCode).
+// bloco ```) não vale, como no Discord (StripCode). "@everyone" conta como @all.
 func DetectEveryoneMention(content string) string {
 	hasAll, hasHere := everyoneMentions(content)
 	switch {
@@ -50,32 +53,30 @@ func containsEveryone(content string, kind string) bool {
 	return (kind == MentionAll && hasAll) || (kind == MentionHere && hasHere)
 }
 
-// everyoneMentions diz quais de @all e @here aparecem como palavra inteira.
+// everyoneMentions diz quais de @all (ou @everyone) e @here aparecem como
+// palavra inteira.
 func everyoneMentions(content string) (hasAll bool, hasHere bool) {
 	lower := strings.ToLower(StripCode(content))
-	for i := 0; i < len(lower); i++ {
-		if lower[i] != '@' {
-			continue
+	hasAll = mentionsWord(lower, MentionAll) || mentionsWord(lower, mentionEveryoneAlias)
+	return hasAll, mentionsWord(lower, MentionHere)
+}
+
+// mentionsWord: o texto (já sem código e em minúsculas) tem "@word" como
+// palavra inteira? Vale para @all/@here e para o handle de um cargo.
+func mentionsWord(lower string, word string) bool {
+	needle := "@" + word
+	for from := 0; from < len(lower); {
+		i := strings.Index(lower[from:], needle)
+		if i < 0 {
+			return false
 		}
-		if !opensToken(lower[:i]) {
-			continue
+		at := from + i
+		if opensToken(lower[:at]) && tokenEndsAt(lower, at+len(needle)) {
+			return true
 		}
-		for _, word := range []string{MentionAll, MentionHere} {
-			end := i + 1 + len(word)
-			if !strings.HasPrefix(lower[i+1:], word) || !tokenEndsAt(lower, end) {
-				continue
-			}
-			if word == MentionAll {
-				hasAll = true
-			} else {
-				hasHere = true
-			}
-		}
-		if hasAll && hasHere {
-			return
-		}
+		from = at + 1
 	}
-	return
+	return false
 }
 
 // opensToken: o que vem antes do "@" deixa começar uma menção? Só o começo
@@ -170,21 +171,41 @@ func (l *mentionLimiter) Release(authorID string, channelID string) {
 	l.mu.Unlock()
 }
 
-// resolveMentionEveryone decide o mention_everyone de uma mensagem nova num
-// canal: "all"/"here" se o texto marca e o autor pode (MENTION_EVERYONE no
-// canal, dentro do anti-spam); senão nil — a mensagem sai igual, só não pinga.
-func (s *Service) resolveMentionEveryone(ctx context.Context, serverID string, channelID string, authorID string, content string) *string {
+// massMention é o que uma mensagem nova pinga além de quem foi citado pelo
+// nick: o @all/@here e os cargos.
+type massMention struct {
+	Everyone *string
+	Roles    []RoleMention
+}
+
+func (m massMention) pings() bool { return m.Everyone != nil || len(m.Roles) > 0 }
+
+// resolveMassMention decide o mention_everyone e o mention_roles de uma
+// mensagem nova num canal: "all"/"here" se o texto marca e o autor pode
+// (MENTION_EVERYONE no canal), e os cargos pedidos pelo app que passam na
+// validação (mention_role.go). Tudo dentro de um anti-spam só; fora dele, ou
+// sem nada a pingar, a mensagem sai igual, só não pinga.
+func (s *Service) resolveMassMention(ctx context.Context, serverID string, channelID string, authorID string, content string, roleIDs []string) massMention {
 	kind := DetectEveryoneMention(content)
-	if kind == "" || serverID == "" || channelID == "" || s.perms == nil {
-		return nil
+	if kind == "" && len(roleIDs) == 0 {
+		return massMention{}
+	}
+	if serverID == "" || channelID == "" || s.perms == nil {
+		return massMention{}
 	}
 	perms, err := s.perms.ChannelPerms(ctx, channelID, authorID)
 	if err != nil {
 		log.Printf("mention_everyone: failed to check permissions of %s in %s: %v", authorID, channelID, err)
-		return nil
+		return massMention{}
 	}
-	if !permission.Has(perms, permission.MentionEveryone) || !s.mentionLimiter.Allow(authorID, channelID) {
-		return nil
+	canMentionAny := permission.Has(perms, permission.MentionEveryone)
+	var mention massMention
+	if kind != "" && canMentionAny {
+		mention.Everyone = &kind
 	}
-	return &kind
+	mention.Roles = s.requestedRoleMentions(ctx, serverID, content, roleIDs, canMentionAny)
+	if !mention.pings() || !s.mentionLimiter.Allow(authorID, channelID) {
+		return massMention{}
+	}
+	return mention
 }

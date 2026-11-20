@@ -28,6 +28,8 @@ type createMessageInput struct {
 	GifURL        *string      `json:"gif_url"`
 	GifMetadata   *GifMetadata `json:"gif_metadata"`
 	ViewOnce      bool         `json:"view_once"`
+	// Cargos escolhidos na lista do "@" (ADR 0065); o serviço valida cada um.
+	MentionRoleIDs []string `json:"mention_role_ids"`
 }
 
 // textOnly: só texto (sem anexo, figurinha nem GIF), o que pode ser comando.
@@ -70,7 +72,7 @@ func (h *Handler) CreateChannelMessage(c *gin.Context) {
 		return
 	}
 
-	msg, err := h.service.CreateChannelMessage(c.Request.Context(), channelID, userID, input.Content, input.ReplyToID, input.AttachmentIDs, input.StickerID, input.GifURL, input.GifMetadata)
+	msg, err := h.service.CreateChannelMessageWithRoles(c.Request.Context(), channelID, userID, input.Content, input.ReplyToID, input.AttachmentIDs, input.StickerID, input.GifURL, input.GifMetadata, input.MentionRoleIDs)
 	if err != nil {
 		respondCreateError(c, err)
 		return

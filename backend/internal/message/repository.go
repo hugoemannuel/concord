@@ -34,6 +34,7 @@ var messageColumns = `
 	m.content,
 	m.system_kind,
 	m.mention_everyone,
+	m.mention_roles,
 	m.created_at,
 	m.edited_at,
 	rm.id,
@@ -98,6 +99,7 @@ func (r *Repository) Create(ctx context.Context, msg *Message) error {
 		callInviteBytes(msg.CallInvite),
 		msg.TTS,
 		msg.TTSVoiceChannelID,
+		mentionRolesJSON(msg.MentionRoles),
 	).Scan(
 		&msg.ID,
 		&msg.AuthorID,
@@ -249,21 +251,22 @@ func (r *Repository) ListByConversation(ctx context.Context, conversationID stri
 	return messages, nil
 }
 
-// UpdateContent troca o texto (e o mention_everyone) de uma mensagem do
-// autor e marca edited_at. Mensagem de outro autor (ou que sumiu) não muda e
+// UpdateContent troca o texto (e o mention_everyone e o mention_roles) de uma
+// mensagem do autor e marca edited_at. Mensagem de outro autor (ou que sumiu) não muda e
 // dá ErrMessageNotFound.
-func (r *Repository) UpdateContent(ctx context.Context, id string, authorID string, content string, mentionEveryone *string) error {
+func (r *Repository) UpdateContent(ctx context.Context, id string, authorID string, content string, mentionEveryone *string, mentionRoles []RoleMention) error {
 	tag, err := r.db.Exec(
 		ctx,
 		`
 		UPDATE messages
-		SET content = $3, mention_everyone = $4, edited_at = NOW()
+		SET content = $3, mention_everyone = $4, mention_roles = $5, edited_at = NOW()
 		WHERE id = $1 AND author_id = $2
 		`,
 		id,
 		authorID,
 		content,
 		mentionEveryone,
+		mentionRolesJSON(mentionRoles),
 	)
 	if err != nil {
 		return err
