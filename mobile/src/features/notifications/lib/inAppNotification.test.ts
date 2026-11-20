@@ -30,9 +30,37 @@ describe('inAppNotificationFor (aviso com o app aberto, como o Discord)', () => 
       body: 'olha @Mugis!',
       data: { type: 'mention', channel_id: 'ch1', server_id: 's1', name: '', in_app: true }
     })
-    expect(inAppNotificationFor({ message: msg({ ...channel, content: '@all reunião' }) }, me, null)).not.toBeNull()
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: '@all reunião', mention_everyone: 'all' }) }, me, null)).not.toBeNull()
     expect(inAppNotificationFor({ message: msg({ ...channel, content: 'mande para x@mugis.com' }) }, me, null)).toBeNull()
     expect(inAppNotificationFor({ message: msg({ ...channel, content: '@mugis' }) }, me, { kind: 'channel', id: 'ch1' })).toBeNull()
+  })
+
+  it('@all e @everyone só avisam quando o servidor liberou (mention_everyone), não pelo texto', () => {
+    const channel = { channel_id: 'ch1' }
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: '@all reunião' }) }, me, null)).toBeNull()
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: '@everyone reunião', mention_everyone: 'all' }) }, me, null)).not.toBeNull()
+    // @here não avisa pelo celular, como o push.
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: '@here', mention_everyone: 'here' }) }, me, null)).toBeNull()
+  })
+
+  it('menção de um cargo meu avisa; de um cargo que não tenho, não', () => {
+    const pinged = msg({ channel_id: 'ch1', content: '@suporte alguém?', mention_roles: [{ id: 'r1', handle: 'suporte' }] })
+    expect(inAppNotificationFor({ message: pinged, server_id: 's1' }, me, null, ['r1'])).toEqual({
+      title: 'Ana',
+      body: '@suporte alguém?',
+      data: { type: 'mention', channel_id: 'ch1', server_id: 's1', name: '', in_app: true }
+    })
+    expect(inAppNotificationFor({ message: pinged, server_id: 's1' }, me, null, ['outro'])).toBeNull()
+    expect(inAppNotificationFor({ message: pinged, server_id: 's1' }, me, null)).toBeNull()
+  })
+
+  it('cargo pingado com o meu nick é o cargo, não eu', () => {
+    const pinged = msg({ channel_id: 'ch1', content: 'chama o @Mugis', mention_roles: [{ id: 'r9', handle: 'mugis' }] })
+    expect(inAppNotificationFor({ message: pinged }, me, null, [])).toBeNull()
+    expect(inAppNotificationFor({ message: pinged }, me, null, ['r9'])).not.toBeNull()
+    // Handle maior que começa com o meu nick também não sou eu.
+    const equipe = msg({ channel_id: 'ch1', content: '@mugis-time', mention_roles: [{ id: 'r8', handle: 'mugis-time' }] })
+    expect(inAppNotificationFor({ message: equipe }, me, null, [])).toBeNull()
   })
 
   it('sem texto (anexo, GIF, figurinha) usa uma descrição curta; texto longo é cortado', () => {
