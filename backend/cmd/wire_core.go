@@ -109,6 +109,7 @@ func (a *app) wireCore() {
 		channel.ChannelRoutes(api, channelHandler, a.authMiddleware)
 		channelcategory.Routes(api, categoryHandler, a.authMiddleware)
 		role.RoleRoutes(api, roleHandler, a.authMiddleware)
+		role.MyRolesRoutes(api, role.NewMyRolesHandler(a.roleRepository), a.authMiddleware)
 	})
 }
 
