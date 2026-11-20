@@ -53,6 +53,20 @@ describe('useInAppNotifications', () => {
     expect(presentInApp).toHaveBeenCalledWith(expect.objectContaining({ body: '@suporte' }))
   })
 
+  it('ao abrir o app a sessão volta antes do usuário: os cargos carregam quando ele chega', async () => {
+    mockListMyServerRoles.mockResolvedValue({ s1: ['r1'] })
+    // Como o authStore.restore(): signedIn primeiro, o usuário (getMe) depois.
+    useAuthStore.setState({ status: 'signedIn', user: null })
+    await renderHook(() => useInAppNotifications())
+    await act(async () => {})
+    expect(mockListMyServerRoles).not.toHaveBeenCalled()
+    await act(async () => useAuthStore.setState({ user: ME }))
+    expect(mockListMyServerRoles).toHaveBeenCalledTimes(1)
+    const pinged = { ...dm, conversation_id: null, channel_id: 'ch1', content: '@suporte', mention_roles: [{ id: 'r1', handle: 'suporte' }] }
+    await emit('message:create', { message: pinged, server_id: 's1' })
+    expect(presentInApp).toHaveBeenCalledWith(expect.objectContaining({ body: '@suporte' }))
+  })
+
   it('ganhar o cargo com o app aberto (server:member:roles) passa a avisar', async () => {
     useAuthStore.setState({ status: 'signedIn', user: ME })
     await renderHook(() => useInAppNotifications())

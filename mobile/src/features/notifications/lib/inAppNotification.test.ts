@@ -63,6 +63,15 @@ describe('inAppNotificationFor (aviso com o app aberto, como o Discord)', () => 
     expect(inAppNotificationFor({ message: equipe }, me, null, [])).toBeNull()
   })
 
+  it('o nick tem que ser a palavra inteira: começo de um handle ou de uma palavra maior não sou eu', () => {
+    const channel = { channel_id: 'ch1' }
+    // Sem o cargo pingado (sem permissão ou no anti-spam), o texto continua sem me citar.
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: '@mugis-time bora' }) }, me, null)).toBeNull()
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: '@mugisão' }) }, me, null)).toBeNull()
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: 'foi o @mugis.' }) }, me, null)).not.toBeNull()
+    expect(inAppNotificationFor({ message: msg({ ...channel, content: '(@mugis)' }) }, me, null)).not.toBeNull()
+  })
+
   it('sem texto (anexo, GIF, figurinha) usa uma descrição curta; texto longo é cortado', () => {
     expect(inAppNotificationFor({ message: msg({ conversation_id: 'c1', content: '' }) }, me, null)?.body).toBe('Enviou um anexo')
     const long = 'a'.repeat(300)

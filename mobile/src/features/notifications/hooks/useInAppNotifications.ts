@@ -10,11 +10,16 @@ import { roleIdsOf, useMyRolesStore, type MemberRolesPayload } from '../../serve
 /** Com o app aberto o servidor não manda push: este hook avisa de DM e de menção que chegam fora da conversa aberta. */
 export function useInAppNotifications(): void {
   const signedIn = useAuthStore((s) => s.status === 'signedIn')
+  const meId = useAuthStore((s) => s.user?.id)
+
+  // Os meus cargos em cada servidor: é o que diz se uma menção de cargo é para mim. A sessão volta
+  // (signedIn) antes de o usuário chegar (getMe), então a carga espera o id.
+  useEffect(() => {
+    if (signedIn && meId) void useMyRolesStore.getState().load()
+  }, [signedIn, meId])
 
   useEffect(() => {
     if (!signedIn) return
-    // Os meus cargos em cada servidor: é o que diz se uma menção de cargo é para mim.
-    void useMyRolesStore.getState().load()
     return onWsEvent((event) => {
       const me = useAuthStore.getState().user
       if (!me) return

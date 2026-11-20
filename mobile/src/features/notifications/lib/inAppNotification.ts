@@ -10,8 +10,10 @@ export interface InAppNotification {
 
 const MAX_BODY = 140
 const NO_TEXT = 'Enviou um anexo'
-// Mesma regra de token do push (backend/internal/push/mentions.go): o "@" abre a palavra (não vale em e-mail).
-const MENTION = /(?:^|[\s(\[{,;:!?"'])@([a-z0-9_]{3,32})\b/gi
+// Mesma regra de token do push (backend/internal/push/mentions.go): o "@" abre a palavra (não vale em e-mail) e o
+// nick é a palavra inteira: letra (com acento), número, "_" ou "-" logo depois continuam a palavra, então
+// "@equipe-de-suporte" não cita "equipe".
+const MENTION = /(?:^|[\s(\[{,;:!?"'])@([a-z0-9_]{3,32})(?![\p{L}\p{N}_-])/giu
 
 /** O texto cita a pessoa (@usuário), como o push decide. */
 function mentions(content: string, username: string): boolean {
