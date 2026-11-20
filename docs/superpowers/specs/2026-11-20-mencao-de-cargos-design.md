@@ -207,16 +207,11 @@ Nenhum evento novo de WebSocket: `server:member:roles` já leva `user_id` e `rol
 
 ## Textos
 
-Aprovado:
+Aprovados:
 
 | Onde | Texto |
 |---|---|
 | Etiqueta do cargo na lista do `@` | Cargo |
-
-Propostos, **aguardando aprovação**:
-
-| Onde | Texto |
-|---|---|
 | Nome da permissão | Mencionar @all, @here e cargos |
 | Descrição da permissão | Avisar todo mundo do canal de uma vez e mencionar qualquer cargo. |
 | Chave no editor de cargo | Permitir que qualquer pessoa mencione este cargo |
@@ -224,7 +219,7 @@ Propostos, **aguardando aprovação**:
 | Resumo em "Notificações silenciadas" | Ignora menções de cargo |
 | Título do aviso no desktop | `{autor} mencionou @{handle do cargo}` (o handle vem na mensagem; o nome o app só conhece no servidor aberto) |
 | Registro de auditoria (campo do cargo) | Qualquer pessoa pode mencionar |
-| Novidade no changelog | Dá para mencionar um cargo no chat com @nome-do-cargo, e @everyone vale como @all. |
+| Novidade no changelog | Chat: dá para mencionar um cargo com @nome-do-cargo, e @everyone vale como @all. O dono escolhe, em cada cargo, se qualquer pessoa pode mencioná-lo. |
 
 Reaproveitado, sem texto novo: `@everyone` na lista usa "Notifica todos do canal", o mesmo do `@all`.
 
