@@ -49,6 +49,16 @@ describe('RolesSection', () => {
     expect(html).toContain('Criar cargo')
   })
 
+  it('o editor do cargo tem a chave de deixar qualquer pessoa mencionar', () => {
+    expect(render()).toContain('Permitir que qualquer pessoa mencione este cargo')
+  })
+
+  it('o cargo Bots não tem essa chave (cargo fixo não é mencionável)', () => {
+    state.roles = [role({ id: 'bots', name: 'Bots', is_system: true })]
+    const html = renderToStaticMarkup(<RolesSection />)
+    expect(html).not.toContain('Permitir que qualquer pessoa mencione este cargo')
+  })
+
   it('em tela estreita a lista fica em cima do editor (antes a lista de 230 px comia a tela)', () => {
     const html = render()
     expect(html).toMatch(/<div class="[^"]*[\s"]flex-col[\s"][^"]*md:flex-row/)

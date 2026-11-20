@@ -96,6 +96,7 @@ const FIELDS: Record<string, { label: string; format: (v: unknown) => string }> 
   allow_view_once: { label: 'Visualização única', format: (v) => (v ? 'Ligada' : 'Desligada') },
   color: { label: 'Cor', format: color },
   hoist: { label: 'Mostrar separado', format: yesNo },
+  mentionable: { label: 'Qualquer pessoa pode mencionar', format: yesNo },
   nick: { label: 'Apelido', format: (v) => (v ? String(v) : 'sem apelido') },
   channel: { label: 'Canal', format: text },
   category: { label: 'Categoria', format: text },

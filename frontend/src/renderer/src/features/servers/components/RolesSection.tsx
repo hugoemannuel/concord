@@ -19,6 +19,7 @@ interface RoleEdits {
   name?: string
   color?: number | null
   hoist?: boolean
+  mentionable?: boolean
   permissions?: number
 }
 
@@ -168,10 +169,13 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
   const name = edits.name ?? role.name
   const color = edits.color !== undefined ? edits.color : role.color
   const hoist = edits.hoist ?? role.hoist
+  const mentionable = edits.mentionable ?? Boolean(role.mentionable)
   const permissions = edits.permissions ?? role.permissions
   const setName = (value: string): void => setEdits((e) => ({ ...e, name: value }))
   const setColor = (value: number | null): void => setEdits((e) => ({ ...e, color: value }))
   const setHoist = (value: boolean): void => setEdits((e) => ({ ...e, hoist: value }))
+  const setMentionable = (value: boolean): void =>
+    setEdits((e) => ({ ...e, mentionable: value }))
   const setPermissions = (value: number): void => setEdits((e) => ({ ...e, permissions: value }))
 
   const manageable = access.canManage(role)
@@ -179,6 +183,7 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
     name !== role.name ||
     color !== role.color ||
     hoist !== role.hoist ||
+    mentionable !== Boolean(role.mentionable) ||
     permissions !== role.permissions
   const tabs: { id: Tab; label: string }[] = role.is_default
     ? [{ id: 'permissions', label: 'Permissões' }]
@@ -196,6 +201,7 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
         ...(name !== role.name ? { name: name.trim() } : {}),
         ...(color !== role.color ? (color === null ? { clear_color: true } : { color }) : {}),
         ...(hoist !== role.hoist ? { hoist } : {}),
+        ...(mentionable !== Boolean(role.mentionable) ? { mentionable } : {}),
         ...(permissions !== role.permissions ? { permissions } : {})
       })
       setEdits({})
@@ -318,6 +324,19 @@ function RoleEditor({ serverId, role }: { serverId: string; role: Role }): React
                   </p>
                 </div>
                 <Switch checked={hoist} label="Exibir membros separadamente" onChange={setHoist} />
+              </div>
+            )}
+
+            {!role.is_system && (
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-subtle bg-fg/3 px-4 py-3">
+                <p className="text-ds-sm font-semibold text-strong">
+                  Permitir que qualquer pessoa mencione este cargo
+                </p>
+                <Switch
+                  checked={mentionable}
+                  label="Permitir que qualquer pessoa mencione este cargo"
+                  onChange={setMentionable}
+                />
               </div>
             )}
           </div>
