@@ -7,6 +7,7 @@ import {
   mentionKindOf,
   muteDecision,
   resolveScope,
+  settingsSummary,
   type NotifySettings,
   type ResolvedScope
 } from './notificationMute'
@@ -110,6 +111,28 @@ describe('mentionKindOf', () => {
       role: false,
       everyone: false
     })
+  })
+})
+
+describe('settingsSummary', () => {
+  it('junta o que foge do padrão, na ordem da tela', () => {
+    expect(settingsSummary(settings(), NOW)).toBe('')
+    expect(settingsSummary(settings({ muted: true }), NOW)).toBe('Silenciado')
+    expect(settingsSummary(settings({ level: 'mentions' }), NOW)).toBe('Só @menções')
+    expect(settingsSummary(settings({ level: 'nothing' }), NOW)).toBe('Nada')
+    expect(
+      settingsSummary(
+        settings({ muted: true, level: 'mentions', suppress_everyone: true, suppress_roles: true }),
+        NOW
+      )
+    ).toBe('Silenciado · Só @menções · Ignora @all e @here · Ignora menções de cargo')
+  })
+
+  it('silêncio com prazo vencido não aparece', () => {
+    const past = new Date(NOW - 1000).toISOString()
+    expect(settingsSummary(settings({ muted: true, muted_until: past, suppress_roles: true }), NOW)).toBe(
+      'Ignora menções de cargo'
+    )
   })
 })
 

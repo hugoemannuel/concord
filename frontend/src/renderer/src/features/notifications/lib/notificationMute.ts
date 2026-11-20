@@ -55,6 +55,22 @@ export function isActive(s: NotifySettings | undefined, now: number): boolean {
   return isMutedNow(s, now) || isCustom(s)
 }
 
+const LEVEL_SUMMARY: Partial<Record<NotificationLevel, string>> = {
+  mentions: 'Só @menções',
+  nothing: 'Nada'
+}
+
+/** Resumo de uma preferência em Configurações → Notificações ("Silenciado · Só @menções"). */
+export function settingsSummary(s: NotifySettings, now: number): string {
+  const parts = [
+    isMutedNow(s, now) && 'Silenciado',
+    LEVEL_SUMMARY[s.level],
+    s.suppress_everyone && 'Ignora @all e @here',
+    s.suppress_roles && 'Ignora menções de cargo'
+  ]
+  return parts.filter(Boolean).join(' · ')
+}
+
 export interface ResolvedScope {
   muted: boolean
   level: NotificationLevel
