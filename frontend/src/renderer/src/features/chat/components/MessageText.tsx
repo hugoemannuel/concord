@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import type { MentionEveryone } from '../api/messages'
+import type { MentionEveryone, RoleMention } from '../api/messages'
 import { messageParts } from '../lib/linkify'
 import { parseBlocks } from '../lib/markdown/parseBlocks'
 import { plainText } from '../lib/markdown/stripMarkdown'
@@ -23,10 +23,13 @@ import MarkdownBlocks from './markdown/MarkdownBlocks'
 function MessageText({
   content,
   everyone,
+  mentionRoles,
   mentionLabels
 }: {
   content: string
   everyone: MentionEveryone | null
+  /** Cargos que a mensagem pingou (mention_roles): viram chip de cargo. */
+  mentionRoles?: readonly RoleMention[] | null
   mentionLabels?: MentionLabels
 }): React.JSX.Element {
   // Analisa o texto só quando ele muda (hover e reações re-renderizam a linha).
@@ -38,7 +41,10 @@ function MessageText({
   }, [blocks, everyone])
   return (
     <div className="min-w-0 cursor-text select-text break-words text-ds-chat text-normal">
-      <MarkdownBlocks blocks={blocks} opts={{ everyone, mentionLabels, emojiSize }} />
+      <MarkdownBlocks
+        blocks={blocks}
+        opts={{ everyone, mentionRoles: mentionRoles ?? undefined, mentionLabels, emojiSize }}
+      />
     </div>
   )
 }
@@ -48,5 +54,6 @@ export default memo(
   (a, b) =>
     a.content === b.content &&
     a.everyone === b.everyone &&
+    a.mentionRoles === b.mentionRoles &&
     sameLabels(a.mentionLabels, b.mentionLabels)
 )

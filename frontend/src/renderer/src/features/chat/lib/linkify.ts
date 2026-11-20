@@ -1,4 +1,4 @@
-import type { MentionEveryone } from '../api/messages'
+import type { MentionEveryone, RoleMention } from '../api/messages'
 import { isSafeExternalUrl } from '../../../../../shared/externalUrl'
 import { splitMentions, type MessagePart } from './mentions'
 import { splitCustomEmojis, type CustomEmojiRef } from '../../emojis/lib/emojiToken'
@@ -146,15 +146,26 @@ export function linkify(text: string): LinkPart[] {
  * nunca começa colado num "@nick", então não há link dentro de chip.
  */
 /** Texto fora de link: emojis personalizados primeiro, menções no resto. */
-function textParts(text: string, everyone: MentionEveryone | null): RichPart[] {
-  return splitCustomEmojis(text).flatMap((p) => (p.emoji ? [p] : splitMentions(p.text, everyone)))
+function textParts(
+  text: string,
+  everyone: MentionEveryone | null,
+  roles?: readonly RoleMention[]
+): RichPart[] {
+  return splitCustomEmojis(text).flatMap((p) =>
+    p.emoji ? [p] : splitMentions(p.text, everyone, roles)
+  )
 }
 
-export function messageParts(content: string, everyone: MentionEveryone | null): RichPart[] {
+/** `roles`: os cargos que a mensagem pingou (mention_roles); viram chip de cargo. */
+export function messageParts(
+  content: string,
+  everyone: MentionEveryone | null,
+  roles?: readonly RoleMention[]
+): RichPart[] {
   const out: RichPart[] = []
   for (const part of linkify(content)) {
     if (part.href) out.push(part)
-    else if (part.text) out.push(...textParts(part.text, everyone))
+    else if (part.text) out.push(...textParts(part.text, everyone, roles))
   }
   return out.length ? out : [{ text: content }]
 }

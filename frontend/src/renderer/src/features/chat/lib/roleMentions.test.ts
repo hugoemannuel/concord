@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   mentionsHandle,
+  roleChipView,
   roleHandle,
   roleIdsToSend,
   roleSuggestions,
   splitRoleMentions,
   withoutRoleMentions,
+  withRolePick,
   type MentionableRole
 } from './roleMentions'
 
@@ -188,5 +190,46 @@ describe('withoutRoleMentions', () => {
   it('sem cargo pingado, devolve o mesmo texto', () => {
     expect(withoutRoleMentions('oi @suporte', null)).toBe('oi @suporte')
     expect(withoutRoleMentions('oi @suporte', [])).toBe('oi @suporte')
+  })
+})
+
+describe('withRolePick', () => {
+  const cargo = { kind: 'role', username: 'suporte', id: 'r1', name: 'Suporte', color: null } as const
+
+  it('escolher um cargo guarda o id pelo handle', () => {
+    expect(withRolePick({}, cargo)).toEqual({ suporte: 'r1' })
+    expect(withRolePick({ suporte: 'outro' }, cargo)).toEqual({ suporte: 'r1' })
+  })
+
+  it('escolher a pessoa de mesmo nick desfaz a escolha do cargo', () => {
+    expect(withRolePick({ suporte: 'r1', mod: 'r2' }, { kind: 'user', username: 'Suporte' })).toEqual({
+      mod: 'r2'
+    })
+  })
+
+  it('escolher outra pessoa (ou @all) não mexe nas escolhas', () => {
+    const picks = { suporte: 'r1' }
+    expect(withRolePick(picks, { kind: 'user', username: 'ana' })).toBe(picks)
+    expect(withRolePick(picks, { kind: 'everyone', username: 'all' })).toBe(picks)
+  })
+})
+
+describe('roleChipView', () => {
+  it('cargo conhecido: o nome atual e a cor', () => {
+    expect(roleChipView({ name: 'Suporte Novo', color: 0x3366ff }, '@suporte')).toEqual({
+      label: '@Suporte Novo',
+      color: '#3366ff'
+    })
+  })
+
+  it('cargo sem cor: só o nome', () => {
+    expect(roleChipView({ name: 'Suporte', color: null }, '@suporte')).toEqual({
+      label: '@Suporte',
+      color: undefined
+    })
+  })
+
+  it('cargo apagado ou desconhecido: o texto como foi escrito', () => {
+    expect(roleChipView(undefined, '@suporte')).toEqual({ label: '@suporte', color: undefined })
   })
 })

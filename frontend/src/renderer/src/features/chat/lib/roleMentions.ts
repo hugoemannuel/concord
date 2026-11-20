@@ -1,6 +1,7 @@
 import type { RoleMention } from '../api/messages'
 import { stripCode } from './markdown/stripCode'
 import { opensToken, tokenEndsAt } from './mentionToken'
+import { roleColorCss } from '../../servers/lib/permissions'
 
 // Menção de cargo num canal de servidor (ADR 0065). O texto guarda "@handle"
 // (o nome do cargo em minúsculas, com "-" no lugar dos espaços) e o app manda
@@ -151,6 +152,34 @@ export function roleIdsToSend(
     else if (!people.has(handle)) ids.push(role.id)
   }
   return ids
+}
+
+/**
+ * As escolhas depois de pegar um item na lista do "@": o cargo fica guardado
+ * pelo handle; pegar a pessoa de mesmo nick desfaz a escolha do cargo (o
+ * mesmo "@handle" passa a ser ela).
+ */
+export function withRolePick(
+  picks: RolePicks,
+  item: { kind: 'user' | 'everyone' | 'role'; username: string; id?: string }
+): RolePicks {
+  if (item.kind === 'role' && item.id) return { ...picks, [item.username]: item.id }
+  const handle = item.username.toLowerCase()
+  if (item.kind !== 'user' || !(handle in picks)) return picks
+  const next = { ...picks }
+  delete next[handle]
+  return next
+}
+
+/**
+ * O que o chip do cargo mostra: o nome e a cor de agora. Cargo apagado (ou de
+ * um servidor cujos cargos o app não conhece) fica com o texto como foi escrito.
+ */
+export function roleChipView(
+  role: { name: string; color: number | null } | undefined,
+  text: string
+): { label: string; color: string | undefined } {
+  return role ? { label: `@${role.name}`, color: roleColorCss(role.color) } : { label: text, color: undefined }
 }
 
 /** Os trechos "@handle" dos cargos pingados, em ordem e sem sobrepor. */

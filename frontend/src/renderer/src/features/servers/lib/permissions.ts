@@ -97,6 +97,8 @@ export interface Role {
   is_default: boolean
   /** É o cargo fixo de sistema (Bots). */
   is_system?: boolean
+  /** Qualquer pessoa pode mencionar o cargo no chat (ADR 0065). */
+  mentionable?: boolean
 }
 
 export type OverwriteTarget = 'role' | 'member'

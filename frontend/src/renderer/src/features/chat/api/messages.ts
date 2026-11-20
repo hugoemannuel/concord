@@ -191,6 +191,8 @@ export interface ExtraMessageData {
   gifMetadata?: { width?: number; height?: number; preview_url?: string } | null
   /** Só em conversa: o anexo é foto/vídeo de visualização única. */
   viewOnce?: boolean
+  /** Só em canal: cargos escolhidos no "@" (o backend valida cada um). */
+  mentionRoleIds?: string[]
 }
 
 export function sendChannelMessage(
@@ -211,7 +213,8 @@ export function sendChannelMessage(
       ...(replyToId ? { reply_to_id: replyToId } : {}),
       ...(extra?.stickerId ? { sticker_id: extra.stickerId } : {}),
       ...(extra?.gifUrl ? { gif_url: extra.gifUrl } : {}),
-      ...(extra?.gifMetadata ? { gif_metadata: extra.gifMetadata } : {})
+      ...(extra?.gifMetadata ? { gif_metadata: extra.gifMetadata } : {}),
+      ...(extra?.mentionRoleIds?.length ? { mention_role_ids: extra.mentionRoleIds } : {})
     })
   })
 }

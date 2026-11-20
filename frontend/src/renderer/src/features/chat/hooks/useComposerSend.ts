@@ -38,6 +38,8 @@ interface Options {
   onSent: () => void
   /** Modo lento da sala: trava o envio na espera e conta a vez depois de enviar. */
   slowmode: Pick<Slowmode, 'blocked' | 'onSent' | 'onFailed'>
+  /** Ids dos cargos que o texto menciona (menu do @); lido antes de o envio limpar o menu. */
+  mentionRoleIds: (text: string) => string[]
   /** Foto ou vídeo marcado como visualização única (só o envio do campo; o áudio gravado nunca). */
   viewOnce: { on: boolean; reset: () => void }
 }
@@ -105,6 +107,7 @@ export function useComposerSend(o: Options): {
     // Só sai do rascunho o que foi enviado: arquivo adicionado durante o envio fica.
     const sentDrafts = doneDraftIds(o.drafts)
     const viewOnceOn = o.viewOnce.on
+    const mentionRoleIds = o.mentionRoleIds(sent.text)
     // O texto sai do campo na hora: dá para começar a próxima mensagem sem
     // esperar o servidor. Os anexos só saem quando o envio dá certo.
     o.onSent()
@@ -116,7 +119,7 @@ export function useComposerSend(o: Options): {
         sent.text.trim(),
         attachmentState.readyIds,
         replyId,
-        sendExtra(viewOnceOn)
+        sendExtra(viewOnceOn, mentionRoleIds)
       )
       o.viewOnce.reset()
       o.slowmode.onSent(sent.text)

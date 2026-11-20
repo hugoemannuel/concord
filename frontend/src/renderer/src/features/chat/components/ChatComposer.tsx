@@ -8,6 +8,7 @@ import type { ReplyState } from '../lib/sendFailure'
 import { useComposerSend } from '../hooks/useComposerSend'
 import { useFilePickerShortcut } from '../hooks/useFilePickerShortcut'
 import { useComposerSuggestions } from '../hooks/useComposerSuggestions'
+import { useChannelRoles } from '../hooks/useChannelRoles'
 import { useRoomDraft } from '../hooks/useRoomDraft'
 import { useRoomState } from '../hooks/useRoomState'
 import { useSendMedia } from '../hooks/useSendMedia'
@@ -75,6 +76,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const channel = useServerStore((s) => s.channels.find((c) => c.id === channelIdOf(room)))
   const viewOnce = useViewOnceDraft(room, p.drafts, viewOnceAllowedIn(room, channel))
   const slowmode = useSlowmode(room, permissions.bypassSlowmode)
+  const roles = useChannelRoles(p.serverId)
   const disappearing = useRoomDisappearing(room)
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
   const { mention, slash, active, onInput } = useComposerSuggestions({
@@ -85,6 +87,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     inputRef,
     mentionable: p.mentionable,
     canMentionEveryone: p.canMentionEveryone,
+    roles,
     isChannel: p.isChannel,
     canSendTTS: permissions.canSendTTS
   })
@@ -93,6 +96,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     draft,
     setDraft,
     slowmode,
+    mentionRoleIds: (text) => mention.roleIdsFor(text),
     viewOnce: { on: viewOnce.viewOnce, reset: viewOnce.reset },
     onSent: () => {
       typing.onSent()

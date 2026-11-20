@@ -1,6 +1,7 @@
 import type { RichPart } from '../../lib/linkify'
 import { mentionChipText, type MentionLabels } from '../../lib/mentions'
 import MentionChip from '../MentionChip'
+import RoleMentionChip from '../RoleMentionChip'
 import MessageCustomEmoji from '../../../emojis/components/MessageCustomEmoji'
 
 /** Host de verdade do link (em punycode: "аpple.com" cirílico aparece xn--…). */
@@ -51,6 +52,8 @@ export default function RichTextParts({
           </a>
         ) : part.emoji ? (
           <MessageCustomEmoji key={i} id={part.emoji.id} name={part.emoji.name} size={emojiSize} />
+        ) : part.role ? (
+          <RoleMentionChip key={i} roleId={part.role} text={part.text} />
         ) : part.mention ? (
           <MentionChip
             key={i}

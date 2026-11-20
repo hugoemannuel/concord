@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useServerStore } from '../store/serverStore'
 import { useServerLayoutStore } from '../store/serverLayoutStore'
+import { useMyRolesStore } from '../store/myRolesStore'
 import { useProposalStore } from '../../proposals/store/proposalStore'
 import { useChatStore } from '../../chat/store/chatStore'
 
@@ -10,6 +11,7 @@ export function useServerRailSync(): void {
   const servers = useServerStore((s) => s.servers)
   const fetchServers = useServerStore((s) => s.fetchServers)
   const fetchLayout = useServerLayoutStore((s) => s.fetchLayout)
+  const fetchMyRoles = useMyRolesStore((s) => s.fetchMyRoles)
   const fetchProposals = useProposalStore((s) => s.fetchProposals)
   const fetchProposalMentions = useProposalStore((s) => s.fetchMentions)
   const fetchChannelsForServers = useChatStore((s) => s.fetchChannelsForServers)
@@ -32,6 +34,12 @@ export function useServerRailSync(): void {
       fetchChannelsForServers(servers.map((s) => s.id))
     }
   }, [servers, fetchChannelsForServers])
+
+  // Os meus cargos em cada servidor (menção de cargo): relê quando a lista de
+  // servidores muda (entrar num servidor, reconectar).
+  useEffect(() => {
+    void fetchMyRoles()
+  }, [servers, fetchMyRoles])
 
   useEffect(() => {
     const ids = servers.map((s) => s.id)

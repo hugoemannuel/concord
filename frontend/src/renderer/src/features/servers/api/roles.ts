@@ -11,6 +11,8 @@ export interface RoleInput {
   /** Tira a cor do cargo. */
   clear_color?: boolean
   hoist?: boolean
+  /** Qualquer pessoa pode mencionar o cargo no chat. */
+  mentionable?: boolean
   permissions?: number
 }
 
@@ -30,6 +32,11 @@ export function updateRole(serverId: string, roleId: string, input: RoleInput): 
 
 export function deleteRole(serverId: string, roleId: string): Promise<void> {
   return request<void>(`/servers/${serverId}/roles/${roleId}`, { method: 'DELETE' })
+}
+
+/** Os meus cargos em cada servidor: id do servidor -> ids dos cargos (sem o @everyone). */
+export function listMyServerRoles(): Promise<Record<string, string[]>> {
+  return request<Record<string, string[]>>('/users/me/server-roles')
 }
 
 /** Nova ordem dos cargos (sem o @everyone), do mais alto para o mais baixo. */
