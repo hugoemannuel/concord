@@ -1,6 +1,6 @@
 import { useAuthStore } from '../../auth/store/authStore'
 import { mentionMenu } from '../lib/chatPaneView'
-import { nextHighlight } from '../lib/composerKeys'
+import { stepHighlight, type SuggestionMenu } from '../../../shared/lib/suggestionNav'
 import { applyMention, mentionQuery, type MentionSuggestion, type UserSuggestionInput } from '../lib/mentions'
 import { useRoomState } from './useRoomState'
 
@@ -8,6 +8,8 @@ const MAX_SUGGESTIONS = 6
 
 interface Options {
   room: string
+  /** id do listbox (o campo aponta para ele). */
+  listId: string
   draft: string
   /** Troca o texto do campo (com o aviso de digitando). */
   replaceDraft: (text: string) => void
@@ -16,16 +18,13 @@ interface Options {
   canMentionEveryone: boolean
 }
 
-export interface MentionMenu {
+export interface MentionMenu extends SuggestionMenu {
   open: boolean
   suggestions: MentionSuggestion[]
-  highlight: number
   /** Texto digitado: abre/atualiza o menu conforme o @ antes do cursor. */
   onInput: (text: string, caret: number) => void
   pick: (username: string) => void
-  step: (step: 1 | -1) => void
   setHighlight: (index: number | null) => void
-  close: () => void
   /** Fecha e esquece o destaque (mensagem enviada). */
   reset: () => void
 }
@@ -36,6 +35,7 @@ const caretOf = (el: HTMLTextAreaElement, draft: string): number => el.selection
 /** Menu de sugestões do @ no campo de mensagem (estado por sala). */
 export function useMentionMenu({
   room,
+  listId,
   draft,
   replaceDraft,
   inputRef,
@@ -67,15 +67,18 @@ export function useMentionMenu({
   }
 
   return {
+    listId,
     open: mention !== null,
     suggestions,
+    count: suggestions.length,
     highlight,
     onInput: (text, caret) => {
       setMention(mentionQuery(text, caret))
       setHighlight(null)
     },
     pick,
-    step: (step) => setHighlight(nextHighlight(highlight, step, suggestions.length)),
+    pickHighlighted: () => pick(suggestions[highlight].username),
+    step: (step) => setHighlight(stepHighlight(highlight, step, suggestions.length)),
     setHighlight,
     close: () => setMention(null),
     reset: () => {

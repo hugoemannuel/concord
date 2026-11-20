@@ -3,8 +3,6 @@ import type { Message } from '../api/messages'
 import type { ServerSticker } from '../api/stickers'
 import type { GifItem } from '../api/gifs'
 import { PaperclipIcon, PollIcon, SmileyIcon } from '../../../shared/ui/icons'
-import SlashSuggestions from '../../music/components/SlashSuggestions'
-import { composerCommands } from '../lib/chatPaneView'
 import UnifiedMediaPickerPopover from './UnifiedMediaPickerPopover'
 import VoiceRecordButton from './VoiceRecordButton'
 import MobileSheet from '../../../shared/ui/MobileSheet'
@@ -87,30 +85,6 @@ export function MediaPicker({
         onClose={onClose}
       />
     </MobileSheet>
-  )
-}
-
-/** Comandos do "/" (Maestro em canal, /tts com a permissão), sem menu de @ aberto. */
-export function SlashCommandSuggestions({
-  isChannel,
-  canSendTTS,
-  mentionOpen,
-  input,
-  onPick
-}: {
-  isChannel: boolean
-  canSendTTS: boolean
-  mentionOpen: boolean
-  input: string
-  onPick: (command: string) => void
-}): React.JSX.Element | null {
-  if (mentionOpen) return null
-  return (
-    <SlashSuggestions
-      input={input}
-      commands={composerCommands(isChannel, canSendTTS)}
-      onPick={onPick}
-    />
   )
 }
 

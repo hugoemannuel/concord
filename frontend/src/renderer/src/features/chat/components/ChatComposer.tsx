@@ -7,7 +7,7 @@ import type { UserSuggestionInput } from '../lib/mentions'
 import type { ReplyState } from '../lib/sendFailure'
 import { useComposerSend } from '../hooks/useComposerSend'
 import { useFilePickerShortcut } from '../hooks/useFilePickerShortcut'
-import { useMentionMenu } from '../hooks/useMentionMenu'
+import { useComposerSuggestions } from '../hooks/useComposerSuggestions'
 import { useRoomDraft } from '../hooks/useRoomDraft'
 import { useRoomState } from '../hooks/useRoomState'
 import { useSendMedia } from '../hooks/useSendMedia'
@@ -17,6 +17,7 @@ import ComposerAttachments from './ComposerAttachments'
 import ComposerInput from './composer/ComposerInput'
 import SlowmodeBar from './composer/SlowmodeBar'
 import MentionSuggestionList from './MentionSuggestionList'
+import SlashSuggestions from '../../music/components/SlashSuggestions'
 import DisappearingBanner from '../../disappearing/components/DisappearingBanner'
 import { useViewOnceDraft } from '../../viewOnce/hooks/useViewOnceDraft'
 import { useRoomDisappearing } from '../../disappearing/hooks/useDisappearing'
@@ -30,7 +31,6 @@ import {
   MediaPickerButton,
   PollButton,
   ReplyBar,
-  SlashCommandSuggestions,
   SubmitButton,
   VoiceButton
 } from './ComposerParts'
@@ -77,16 +77,16 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   const slowmode = useSlowmode(room, permissions.bypassSlowmode)
   const disappearing = useRoomDisappearing(room)
   useFilePickerShortcut(fileInputRef, permissions.canAttach)
-  const menu = useMentionMenu({
+  const { mention, slash, active, onInput } = useComposerSuggestions({
     room,
     draft,
-    replaceDraft: (text) => {
-      setDraft(text)
-      typing.onDraftChange(text)
-    },
+    setDraft,
+    onDraftChange: typing.onDraftChange,
     inputRef,
     mentionable: p.mentionable,
-    canMentionEveryone: p.canMentionEveryone
+    canMentionEveryone: p.canMentionEveryone,
+    isChannel: p.isChannel,
+    canSendTTS: permissions.canSendTTS
   })
   const send = useComposerSend({
     ...p,
@@ -96,7 +96,7 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
     viewOnce: { on: viewOnce.viewOnce, reset: viewOnce.reset },
     onSent: () => {
       typing.onSent()
-      menu.reset()
+      mention.reset()
     }
   })
   const { handleSendSticker, handleSendGif } = useSendMedia({
@@ -112,10 +112,11 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
   return (
     <>
       <MentionSuggestionList
-        suggestions={menu.suggestions}
-        highlight={menu.highlight}
-        onPick={menu.pick}
-        onHighlight={menu.setHighlight}
+        listId={mention.listId}
+        suggestions={mention.suggestions}
+        highlight={mention.highlight}
+        onPick={mention.pick}
+        onHighlight={mention.setHighlight}
       />
       <ComposerAttachments
         drafts={p.drafts}
@@ -146,15 +147,12 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
             onSubmit={send.handleSubmit}
             className="relative flex items-end gap-2 rounded-xl border border-subtle bg-input px-3 py-2 backdrop-blur-xl focus-within:border-violet-500/40 max-md:gap-0.5 max-md:px-1 max-md:py-1"
           >
-            <SlashCommandSuggestions
-              isChannel={p.isChannel}
-              canSendTTS={permissions.canSendTTS}
-              mentionOpen={menu.open}
-              input={draft}
-              onPick={(text) => {
-                setDraft(text)
-                inputRef.current?.focus()
-              }}
+            <SlashSuggestions
+              listId={slash.listId}
+              items={slash.items}
+              highlight={slash.highlight}
+              onPick={slash.pick}
+              onHighlight={slash.setHighlight}
             />
             <AttachButton
               show={permissions.canAttach}
@@ -175,14 +173,15 @@ function ChatComposer(p: ChatComposerProps): React.JSX.Element {
               inputRef={inputRef}
               value={draft}
               placeholder={composerPlaceholder(replyingTo !== null, p.replyAuthor, p.placeholder)}
-              menu={menu}
+              menu={active}
               replying={replyingTo !== null}
               onChange={(text, caret) => {
                 setDraft(text)
                 typing.onDraftChange(text)
-                menu.onInput(text, caret)
+                onInput(text, caret)
               }}
               onPaste={p.onPaste}
+              onBlur={mention.close}
               onEditLast={p.onEditLast}
               onCancelReply={() => setReplyState(null)}
             />
