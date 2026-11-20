@@ -40,8 +40,8 @@ interface Options {
   slowmode: Pick<Slowmode, 'blocked' | 'onSent' | 'onFailed'>
   /** Ids dos cargos que o texto menciona (menu do @); lido antes de o envio limpar o menu. */
   mentionRoleIds: (text: string) => string[]
-  /** A mensagem saiu: `text` é o que está no campo agora (o que não está nele pode ser esquecido). */
-  onDelivered: (text: string) => void
+  /** A mensagem saiu (o menu do @ esquece o que não está mais no campo). */
+  onDelivered: () => void
   /** Foto ou vídeo marcado como visualização única (só o envio do campo; o áudio gravado nunca). */
   viewOnce: { on: boolean; reset: () => void }
 }
@@ -124,7 +124,7 @@ export function useComposerSend(o: Options): {
         sendExtra(viewOnceOn, mentionRoleIds)
       )
       o.viewOnce.reset()
-      o.onDelivered(o.inputRef.current?.value ?? '')
+      o.onDelivered()
       o.slowmode.onSent(sent.text)
       clearSentDrafts(sent.room, sentDrafts)
     } catch (err) {
