@@ -68,5 +68,5 @@ var qualityRules = []reasonRule{
 // sessão, que dilui um episódio longo), as quedas e as falhas de rede; a falha
 // de acesso (chamada encerrada, sem permissão) não pesa.
 func callScore(s SessionStats) float64 {
-	return s.BadMinutes*10 + float64(s.Reconnects)*20 + float64(s.Failures)*100
+	return s.BadMinutes*10 + float64(s.Reconnects)*20 + float64(s.Failures)*100 + mediaCallScore(s)
 }

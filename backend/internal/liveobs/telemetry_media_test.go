@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-func floatp(v float64) *float64 { return &v }
-
 // Os sinais da ADR 0074 chegam achatados na amostra e ficam dentro dos limites.
 func TestValidateReportLimitaOsSinaisDeMidia(t *testing.T) {
 	r := validReport()
@@ -68,11 +66,11 @@ func TestTelemetryRepositoryGravaOsSinaisDeMidia(t *testing.T) {
 	repo := NewTelemetryRepository(db)
 	ctx := context.Background()
 	share := Report{SessionID: sessionA, Kind: KindShare, Sample: &Sample{Seconds: 20, MediaSignals: MediaSignals{
-		QP: floatp(31), StartMs: intp(2400), SourceWidth: intp(2560), SourceHeight: intp(1440), Surface: "monitor",
+		QP: fp(31), StartMs: intp(2400), SourceWidth: intp(2560), SourceHeight: intp(1440), Surface: "monitor",
 	}}}
 	call := Report{SessionID: sessionB, Kind: KindCall, Sample: &Sample{Seconds: 60, MediaSignals: MediaSignals{
-		DSPUnderrunPct: floatp(1.5), DSP: "rnnoise · portão", PlayoutSynthPct: floatp(0.25),
-		CamFPS: floatp(24), CamHeight: intp(720), CamLimitation: "cpu", CamFreezes: intp(3),
+		DSPUnderrunPct: fp(1.5), DSP: "rnnoise · portão", PlayoutSynthPct: fp(0.25),
+		CamFPS: fp(24), CamHeight: intp(720), CamLimitation: "cpu", CamFreezes: intp(3),
 	}}}
 	old := Report{SessionID: sessionC, Kind: KindWatch, Sample: &Sample{Seconds: 20}}
 	if err := repo.SaveAll(ctx, userAna, []Report{share, call, old}); err != nil {

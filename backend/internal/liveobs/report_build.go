@@ -184,7 +184,7 @@ func liveRow(share SessionStats, all []SessionStats) LiveRow {
 			continue
 		}
 		row.Viewers++
-		freezes += w.Freezes
+		freezes += seenFreezes(w)
 		seconds += w.Seconds
 		sw.add(software(w))
 	}
