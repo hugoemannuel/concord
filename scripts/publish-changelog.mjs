@@ -4,7 +4,8 @@
 //   node scripts/publish-changelog.mjs --check <pasta>
 //
 // Lê os arquivos de `changelog/pending/` (um por mudança, com as seções
-// "## Novidades" e "## Correções" em bullets) e faz o PUT idempotente em
+// "## Novidades" e "## Correções" em bullets, e o cabeçalho opcional
+// obrigatoria/destaque) e faz o PUT idempotente em
 // <url-base>/api/changelog/<versão>. Cada nota leva o nome do arquivo de
 // origem: o CI não apaga os arquivos já publicados do git, e é pela origem que
 // o servidor guarda na versão só as notas que nenhuma versão anterior trouxe.
@@ -21,10 +22,39 @@ export const MAX_SOURCE = 200
 
 const SECTIONS = { novidades: 'feature', correções: 'fix', correcoes: 'fix' }
 
+// Cabeçalho opcional no topo da nota (ADR 0066):
+//   ---
+//   obrigatoria: true   → a versão que levar esta nota vira a versão mínima
+//   destaque: true      → as notas deste arquivo aparecem no modal de novidades
+//   ---
+const FLAGS = { obrigatoria: 'required', destaque: 'highlight' }
+
+/** Separa o cabeçalho do corpo: { flags, lines } (flags com os nomes da API). */
+export function splitHeader(markdown) {
+  const lines = markdown.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') return { flags: {}, lines }
+  const end = lines.findIndex((line, i) => i > 0 && line.trim() === '---')
+  if (end === -1) throw new Error('cabeçalho sem a linha --- de fechamento')
+  const flags = {}
+  for (const line of lines.slice(1, end)) {
+    if (line.trim()) Object.assign(flags, parseFlag(line))
+  }
+  return { flags, lines: lines.slice(end + 1) }
+}
+
+function parseFlag(line) {
+  const m = /^\s*([^:\s]+)\s*:\s*(.*?)\s*$/.exec(line)
+  const name = m && FLAGS[m[1].toLowerCase()]
+  if (!name) throw new Error(`chave desconhecida no cabeçalho: ${line.trim()} (use obrigatoria ou destaque)`)
+  if (m[2] !== 'true' && m[2] !== 'false') throw new Error(`${m[1]}: use true ou false`)
+  return m[2] === 'true' ? { [name]: true } : {}
+}
+
 export function parseNotes(markdown, source = '') {
+  const { flags, lines } = splitHeader(markdown)
   const entries = []
   let kind = null
-  for (const raw of markdown.split(/\r?\n/)) {
+  for (const raw of lines) {
     const line = raw.trim()
     if (!line) continue
     const heading = /^##\s+(.+)$/.exec(line)
@@ -36,7 +66,10 @@ export function parseNotes(markdown, source = '') {
     const bullet = /^[-*]\s+(.+)$/.exec(line)
     if (!bullet) continue
     if (!kind) throw new Error(`bullet fora de uma seção: ${line}`)
-    entries.push({ kind, text: bullet[1].trim(), ...(source && { source }) })
+    entries.push({ kind, text: bullet[1].trim(), ...(source && { source }), ...flags })
+  }
+  if (flags.required && entries.length === 0) {
+    throw new Error('nota obrigatória sem nenhum bullet: diga o que muda para quem atualizar')
   }
   checkLimits(entries)
   return { entries }

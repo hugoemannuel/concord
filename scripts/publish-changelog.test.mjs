@@ -146,3 +146,32 @@ test('muitos arquivos juntos cabem no limite', () => {
   const bullets = Array.from({ length: 500 }, (_, i) => `- nota ${i}`)
   assert.equal(parseNotes(['## Novidades', ...bullets].join('\n')).entries.length, 500)
 })
+
+test('cabeçalho destaque marca todas as notas do arquivo', () => {
+  const md = ['---', 'destaque: true', '---', '## Novidades', '- A', '## Correções', '- B'].join('\n')
+  assert.deepEqual(parseNotes(md).entries, [
+    { kind: 'feature', text: 'A', highlight: true },
+    { kind: 'fix', text: 'B', highlight: true }
+  ])
+})
+
+test('cabeçalho obrigatoria marca as notas como required (com CRLF do checkout)', () => {
+  const md = ['---', 'obrigatoria: true', 'destaque: false', '---', '## Novidades', '- A'].join('\r\n')
+  assert.deepEqual(parseNotes(md, 'x.md').entries, [{ kind: 'feature', text: 'A', source: 'x.md', required: true }])
+})
+
+test('chave desconhecida no cabeçalho é erro', () => {
+  assert.throws(() => parseNotes('---\nobrigatório: true\n---\n## Novidades\n- A'), /chave desconhecida/)
+})
+
+test('valor do cabeçalho diferente de true/false é erro', () => {
+  assert.throws(() => parseNotes('---\ndestaque: sim\n---\n## Novidades\n- A'), /true ou false/)
+})
+
+test('cabeçalho sem o fechamento é erro', () => {
+  assert.throws(() => parseNotes('---\ndestaque: true\n## Novidades\n- A'), /cabeçalho/)
+})
+
+test('nota obrigatória sem nenhum bullet é erro (precisa explicar por quê)', () => {
+  assert.throws(() => parseNotes('---\nobrigatoria: true\n---\n## Novidades\n'), /obrigatória/)
+})
