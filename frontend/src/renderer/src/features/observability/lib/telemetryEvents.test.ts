@@ -48,6 +48,12 @@ describe('sampleEvents: quem assiste', () => {
       { type: 'pausada_pelo_servidor', detail: '' }
     ])
   })
+  it('o evento do processador leva o nome do decodificador (ADR 0074)', () => {
+    const got = sampleEvents('assiste', null, s({ hardware: false, codec: 'H265' }), {
+      implementation: 'libavcodec'
+    })
+    expect(got).toEqual([{ type: 'decoder_software', detail: 'H265 · libavcodec' }])
+  })
   it('congelamento curto e pausa contínua não viram evento', () => {
     expect(
       sampleEvents('assiste', s({ paused: true }), s({ paused: true, freeze_ms: 1999 }))

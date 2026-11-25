@@ -7,6 +7,7 @@ import {
   type Stat
 } from '../../call/lib/screenStatsFormat'
 import { emptySample, type TelemetrySample } from './telemetryTypes'
+import type { CallMediaCounters } from './telemetryCallMedia'
 
 // Telemetria das lives e calls: transforma o getStats() (o mesmo que o painel
 // da live lê) numa amostra pequena para o backend. Contadores vão como a
@@ -32,8 +33,12 @@ export interface SampleCounters {
   captured: number
   /** ms gastos no codec (totalEncodeTime/totalDecodeTime). */
   codecMs: number
+  /** Soma dos QP (qpSum); -1 = o navegador não conta. */
+  qp: number
   /** Call: os contadores de cada voz recebida, pelo id da faixa (stat.id). */
   voices?: Record<string, VoiceCounters>
+  /** Call: saída de áudio, microfone e câmera (telemetryCallMedia). */
+  media?: CallMediaCounters
 }
 
 /** Uma voz recebida: amostras sintetizadas (sem o silêncio), recebidas e pacotes. */
@@ -49,6 +54,8 @@ export interface SampleResult {
   counters: SampleCounters
   /** Minha live: por que o controlador desceu (ScreenAdaptView.reason); não vai na amostra. */
   stepReason?: string | null
+  /** O nome do codificador/decodificador (o evento de "no processador" leva). */
+  implementation?: string | null
 }
 
 export const n0 = (value: unknown): number => num(value) ?? 0
@@ -91,18 +98,19 @@ export function countersOf(stat: Stat, keys: CounterKeys, source?: Stat): Sample
     frames: num(stat[keys.frames]) ?? -1,
     framesReceived: n0(stat.framesReceived),
     captured: n0(source?.frames),
-    codecMs: n0(stat[keys.codecTime]) * 1000
+    codecMs: n0(stat[keys.codecTime]) * 1000,
+    qp: num(stat.qpSum) ?? -1
   }
 }
 
-type CounterKey = Exclude<keyof SampleCounters, 'voices'>
+type CounterKey = Exclude<keyof SampleCounters, 'voices' | 'media'>
 export type Deltas = Record<CounterKey, number>
 
 /** Diferenças no intervalo (zeros na primeira leitura; contador que voltou = 0). */
 export function deltas(now: SampleCounters, prev: SampleCounters | null): Deltas {
   const out = {} as Deltas
   for (const key of Object.keys(now) as (keyof SampleCounters)[]) {
-    if (key === 'voices') continue
+    if (key === 'voices' || key === 'media') continue
     out[key] = prev ? Math.max(0, now[key] - prev[key]) : 0
   }
   return out
@@ -230,6 +238,7 @@ export function watchSample(
   const { d } = read
   return {
     counters: read.now,
+    implementation: text(stat.decoderImplementation) ?? null,
     sample: {
       ...videoBase(read),
       hardware: hardwareOf(stat, 'decoderImplementation', 'powerEfficientDecoder'),

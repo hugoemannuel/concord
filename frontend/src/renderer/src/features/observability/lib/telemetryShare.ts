@@ -1,10 +1,12 @@
-import type { ScreenStatsInput } from '../../call/lib/screenStats'
-import { videoRtp } from '../../call/lib/screenStats'
+import { videoRtp, type ScreenStatsInput } from '../../call/lib/screenStats'
 import { encoderInfoFromReport } from '../../call/lib/screenEncoderInfo'
 import { codecSubtype, num, text, type Stat } from '../../call/lib/screenStatsFormat'
 import {
   countersOf,
   hardwareOf,
+  lossPct,
+  ms,
+  n0,
   perSecond,
   reading,
   SEND,
@@ -47,6 +49,33 @@ function captureFps({ prev, d }: Reading, source: Stat | undefined): number | nu
   return (prev ? perSecond(d.captured, d) : null) ?? num(source.framesPerSecond)
 }
 
+/** O que o servidor diz que recebeu do envio principal (o remote-inbound-rtp dele). */
+function remoteOf(report: RTCStatsReport, stat: Stat): Stat | undefined {
+  let found: Stat | undefined
+  report.forEach((s: Stat) => {
+    if (s.type === 'remote-inbound-rtp' && s.localId === stat.id) found = s
+  })
+  return found
+}
+
+/** Perdidos e recebidos na subida (recebidos = mandados − perdidos); zeros sem o relatório. */
+function uplink(stat: Stat, remote: Stat | undefined): { lost: number; received: number } {
+  if (!remote) return { lost: 0, received: 0 }
+  const lost = n0(remote.packetsLost)
+  return { lost, received: Math.max(0, n0(stat.packetsSent) - lost) }
+}
+
+/** Perda média do intervalo (a leitura anterior também precisa ter o relatório). */
+function uplinkLoss({ prev, d }: Reading, remote: Stat | undefined): number | null {
+  return remote && prev && prev.lost + prev.received > 0 ? lossPct(d) : null
+}
+
+/** QP médio dos quadros codificados no intervalo; null sem qpSum ou contador que voltou. */
+function intervalQp({ now, prev, d }: Reading): number | null {
+  const counted = prev !== null && prev.qp >= 0 && now.qp >= prev.qp && d.frames > 0
+  return counted ? Math.round(d.qp / d.frames) : null
+}
+
 /** A minha live. `stepChanges`: trocas de degrau desde a última amostra. */
 export function shareSample(
   input: ScreenStatsInput,
@@ -56,12 +85,15 @@ export function shareSample(
   const stat = videoRtp(input.report, 'outbound-rtp', 'bytesSent')
   if (!stat) return null
   const source = mediaSource(input.report, stat)
-  const read = reading(stat, input.report, countersOf(stat, SEND, source), prev)
+  const remote = remoteOf(input.report, stat)
+  const counters = { ...countersOf(stat, SEND, source), ...uplink(stat, remote) }
+  const read = reading(stat, input.report, counters, prev)
   const base = videoBase(read)
   const target = chosenTarget(input.quality?.chosen)
   return {
     counters: read.now,
     stepReason: input.quality?.reason ?? null,
+    implementation: text(stat.encoderImplementation) ?? null,
     sample: {
       ...base,
       ...layersOf(input.report, base.codec),
@@ -71,7 +103,13 @@ export function shareSample(
       target_fps: target.fps ?? input.requestedFps,
       limitation: text(stat.qualityLimitationReason) ?? '',
       step: input.quality?.step ?? null,
-      step_changes: stepChanges
+      step_changes: stepChanges,
+      loss_pct: uplinkLoss(read, remote),
+      jitter_ms: ms(remote?.jitter),
+      qp: intervalQp(read),
+      source_width: input.source?.width ?? null,
+      source_height: input.source?.height ?? null,
+      surface: input.source?.surface ?? null
     }
   }
 }

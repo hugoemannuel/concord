@@ -155,6 +155,71 @@ describe('shareSample', () => {
     })
   })
 
+  it('QP médio do intervalo e a perda e o jitter da subida (o que o servidor diz que recebeu)', () => {
+    const withRemote = (
+      extra: Record<string, unknown>,
+      lost: number,
+      jitter: number
+    ): ScreenStatsInput => {
+      const input = shareInput(extra)
+      const stats = new Map(input.report as unknown as Map<string, unknown>)
+      stats.set('r1', {
+        id: 'r1',
+        type: 'remote-inbound-rtp',
+        kind: 'video',
+        localId: 'o1',
+        packetsLost: lost,
+        jitter
+      })
+      stats.set('r2', {
+        id: 'r2',
+        type: 'remote-inbound-rtp',
+        kind: 'video',
+        localId: 'o2',
+        packetsLost: 999
+      })
+      return { ...input, report: stats as unknown as RTCStatsReport }
+    }
+    const first = shareSample(
+      withRemote({ framesEncoded: 1000, qpSum: 30_000, packetsSent: 1000 }, 10, 0.01),
+      null,
+      0
+    )!
+    expect(first.sample).toMatchObject({ qp: null, loss_pct: null, jitter_ms: 10 })
+    const next = shareSample(
+      withRemote(
+        { timestamp: 40_000, framesEncoded: 1600, qpSum: 48_600, packetsSent: 2000 },
+        30,
+        0.015
+      ),
+      first.counters,
+      0
+    )!
+    expect(next.sample).toMatchObject({ qp: 31, loss_pct: 2, jitter_ms: 15 })
+  })
+
+  it('sem qpSum nem remote-inbound-rtp: QP, perda e jitter vazios', () => {
+    const first = shareSample(shareInput({ framesEncoded: 10 }), null, 0)!
+    const next = shareSample(
+      shareInput({ timestamp: 40_000, framesEncoded: 20 }),
+      first.counters,
+      0
+    )!
+    expect(next.sample).toMatchObject({ qp: null, loss_pct: null, jitter_ms: null })
+  })
+
+  it('a fonte da live (tamanho antes de reduzir e o tipo) e o nome do codificador', () => {
+    const source = { width: 2560, height: 1440, surface: 'monitor' }
+    const result = shareSample({ ...shareInput({}), source }, null, 0)!
+    expect(result.sample).toMatchObject({
+      source_width: 2560,
+      source_height: 1440,
+      surface: 'monitor'
+    })
+    expect(result.implementation).toBe('MediaFoundationVideoEncodeAccelerator')
+    expect(shareSample(shareInput({}), null, 0)!.sample.surface).toBeNull()
+  })
+
   it('sem envio de vídeo: null', () => {
     expect(shareSample({ ...shareInput({}), report: report({}) }, null, 0)).toBeNull()
   })
