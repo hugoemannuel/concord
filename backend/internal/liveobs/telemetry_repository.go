@@ -107,8 +107,8 @@ func upsertSessions(ctx context.Context, tx pgx.Tx, userID string, reps []Report
 func queueUpsertSession(batch *pgx.Batch, userID string, rep Report) {
 	c := rep.Context
 	batch.Queue(`INSERT INTO live_sessions
-			(id, user_id, kind, call_id, streamer_id, os, app_version, target, gpu, network, cores, ended_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN $12 THEN NOW() END)
+			(id, user_id, kind, call_id, streamer_id, os, app_version, target, gpu, network, cores, device, ended_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN NOW() END)
 		ON CONFLICT (id) DO UPDATE SET
 			last_seen_at = NOW(),
 			network = EXCLUDED.network,
@@ -116,7 +116,7 @@ func queueUpsertSession(batch *pgx.Batch, userID string, rep Report) {
 		WHERE live_sessions.user_id = EXCLUDED.user_id
 		RETURNING (xmax = 0)`,
 		rep.SessionID, userID, rep.Kind, nullable(rep.CallID), nullable(rep.StreamerID),
-		c.OS, c.AppVersion, c.Target, c.GPU, c.Network, c.Cores, rep.Ended,
+		c.OS, c.AppVersion, c.Target, c.GPU, c.Network, c.Cores, c.Device, rep.Ended,
 	)
 }
 

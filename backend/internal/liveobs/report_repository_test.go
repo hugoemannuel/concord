@@ -121,3 +121,27 @@ func TestReportRepositoryAgregaOsSinaisDaVoz(t *testing.T) {
 		}
 	}
 }
+
+func TestReportRepositoryLeOContextoESinaisDoCelular(t *testing.T) {
+	db := newTelemetryDB(t)
+	ctx := context.Background()
+	tel := NewTelemetryRepository(db)
+	c := ClientContext{OS: "Android 14", Target: "android", Device: "motorola moto g54", Network: "cellular-4g"}
+	events := []Event{{Type: EventBackground}, {Type: EventForeground}, {Type: EventBackground},
+		{Type: EventNetworkChanged, Detail: "wifi → cellular-4g"}}
+	r := Report{SessionID: sessionA, Kind: KindCall, CallID: callA, Context: c, Sample: &Sample{Seconds: 60}, Events: events}
+	if err := tel.Save(ctx, userAna, r); err != nil {
+		t.Fatal(err)
+	}
+	got, err := NewReportRepository(db).Sessions(ctx, time.Now().Add(-time.Hour))
+	if err != nil || len(got) != 1 {
+		t.Fatalf("sessões = %v, %v", got, err)
+	}
+	s := got[0]
+	if s.Device != "motorola moto g54" || s.Network != "cellular-4g" || s.Target != "android" {
+		t.Errorf("contexto = %+v", s)
+	}
+	if s.Backgrounds != 2 || s.NetworkChanges != 1 {
+		t.Errorf("segundo plano = %d, trocas de rede = %d; quer 2 e 1", s.Backgrounds, s.NetworkChanges)
+	}
+}

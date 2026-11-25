@@ -8,19 +8,22 @@ import "time"
 
 // SessionStats: uma sessão com as amostras resumidas.
 type SessionStats struct {
-	ID         string    `json:"id"`
-	UserID     string    `json:"user_id"`
-	Username   string    `json:"username"`
-	Kind       string    `json:"kind"`
-	CallID     string    `json:"call_id"`
-	StreamerID string    `json:"streamer_id"`
-	OS         string    `json:"os"`
-	GPU        string    `json:"gpu"`
-	AppVersion string    `json:"app_version"`
-	Target     string    `json:"target"`
-	Cores      int       `json:"cores"`
-	StartedAt  time.Time `json:"started_at"`
-	EndedAt    time.Time `json:"ended_at"`
+	ID         string `json:"id"`
+	UserID     string `json:"user_id"`
+	Username   string `json:"username"`
+	Kind       string `json:"kind"`
+	CallID     string `json:"call_id"`
+	StreamerID string `json:"streamer_id"`
+	OS         string `json:"os"`
+	GPU        string `json:"gpu"`
+	AppVersion string `json:"app_version"`
+	Target     string `json:"target"`
+	Cores      int    `json:"cores"`
+	// Network e Device: a última rede vista e o celular (ADR 0070).
+	Network   string    `json:"network"`
+	Device    string    `json:"device"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
 	// Seconds: soma dos intervalos medidos (base dos "por minuto").
 	Seconds float64 `json:"seconds"`
 	Codec   string  `json:"codec"`
@@ -52,6 +55,9 @@ type SessionStats struct {
 	// Reconnects e Failures: eventos reconectou e conexao_falhou da sessão.
 	Reconnects int64 `json:"reconnects"`
 	Failures   int64 `json:"failures"`
+	// Backgrounds e NetworkChanges: eventos segundo_plano e rede_trocou (ADR 0070).
+	Backgrounds    int64 `json:"backgrounds"`
+	NetworkChanges int64 `json:"network_changes"`
 }
 
 // LiveRow: uma live (sessão de quem transmite) com quem assistiu.

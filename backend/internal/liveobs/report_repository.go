@@ -27,7 +27,7 @@ const maxSessions = 3000
 // controlador num degrau abaixo do escolhido.
 const sessionStatsSQL = `
 SELECT s.id, s.user_id, COALESCE(u.username, ''), s.kind, COALESCE(s.call_id::text, ''),
-	COALESCE(s.streamer_id::text, ''), s.os, s.gpu, s.app_version, s.target, s.cores,
+	COALESCE(s.streamer_id::text, ''), s.os, s.gpu, s.app_version, s.target, s.cores, s.network, s.device,
 	s.started_at, COALESCE(s.ended_at, s.last_seen_at),
 	COALESCE(SUM(x.seconds), 0),
 	COALESCE(mode() WITHIN GROUP (ORDER BY x.codec) FILTER (WHERE x.codec <> ''), ''),
@@ -45,7 +45,9 @@ SELECT s.id, s.user_id, COALESCE(u.username, ''), s.kind, COALESCE(s.call_id::te
 	AVG(x.capture_fps), AVG(x.recv_fps), AVG(x.codec_ms), AVG(x.concealed_pct), AVG(x.recv_loss_pct),
 	AVG(x.connect_ms),
 	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'reconectou'),
-	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'conexao_falhou')
+	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'conexao_falhou'),
+	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'segundo_plano'),
+	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'rede_trocou')
 FROM live_sessions s
 LEFT JOIN users u ON u.id = s.user_id
 LEFT JOIN live_samples x ON x.session_id = s.id
@@ -56,10 +58,11 @@ LIMIT $2`
 
 func (s *SessionStats) fields() []any {
 	return []any{&s.ID, &s.UserID, &s.Username, &s.Kind, &s.CallID, &s.StreamerID, &s.OS, &s.GPU,
-		&s.AppVersion, &s.Target, &s.Cores, &s.StartedAt, &s.EndedAt, &s.Seconds, &s.Codec, &s.Transport,
+		&s.AppVersion, &s.Target, &s.Cores, &s.Network, &s.Device, &s.StartedAt, &s.EndedAt, &s.Seconds, &s.Codec, &s.Transport,
 		&s.FPS, &s.TargetFPS, &s.Height, &s.HardwareRatio, &s.BelowRatio, &s.CPURatio, &s.BandwidthRatio,
 		&s.BackupRatio, &s.PausedRatio, &s.Freezes, &s.FreezeMs, &s.StepChanges, &s.BitrateKbps, &s.LossPct, &s.RTTMs,
-		&s.CaptureFPS, &s.RecvFPS, &s.CodecMs, &s.ConcealedPct, &s.RecvLossPct, &s.ConnectMs, &s.Reconnects, &s.Failures}
+		&s.CaptureFPS, &s.RecvFPS, &s.CodecMs, &s.ConcealedPct, &s.RecvLossPct, &s.ConnectMs, &s.Reconnects, &s.Failures,
+		&s.Backgrounds, &s.NetworkChanges}
 }
 
 // Sessions: as sessões vistas desde from, agregadas, da mais recente.
