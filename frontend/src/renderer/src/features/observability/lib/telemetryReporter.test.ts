@@ -413,10 +413,13 @@ describe('createTelemetryReporter: conexão e codec', () => {
     const failed = watches.filter((r) => r.events.some((e) => e.type === 'decoder_falhou'))
     expect(failed).toHaveLength(1)
     expect(failed[0]).toMatchObject({ streamer_id: 'bia' })
-    expect(failed[0].events).toContainEqual({
-      type: 'decoder_falhou',
-      detail: 'h265: 13 chegam, 0,4 decodificados por segundo'
-    })
+    // Cada evento leva também o ago_ms (há quanto tempo aconteceu): confere só o tipo e o detalhe.
+    expect(failed[0].events).toContainEqual(
+      expect.objectContaining({
+        type: 'decoder_falhou',
+        detail: 'h265: 13 chegam, 0,4 decodificados por segundo'
+      })
+    )
   })
 
   it('regressão: parou de assistir antes da leitura seguinte, o "decoder_falhou" vai no fim da sessão', async () => {
