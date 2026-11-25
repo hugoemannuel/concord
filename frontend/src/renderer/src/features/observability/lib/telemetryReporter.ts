@@ -10,12 +10,7 @@ import {
   type TimedEvent
 } from './telemetryOutbox'
 import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
-import type {
-  ClientContext,
-  SessionKind,
-  TelemetryReport,
-  TelemetrySample
-} from './telemetryTypes'
+import type { ClientContext, SessionKind, TelemetryReport, TelemetrySample } from './telemetryTypes'
 
 // Telemetria das lives e calls (docs/adr/0029 e 0032): a cada leitura (20 s), uma
 // sessão por coisa ativa — a call, a minha live e cada live que assisto — e

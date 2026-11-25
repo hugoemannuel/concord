@@ -233,7 +233,10 @@ describe('createTelemetryReporter', () => {
     t.deps.send = vi.fn(async () => {
       throw new Error('servidor fora')
     })
-    connection.pending = { connectMs: null, events: [{ type: 'conexao_falhou', detail: 'x', at: 0 }] }
+    connection.pending = {
+      connectMs: null,
+      events: [{ type: 'conexao_falhou', detail: 'x', at: 0 }]
+    }
     t.set({ callId: null, sharing: false, watching: [] })
     await t.tick()
     t.deps.send = send
@@ -251,7 +254,10 @@ describe('createTelemetryReporter', () => {
     const connection = fakeConnection({ connectMs: null, events: [] })
     t.deps.connection = connection
     await t.tick()
-    connection.pending = { connectMs: null, events: [{ type: 'reconectou', detail: '3 s', at: 70_000 }] }
+    connection.pending = {
+      connectMs: null,
+      events: [{ type: 'reconectou', detail: '3 s', at: 70_000 }]
+    }
     t.set({ callId: null, sharing: false, watching: [] })
     now = 130_000
     await t.tick()
