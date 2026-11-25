@@ -7,8 +7,13 @@ import (
 	"strings"
 )
 
-// parseMemUsed: 100 × (total − disponível) / total.
-func parseMemUsed(meminfo []byte) (float64, error) {
+// Memory: memória usada (%), disponível e swap usado (MB).
+type Memory struct {
+	UsedPercent, AvailableMB, SwapUsedMB float64
+}
+
+// meminfoValues: "Chave: valor kB" → valor (kB).
+func meminfoValues(meminfo []byte) map[string]float64 {
 	values := map[string]float64{}
 	scanner := bufio.NewScanner(bytes.NewReader(meminfo))
 	for scanner.Scan() {
@@ -20,9 +25,24 @@ func parseMemUsed(meminfo []byte) (float64, error) {
 			values[key] = v
 		}
 	}
+	return values
+}
+
+// parseMemUsed: 100 × (total − disponível) / total.
+func parseMemUsed(meminfo []byte) (float64, error) {
+	m, err := parseMemory(meminfo)
+	return m.UsedPercent, err
+}
+
+func parseMemory(meminfo []byte) (Memory, error) {
+	values := meminfoValues(meminfo)
 	total, available := values["MemTotal"], values["MemAvailable"]
 	if total <= 0 {
-		return 0, errFormat
+		return Memory{}, errFormat
 	}
-	return (total - available) * 100 / total, nil
+	return Memory{
+		UsedPercent: (total - available) * 100 / total,
+		AvailableMB: available / 1024,
+		SwapUsedMB:  max(values["SwapTotal"]-values["SwapFree"], 0) / 1024,
+	}, nil
 }
