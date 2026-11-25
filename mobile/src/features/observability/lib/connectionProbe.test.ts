@@ -5,22 +5,23 @@ import { createCallEventLog } from './callEventLog'
 import { createConnectionProbe } from './connectionProbe'
 
 function fakeMedia(connect: () => Promise<void>) {
-  const listeners: ((s: MediaConnection) => void)[] = []
+  const listeners: ((s: MediaConnection, info?: { expected: boolean }) => void)[] = []
   const media = {
     connect: jest.fn(connect),
-    onConnection: jest.fn((l: (s: MediaConnection) => void) => {
+    onConnection: jest.fn((l: (s: MediaConnection, info?: { expected: boolean }) => void) => {
       listeners.push(l)
       return () => {}
     })
   } as unknown as CallMedia
-  return { media, emit: (s: MediaConnection) => listeners.forEach((l) => l(s)) }
+  return { media, emit: (s: MediaConnection, info?: { expected: boolean }) => listeners.forEach((l) => l(s, info)) }
 }
 
 function setup(phase: CallPhase = 'connecting') {
   const log = createCallEventLog(() => 0)
   let current = phase
-  const probe = createConnectionProbe(log, () => current)
-  return { log, probe, setPhase: (p: CallPhase) => (current = p) }
+  let callId = 'c1'
+  const probe = createConnectionProbe(log, () => ({ phase: current, callId }))
+  return { log, probe, setPhase: (p: CallPhase) => (current = p), setCallId: (id: string) => (callId = id) }
 }
 
 describe('createConnectionProbe: API', () => {
@@ -57,6 +58,39 @@ describe('createConnectionProbe: mídia', () => {
     const { media } = fakeMedia(() => Promise.reject(new Error('could not establish signal connection: wss://voz.exemplo/rtc?access_token=abc')))
     await expect(probe.media(media).connect('wss://x', 't')).rejects.toThrow()
     expect(log.take()).toEqual([{ type: 'conexao_falhou', detail: 'entrando (voz): could not establish signal connection: …' }])
+  })
+
+  // Regressão: cancelar ou trocar de canal durante a entrada (disconnect com a sala conectando) contava como falha.
+  it('a entrada interrompida pela própria pessoa não é falha', async () => {
+    const { log, probe, setPhase, setCallId } = setup()
+    let reject!: (err: Error) => void
+    const { media } = fakeMedia(() => new Promise((_, r) => (reject = r)))
+    const leaving = probe.media(media).connect('wss://x', 't')
+    setPhase('idle')
+    reject(new Error('Client initiated disconnect'))
+    await expect(leaving).rejects.toThrow()
+    setPhase('connecting')
+    const moving = probe.media(media).connect('wss://x', 't')
+    setCallId('c2')
+    reject(new Error('Client initiated disconnect'))
+    await expect(moving).rejects.toThrow()
+    expect(log.take()).toEqual([])
+  })
+
+  it('o motivo não leva IP nem porta', async () => {
+    const { log, probe } = setup()
+    const { media } = fakeMedia(() => Promise.reject(new Error('failed to connect 10.0.0.5:7880 timeout')))
+    await expect(probe.media(media).connect('wss://x', 't')).rejects.toThrow()
+    expect(log.take()[0].detail).toBe('entrando (voz): failed to connect … timeout')
+  })
+
+  // Regressão: ser tirado da call pelo servidor (desconectado, castigo, canal fechado) contava como queda.
+  it('saída esperada pelo servidor não é queda', () => {
+    const { log, probe } = setup('active')
+    const { media, emit } = fakeMedia(() => Promise.resolve())
+    probe.media(media)
+    emit('disconnected', { expected: true })
+    expect(log.take()).toEqual([])
   })
 
   it('a voz caiu no meio da call (conectada ou reconectando)', () => {

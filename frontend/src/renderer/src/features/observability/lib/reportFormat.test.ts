@@ -42,7 +42,8 @@ describe('rótulos', () => {
   })
   it('plataforma, com o aparelho e a rede quando houver', () => {
     expect(platformLabel({ target: 'desktop', device: '', network: '' })).toBe('Desktop')
-    expect(platformLabel({ target: 'web', device: '', network: '4g' })).toBe('Navegador · 4g')
+    // No navegador a "rede" é a estimativa de velocidade (4g mesmo no Wi-Fi): não aparece.
+    expect(platformLabel({ target: 'web', device: '', network: '4g' })).toBe('Navegador')
     expect(
       platformLabel({ target: 'android', device: 'samsung SM-A515F', network: 'cellular-4g' })
     ).toBe('App Android · samsung SM-A515F · cellular-4g')

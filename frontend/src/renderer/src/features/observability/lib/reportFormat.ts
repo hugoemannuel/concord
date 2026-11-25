@@ -60,9 +60,13 @@ const PLATFORMS: Record<string, string> = {
   android: 'App Android'
 }
 
-/** "App Android · samsung SM-A515F · wifi": de onde veio a sessão (docs/adr/0070). */
+/**
+ * "App Android · samsung SM-A515F · wifi": de onde veio a sessão (docs/adr/0070). A rede só no
+ * Android: no desktop/web é a estimativa de velocidade do navegador (4g mesmo no Wi-Fi).
+ */
 export function platformLabel(s: { target: string; device: string; network: string }): string {
-  const parts = [PLATFORMS[s.target] ?? 'plataforma desconhecida', s.device, s.network]
+  const network = s.target === 'android' ? s.network : ''
+  const parts = [PLATFORMS[s.target] ?? 'plataforma desconhecida', s.device, network]
   return parts.filter(Boolean).join(' · ')
 }
 

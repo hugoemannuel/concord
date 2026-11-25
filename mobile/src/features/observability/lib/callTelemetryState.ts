@@ -7,4 +7,7 @@ import { createConnectionProbe } from './connectionProbe'
 
 export const callEventLog = createCallEventLog()
 
-export const connectionProbe = createConnectionProbe(callEventLog, () => useCallSessionStore.getState().phase)
+export const connectionProbe = createConnectionProbe(callEventLog, () => {
+  const { phase, callId } = useCallSessionStore.getState()
+  return { phase, callId }
+})

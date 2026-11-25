@@ -57,6 +57,10 @@ async function closeRoom(current: Room | null): Promise<void> {
   if (current.state !== ConnectionState.Disconnected) await current.disconnect()
 }
 
+/** Saída pedida pelo servidor ou por mim, não queda de rede (a telemetria não conta como "caiu", ADR 0070). */
+const expectedDisconnect = (reason: DisconnectReason | undefined): boolean =>
+  reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.ROOM_DELETED || reason === DisconnectReason.CLIENT_INITIATED
+
 /** Faixas que capturam no aparelho (tela e câmera): liberadas no nativo ao sair, senão a captura fica presa. */
 const isNativeSource = (source: Track.Source): boolean => source === Track.Source.ScreenShare || source === Track.Source.Camera
 
@@ -64,7 +68,7 @@ export function createLiveKitMedia(): CallMedia {
   let room: Room | null = null
   let listening = true
   const speakerListeners = new Set<(ids: string[]) => void>()
-  const connectionListeners = new Set<(state: MediaConnection) => void>()
+  const connectionListeners = new Set<(state: MediaConnection, info?: { expected: boolean }) => void>()
   const screenListeners = new Set<(ids: string[]) => void>()
   const peerListeners = new Set<(peers: Record<string, string>) => void>()
   const cameraListeners = new Set<(ids: string[]) => void>()
@@ -73,7 +77,7 @@ export function createLiveKitMedia(): CallMedia {
   // A telemetria lê o getStats() desta sala (docs/adr/0070).
   let stats: CallStatsReader | null = null
 
-  const emitConnection = (state: MediaConnection): void => connectionListeners.forEach((l) => l(state))
+  const emitConnection = (state: MediaConnection, info?: { expected: boolean }): void => connectionListeners.forEach((l) => l(state, info))
 
   /** Quem está transmitindo a tela (eu e quem publicou a faixa de tela). */
   function emitScreens(current: Room): void {
@@ -111,7 +115,7 @@ export function createLiveKitMedia(): CallMedia {
     next.on(RoomEvent.Disconnected, (reason) => {
       // Derrubado pelo servidor ou por outro aparelho: as publicações já sumiram, então libera pelo registro.
       native.releaseAll()
-      emitConnection(reason === DisconnectReason.DUPLICATE_IDENTITY ? 'replaced' : 'disconnected')
+      emitConnection(reason === DisconnectReason.DUPLICATE_IDENTITY ? 'replaced' : 'disconnected', { expected: expectedDisconnect(reason) })
     })
     next.on(RoomEvent.ParticipantConnected, () => {
       setRemoteVolume(next, listening)

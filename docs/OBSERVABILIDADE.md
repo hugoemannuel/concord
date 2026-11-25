@@ -50,8 +50,9 @@ manda o fim. Fora de call não lê, não ouve e não manda nada.
 | `gpu`, `cores` | vazio e 0 (sem API no React Native) |
 | voz: RTT, perda, jitter, transporte, `concealed_pct`, `recv_loss_pct`, `connect_ms` | iguais ao desktop (o `getStats()` do libwebrtc nativo usa os nomes do W3C) |
 | `connect_ms` | de "entrando" até a voz conectar (numa DM, conta do atender) |
-| `conexao_falhou` | `entrando (acesso)`: o nosso servidor, só rede ou erro 5xx (sala trancada e sem permissão não contam); `entrando (voz)`: o LiveKit; `conectada: caiu`, `reconectando: caiu` |
+| `conexao_falhou` | `entrando (acesso)`: o nosso servidor, só rede ou erro 5xx (sala trancada e sem permissão não contam); `entrando (voz)`: o LiveKit; `conectada: caiu`, `reconectando: caiu`. Não contam: sair, cancelar no meio da entrada, entrar em outro aparelho, ser tirado da sala pelo servidor |
 | live: codec, placa/processador, resolução, fps, `capture_fps`, `recv_fps`, `codec_ms`, perda, jitter, congelamentos, pausa | iguais ao desktop; placa × processador pelo nome do MediaCodec quando o WebRTC não diz (`c2.qti...`, `OMX.Exynos...` = placa; `c2.android...`, `OMX.google...`, `libvpx` = processador) |
+| `streamer_id` (live do helper nativo, `<id>:screen`) | o dono da live (sem o sufixo) |
 | `target_fps` (minha tela) | o fps pedido na publicação; null se for o padrão do SDK |
 | degrau, trocas de degrau, reserva, `codec_escolhido`, `target_height` | não manda (o app não tem controlador, reserva nem escolha de codec) |
 

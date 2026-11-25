@@ -1,7 +1,7 @@
 import { createTelemetryLoop, inCall } from './telemetryLoop'
 
 function setup() {
-  const deps = { tick: jest.fn().mockResolvedValue(undefined), start: jest.fn(), stop: jest.fn() }
+  const deps = { tick: jest.fn().mockResolvedValue(undefined), start: jest.fn(), stop: jest.fn(), pending: jest.fn(() => false) }
   return { deps, loop: createTelemetryLoop(deps, 20_000) }
 }
 
@@ -41,6 +41,15 @@ describe('createTelemetryLoop', () => {
     expect(deps.tick).toHaveBeenCalledTimes(4)
     jest.advanceTimersByTime(60_000)
     expect(deps.tick).toHaveBeenCalledTimes(4)
+  })
+
+  // Regressão: a entrada que falhou ao pedir acesso (sem id ainda) nunca ligava o timer e o evento ia na call seguinte.
+  it('fora de call com evento pendente (a entrada falhou antes de ter id): manda uma leitura', () => {
+    const { deps, loop } = setup()
+    deps.pending.mockReturnValue(true)
+    loop.sync(false)
+    expect(deps.tick).toHaveBeenCalledTimes(1)
+    expect(deps.start).not.toHaveBeenCalled()
   })
 
   it('desmontar com a call no ar para o timer e os sinais', () => {

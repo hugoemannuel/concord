@@ -2,7 +2,7 @@ import type { ScreenStatsInput, StatsReport } from '../../call/lib/callStatsSour
 import { callSample } from './telemetryCall'
 import { sampleEvents } from './telemetryEvents'
 import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
-import type { ClientContext, SessionKind, TelemetryEvent, TelemetryReport, TelemetrySample } from './telemetryTypes'
+import { emptySample, type ClientContext, type SessionKind, type TelemetryEvent, type TelemetryReport, type TelemetrySample } from './telemetryTypes'
 
 // Telemetria das lives e calls no Android (cópia adaptada do desktop, observability/lib/telemetryReporter;
 // docs/adr/0029, 0032 e 0070): a cada leitura (20 s), uma sessão por coisa ativa — a call, a minha tela e a
@@ -44,8 +44,14 @@ interface Wanted {
   key: string
   kind: SessionKind
   callId: string
+  /** Dono da live (vai ao backend como streamer_id). */
   streamerId: string
+  /** Quem publica no LiveKit: a pessoa ou o helper nativo (`<id>:screen`, ADR 0031). */
+  identity: string
 }
+
+/** A live do helper nativo sai como `<userId>:screen`; o backend quer o dono. */
+const ownerOf = (identity: string): string => identity.replace(/:screen$/, '')
 
 interface Session extends Wanted {
   id: string
@@ -59,7 +65,7 @@ type Draft = Omit<TelemetryReport, 'context'>
 function wantedSessions(snap: CallSnapshot): Wanted[] {
   const callId = snap.callId
   if (!callId) return []
-  const one = (kind: SessionKind, streamerId = ''): Wanted => ({ key: `${callId}|${kind}|${streamerId}`, kind, callId, streamerId })
+  const one = (kind: SessionKind, identity = ''): Wanted => ({ key: `${callId}|${kind}|${identity}`, kind, callId, streamerId: ownerOf(identity), identity })
   return [one('call'), ...(snap.sharing ? [one('transmite')] : []), ...snap.watching.map((userId) => one('assiste', userId))]
 }
 
@@ -83,7 +89,7 @@ export function createTelemetryReporter(deps: ReporterDeps): { tick: () => Promi
       if (s.ticks % CALL_EVERY !== 0) return null
       return callSample((await deps.readCall()) ?? new Map(), s.counters)
     }
-    const input = await deps.readScreen(s.streamerId, s.kind === 'transmite')
+    const input = await deps.readScreen(s.identity, s.kind === 'transmite')
     if (!input) return null
     return s.kind === 'assiste' ? watchSample(input, s.counters) : shareSample(input, s.counters)
   }
@@ -95,7 +101,8 @@ export function createTelemetryReporter(deps: ReporterDeps): { tick: () => Promi
     const extra = s.kind === 'call' ? await deps.callExtras() : { connectMs: null, events: [] }
     const sample = { ...result.sample, connect_ms: extra.connectMs ?? result.sample.connect_ms }
     const events = [...extra.events, ...sampleEvents(s.kind, s.last, sample)]
-    s.counters = result.counters
+    // Sem relatório (a voz ainda entrando, ou sozinho e mudo) não vira base: a próxima leitura é a primeira.
+    if (result.counters.timestamp > 0) s.counters = result.counters
     s.last = sample
     return draft(s, sample, events, false)
   }
@@ -105,10 +112,16 @@ export function createTelemetryReporter(deps: ReporterDeps): { tick: () => Promi
     const ended: Draft[] = []
     for (const [key, s] of sessions) {
       if (keys.has(key)) continue
-      ended.push(draft(s, null, s.kind === 'call' ? (await deps.callExtras()).events : [], true))
+      ended.push(s.kind === 'call' ? endCall(s, await deps.callExtras()) : draft(s, null, [], true))
       sessions.delete(key)
     }
     return ended
+  }
+
+  /** O fim da voz leva os eventos e o tempo para entrar que sobrou (call curta ou entrada lenta). */
+  function endCall(s: Session, extra: CallExtras): Draft {
+    const sample = extra.connectMs === null ? null : { ...emptySample(), connect_ms: extra.connectMs }
+    return draft(s, sample, extra.events, true)
   }
 
   /** Fora de call, sem sessão de voz para levar: a entrada falhou antes da primeira leitura. */

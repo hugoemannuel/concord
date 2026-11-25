@@ -110,7 +110,17 @@ manda uma sessão de voz só com os eventos e o fim.
 - O backend passa a gravar `target` só se for `desktop`, `web` ou `android` (os apps atuais já
   mandam esses).
 - Privacidade: números técnicos, o modelo do aparelho, o tipo de rede e a saída de áudio. Nada
-  do que se fala ou mostra, nenhum IP, SSID ou operadora.
+  do que se fala ou mostra, nenhum IP, SSID ou operadora (o motivo do erro sai sem endereço nem
+  IP).
+- Os eventos são levados antes do envio: se o POST falhar, os daquela leitura se perdem (é só
+  telemetria, como no desktop).
+- "Caiu com o app em segundo plano" e "Caiu ao trocar de rede" são coincidência na mesma sessão,
+  não causa provada: a linha do tempo dos eventos (consulta no OBSERVABILIDADE.md) confirma.
+- Não contam como queda: sair por vontade própria, entrar em outro aparelho, ser tirado da sala
+  pelo servidor (desconectado, castigo, canal fechado) e cancelar no meio da entrada.
+- A rede do desktop/web é a estimativa do navegador (`4g` mesmo no Wi-Fi); no Android é o tipo
+  real (`cellular-4g`). Ficam em linhas separadas na distribuição e o painel só mostra a rede ao
+  lado da plataforma no Android.
 
 ## Fontes
 

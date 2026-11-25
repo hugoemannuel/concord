@@ -62,7 +62,8 @@ export function useCallTelemetry(): void {
           signals.reset()
           unwatch = watchDevice(signals)
         },
-        stop: () => unwatch()
+        stop: () => unwatch(),
+        pending: () => callEventLog.pending()
       },
       TELEMETRY_INTERVAL_MS
     )

@@ -30,6 +30,21 @@ export interface CallStatsReader {
 
 let active: CallStatsReader | null = null
 
+/** Leitura que não responde nisso (faixa descartada no meio) desiste: a telemetria não pode travar. */
+const READ_TIMEOUT_MS = 5000
+
+function within<T>(read: Promise<T> | undefined, fallback: T): Promise<T> {
+  if (!read) return Promise.resolve(fallback)
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), READ_TIMEOUT_MS)
+    const done = (value: T): void => {
+      clearTimeout(timer)
+      resolve(value)
+    }
+    read.then(done, () => done(fallback))
+  })
+}
+
 export function setActiveCallStats(reader: CallStatsReader): void {
   active = reader
 }
@@ -38,14 +53,14 @@ export function clearActiveCallStats(reader: CallStatsReader): void {
   if (active === reader) active = null
 }
 
-export async function readActiveScreen(userId: string, local: boolean): Promise<ScreenStatsInput | null> {
-  return (await active?.readScreen(userId, local)) ?? null
+export function readActiveScreen(userId: string, local: boolean): Promise<ScreenStatsInput | null> {
+  return within(active?.readScreen(userId, local), null)
 }
 
-export async function readActiveCall(): Promise<StatsReport | null> {
-  return (await active?.readCall()) ?? null
+export function readActiveCall(): Promise<StatsReport | null> {
+  return within(active?.readCall(), null)
 }
 
-export async function readActiveAudioOutputs(): Promise<string[]> {
-  return (await active?.readAudioOutputs().catch(() => [])) ?? []
+export function readActiveAudioOutputs(): Promise<string[]> {
+  return within(active?.readAudioOutputs(), [])
 }

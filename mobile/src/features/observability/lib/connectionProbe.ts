@@ -14,10 +14,13 @@ interface CallApi {
   getCallToken: (...args: never[]) => Promise<unknown>
 }
 
-/** Sem endereços (o do LiveKit leva o token na URL) e curto. */
+/** Sem endereços (o do LiveKit leva o token na URL) nem IP, e curto. */
 function reasonOf(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err)
-  return message.replace(/\b\w+:\/\/\S+/g, '…').slice(0, MAX_REASON)
+  return message
+    .replace(/\b\w+:\/\/\S+/g, '…')
+    .replace(/\b\d{1,3}(\.\d{1,3}){3}(:\d+)?/g, '…')
+    .slice(0, MAX_REASON)
 }
 
 function accessFailure(err: unknown): string | null {
@@ -26,7 +29,12 @@ function accessFailure(err: unknown): string | null {
   return err.status >= 500 ? `HTTP ${err.status}` : null
 }
 
-export function createConnectionProbe(log: CallEventLog, phase: () => CallPhase) {
+export interface ProbeSession {
+  phase: CallPhase
+  callId: string | null
+}
+
+export function createConnectionProbe(log: CallEventLog, session: () => ProbeSession) {
   const failed = (where: string, reason: string): void => log.add('conexao_falhou', `${where}: ${reason}`)
 
   function watched<A extends unknown[], R>(call: (...args: A) => Promise<R>, onError: (err: unknown) => void) {
@@ -50,13 +58,24 @@ export function createConnectionProbe(log: CallEventLog, phase: () => CallPhase)
       return { ...api, startCall: watched(api.startCall, onAccessError), getCallToken: watched(api.getCallToken, onAccessError) }
     },
     media(media: CallMedia): CallMedia {
-      media.onConnection((state) => {
-        const now = phase()
-        if (state === 'disconnected' && (now === 'active' || now === 'reconnecting')) {
-          failed(now === 'active' ? 'conectada' : 'reconectando', 'caiu')
-        }
+      media.onConnection((state, info) => {
+        const { phase } = session()
+        // Tirado pelo servidor (desconectado, castigo, canal fechado) ou a sala acabou: não é queda.
+        if (state !== 'disconnected' || info?.expected) return
+        if (phase === 'active' || phase === 'reconnecting') failed(phase === 'active' ? 'conectada' : 'reconectando', 'caiu')
       })
-      return { ...media, connect: watched(media.connect.bind(media), (err) => failed('entrando (voz)', reasonOf(err))) }
+      const connect = async (url: string, token: string): Promise<void> => {
+        const before = session().callId
+        try {
+          await media.connect(url, token)
+        } catch (err) {
+          // Cancelou ou trocou de canal no meio da entrada (o disconnect rejeita o connect): não é falha.
+          const now = session()
+          if (now.phase === 'connecting' && now.callId === before) failed('entrando (voz)', reasonOf(err))
+          throw err
+        }
+      }
+      return { ...media, connect }
     }
   }
 }

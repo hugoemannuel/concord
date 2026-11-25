@@ -151,6 +151,37 @@ describe('createTelemetryReporter (Android)', () => {
     expect(t.sent[1].every((r) => r.ended)).toBe(true)
   })
 
+  // Regressão: a identidade da live do helper (`<id>:screen`) ia como streamer_id e o backend recusava o pedido todo.
+  it('live do helper nativo: lê pela identidade e manda o dono como streamer_id', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: ['6f1c1b7e-8a5e-4a51-9f2a-bbbbbbbbbbbb:screen'] })
+    const read = jest.fn(async () => receiving(20_000))
+    t.deps.readScreen = read
+    await t.tick()
+    expect(read).toHaveBeenCalledWith('6f1c1b7e-8a5e-4a51-9f2a-bbbbbbbbbbbb:screen', false)
+    expect(t.sent[0].find((r) => r.kind === 'assiste')!.streamer_id).toBe('6f1c1b7e-8a5e-4a51-9f2a-bbbbbbbbbbbb')
+  })
+
+  // Regressão: voz sem relatório (entrando, ou sozinho e mudo) virava base com hora 0 e a próxima amostra media o relógio todo.
+  it('voz sem relatório não vira base: a próxima amostra é a primeira', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: [] })
+    t.deps.readCall = async () => null
+    await t.tick()
+    t.deps.readCall = async () => report({ r: { type: 'remote-inbound-rtp', timestamp: 500_000 } })
+    for (let i = 0; i < 3; i++) await t.tick()
+    const calls = t.sent.flat().filter((r) => r.kind === 'call')
+    expect(calls.map((r) => r.sample?.seconds)).toEqual([0, 0])
+  })
+
+  // Regressão: em call curta (ou entrada lenta) o tempo para entrar era levado pelo fim e jogado fora.
+  it('o tempo para entrar que sobrou vai junto do fim da voz', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: [] })
+    await t.tick()
+    t.set(IDLE)
+    t.pending({ connectMs: 2400, events: [] })
+    await t.tick()
+    expect(t.sent[1][0]).toMatchObject({ kind: 'call', ended: true, sample: expect.objectContaining({ connect_ms: 2400, seconds: 0 }) })
+  })
+
   it('mais de 8 sessões: divide em pedidos', async () => {
     const watching = Array.from({ length: 9 }, (_, i) => `u${i}`)
     const t = setup({ callId: 'c1', sharing: false, watching })

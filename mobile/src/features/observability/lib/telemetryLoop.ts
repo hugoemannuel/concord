@@ -1,7 +1,8 @@
 import type { CallPhase } from '../../call/lib/callTypes'
 
 // Ritmo da telemetria no Android (docs/adr/0070): o timer só existe com a call em andamento, para não acordar o
-// aparelho fora dela. Ao sair, uma última leitura manda o fim das sessões e os eventos pendentes. Puro.
+// aparelho fora dela. Ao sair (ou quando a entrada falhou antes de ter id), uma última leitura manda o fim das
+// sessões e os eventos pendentes. Puro.
 
 const LIVE: CallPhase[] = ['connecting', 'active', 'reconnecting']
 
@@ -15,6 +16,8 @@ export interface LoopDeps {
   /** Liga os sinais do celular (AppState, NetInfo). */
   start(): void
   stop(): void
+  /** Há evento da voz guardado (a entrada falhou antes de a call ter id). */
+  pending(): boolean
 }
 
 export function createTelemetryLoop(deps: LoopDeps, everyMs: number) {
@@ -33,7 +36,7 @@ export function createTelemetryLoop(deps: LoopDeps, everyMs: number) {
       if (live && !timer) {
         deps.start()
         timer = setInterval(() => void deps.tick(), everyMs)
-      } else if (!live && halt()) {
+      } else if (!live && (halt() || deps.pending())) {
         void deps.tick()
       }
     },

@@ -34,6 +34,17 @@ describe('callStatsSource', () => {
     clearActiveCallStats(current)
   })
 
+  it('leitura que não responde em 5 s desiste (a telemetria não trava)', async () => {
+    jest.useFakeTimers()
+    const r = { ...reader(), readCall: jest.fn(() => new Promise<never>(() => {})) }
+    setActiveCallStats(r)
+    const reading = readActiveCall()
+    jest.advanceTimersByTime(5000)
+    expect(await reading).toBeNull()
+    clearActiveCallStats(r)
+    jest.useRealTimers()
+  })
+
   it('erro ao ler as saídas de áudio vira lista vazia', async () => {
     const r = { ...reader(), readAudioOutputs: jest.fn().mockRejectedValue(new Error('sem sessão')) }
     setActiveCallStats(r)
