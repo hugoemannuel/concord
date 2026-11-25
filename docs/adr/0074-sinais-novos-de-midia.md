@@ -84,7 +84,7 @@ que pesam mais:
 
 **Como**
 
-- Migration 000219: doze colunas nulas em `live_samples` (`qp`, `start_ms`,
+- Migration 000221: doze colunas nulas em `live_samples` (`qp`, `start_ms`,
   `source_width`, `source_height`, `surface`, `dsp_underrun_pct`, `dsp`,
   `playout_synth_pct`, `cam_fps`, `cam_height`, `cam_limitation`, `cam_freezes`).
   Nada em `live_sessions`. Dois tipos de evento a mais (`live_falhou`, `pc_dormiu`).

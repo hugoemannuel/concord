@@ -1,6 +1,6 @@
 package liveobs
 
-// Sinais novos de mídia (ADR 0074; migration 000219): por que a captura cai,
+// Sinais novos de mídia (ADR 0074; migration 000221): por que a captura cai,
 // quanto a live demora para entrar no ar, a qualidade da imagem, o
 // processamento do microfone, a saída de áudio e a câmera. Achatados na
 // amostra (o JSON é o mesmo objeto). Versões antigas do app não mandam: nulos.
@@ -59,7 +59,7 @@ func (m *MediaSignals) clean() {
 	m.CamFreezes = intIn(m.CamFreezes, maxCount)
 }
 
-// values: as colunas da migration 000219, na ordem do INSERT (texto vazio = nulo).
+// values: as colunas da migration 000221, na ordem do INSERT (texto vazio = nulo).
 func (m *MediaSignals) values() []any {
 	return []any{m.QP, m.StartMs, m.SourceWidth, m.SourceHeight, nullable(m.Surface),
 		m.DSPUnderrunPct, nullable(m.DSP), m.PlayoutSynthPct,

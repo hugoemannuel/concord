@@ -14,7 +14,7 @@ const (
 	telemetryMigration = "000173_live_telemetry.up.sql"
 	qualityMigration   = "000176_live_samples_quality.up.sql"
 	deviceMigration    = "000214_live_sessions_device.up.sql"
-	mediaMigration     = "000219_live_samples_media_signals.up.sql"
+	mediaMigration     = "000221_live_samples_media_signals.up.sql"
 )
 
 const (
