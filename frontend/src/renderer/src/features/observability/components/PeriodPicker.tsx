@@ -17,7 +17,7 @@ export function PeriodPicker({
           aria-pressed={d === days}
           onClick={() => onChange(d)}
           className={`focus-ring min-h-10 cursor-pointer rounded-md px-3 text-ds-sm font-medium transition-colors ${
-            d === days ? 'bg-brand text-white' : 'bg-fg/10 text-gray-200 hover:bg-fg/15'
+            d === days ? 'bg-brand text-white' : 'bg-fg/10 text-normal hover:bg-fg/15'
           }`}
         >
           {d === 1 ? '24 h' : `${d} dias`}

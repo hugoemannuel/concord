@@ -6,6 +6,6 @@ import { LiveReportContext } from '../hooks/useSharedLiveReport'
 export function LiveReportProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [days, setDays] = useState<number | null>(null)
   const { state, reload } = useLiveReport(days)
-  const value = useMemo(() => ({ state, reload, request: setDays }), [state, reload])
+  const value = useMemo(() => ({ days, state, reload, request: setDays }), [days, state, reload])
   return <LiveReportContext.Provider value={value}>{children}</LiveReportContext.Provider>
 }

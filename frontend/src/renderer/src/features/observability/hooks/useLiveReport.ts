@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../../../shared/api/client'
 import { fetchLiveReport, type LiveReport } from '../api/observability'
+import { stateForKey } from '../lib/stateForKey'
 
 export type ReportState =
   | { status: 'loading' }
@@ -15,23 +16,26 @@ export function failedState(err: unknown): ReportState {
     : { status: 'error' }
 }
 
+const LOADING: ReportState = { status: 'loading' }
+
 /** O painel dos últimos `days` dias (null = ainda não buscar); 403 = não é dev. */
 export function useLiveReport(days: number | null): { state: ReportState; reload: () => void } {
-  const [state, setState] = useState<ReportState>({ status: 'loading' })
+  const [entry, setEntry] = useState<{ key: string; state: ReportState } | null>(null)
   const [version, setVersion] = useState(0)
+  const key = `${days}:${version}`
   useEffect(() => {
     if (days === null) return
     let cancelled = false
-    setState({ status: 'loading' })
+    const done = (state: ReportState): void => {
+      if (!cancelled) setEntry({ key, state })
+    }
     fetchLiveReport(days)
-      .then((report) => !cancelled && setState({ status: 'ready', report }))
-      .catch((err: unknown) => {
-        if (!cancelled) setState(failedState(err))
-      })
+      .then((report) => done({ status: 'ready', report }))
+      .catch((err: unknown) => done(failedState(err)))
     return () => {
       cancelled = true
     }
-  }, [days, version])
+  }, [days, key])
   const reload = useCallback(() => setVersion((v) => v + 1), [])
-  return { state, reload }
+  return { state: stateForKey(entry, key, LOADING), reload }
 }

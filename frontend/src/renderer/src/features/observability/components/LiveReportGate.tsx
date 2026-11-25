@@ -11,9 +11,9 @@ export function LiveReportGate({
   children: (report: LiveReport) => React.ReactNode
 }): React.JSX.Element {
   const { state, reload } = useSharedLiveReport(days)
-  if (state.status === 'loading') return <p className="text-ds-sm text-gray-400">Carregando…</p>
+  if (state.status === 'loading') return <p className="text-ds-sm text-muted">Carregando…</p>
   if (state.status === 'forbidden') {
-    return <p className="text-ds-sm text-gray-400">Só os devs do Salinha veem esta página.</p>
+    return <p className="text-ds-sm text-muted">Só os devs do Salinha veem esta página.</p>
   }
   if (state.status === 'error') {
     return (

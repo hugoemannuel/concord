@@ -126,7 +126,7 @@ const report = (up: boolean): LiveReport => ({
 
 const render = (Tab: React.ComponentType<{ days: number }>, state: ReportState): string =>
   renderToStaticMarkup(
-    <LiveReportContext.Provider value={{ state, reload: () => {}, request: () => {} }}>
+    <LiveReportContext.Provider value={{ days: 7, state, reload: () => {}, request: () => {} }}>
       <Tab days={7} />
     </LiveReportContext.Provider>
   )
@@ -167,6 +167,17 @@ describe('abas do relatório das lives', () => {
     const events = render(EventsTab, ready())
     expect(events).toContain('Qualidade caiu')
     expect(events).toContain('0 → 1 (cpu)')
+  })
+  it('relatório de outro período: carregando, não os dados antigos', () => {
+    const html = renderToStaticMarkup(
+      <LiveReportContext.Provider
+        value={{ days: 7, state: ready(), reload: () => {}, request: () => {} }}
+      >
+        <LivesTab days={1} />
+      </LiveReportContext.Provider>
+    )
+    expect(html).toContain('Carregando')
+    expect(html).not.toContain('Lives recentes')
   })
   it('estados: carregando, sem permissão e erro (em qualquer aba)', () => {
     for (const Tab of [LivesTab, CallsTab, ServerTab, BreakdownTab, EventsTab]) {

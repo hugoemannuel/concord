@@ -32,7 +32,8 @@ function LiveObservability(): React.JSX.Element {
           id={PANEL_ID}
           role="tabpanel"
           aria-labelledby={tabElementId(active.id)}
-          className="flex-1 overflow-y-auto p-4"
+          tabIndex={0}
+          className="focus-ring-inset flex-1 overflow-y-auto p-4"
         >
           <div className="mx-auto flex max-w-6xl flex-col gap-6">
             <active.Component days={days} />
