@@ -6,6 +6,7 @@ import type { OverlaySnapshot } from '../../renderer/src/features/overlay/lib/ov
 import { createNativeOverlay, NATIVE_READY_TIMEOUT_MS } from './nativeOverlay'
 import { NATIVE_HIDDEN_LINE } from './nativeOverlayProtocol'
 import type { OverlayHost } from './overlaySurface'
+import { mainErrors } from '../errorReport/mainErrors'
 
 class FakeChild extends EventEmitter {
   stdin = new PassThrough()
@@ -155,6 +156,8 @@ describe('overlay nativo', () => {
     vi.advanceTimersByTime(NATIVE_READY_TIMEOUT_MS)
     expect(host.failed).toHaveBeenCalledTimes(1)
     expect(host.failed).toHaveBeenCalledWith('saiu (código 2)')
+    // Saída que ninguém pediu vai para o relatório de erros.
+    expect(mainErrors.take()).toMatchObject([{ kind: 'helper-exit', message: 'concord-overlay saiu sem avisar (código 2)' }])
   })
 
   it('destruir fecha o helper sem chamar de falha', () => {
@@ -164,6 +167,7 @@ describe('overlay nativo', () => {
     vi.advanceTimersByTime(NATIVE_READY_TIMEOUT_MS)
     expect(child.killed).toBe(true)
     expect(host.failed).not.toHaveBeenCalled()
+    expect(mainErrors.take()).toEqual([])
     expect(surface.canEdit()).toBe(false)
     surface.show(game)
     expect(child.written).toEqual([])

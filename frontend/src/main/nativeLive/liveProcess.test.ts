@@ -3,6 +3,7 @@ import { PassThrough } from 'stream'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NativeLiveEvent, NativeLiveStart } from '../../shared/nativeLive'
 import { LineBuffer, LiveProcess, STOP_GRACE_MS, type LiveChild } from './liveProcess'
+import { mainErrors } from '../errorReport/mainErrors'
 
 const START: NativeLiveStart = {
   url: 'wss://salinha.example',
@@ -122,6 +123,7 @@ describe('LiveProcess', () => {
     child.emit('exit', 0)
     expect(events).toEqual([{ event: 'ended', reason: 'stopped' }])
     expect(live.running).toBe(false)
+    expect(mainErrors.take()).toEqual([])
   })
 
   it('morreu sem avisar: erro e fim (o renderer volta para a live do Chromium)', () => {
@@ -135,6 +137,8 @@ describe('LiveProcess', () => {
     // Já acabou: outro exit/erro do mesmo processo não repete.
     child.emit('error', new Error('x'))
     expect(events).toHaveLength(2)
+    // Saída que ninguém pediu vai para o relatório de erros, uma vez.
+    expect(mainErrors.take()).toMatchObject([{ message: 'concord-live saiu sem avisar (código 134)', count: 1 }])
   })
 
   it('depois de acabar, abre outra live', () => {
