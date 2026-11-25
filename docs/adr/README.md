@@ -104,3 +104,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0068. Relatório de erros do app: grupos por impressão digital e pilha traduzida no servidor](0068-relatorio-de-erros-do-app.md)
 - [0069. Medir o aparelho (app lento, travado ou pesado) com agregados por minuto feitos no app](0069-metricas-do-aparelho.md)
 - [0070. Telemetria das calls e lives no app Android: a mesma rota, cópia adaptada e três sinais do celular](0070-telemetria-de-calls-e-lives-no-android.md)
+- [0071. Avisar falhas e limites em canais de sistema do servidor dos devs, com um motor de regras no backend](0071-alertas-em-canais-do-servidor-dos-devs.md)
