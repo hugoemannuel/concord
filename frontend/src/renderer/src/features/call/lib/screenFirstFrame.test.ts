@@ -30,6 +30,13 @@ describe('screenFirstFrame', () => {
     noteFirstFrame('caio', 2000)
     expect(takeFirstFrame('caio')).toBeNull()
   })
+  it('regressão: medida que ninguém levou não vale para a próxima vez que assiste', () => {
+    noteWatchedScreens(['bia'], 0)
+    noteFirstFrame('bia', 500)
+    noteWatchedScreens([], 1000)
+    noteWatchedScreens(['bia'], 2000)
+    expect(takeFirstFrame('bia')).toBeNull()
+  })
   it('acima de 60 s não vale (a live só apareceu na tela depois)', () => {
     noteWatchedScreens(['bia'], 0)
     noteFirstFrame('bia', 61_000)

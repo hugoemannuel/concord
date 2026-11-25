@@ -100,6 +100,15 @@ describe('shareSample (a minha tela no celular)', () => {
     expect(shareSample(shareInput({}), null)!.sample).toMatchObject({ loss_pct: null, jitter_ms: null })
   })
 
+  it('regressão: o envio principal trocou de camada (outro ssrc): sem perda naquele intervalo', () => {
+    const at = (t: number, ssrc: number, sent: number, lost: number): ScreenStatsInput =>
+      shareInput({ timestamp: t, ssrc, packetsSent: sent }, { r1: { type: 'remote-inbound-rtp', kind: 'video', localId: 'o1', packetsLost: lost } })
+    const first = shareSample(at(20_000, 111, 50_000, 10), null)!
+    expect(shareSample(at(40_000, 222, 1000, 400), first.counters)!.sample.loss_pct).toBeNull()
+    const noRemote = shareSample(shareInput({ timestamp: 20_000, ssrc: 111 }), null)!
+    expect(shareSample(at(40_000, 111, 1000, 400), noRemote.counters)!.sample.loss_pct).toBeNull()
+  })
+
   it('o nome do codificador vai junto, para o evento', () => {
     expect(shareSample(shareInput({}), null)!.component).toBe('c2.exynos.vp8.encoder')
   })

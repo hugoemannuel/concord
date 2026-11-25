@@ -11,18 +11,19 @@ vi.mock('react', () => ({
 import { useLiveFirstFrame } from './useLiveFirstFrame'
 import { noteWatchedScreens, takeFirstFrame } from '../lib/screenFirstFrame'
 
-function video(readyState: number) {
+const stream = {} as MediaStream
+
+function video(readyState: number, srcObject: MediaStream | null = stream) {
   const listeners = new Map<string, () => void>()
   return {
     readyState,
+    srcObject,
     addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
     removeEventListener: (type: string) => listeners.delete(type),
     fire: (type: string) => listeners.get(type)?.(),
     listeners
   }
 }
-
-const stream = {} as MediaStream
 
 afterEach(() => {
   harness.cleanup?.()
@@ -44,6 +45,14 @@ describe('useLiveFirstFrame', () => {
   it('o vídeo já tinha quadro: conta na hora', () => {
     noteWatchedScreens(['bia'], performance.now())
     useLiveFirstFrame('bia', { current: video(2) as unknown as HTMLVideoElement }, stream)
+    expect(takeFirstFrame('bia')).not.toBeNull()
+  })
+  it('regressão: o mesmo <video> ainda com a live anterior não conta (espera o loadeddata)', () => {
+    noteWatchedScreens(['bia'], performance.now())
+    const el = video(4, {} as MediaStream)
+    useLiveFirstFrame('bia', { current: el as unknown as HTMLVideoElement }, stream)
+    expect(takeFirstFrame('bia')).toBeNull()
+    el.fire('loadeddata')
     expect(takeFirstFrame('bia')).not.toBeNull()
   })
   it('a minha live ou a câmera (sem dono remoto): nada', () => {

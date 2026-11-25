@@ -17,7 +17,9 @@ export function useLiveFirstFrame(
     const el = ref.current
     if (!userId || !el) return
     const done = (): void => noteFirstFrame(userId)
-    if (el.readyState >= HAS_FRAME) {
+    // O efeito do pai (VideoFill) troca o srcObject depois deste: o readyState
+    // só vale se o <video> já está com esta live.
+    if (el.srcObject === stream && el.readyState >= HAS_FRAME) {
       done()
       return
     }

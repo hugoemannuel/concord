@@ -34,6 +34,8 @@ export interface SampleCounters {
   /** Call: ms de áudio que a saída sintetizou e ms tocados (media-playout). */
   synth: number
   playout: number
+  /** A camada (ssrc) lida: a perda na subida só conta entre leituras da mesma. */
+  ssrc: number
 }
 
 export interface SampleResult {
@@ -77,7 +79,8 @@ export function countersOf(stat: Stat, keys: CounterKeys, source?: Stat): Sample
     samples: 0,
     qp: num(stat.qpSum) ?? -1,
     synth: 0,
-    playout: 0
+    playout: 0,
+    ssrc: n0(stat.ssrc)
   }
 }
 
@@ -210,13 +213,18 @@ function qpOf({ now, prev, d }: Reading): number | null {
   return counted && d.frames > 0 ? round1(d.qp / d.frames) : null
 }
 
+/** A leitura anterior é da mesma camada e também tinha o remote-inbound-rtp. */
+function sameLayerWithRemote({ now, prev }: Reading): boolean {
+  return prev !== null && prev.ssrc === now.ssrc && prev.lost + prev.received > 0
+}
+
 /** Os sinais da ADR 0074 no envio: QP, fonte, perda e jitter na subida. */
 function shareSignals(read: Reading, source: Stat | undefined, remote: Stat | undefined): Partial<TelemetrySample> {
   return {
     qp: qpOf(read),
     source_width: num(source?.width),
     source_height: num(source?.height),
-    loss_pct: lossPct(read.d),
+    loss_pct: sameLayerWithRemote(read) ? lossPct(read.d) : null,
     jitter_ms: ms(remote?.jitter)
   }
 }

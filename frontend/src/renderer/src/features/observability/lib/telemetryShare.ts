@@ -65,9 +65,13 @@ function uplink(stat: Stat, remote: Stat | undefined): { lost: number; received:
   return { lost, received: Math.max(0, n0(stat.packetsSent) - lost) }
 }
 
-/** Perda média do intervalo (a leitura anterior também precisa ter o relatório). */
-function uplinkLoss({ prev, d }: Reading, remote: Stat | undefined): number | null {
-  return remote && prev && prev.lost + prev.received > 0 ? lossPct(d) : null
+/**
+ * Perda média do intervalo: a leitura anterior precisa ser da mesma camada
+ * (o principal muda quando o dynacast pausa a de cima) e ter o relatório.
+ */
+function uplinkLoss({ now, prev, d }: Reading, remote: Stat | undefined): number | null {
+  const same = prev !== null && prev.ssrc === now.ssrc && prev.lost + prev.received > 0
+  return remote && same ? lossPct(d) : null
 }
 
 /** QP médio dos quadros codificados no intervalo; null sem qpSum ou contador que voltou. */

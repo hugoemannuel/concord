@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   av1WithoutLayers,
   clearScreenCodecCache,
+  detectAv1WithoutLayers,
   detectScreenCodecs,
   H264_CONTENT_TYPE,
   MARK_TTL_MS,
@@ -149,6 +150,16 @@ describe('av1WithoutLayers (é o L1T3 que barra o AV1 na placa?)', () => {
     expect(await av1WithoutLayers(video, probe, support(null))).toBeUndefined()
     expect(await av1WithoutLayers(video, undefined, support('software'))).toBeUndefined()
     expect(probe.encodingInfo).not.toHaveBeenCalled()
+  })
+  it('detectAv1WithoutLayers guarda a resposta por tamanho; limpar a detecção refaz', async () => {
+    const probe = byMode(sw, hw)
+    vi.stubGlobal('navigator', { mediaCapabilities: probe })
+    expect(await detectAv1WithoutLayers(video, support('software'))).toBe('hardware')
+    await detectAv1WithoutLayers(video, support('software'))
+    expect(probe.encodingInfo).toHaveBeenCalledTimes(1)
+    clearScreenCodecCache()
+    await detectAv1WithoutLayers(video, support('software'))
+    expect(probe.encodingInfo).toHaveBeenCalledTimes(2)
   })
   it('erro na pergunta: sem resposta', async () => {
     const broken = {

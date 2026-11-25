@@ -8,6 +8,17 @@ describe('createSleepLog', () => {
     expect(log.take()).toEqual([{ type: 'pc_dormiu', detail: '312 s', at: 10_000 }])
     expect(log.take()).toEqual([])
   })
+  it('fora de call não guarda (o PC que dormiu de noite não vai para a call da manhã)', () => {
+    let inCall = false
+    const log = createSleepLog(
+      () => 0,
+      () => inCall
+    )
+    log.note(28_800_000)
+    inCall = true
+    log.note(1000)
+    expect(log.take().map((e) => e.detail)).toEqual(['1 s'])
+  })
   it('guarda no máximo as 5 últimas', () => {
     let t = 0
     const log = createSleepLog(() => t++)

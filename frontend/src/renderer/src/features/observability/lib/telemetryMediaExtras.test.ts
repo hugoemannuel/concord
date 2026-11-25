@@ -21,6 +21,12 @@ describe('mediaExtras', () => {
   it('voz: as falhas ao começar a live e o PC que dormiu', () => {
     expect(mediaExtras(sources, 'call', '')).toEqual({ patch: {}, events: [failure, sleep] })
   })
+  it('depois da 1ª amostra o tempo é levado e descartado (republicação na reconexão)', () => {
+    let taken = 0
+    const src = { liveStart: () => (taken++, 1800) }
+    expect(mediaExtras(src, 'transmite', '', false)).toEqual({ patch: {}, events: [] })
+    expect(taken).toBe(1)
+  })
   it('sem as fontes (testes, app antigo): nada', () => {
     expect(mediaExtras(undefined, 'call', '')).toEqual({ patch: {}, events: [] })
     expect(mediaExtras({}, 'transmite', '')).toEqual({ patch: {}, events: [] })

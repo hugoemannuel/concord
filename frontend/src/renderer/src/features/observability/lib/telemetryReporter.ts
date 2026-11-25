@@ -172,7 +172,7 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     s.ticks++
     if (!result) return null
     const extra = extras(s)
-    const media = mediaExtras(deps.media, s.kind, s.streamerId)
+    const media = mediaExtras(deps.media, s.kind, s.streamerId, s.last === null)
     const sample = {
       ...result.sample,
       ...media.patch,

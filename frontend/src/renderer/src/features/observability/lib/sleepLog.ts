@@ -7,13 +7,18 @@ import type { TimedEvent } from './telemetryOutbox'
 
 const MAX = 5
 
-export function createSleepLog(now: () => number = Date.now): {
+/** `inCall`: só guarda com uma call aberta (o padrão, sempre: testes). */
+export function createSleepLog(
+  now: () => number = Date.now,
+  inCall: () => boolean = () => true
+): {
   note: (sleptMs: number) => void
   take: () => TimedEvent[]
 } {
   let events: TimedEvent[] = []
   return {
     note(sleptMs) {
+      if (!inCall()) return
       const detail = `${Math.round(sleptMs / 1000)} s`
       events = [...events, { type: 'pc_dormiu', detail, at: now() }].slice(-MAX)
     },

@@ -35,6 +35,8 @@ export interface SampleCounters {
   codecMs: number
   /** Soma dos QP (qpSum); -1 = o navegador não conta. */
   qp: number
+  /** A camada (ssrc) lida: a perda na subida só conta entre leituras da mesma. */
+  ssrc: number
   /** Call: os contadores de cada voz recebida, pelo id da faixa (stat.id). */
   voices?: Record<string, VoiceCounters>
   /** Call: saída de áudio, microfone e câmera (telemetryCallMedia). */
@@ -99,7 +101,8 @@ export function countersOf(stat: Stat, keys: CounterKeys, source?: Stat): Sample
     framesReceived: n0(stat.framesReceived),
     captured: n0(source?.frames),
     codecMs: n0(stat[keys.codecTime]) * 1000,
-    qp: num(stat.qpSum) ?? -1
+    qp: num(stat.qpSum) ?? -1,
+    ssrc: n0(stat.ssrc)
   }
 }
 

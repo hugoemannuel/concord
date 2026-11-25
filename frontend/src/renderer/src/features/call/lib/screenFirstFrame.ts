@@ -13,7 +13,12 @@ const measured = new Map<string, number>()
 /** As lives que estou assistindo agora: quem entrou começa a contar. */
 export function noteWatchedScreens(userIds: string[], now = performance.now()): void {
   const next = new Set(userIds)
-  for (const id of next) if (!watched.has(id)) started.set(id, now)
+  for (const id of next) {
+    if (watched.has(id)) continue
+    started.set(id, now)
+    // Medida que ninguém levou (parou de assistir antes da amostra) não vale para esta vez.
+    measured.delete(id)
+  }
   for (const id of watched) if (!next.has(id)) started.delete(id)
   watched = next
 }

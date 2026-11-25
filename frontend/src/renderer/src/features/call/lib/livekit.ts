@@ -337,6 +337,7 @@ export class CallMedia {
 
   disconnect(): void {
     this.closing = true
+    noteWatchedScreens([])
     clearActiveScreenStats(this)
     this.receiveWatch.stop()
     this.screen.stop()

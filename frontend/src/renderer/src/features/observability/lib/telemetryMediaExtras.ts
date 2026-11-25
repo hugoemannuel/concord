@@ -21,14 +21,23 @@ export interface MediaExtras {
 const startPatch = (ms: number | null | undefined): Partial<MediaSignals> =>
   ms == null ? {} : { start_ms: ms }
 
+/**
+ * `first`: a 1ª amostra da sessão. O tempo até o ar e até o 1º quadro só vão
+ * nela; depois são levados e descartados (uma republicação na reconexão não
+ * vira um segundo tempo no meio da live).
+ */
 export function mediaExtras(
   sources: MediaExtraSources | undefined,
   kind: SessionKind,
-  streamerId: string
+  streamerId: string,
+  first = true
 ): MediaExtras {
-  if (kind === 'transmite') return { patch: startPatch(sources?.liveStart?.()), events: [] }
-  if (kind === 'assiste')
-    return { patch: startPatch(sources?.firstFrame?.(streamerId)), events: [] }
+  const start = (ms: number | null | undefined): MediaExtras => ({
+    patch: first ? startPatch(ms) : {},
+    events: []
+  })
+  if (kind === 'transmite') return start(sources?.liveStart?.())
+  if (kind === 'assiste') return start(sources?.firstFrame?.(streamerId))
   return {
     patch: {},
     events: [...(sources?.liveFailures?.() ?? []), ...(sources?.sleeps?.() ?? [])]

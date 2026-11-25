@@ -198,6 +198,23 @@ describe('shareSample', () => {
     expect(next.sample).toMatchObject({ qp: 31, loss_pct: 2, jitter_ms: 15 })
   })
 
+  it('regressão: o envio principal trocou de camada (outro ssrc): sem perda naquele intervalo', () => {
+    const at = (t: number, ssrc: number, sent: number, lost: number): ScreenStatsInput => {
+      const input = shareInput({ timestamp: t, ssrc, packetsSent: sent })
+      const stats = new Map(input.report as unknown as Map<string, unknown>)
+      stats.set('r1', {
+        id: 'r1',
+        type: 'remote-inbound-rtp',
+        kind: 'video',
+        localId: 'o1',
+        packetsLost: lost
+      })
+      return { ...input, report: stats as unknown as RTCStatsReport }
+    }
+    const first = shareSample(at(20_000, 111, 50_000, 10), null, 0)!
+    expect(shareSample(at(40_000, 222, 1000, 400), first.counters, 0)!.sample.loss_pct).toBeNull()
+  })
+
   it('sem qpSum nem remote-inbound-rtp: QP, perda e jitter vazios', () => {
     const first = shareSample(shareInput({ framesEncoded: 10 }), null, 0)!
     const next = shareSample(

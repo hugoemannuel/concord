@@ -310,6 +310,7 @@ export async function openMicrophone(deviceId = ''): Promise<MicHandle> {
     return handle
   } catch (err) {
     console.error('[RNNoise] não carregou — usando a supressão do Chromium:', err)
+    if (ctx) forgetMicDsp(ctx)
     void ctx?.close()
     raw.getTracks().forEach((t) => t.stop())
     useRnnoiseStatusStore.getState().setAvailable(false)

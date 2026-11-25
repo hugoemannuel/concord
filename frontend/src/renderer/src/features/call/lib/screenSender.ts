@@ -72,7 +72,8 @@ async function screenPlan(
   const codec = screenCodecOptions(preference, support, simulcast, failed)
   const marked = softwareMarkedCodecs()
   const sound = screenSound(stream)
-  const av1Plain = await detectAv1WithoutLayers(shape, support)
+  // AV1 marcado como "caiu no processador" não foi perguntado: a resposta sem as camadas enganaria.
+  const av1Plain = marked.includes('av1') ? undefined : await detectAv1WithoutLayers(shape, support)
   noteScreenCodecChoice(
     describeCodecChoice({ preference, support, simulcast, codec, marked, sound, av1Plain })
   )

@@ -39,7 +39,7 @@ function snapshot(): CallSnapshot {
 function LiveTelemetryBridge(): null {
   useEffect(() => {
     const connection = createConnectionLog()
-    const sleeps = createSleepLog()
+    const sleeps = createSleepLog(Date.now, () => snapshot().callId !== null)
     const offSleep = window.api?.deviceStats?.onSlept?.(sleeps.note)
     const reporter = createTelemetryReporter({
       snapshot,

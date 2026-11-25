@@ -140,12 +140,21 @@ export async function av1WithoutLayers(
   }
 }
 
+const plainAv1Cache = new Map<string, Promise<CodecEncoder | undefined>>()
+
+/** Com cache por sessão, como a detecção (limpo junto com ela). */
 export function detectAv1WithoutLayers(
   video: ScreenVideoShape,
   support: ScreenCodecSupport
 ): Promise<CodecEncoder | undefined> {
-  const api = globalThis.navigator?.mediaCapabilities as EncodingInfoApi | undefined
-  return av1WithoutLayers(video, api, support)
+  const key = `${video.width}x${video.height}@${video.framerate}:${video.bitrate}:${support.av1}`
+  let answer = plainAv1Cache.get(key)
+  if (!answer) {
+    const api = globalThis.navigator?.mediaCapabilities as EncodingInfoApi | undefined
+    answer = av1WithoutLayers(video, api, support)
+    plainAv1Cache.set(key, answer)
+  }
+  return answer
 }
 
 /** A placa só codifica o H.264 no High? Então a live precisa oferecer só ele. */
@@ -197,6 +206,7 @@ export function detectScreenCodecs(video: ScreenVideoShape): Promise<ScreenCodec
 
 export function clearScreenCodecCache(): void {
   cache.clear()
+  plainAv1Cache.clear()
 }
 
 /**
@@ -212,5 +222,5 @@ export function markSoftwareCodec(codec: ScreenVideoCodec, gpu = screenGpu()): v
   } catch {
     /* Compartilhar continua funcionando sem armazenamento local. */
   }
-  cache.clear()
+  clearScreenCodecCache()
 }
