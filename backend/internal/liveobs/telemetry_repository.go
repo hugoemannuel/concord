@@ -49,6 +49,9 @@ func (r *TelemetryRepository) saveAll(ctx context.Context, userID string, reps [
 			return err
 		}
 		owned = len(saved)
+		if err := resumeCalls(ctx, tx, saved); err != nil {
+			return err
+		}
 		return insertDetails(ctx, tx, saved)
 	})
 	return owned, err

@@ -39,6 +39,8 @@ const (
 	EventSlowJoin = "entrada_lenta"
 	// Nova tentativa ou saída durante a entrada (a etapa e o tempo).
 	EventJoinAbandoned = "entrada_abandonada"
+	// Do servidor: o app recomeçou no meio da call (buraco e troca de versão).
+	EventResumed = "retomou"
 )
 
 // Batch: um pedido do app, com todas as sessões ativas dele.
