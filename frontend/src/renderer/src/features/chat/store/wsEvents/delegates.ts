@@ -2,7 +2,12 @@
 // (o primeiro que casa leva): prefixos mais específicos antes dos gerais.
 import type { WsEvent } from '../../../../shared/api/ws'
 import { ping } from './alerts'
-import { APP_UPDATE_EVENT, requestUpdateCheck } from '../../../updates/lib/appUpdate'
+import {
+  APP_UPDATE_EVENT,
+  CHANGELOG_UPDATE_EVENT,
+  requestUpdateCheck
+} from '../../../updates/lib/appUpdate'
+import { useReleaseGateStore } from '../../../updates/store/releaseGateStore'
 import { useSoundboardStore } from '../../../call/store/soundboardStore'
 import { useMusicStore } from '../../../music/store/musicStore'
 import { useActivityStore } from '../../../activity/store/activityStore'
@@ -42,6 +47,7 @@ export function handleProposalMention(event: WsEvent): void {
 
 export const DELEGATES: Array<[Match, Delegate]> = [
   [is(APP_UPDATE_EVENT), () => requestUpdateCheck()],
+  [is(CHANGELOG_UPDATE_EVENT), () => void useReleaseGateStore.getState().refreshRequired()],
   [
     (t) => t === 'call:soundboard' || t.startsWith('soundboard:'),
     (e) => useSoundboardStore.getState().handleWsEvent(e)

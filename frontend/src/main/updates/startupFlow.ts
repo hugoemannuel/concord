@@ -32,6 +32,11 @@ export interface StartupFlowDeps {
   download: () => void
   show: (view: StartupView) => void
   log: (message: string, error?: unknown) => void
+  /**
+   * A versão instalada está abaixo da mínima (ADR 0066): sem "Abrir sem
+   * atualizar". Falha conta como não obrigatória; quem chama põe o prazo.
+   */
+  mandatory?: () => Promise<boolean>
 }
 
 export interface StartupFlow {
@@ -53,8 +58,22 @@ export function createStartupFlow(deps: StartupFlowDeps): StartupFlow {
   const opened = new Promise<void>((resolve) => (open = resolve))
   let timer: ReturnType<typeof setTimeout> | null = null
   let skipTimer: ReturnType<typeof setTimeout> | null = null
+  /** O botão já poderia aparecer (SKIP_AFTER_MS baixando). */
+  let skipDue = false
+  /** null: ainda não se sabe se a versão é obrigatória. */
+  let mandatory: boolean | null = deps.mandatory ? null : false
 
   const active = (): boolean => view.phase !== 'opening'
+
+  /** "Abrir sem atualizar": depois do prazo baixando e só se a versão não for obrigatória. */
+  function offerSkip(): void {
+    if (view.phase === 'downloading' && skipDue && mandatory === false) show({ canSkip: true })
+  }
+
+  function learnMandatory(value: boolean): void {
+    mandatory = value
+    offerSkip()
+  }
 
   function show(next: Partial<StartupView>): void {
     view = { ...view, ...next }
@@ -80,7 +99,8 @@ export function createStartupFlow(deps: StartupFlowDeps): StartupFlow {
     show({ phase: 'downloading', percent: 0 })
     deadline(STALL_TIMEOUT_MS, 'download parado')
     skipTimer = setTimeout(() => {
-      if (view.phase === 'downloading') show({ canSkip: true })
+      skipDue = true
+      offerSkip()
     }, SKIP_AFTER_MS)
     deps.download()
   }
@@ -109,6 +129,7 @@ export function createStartupFlow(deps: StartupFlowDeps): StartupFlow {
   return {
     run() {
       deps.show(view)
+      deps.mandatory?.().then(learnMandatory, () => learnMandatory(false))
       void check()
       return opened
     },

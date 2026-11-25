@@ -22,13 +22,17 @@ interface Setup {
   isOpen: () => boolean
 }
 
-function setup(check: StartupFlowDeps['check'] = async () => false): Setup {
+function setup(
+  check: StartupFlowDeps['check'] = async () => false,
+  mandatory?: StartupFlowDeps['mandatory']
+): Setup {
   const views: StartupView[] = []
   const deps = {
     check: vi.fn(check),
     download: vi.fn(),
     show: (view: StartupView) => views.push(view),
-    log: vi.fn()
+    log: vi.fn(),
+    mandatory
   }
   const flow = createStartupFlow(deps)
   let opened = false
@@ -214,5 +218,54 @@ describe('createStartupFlow', () => {
     answer(true)
     await settle()
     expect(deps.download).not.toHaveBeenCalled()
+  })
+})
+
+describe('versão obrigatória (ADR 0066)', () => {
+  it('obrigatória: o "Abrir sem atualizar" nunca aparece', async () => {
+    const { flow, last, isOpen } = setup(
+      async () => true,
+      async () => true
+    )
+    await settle()
+    await vi.advanceTimersByTimeAsync(SKIP_AFTER_MS * 3)
+    expect(last()).toMatchObject({ phase: 'downloading', canSkip: false })
+    flow.skip()
+    await settle()
+    expect(isOpen()).toBe(false)
+  })
+
+  it('obrigatória com download parado: abre assim mesmo (a abertura nunca trava)', async () => {
+    const { isOpen } = setup(
+      async () => true,
+      async () => true
+    )
+    await settle()
+    await vi.advanceTimersByTimeAsync(STALL_TIMEOUT_MS)
+    await settle()
+    expect(isOpen()).toBe(true)
+  })
+
+  it('não obrigatória ou consulta que falhou: o botão aparece como sempre', async () => {
+    for (const mandatory of [async () => false, async () => Promise.reject(new Error('rede'))]) {
+      const { last } = setup(async () => true, mandatory)
+      await settle()
+      await vi.advanceTimersByTimeAsync(SKIP_AFTER_MS)
+      expect(last()).toMatchObject({ phase: 'downloading', canSkip: true })
+    }
+  })
+
+  it('resposta que chega depois do prazo do botão: aparece ao saber que não é obrigatória', async () => {
+    let answer: (v: boolean) => void = () => {}
+    const { last } = setup(
+      async () => true,
+      () => new Promise((resolve) => (answer = resolve))
+    )
+    await settle()
+    await vi.advanceTimersByTimeAsync(SKIP_AFTER_MS)
+    expect(last().canSkip).toBe(false)
+    answer(false)
+    await settle()
+    expect(last()).toMatchObject({ phase: 'downloading', canSkip: true })
   })
 })

@@ -30,8 +30,11 @@ export interface StartupSplashDeps {
 }
 
 export interface StartupSplash {
-  /** Atualiza, se houver versão nova, e resolve quando é hora de abrir. */
-  update(update: StartupUpdate | null): Promise<void>
+  /**
+   * Atualiza, se houver versão nova, e resolve quando é hora de abrir.
+   * `mandatory`: a versão instalada está abaixo da mínima (sem "Abrir sem atualizar").
+   */
+  update(update: StartupUpdate | null, mandatory?: () => Promise<boolean>): Promise<void>
   /** Janela principal criada: a janelinha some quando ela aparecer (já, se escondido). */
   handOff(main: MainWindowLike): void
 }
@@ -39,7 +42,10 @@ export interface StartupSplash {
 export function startSplash(deps: StartupSplashDeps): StartupSplash {
   const { window } = deps
 
-  async function update(updater: StartupUpdate | null): Promise<void> {
+  async function update(
+    updater: StartupUpdate | null,
+    mandatory?: () => Promise<boolean>
+  ): Promise<void> {
     if (!updater) {
       window.show({ phase: 'opening', percent: null, canSkip: false })
       return
@@ -53,7 +59,8 @@ export function startSplash(deps: StartupSplashDeps): StartupSplash {
         deps.onView(view)
         window.show(view)
       },
-      log: deps.log
+      log: deps.log,
+      mandatory
     })
     updater.watch(flow)
     window.onSkip(() => flow.skip())
