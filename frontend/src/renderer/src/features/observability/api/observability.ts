@@ -118,6 +118,8 @@ export interface LiveReport {
     BreakdownRow[]
   >
   events: EventRow[]
+  /** Quedas e falhas da voz do período inteiro (ausente num backend de antes). */
+  call_events?: EventRow[]
 }
 
 export function fetchLiveReport(days: number): Promise<LiveReport> {

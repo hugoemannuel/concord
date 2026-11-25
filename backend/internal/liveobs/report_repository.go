@@ -89,15 +89,31 @@ func (r *ReportRepository) Sessions(ctx context.Context, from time.Time) ([]Sess
 	})
 }
 
+const eventsSQL = `SELECT e.at, e.type, e.detail, s.kind, COALESCE(u.username, '')
+	FROM live_events e
+	JOIN live_sessions s ON s.id = e.session_id
+	LEFT JOIN users u ON u.id = s.user_id
+	WHERE e.at >= $1 AND ($3::text[] IS NULL OR e.type = ANY($3))
+	ORDER BY e.at DESC, e.id DESC
+	LIMIT $2`
+
+// callEventTypes: as quedas e falhas da voz (e "retomou", o app que reiniciou
+// no meio da call). São poucas (64 em 14 dias): vêm do período inteiro, para
+// não sumirem atrás dos ~310 congelamentos longos por dia.
+var callEventTypes = []string{EventReconnected, EventConnectFailed, "retomou"}
+
 // Events: os eventos mais recentes desde from.
 func (r *ReportRepository) Events(ctx context.Context, from time.Time, limit int) ([]EventRow, error) {
-	rows, err := r.db.Query(ctx, `SELECT e.at, e.type, e.detail, s.kind, COALESCE(u.username, '')
-		FROM live_events e
-		JOIN live_sessions s ON s.id = e.session_id
-		LEFT JOIN users u ON u.id = s.user_id
-		WHERE e.at >= $1
-		ORDER BY e.at DESC, e.id DESC
-		LIMIT $2`, from, limit)
+	return r.events(ctx, from, limit, nil)
+}
+
+// CallEvents: as quedas e falhas da voz desde from (do período inteiro, até limit).
+func (r *ReportRepository) CallEvents(ctx context.Context, from time.Time, limit int) ([]EventRow, error) {
+	return r.events(ctx, from, limit, callEventTypes)
+}
+
+func (r *ReportRepository) events(ctx context.Context, from time.Time, limit int, types []string) ([]EventRow, error) {
+	rows, err := r.db.Query(ctx, eventsSQL, from, limit, types)
 	if err != nil {
 		return nil, fmt.Errorf("ler eventos: %w", err)
 	}

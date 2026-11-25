@@ -150,3 +150,41 @@ func TestReportRepositoryLeOContextoESinaisDoCelular(t *testing.T) {
 		t.Errorf("segundo plano = %d, trocas de rede = %d; quer 2 e 1", s.Backgrounds, s.NetworkChanges)
 	}
 }
+
+func TestReportRepositoryEventosDaVozDoPeriodoInteiro(t *testing.T) {
+	db := newTelemetryDB(t)
+	ctx := context.Background()
+	tel := NewTelemetryRepository(db)
+	call := Report{SessionID: sessionA, Kind: KindCall, CallID: callA, Sample: &Sample{Seconds: 60},
+		Events: []Event{{Type: EventReconnected, Detail: "16 s"}, {Type: EventConnectFailed, Detail: "reconectando: caiu"}}}
+	if err := tel.Save(ctx, userAna, call); err != nil {
+		t.Fatal(err)
+	}
+	// Depois, muitos congelamentos de live: os últimos N eventos são só eles.
+	freezes := []Event{}
+	for range 5 {
+		freezes = append(freezes, Event{Type: EventLongFreeze})
+	}
+	watch := Report{SessionID: sessionB, Kind: KindWatch, CallID: callA, StreamerID: userAna,
+		Sample: &Sample{Seconds: 20}, Events: freezes}
+	if err := tel.Save(ctx, userBia, watch); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewReportRepository(db)
+	from := time.Now().Add(-time.Hour)
+	recent, err := repo.Events(ctx, from, 3)
+	if err != nil || len(recent) != 3 || recent[0].Type != EventLongFreeze {
+		t.Fatalf("recentes = %+v, %v", recent, err)
+	}
+	got, err := repo.CallEvents(ctx, from, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Type != EventConnectFailed || got[1].Type != EventReconnected || got[1].Detail != "16 s" ||
+		got[0].Kind != KindCall {
+		t.Errorf("eventos da voz = %+v", got)
+	}
+	if few, _ := repo.CallEvents(ctx, from, 1); len(few) != 1 {
+		t.Errorf("teto ignorado: %d", len(few))
+	}
+}

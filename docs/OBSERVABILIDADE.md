@@ -86,7 +86,10 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
 - **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e
   conexão; e, com as calls, por plataforma (desktop, web, android), rede e
   aparelho Android.
-- **Eventos** (`eventos`): eventos recentes das lives e calls.
+- **Eventos** (`eventos`): as **quedas e falhas da voz do período inteiro**
+  (`call_events`: `reconectou`, `conexao_falhou`, `retomou`; até 300) e os 100
+  eventos mais recentes das lives e calls (quase todos congelamentos longos, ~310
+  por dia: sem a lista à parte, as quedas da voz sumiam em poucas horas).
 - **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).
 - **Alertas** (`alertas`): o que está disparado agora, quantas vezes cada regra
   disparou no período (recorrência) e o histórico (regra, gravidade, de quando

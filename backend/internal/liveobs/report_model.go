@@ -134,4 +134,7 @@ type LiveReport struct {
 	WorstCalls []WorstRow                `json:"worst_calls"`
 	Breakdown  map[string][]BreakdownRow `json:"breakdown"`
 	Events     []EventRow                `json:"events"`
+	// CallEvents: quedas e falhas da voz do período inteiro (Events são só
+	// os últimos, quase todos congelamentos).
+	CallEvents []EventRow `json:"call_events"`
 }

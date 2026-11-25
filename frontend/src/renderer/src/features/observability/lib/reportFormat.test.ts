@@ -33,6 +33,7 @@ describe('rótulos', () => {
     expect(eventLabel('degrau_caiu')).toBe('Qualidade caiu')
     expect(eventLabel('novo')).toBe('novo')
     expect(eventLabel('conexao_falhou')).toBe('Voz não conectou')
+    expect(eventLabel('retomou')).toBe('Voltou à call (o app reiniciou)')
   })
   it('eventos do app Android', () => {
     expect(eventLabel('segundo_plano')).toBe('Saiu do app')

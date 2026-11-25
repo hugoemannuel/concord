@@ -12,11 +12,19 @@ const time = (iso: string): string =>
   })
 
 /** O que aconteceu nas lives (início/fim, qualidade caiu, reserva, congelamentos). */
-export function RecentEvents({ events }: { events: EventRow[] }): React.JSX.Element {
+export function RecentEvents({
+  events,
+  title = 'Eventos recentes',
+  empty = 'Nenhum evento no período.'
+}: {
+  events: EventRow[]
+  title?: string
+  empty?: string
+}): React.JSX.Element {
   return (
-    <Panel title="Eventos recentes">
+    <Panel title={title}>
       {events.length === 0 ? (
-        <Empty>Nenhum evento no período.</Empty>
+        <Empty>{empty}</Empty>
       ) : (
         <ol className="flex flex-col rounded-lg bg-surface text-ds-sm">
           {events.map((e, i) => (

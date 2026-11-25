@@ -16,6 +16,8 @@ const (
 	defaultDays  = 7
 	maxDays      = 14
 	maxEventRows = 100
+	// maxCallEventRows: teto das quedas e falhas da voz no período (poucas).
+	maxCallEventRows = 300
 )
 
 var errDays = errors.New("days: de 1 a 14")
@@ -24,6 +26,7 @@ type reportSource interface {
 	IsDev(ctx context.Context, userID string) (bool, error)
 	Sessions(ctx context.Context, from time.Time) ([]SessionStats, error)
 	Events(ctx context.Context, from time.Time, limit int) ([]EventRow, error)
+	CallEvents(ctx context.Context, from time.Time, limit int) ([]EventRow, error)
 }
 
 type seriesSource interface {
@@ -93,9 +96,15 @@ func (h *ReportHandler) load(ctx context.Context, from, to time.Time) (LiveRepor
 	if err != nil {
 		return LiveReport{}, err
 	}
+	callEvents, err := h.reports.CallEvents(ctx, from, maxCallEventRows)
+	if err != nil {
+		return LiveReport{}, err
+	}
 	minutes, err := h.series.ServerSeries(ctx, from, to)
 	if err != nil {
 		return LiveReport{}, fmt.Errorf("série do LiveKit: %w", err)
 	}
-	return buildReport(from, to, sessions, minutes, events), nil
+	report := buildReport(from, to, sessions, minutes, events)
+	report.CallEvents = callEvents
+	return report, nil
 }

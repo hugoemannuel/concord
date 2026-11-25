@@ -43,6 +43,7 @@ const EVENTS: Record<string, string> = {
   codec_escolhido: 'Codec escolhido',
   conexao_falhou: 'Voz não conectou',
   reconectou: 'Voz reconectou',
+  retomou: 'Voltou à call (o app reiniciou)',
   // Só do app Android (docs/adr/0070).
   segundo_plano: 'Saiu do app',
   primeiro_plano: 'Voltou ao app',

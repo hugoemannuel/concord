@@ -204,6 +204,27 @@ describe('abas do relatório das lives', () => {
     expect(events).toContain('Qualidade caiu')
     expect(events).toContain('0 → 1 (cpu)')
   })
+  it('Eventos: as quedas e falhas da voz do período inteiro, à parte', () => {
+    const r = report(true)
+    const withCalls: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        call_events: [
+          { at: '2026-10-23T10:00:00Z', type: 'reconectou', detail: '16 s', kind: 'call', username: 'caio' }
+        ]
+      }
+    }
+    const html = render(EventsTab, withCalls)
+    expect(html).toContain('Quedas e falhas da voz (período inteiro)')
+    expect(html).toContain('Voz reconectou')
+    expect(html).toContain('16 s')
+    expect(html).toContain('Eventos recentes')
+    const none: ReportState = { status: 'ready', report: { ...r, call_events: [] } }
+    expect(render(EventsTab, none)).toContain('Nenhuma queda ou falha de voz no período.')
+    // Backend de antes, sem o campo: o painel não aparece.
+    expect(render(EventsTab, ready())).not.toContain('Quedas e falhas da voz')
+  })
   it('relatório de outro período: carregando, não os dados antigos', () => {
     const html = renderToStaticMarkup(
       <LiveReportContext.Provider
