@@ -9,6 +9,7 @@ import { ttsApi } from './ttsApi'
 import { nativeLiveApi } from './nativeLiveApi'
 import { contentProtectionApi } from './contentProtectionApi'
 import { errorReportApi } from './errorReportApi'
+import { deviceStatsApi } from './deviceStatsApi'
 
 interface ScreenSourceInfo {
   id: string
@@ -324,6 +325,7 @@ const api = {
   overlay: overlayApi,
   contentProtection: contentProtectionApi,
   errorReport: errorReportApi,
+  deviceStats: deviceStatsApi,
   /** Voz do /tts baixada no primeiro uso: só no Linux (os outros usam a Web Speech). */
   tts: process.platform === 'linux' ? ttsApi : undefined,
   /** Live pelo motor nativo (helper concord-live): só no Linux por enquanto. */
