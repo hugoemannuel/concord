@@ -18,6 +18,9 @@ type Runner struct {
 	Engine    *Engine
 	Lifecycle *Lifecycle
 	Database  *DatabaseWatch
+	// Watches: os vigias de acontecimentos e as tarefas com horário (máquina
+	// congelada, erro novo, resumo diário), soltos depois do boot até ctx acabar.
+	Watches []func(ctx context.Context)
 	// RetryEvery: espera entre as tentativas de ler o estado no boot.
 	RetryEvery time.Duration
 }
@@ -36,6 +39,9 @@ func (r Runner) Run(ctx context.Context) {
 		log.Printf("[alert] boot: %v", err)
 	}
 	go r.Database.Run(ctx)
+	for _, watch := range r.Watches {
+		go watch(ctx)
+	}
 	r.Engine.Run(ctx)
 	stopCtx, cancel := context.WithTimeout(context.Background(), stopTimeout)
 	defer cancel()
@@ -58,6 +64,22 @@ func (r Runner) loadState(ctx context.Context) bool {
 		case <-ctx.Done():
 			return false
 		case <-time.After(r.RetryEvery):
+		}
+	}
+}
+
+// every roda fn a cada d até ctx acabar (o erro só vai para o log).
+func every(ctx context.Context, d time.Duration, what string, fn func(context.Context) error) {
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := fn(ctx); err != nil {
+				log.Printf("[alert] %s: %v", what, err)
+			}
 		}
 	}
 }

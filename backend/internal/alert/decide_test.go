@@ -32,9 +32,24 @@ func TestDecide(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := decide(tt.open, tt.held, now); got != tt.want {
+			if got := decide(tt.open, tt.held, now, remindEvery); got != tt.want {
 				t.Errorf("decide = %d, quer %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRemindInterval(t *testing.T) {
+	if got := (Rule{}).remindInterval(); got != remindEvery {
+		t.Errorf("padrão = %v, quer %v", got, remindEvery)
+	}
+	week := 7 * 24 * time.Hour
+	if got := (Rule{Remind: week}).remindInterval(); got != week {
+		t.Errorf("da regra = %v, quer %v", got, week)
+	}
+	last := time.Date(2026, 11, 25, 8, 0, 0, 0, time.UTC)
+	open := &Incident{Severity: "aviso", LastMessageAt: &last}
+	if got := decide(open, LevelWarning, last.Add(24*time.Hour), week); got != actNone {
+		t.Errorf("lembrete semanal depois de 1 dia = %d, quer nada", got)
 	}
 }
