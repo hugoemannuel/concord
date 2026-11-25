@@ -27,11 +27,24 @@ describe('AlertSections', () => {
     expect(html).not.toContain('desligados')
   })
 
+  it('mostra o canal de cada alerta e o último resumo diário', () => {
+    const html = render({ enabled: true, active: [cpu], history: [cpu], last_summary_at: '2026-11-25T11:00:00Z' })
+    expect(html).toContain('#alertas')
+    expect(html).toContain('<th scope="col" class="px-3 py-2 font-medium">Canal</th>')
+    expect(html).toContain('Último resumo diário:')
+  })
+
+  it('ligado sem resumo ainda: diz isso', () => {
+    const html = render({ enabled: true, active: [], history: [], last_summary_at: null })
+    expect(html).toContain('Nenhum resumo diário enviado ainda (sai às 8h, horário de Brasília).')
+  })
+
   it('vazio e desligado: diz isso', () => {
     const html = render({ enabled: false, active: [], history: [] })
     expect(html).toContain('Os alertas estão desligados neste servidor')
     expect(html).toContain('Nada disparado agora.')
     expect(html).toContain('Nenhum alerta no período.')
     expect(html).not.toContain('Recorrência')
+    expect(html).not.toContain('resumo diário')
   })
 })

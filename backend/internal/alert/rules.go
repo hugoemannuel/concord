@@ -1,10 +1,15 @@
 package alert
 
-// Sources: de onde as regras leem (o Repository implementa tudo).
+// Sources: de onde as regras leem (Feeds implementa tudo: o Repository e as
+// leituras do serverobs e do apperrors).
 type Sources interface {
 	minuteSource
 	crashSource
 	eventSource
+	collectorSource // host_metrics, api_metrics e o último minuto do LiveKit
+	backupSource
+	egressSource
+	impactSource
 }
 
 // Rules: as regras avaliadas a cada minuto. Regra nova = um rule_<nome>.go
@@ -18,6 +23,20 @@ func Rules(src Sources) []Rule {
 		liveKitCPURule(src),
 		callFailuresRule(src),
 		callReconnectsRule(src),
+		hostDiskRule(src),
+		hostInodesRule(src),
+		backupRule(src, src),
+		apiErrorsRule(src),
+		apiPanicsRule(src),
+		apiSlowRule(src),
+		dbPoolRule(src),
+		hostSwapRule(src),
+		hostStealRule(src),
+		udpBufferRule(src),
+		collectorRule(src),
+		capacityRule(src),
+		errorSpikeRule(src),
+		decoderFailingRule(src),
 	}
 }
 
@@ -34,6 +53,8 @@ func Titles(rules []Rule) map[string]string {
 		backendDownRuleID:  "Backend fora do ar",
 		databaseDownRuleID: "Banco fora do ar",
 		unitFailedRuleID:   "Serviço do systemd falhou",
+		freezeRuleID:       "Máquina congelada",
+		errorNewRuleID:     "Erro novo",
 	}
 	for _, r := range rules {
 		out[r.ID] = r.Title

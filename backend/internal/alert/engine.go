@@ -126,7 +126,7 @@ func (e *Engine) evaluate(ctx context.Context, rule Rule) error {
 	if reading.Level >= LevelWarning {
 		e.last[rule.ID] = reading
 	}
-	act := decide(e.open[rule.ID], s.held(rule.Hold, now), now)
+	act := decide(e.open[rule.ID], s.held(rule.Hold, now), now, rule.remindInterval())
 	return errors.Join(checkErr, e.apply(ctx, rule, act, s, now))
 }
 

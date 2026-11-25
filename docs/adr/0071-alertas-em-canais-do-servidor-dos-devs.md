@@ -143,3 +143,107 @@ VPS tem `ALERTS_SERVER_ID`.
   https://lists.freedesktop.org/archives/systemd-devel/2014-December/025843.html
 - *Notifying on failed systemd services* (modelo com `%n`, cuidado com laço):
   https://samasaur1.github.io/blog/notifying-on-failed-systemd-services
+
+## Emenda: parte 2 (25/11/2026) — API, VPS, erros, congelamento e resumo diário
+
+**Contexto novo.** A VPS ficou congelada pelo provedor três vezes em três dias
+(23/11 por 8h21, 24/11 desligada 16 min, 25/11 por 4h49) e ninguém foi avisado.
+No congelamento a VM é pausada e retomada **sem reiniciar**: não há boot, então
+`backend_down` não vê nada. Na volta o relógio do sistema fica atrasado pelo
+tempo da pausa (25/11: sistema em 09:32 UTC, hardware em 14:21) até o
+`systemd-timesyncd` corrigir (até 34 min). Entraram também as tabelas da API,
+da VPS (ADR 0067) e dos erros do app (ADR 0068).
+
+**Três formas, escolhidas pelo que o sinal é** (do mesmo jeito que a parte 1
+separou regra e `Event`):
+
+1. **Condição que dura** (disco, 5xx, p95, swap…): uma `Rule` num `rule_<nome>.go`,
+   com a histerese do motor. Ganhou `Rule.Remind` (padrão 6 h): a capacidade
+   das lives lembra a cada 7 dias.
+2. **Acontecimento** (máquina congelada, erro novo): um vigia próprio que manda
+   `Event` por `Engine.Notify` (mensagem + linha fechada no histórico), como o
+   `DatabaseWatch`. Os vigias rodam por `Runner.Watches`.
+3. **Tarefa com horário** (resumo diário): a cada minuto vê se passou das 8h de
+   Brasília e se o resumo de ontem já saiu. A marca do dia fica numa tabela
+   própria (`alert_daily_summaries`, migration 000220), gravada **antes** de
+   postar (reinício ou dois processos no deploy não repetem) e desfeita se o
+   post falha. Considerei guardar o resumo em `alert_incidents`, mas ele não é
+   alerta: entraria na recorrência e no histórico do painel.
+
+**Congelamento** (`host_frozen`, crítico, em `#alertas`). Padrões olhados: o
+Proxmox detecta a pausa comparando o relógio do convidado com o do hospedeiro
+e acerta pelo agente (`guest-set-time`); o kernel trata salto de
+`CLOCK_REALTIME` como coisa de NTP ou de suspensão; o chrony loga "forward time
+jump" ao voltar. Sem agente nem acesso ao hospedeiro, a decisão foi:
+
+- a cada 30 s, o relógio de hardware (`/sys/class/rtc/rtc0/since_epoch`, que o
+  hipervisor mantém andando) contra o do sistema: mais de 1 min de diferença =
+  congelou, visto logo na volta;
+- de reserva, o salto do relógio de parede sobre o monotônico entre duas
+  leituras (o que sobra quando o NTP corrige, ou quando o hipervisor conta a
+  pausa no monotônico): cobre máquina sem RTC legível;
+- uma mensagem por congelamento: o avisado fica lembrado por 3 h (o kernel
+  pode copiar a hora atrasada para o RTC antes de o NTP corrigir, e o salto do
+  NTP com a mesma duração é ignorado), e os dois sinais consultam o último
+  `host_frozen` gravado (duração parecida, nas últimas 3 h) antes de avisar,
+  para um reinício no meio não repetir. A leitura de referência é a do fim de
+  cada rodada (um post lento não conta como tempo sumido) e cada rodada de
+  vigia tem prazo de 20 s (o `Notify` segura o mutex do motor). Relógio de hardware na hora local (`/etc/adjtime` com
+  `LOCAL`) ou ausente (dev, Windows, contêiner) = sem dado; só o salto vale.
+- O incidente grava início e fim estimados **na hora certa** (do relógio de
+  hardware). A mensagem avisa que as mensagens saem com a hora errada até
+  sincronizar e como forçar (`systemctl restart systemd-timesyncd`).
+
+**Erro novo** (`error_new`, em `#erros`). Do Sentry: alerta no "primeiro
+visto" é o padrão, mas "avisar todo erro novo" afoga o canal; o remédio deles é
+limitar a frequência por regra. Aqui: uma mensagem por grupo, no máximo 5 por
+hora; o que passa sai numa mensagem só ("mais N erros novos…"), no máximo uma
+por hora, e o resto fica só no histórico. O cursor é o `first_seen` do último
+grupo avisado (gravado no `started_at` do incidente) mais as fingerprints já
+avisadas naquele mesmo instante (um lote grava o mesmo `first_seen` em todos os
+grupos): uma falha no meio do lote não pula os outros, reiniciar não repete, e
+nunca volta mais de 1 h (alertas desligados por dias não viram enxurrada).
+Grupo com menos de 30 s espera a rodada seguinte, para um lote que confirma
+depois de outro mais novo não ficar atrás do cursor. Limite conhecido: um
+reinício no meio de um lote do mesmo instante pula o resto daquele instante.
+
+**Buraco na coleta** (`collector_stalled`). Do Prometheus/Grafana: o
+`absent_over_time` e o "No Data" separam "a fonte parou" de "o valor está
+ruim". A regra roda no próprio backend (então ele está de pé): `api_metrics`,
+`host_metrics` ou `livekit_metrics` sem linha há 5 min, por 10 min seguidos,
+vira aviso. Tabela vazia ou parada há mais de 24 h (coletor desligado de
+propósito) não conta.
+
+**Regras novas e limiares** (justificativa no topo de cada `rule_*.go`; tabela
+em docs/OBSERVABILIDADE.md § Alertas): disco e inodes (80/90%), backup com mais
+de 26 h ou com menos da metade do anterior, 5xx (5% e 25%, com 10 e 50 erros no
+mínimo em 5 min, com Hold maior que a janela, para um minuto ruim não bastar),
+panic, p95 (2 s e 5 s com 20 pedidos no minuto; com menos, sem dado), pool do
+banco com fila, swap crescendo, steal ≥ 10% por 10 min, 100 erros de buffer UDP
+em 5 min, capacidade (pico semanal ≥ 45 Mbps, teto medido perto de 60), pico de
+erro (um grupo em 5 pessoas em 15 min é aviso; em 8, crítico) e decodificador caindo para o
+processador em 4 pessoas em 10 min (`#qualidade`). "Lives abaixo do alvo em
+massa" não tem evento claro (é média de amostras): fica no resumo.
+
+**Volume e custo.** Uma linha por dia em `alert_daily_summaries` (14 em 14
+dias, apagadas pela retenção). As regras novas leem só a última linha ou os
+últimos 5–35 min de `api_metrics`/`host_metrics` pela chave `minute`; as rotas,
+os últimos 10 min de `api_route_metrics`; o pico da semana (~10 mil linhas de
+`livekit_metrics`) roda uma vez por hora; o backup anterior, uma vez por dia
+(quando aparece arquivo novo). Erro novo: um `SELECT` por minuto em
+`app_error_groups` por `first_seen`. O resumo roda uma vez por dia. Pior caso
+de `alert_incidents` com o erro novo em enxurrada: uma linha por minuto (~1 440
+por dia, ~20 mil em 14 dias, ainda pequeno); o normal é de algumas por dia.
+
+**Fontes.**
+
+- Proxmox, *sync guest time via QGA when the clock falls behind* (resume, pausa):
+  https://lore.proxmox.com/all/20260813135713.380802-1-j.klocker@proxmox.com/t/
+- Thomas Gleixner sobre o que faz `CLOCK_REALTIME` saltar:
+  https://lore.kernel.org/871r557jls.ffs@tglx/
+- Sentry, *Issue alert configuration* (intervalo de ação por regra):
+  https://docs.sentry.io/product/alerts/create-alerts/issue-alert-config
+- Sentry, *Top 3 issue alert tips to stop noisy notifications*:
+  https://blog.sentry.io/top-3-issue-alert-tips-to-stop-noisy-notifications
+- Grafana, *Handle missing data* (`absent_over_time`, No Data):
+  https://grafana.com/docs/grafana/latest/alerting/guides/missing-data/

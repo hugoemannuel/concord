@@ -22,6 +22,8 @@ export interface AlertReport {
   enabled: boolean
   active: AlertRow[]
   history: AlertRow[]
+  /** Quando saiu o último resumo diário em #resumo-diario (null = nenhum). */
+  last_summary_at?: string | null
 }
 
 export function fetchAlertReport(days: number): Promise<AlertReport> {

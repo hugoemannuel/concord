@@ -131,9 +131,9 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   eventos mais recentes das lives e calls (quase todos congelamentos longos, ~310
   por dia: sem a lista à parte, as quedas da voz sumiam em poucas horas).
 - **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).
-- **Alertas** (`alertas`): o que está disparado agora, quantas vezes cada regra
-  disparou no período (recorrência) e o histórico (regra, gravidade, de quando
-  a quando). Pedido próprio: `GET /api/obs/alerts?days=N`. Ver [Alertas](#alertas).
+- **Alertas** (`alertas`): quando saiu o último resumo diário, o que está
+  disparado agora, quantas vezes cada regra disparou no período (recorrência) e
+  o histórico (regra, canal, gravidade, de quando a quando). Pedido próprio: `GET /api/obs/alerts?days=N`. Ver [Alertas](#alertas).
 
 Piores sessões: pontuação e os motivos prováveis, com a linha de números da
 sessão (captura × codificado, chegam × decodificados, ms por quadro; na voz,
@@ -168,8 +168,8 @@ O mesmo JSON: `GET /api/obs/lives?days=7` (token de um dev).
 Avisos no servidor dos devs ([ADR 0071](adr/0071-alertas-em-canais-do-servidor-dos-devs.md)).
 Com `ALERTS_SERVER_ID` (id do servidor "Devs Salinha"), o backend garante no
 boot a categoria **Monitoramento** com os canais de sistema `#alertas` (infra e
-serviços), `#erros` (erros do app, parte 2), `#qualidade` (calls e lives) e
-`#resumo-diario` (parte 2), e escreve neles como **Salinha Bot**. Vazio = tudo
+serviços), `#erros` (erros do app), `#qualidade` (calls e lives) e
+`#resumo-diario` (o dia anterior em números), e escreve neles como **Salinha Bot**. Vazio = tudo
 desligado (o padrão). Como ligar: [HOSPEDAGEM.md](HOSPEDAGEM.md#alertas-no-servidor-dos-devs).
 
 **Como avisa**: uma mensagem ao disparar, uma se piorar (aviso → crítico), uma
@@ -192,6 +192,22 @@ aberto) fica em `alert_incidents`: reiniciar o backend não repete o aviso.
 | Serviço do systemd falhou (`unit_failed`) | alertas | `OnFailure=` de `concord-*`/`salinha-*` (backup, yt-dlp, firewall); a mesma unidade de novo em 1 h só vai para o histórico | — | (evento) |
 | Voz sem conectar (`call_failures`) | qualidade | — | 3+ pessoas com `conexao_falhou` na etapa de mídia em 5 min | abaixo por 10 min |
 | Voz reconectando em massa (`call_reconnects`) | qualidade | 4+ pessoas com `reconectou` em 3 min | — | abaixo por 10 min |
+| Máquina congelada (`host_frozen`) | alertas | — | relógio de hardware mais de 1 min à frente do sistema (a VM foi pausada e voltou sem reiniciar), ou o relógio de parede saltou mais de 1 min sobre o monotônico; uma vez por congelamento, com início e fim estimados | (evento) |
+| Disco da máquina (`host_disk`) | alertas | ≥ 80% por 15 min | ≥ 90% por 10 min | abaixo por 30 min |
+| Inodes do disco (`host_inodes`) | alertas | ≥ 80% por 15 min | ≥ 90% por 10 min | abaixo por 30 min |
+| Backup do banco (`backup_late`) | alertas | arquivo mais novo com mais de 26 h, ou com menos da metade do anterior (anterior ≥ 1 MB), por 10 min | — | em dia por 10 min |
+| API com erro 5xx (`api_errors`) | alertas | ≥ 5% dos pedidos em 5 min (mín. 10 erros) por 8 min seguidos (erros se estendendo por 4 min ou mais), com a rota que mais errou | ≥ 25% (mín. 50 erros) por 10 min | abaixo por 10 min |
+| Panic no backend (`api_panics`) | alertas | 1+ panic em 15 min | — | 30 min sem |
+| API lenta (`api_slow`) | alertas | p95 do minuto ≥ 2 s (com 20+ pedidos; com menos, sem dado) por 5 min, com a rota mais lenta | ≥ 5 s por 10 min | abaixo por 5 min |
+| Pool do banco no limite (`db_pool`) | alertas | 30+ esperas por conexão ou 3 s esperando no minuto, ou o pool cheio com fila, por 5 min | — | abaixo por 5 min |
+| Swap crescendo (`host_swap`) | alertas | ≥ 512 MB e +256 MB em 30 min, por 10 min | — | parado por 30 min |
+| CPU roubada pelo provedor (`host_steal`) | alertas | `steal` ≥ 10% por 10 min | — | abaixo por 10 min |
+| Buffer de UDP estourando (`udp_buffer`) | alertas | 100+ `RcvbufErrors`+`SndbufErrors` em 5 min, por 8 min | — | abaixo por 15 min |
+| Coleta parada (`collector_stalled`) | alertas | `api_metrics`, `host_metrics` ou `livekit_metrics` sem linha há 5 min, por 10 min (com o backend no ar) | — | em dia por 2 min |
+| Capacidade das lives (`live_capacity`) | alertas | pico de saída do LiveKit nos últimos 7 dias ≥ 45 Mbps (teto de CPU perto de 60); lembra a cada 7 dias | — | pico da semana abaixo |
+| Erro novo (`error_new`) | erros | cada grupo visto pela primeira vez (tipo, origem, versão, link da aba Erros), até 5 por hora; o resto numa mensagem só por hora | — | (evento) |
+| Pico de erro (`error_spike`) | erros | um grupo atingindo 5+ pessoas em 15 min | 8+ pessoas | abaixo por 30 min |
+| Decodificador falhando em massa (`decoder_failing`) | qualidade | 4+ pessoas com `decoder_software` em 10 min | — | abaixo por 15 min |
 
 Os números estão em constantes no começo de cada `backend/internal/alert/rule_*.go`.
 O LiveKit fora só avisa se ele respondeu alguma vez na última hora (sem o
@@ -199,7 +215,30 @@ Prometheus ligado ele estaria "fora" para sempre); fora há mais de 1 h, o
 incidente fica aberto sem lembrete até ele voltar. Todo membro do servidor de
 `ALERTS_SERVER_ID` vê os canais (canal de sistema não tem permissão própria):
 use um servidor só dos devs. O backup que roda e não gera
-arquivo fica para a parte 2 (idade do arquivo, coletada pela tarefa obs-servidor).
+arquivo cai em `backup_late` (idade do arquivo, coletada em `host_metrics`).
+
+**Máquina congelada.** O provedor pausa a VM e a retoma sem reiniciar
+(23/11/2026 por 8h21, 25/11 por 4h49): não há boot, e o relógio do sistema
+volta atrasado pelo tempo da pausa até o `systemd-timesyncd` corrigir (até
+34 min). A cada 30 s o backend compara `/sys/class/rtc/rtc0/since_epoch` (o
+relógio de hardware, que o hipervisor mantém) com o do sistema e avisa logo na
+volta; de reserva, o salto do relógio de parede sobre o monotônico (o que
+sobra quando o NTP corrige). Enquanto o relógio está atrasado, as mensagens e
+as linhas das tabelas saem com a hora errada; `systemctl restart
+systemd-timesyncd` força a correção. Sem o arquivo (dev, Windows, contêiner)
+ou com o relógio de hardware na hora local, só o salto vale. Consulta:
+`SELECT started_at, ended_at, ended_at - started_at FROM alert_incidents WHERE
+rule_id = 'host_frozen' ORDER BY started_at DESC;`
+
+**Resumo diário** (`#resumo-diario`): às 8h de Brasília (ou quando o backend
+voltar, se estava fora), uma mensagem com o dia anterior: pessoas e horas em
+call, falhas de conexão e reconexões, lives e quantas ficaram abaixo do alvo
+(metade das amostras com fps < 80% do escolhido ou degrau abaixo), pico de
+saída, os 3 erros com mais pessoas, pedidos, 5xx e p95 da API (típico = mediana
+dos minutos com 20+ pedidos), pico de CPU (e p95) e de memória, disco, se o
+backup rodou e os alertas que dispararam. Só contagens, sem nomes. A marca do
+dia fica em `alert_daily_summaries`; silenciar: `ALERTS_MUTED=daily_summary`.
+A aba Alertas mostra quando saiu o último.
 
 **Limite**: o alerta é postado pelo próprio backend, então **não avisa enquanto
 a VPS, o backend ou o banco estão fora**: só quando voltam ("ficou fora de X a
@@ -237,6 +276,9 @@ teto). A fonte nova entra na interface `Sources` de `rules.go`, implementada pel
 `Engine.Notify(Event{...})`. Os textos ficam em `messages.go` (ou no `Text` da
 leitura) e precisam de aprovação. O teste da regra usa uma fonte falsa
 (`rules_test.go`).
+
+**Acontecimento ou tarefa com horário** (não uma condição): um vigia com
+`Tick(ctx)` em `Runner.Watches` (`freeze.go`, `errorwatch.go`, `summary.go`).
 
 **Consultas**: `SELECT rule_id, severity, started_at, ended_at, text FROM
 alert_incidents ORDER BY started_at DESC LIMIT 50;` e `SELECT * FROM

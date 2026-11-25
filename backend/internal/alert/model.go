@@ -78,6 +78,9 @@ type Rule struct {
 	// Tab: a aba do painel /observabilidade que mostra o assunto ("" = sem link).
 	Tab  string
 	Hold Hold
+	// Remind: de quanto em quanto um disparo que continua ganha um lembrete
+	// (zero = remindEvery, 6 h).
+	Remind time.Duration
 	// Check lê a fonte (só as últimas linhas) e diz o nível de agora.
 	Check func(ctx context.Context, now time.Time) (Reading, error)
 }

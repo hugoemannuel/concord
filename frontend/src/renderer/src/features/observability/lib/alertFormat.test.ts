@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AlertRow } from '../api/alerts'
-import { alertDuration, recurrence, severityLabel } from './alertFormat'
+import { alertDuration, channelLabel, recurrence, severityLabel } from './alertFormat'
 
 const row = (over: Partial<AlertRow>): AlertRow => ({
   id: 1,
@@ -51,5 +51,15 @@ describe('recurrence', () => {
       { title: 'Serviço do systemd falhou', count: 1 },
       { title: 'sem_titulo', count: 1 }
     ])
+  })
+})
+
+describe('channelLabel', () => {
+  it('diz o canal pelo nome com que nasce', () => {
+    expect(channelLabel('alert_infra')).toBe('#alertas')
+    expect(channelLabel('alert_errors')).toBe('#erros')
+    expect(channelLabel('alert_quality')).toBe('#qualidade')
+    expect(channelLabel('alert_daily')).toBe('#resumo-diario')
+    expect(channelLabel('outro')).toBe('outro')
   })
 })

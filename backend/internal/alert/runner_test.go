@@ -38,6 +38,44 @@ func TestRunnerSobeEGravaAParada(t *testing.T) {
 	}
 }
 
+func TestRunnerSoltaOsVigias(t *testing.T) {
+	r, _, _ := newTestRunner(nil)
+	started := make(chan struct{}, 1)
+	r.Watches = []func(context.Context){func(context.Context) { started <- struct{}{} }}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	r.Run(ctx)
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("vigia não rodou")
+	}
+}
+
+func TestEveryRodaAteOFim(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	calls := 0
+	done := make(chan struct{})
+	go func() {
+		every(ctx, time.Millisecond, "teste", func(context.Context) error {
+			calls++
+			if calls == 3 {
+				cancel()
+			}
+			return errors.New("falhou")
+		})
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("every não parou")
+	}
+	if calls < 3 {
+		t.Fatalf("calls = %d", calls)
+	}
+}
+
 func TestRunnerSemCanaisDesliga(t *testing.T) {
 	r, runs, out := newTestRunner(errors.New("servidor não existe"))
 	r.Run(context.Background())

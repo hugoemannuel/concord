@@ -8,7 +8,7 @@ import (
 
 func newAlertDB(t *testing.T) *Repository {
 	t.Helper()
-	db := newTestDB(t, "000172_livekit_metrics.up.sql", "000173_live_telemetry.up.sql", "000216_alerts.up.sql")
+	db := newTestDB(t, "000172_livekit_metrics.up.sql", "000173_live_telemetry.up.sql", "000216_alerts.up.sql", "000220_alert_daily_summaries.up.sql")
 	return NewRepository(db)
 }
 
@@ -115,5 +115,43 @@ func mustExec(t *testing.T, repo *Repository, sql string, args ...any) {
 	t.Helper()
 	if _, err := repo.db.Exec(context.Background(), sql, args...); err != nil {
 		t.Fatalf("%s: %v", sql, err)
+	}
+}
+
+func TestRepositoryUltimoIncidenteDaRegra(t *testing.T) {
+	repo := newAlertDB(t)
+	ctx := context.Background()
+	if last, err := repo.LastIncident(ctx, "host_frozen"); err != nil || last != nil {
+		t.Fatalf("vazio = %+v, %v", last, err)
+	}
+	t0 := time.Date(2026, 11, 25, 9, 32, 0, 0, time.UTC)
+	for i, rule := range []string{"host_frozen", "host_frozen", "host_cpu"} {
+		end := t0.Add(time.Duration(i+1) * time.Hour)
+		inc := &Incident{RuleID: rule, Channel: "alert_infra", Severity: "critico", StartedAt: t0.Add(time.Duration(i) * time.Hour), EndedAt: &end}
+		if err := repo.InsertIncident(ctx, inc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	last, err := repo.LastIncident(ctx, "host_frozen")
+	if err != nil || last == nil || !last.StartedAt.Equal(t0.Add(time.Hour)) {
+		t.Fatalf("último = %+v, %v", last, err)
+	}
+}
+
+// Regressão (revisão): o disparo aberto vem antes do teto do histórico.
+func TestRepositoryHistoricoAbertosPrimeiro(t *testing.T) {
+	repo := newAlertDB(t)
+	ctx := context.Background()
+	t0 := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	if err := repo.InsertIncident(ctx, &Incident{RuleID: "host_disk", Channel: "alert_infra", Severity: "critico", StartedAt: t0}); err != nil {
+		t.Fatal(err)
+	}
+	end := t0.Add(48 * time.Hour)
+	if err := repo.InsertIncident(ctx, &Incident{RuleID: "error_new", Channel: "alert_errors", Severity: "aviso", StartedAt: end, EndedAt: &end}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := repo.History(ctx, t0.Add(-time.Hour))
+	if err != nil || len(rows) != 2 || rows[0].RuleID != "host_disk" {
+		t.Fatalf("histórico = %+v, %v", rows, err)
 	}
 }

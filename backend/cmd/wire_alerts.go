@@ -8,11 +8,13 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/alert"
+	"gin-quickstart/backend/internal/apperrors"
 	"gin-quickstart/backend/internal/bot"
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/channelcategory"
 	"gin-quickstart/backend/internal/liveobs"
 	"gin-quickstart/backend/internal/message"
+	"gin-quickstart/backend/internal/serverobs"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,14 +32,16 @@ const alertMessageKind = "alert"
 func (a *app) wireAlerts() {
 	serverID := strings.TrimSpace(os.Getenv("ALERTS_SERVER_ID"))
 	repo := alert.NewRepository(a.db)
-	rules := alert.Rules(repo)
+	feeds := alert.NewFeeds(repo, serverobs.NewHostRepository(a.db), serverobs.NewAPIRepository(a.db), apperrors.NewRepository(a.db))
+	rules := alert.Rules(feeds)
 	report := alert.NewReportHandler(repo, liveobs.NewReportRepository(a.db), alert.Titles(rules), serverID != "")
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) { alert.ReportRoutes(api, report, a.authMiddleware) })
 	if serverID == "" {
 		return
 	}
 	poster := alert.NewPoster(nil, a.postAlert)
-	engine := alert.NewEngine(rules, repo, poster, envOr("APP_URL", "http://localhost:5173"), envList("ALERTS_MUTED"))
+	appURL := envOr("APP_URL", "http://localhost:5173")
+	engine := alert.NewEngine(rules, repo, poster, appURL, envList("ALERTS_MUTED"))
 	units := alert.NewUnitHandler(engine)
 	a.route(func(router *gin.Engine, _ *gin.RouterGroup) { alert.UnitRoutes(router, units) })
 	store := alertChannels{repository: a.channelRepository, channels: a.channelService, categories: channelcategory.NewRepository(a.db)}
@@ -49,6 +53,11 @@ func (a *app) wireAlerts() {
 		Engine:    engine,
 		Lifecycle: alert.NewLifecycle(repo, engine, alert.BuildVersion()),
 		Database:  alert.NewDatabaseWatch(a.db.Ping, engine.Notify),
+		Watches: []func(ctx context.Context){
+			alert.NewFreezeWatch(repo, engine.Notify).Run,
+			alert.NewErrorWatch(feeds, repo, engine.Notify, appURL).Run,
+			alert.NewDailySummary(repo, feeds, engine.Announce, alert.Titles(rules), appURL).Run,
+		},
 		// Banco instável no boot: lê o estado de novo a cada 15 s.
 		RetryEvery: 15 * time.Second,
 	}

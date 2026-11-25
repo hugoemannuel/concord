@@ -5,6 +5,9 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"gin-quickstart/backend/internal/apperrors"
+	"gin-quickstart/backend/internal/serverobs"
 )
 
 // fakeSources: as linhas que as regras leem, na memória.
@@ -13,6 +16,16 @@ type fakeSources struct {
 	crashed int
 	people  map[string]int
 	err     error
+
+	host        []serverobs.HostMinute // da mais antiga à mais nova
+	api         []serverobs.APIMinute
+	routes      []serverobs.RouteRow
+	lastMinute  *time.Time
+	prevBackup  *Backup
+	peak        *Peak
+	impact      []apperrors.GroupImpact
+	backupCalls int
+	peakCalls   int
 }
 
 func (f *fakeSources) RecentMinutes(_ context.Context, since time.Time) ([]Minute, error) {

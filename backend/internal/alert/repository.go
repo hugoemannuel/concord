@@ -43,10 +43,12 @@ func (r *Repository) OpenIncidents(ctx context.Context) ([]Incident, error) {
 	return r.incidents(ctx, `SELECT `+incidentColumns+` FROM alert_incidents WHERE ended_at IS NULL ORDER BY started_at`)
 }
 
-// History: os incidentes que começaram depois de from ou ainda abertos, do mais novo ao mais antigo.
+// History: os incidentes que começaram depois de from ou ainda abertos: os
+// abertos primeiro (uma enxurrada de erro novo não tira do teto um disparo
+// aberto há dias), depois do mais novo ao mais antigo.
 func (r *Repository) History(ctx context.Context, from time.Time) ([]Incident, error) {
 	return r.incidents(ctx, `SELECT `+incidentColumns+` FROM alert_incidents
-		WHERE started_at >= $1 OR ended_at IS NULL ORDER BY started_at DESC LIMIT $2`, from, historyLimit)
+		WHERE started_at >= $1 OR ended_at IS NULL ORDER BY (ended_at IS NULL) DESC, started_at DESC LIMIT $2`, from, historyLimit)
 }
 
 func (r *Repository) InsertIncident(ctx context.Context, inc *Incident) error {
@@ -80,7 +82,8 @@ func (r *Repository) CloseIncident(ctx context.Context, id int64, at time.Time) 
 func (r *Repository) Prune(ctx context.Context, before time.Time) error {
 	_, err1 := r.db.Exec(ctx, `DELETE FROM alert_incidents WHERE ended_at IS NOT NULL AND started_at < $1`, before)
 	_, err2 := r.db.Exec(ctx, `DELETE FROM backend_runs WHERE started_at < $1`, before)
-	if err := errors.Join(err1, err2); err != nil {
+	_, err3 := r.db.Exec(ctx, `DELETE FROM alert_daily_summaries WHERE sent_at < $1`, before)
+	if err := errors.Join(err1, err2, err3); err != nil {
 		return fmt.Errorf("apagar alertas antigos: %w", err)
 	}
 	return nil
@@ -128,4 +131,14 @@ func (r *Repository) CrashedRunsSince(ctx context.Context, since time.Time) (int
 		return 0, fmt.Errorf("contar boots: %w", err)
 	}
 	return n, nil
+}
+
+// LastIncident: o incidente mais novo da regra (nil = nenhum).
+func (r *Repository) LastIncident(ctx context.Context, ruleID string) (*Incident, error) {
+	rows, err := r.incidents(ctx, `SELECT `+incidentColumns+` FROM alert_incidents
+		WHERE rule_id = $1 ORDER BY started_at DESC LIMIT 1`, ruleID)
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	return &rows[0], nil
 }

@@ -33,3 +33,15 @@ export function recurrence(rows: AlertRow[]): { title: string; count: number }[]
   }
   return [...counts].map(([title, count]) => ({ title, count })).sort((a, b) => b.count - a.count)
 }
+
+const CHANNELS: Record<string, string> = {
+  alert_infra: '#alertas',
+  alert_errors: '#erros',
+  alert_quality: '#qualidade',
+  alert_daily: '#resumo-diario'
+}
+
+/** O canal pelo nome com que nasce ("#alertas"); o tipo cru se for outro. */
+export function channelLabel(channel: string): string {
+  return CHANNELS[channel] ?? channel
+}

@@ -13,9 +13,15 @@ import (
 )
 
 type fakeHistory struct {
-	rows []Incident
-	from time.Time
-	err  error
+	rows       []Incident
+	from       time.Time
+	err        error
+	summary    *time.Time
+	summaryErr error
+}
+
+func (f *fakeHistory) LastDailySummary(context.Context) (*time.Time, error) {
+	return f.summary, f.summaryErr
 }
 
 func (f *fakeHistory) History(_ context.Context, from time.Time) ([]Incident, error) {
@@ -83,5 +89,23 @@ func TestReportHandlerErros(t *testing.T) {
 				t.Fatalf("status = %d, quer %d", w.Code, tt.want)
 			}
 		})
+	}
+}
+
+func TestReportHandlerUltimoResumo(t *testing.T) {
+	sent := at(8, 1)
+	hist := &fakeHistory{summary: &sent}
+	h := NewReportHandler(hist, fakeDevs{dev: true}, nil, true)
+	var got Report
+	if err := json.Unmarshal(reportRequest(h, "").Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.LastSummaryAt == nil || !got.LastSummaryAt.Equal(sent) {
+		t.Fatalf("último resumo = %v", got.LastSummaryAt)
+	}
+	hist.summary, hist.summaryErr = nil, errors.New("banco")
+	w := reportRequest(h, "")
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK || got.LastSummaryAt != nil {
+		t.Fatalf("erro no resumo derruba o painel: %d %s", w.Code, w.Body)
 	}
 }
