@@ -12,16 +12,32 @@ interface ResourceLike {
   initiatorType: string
 }
 
+/**
+ * O endereço da API como o Resource Timing o mostra: absoluto. No web o
+ * API_BASE_URL é relativo ('/api'); sem página para resolver, fica como veio.
+ */
+export function absoluteApiBase(apiBaseUrl: string, pageHref: string | undefined): string {
+  try {
+    return new URL(apiBaseUrl, pageHref).href.replace(/\/$/, '')
+  } catch {
+    return apiBaseUrl
+  }
+}
+
 export class ApiTimings {
   private durations: number[] = []
   private readonly prefix: string
   /** A própria telemetria (/api/obs/) não é a latência que a pessoa sente. */
   private readonly own: string
 
-  /** `apiBaseUrl`: o endereço da API do servidor do app (…/api). */
-  constructor(apiBaseUrl: string) {
-    this.prefix = `${apiBaseUrl}/`
-    this.own = `${apiBaseUrl}/obs/`
+  /**
+   * `apiBaseUrl`: o endereço da API do servidor do app (…/api), absoluto ou
+   * relativo a `pageHref` (a página do app, no web).
+   */
+  constructor(apiBaseUrl: string, pageHref: string | undefined = globalThis.location?.href) {
+    const base = absoluteApiBase(apiBaseUrl, pageHref)
+    this.prefix = `${base}/`
+    this.own = `${base}/obs/`
   }
 
   add(entry: ResourceLike): void {
