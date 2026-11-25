@@ -90,6 +90,12 @@ func TestUnitHandlerNomeEDeduplicacao(t *testing.T) {
 	if got := unitRequest(h, "127.0.0.1:1", nil, "salinha-firewall.service"); got != http.StatusInternalServerError {
 		t.Errorf("falha ao avisar = %d", got)
 	}
+	// O curl tenta de novo: a nova tentativa ainda posta (não sai "quieta").
+	alerts.err = nil
+	unitRequest(h, "127.0.0.1:1", nil, "salinha-firewall.service")
+	if last := alerts.events[len(alerts.events)-1]; last.Quiet {
+		t.Errorf("a nova tentativa saiu quieta: %+v", last)
+	}
 }
 
 func TestEngineNotifyQuietSoGrava(t *testing.T) {

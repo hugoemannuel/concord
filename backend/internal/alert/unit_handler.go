@@ -68,6 +68,9 @@ func (h *UnitHandler) Failed(c *gin.Context) {
 	ev := Event{RuleID: unitFailedRuleID, Channel: ChannelInfra, Level: LevelWarning, Text: unitFailedText(unit),
 		StartedAt: now, EndedAt: now, Quiet: !h.firstInAWhile(unit, now)}
 	if err := h.alerts.Notify(c.Request.Context(), ev); err != nil {
+		if !ev.Quiet {
+			h.forget(unit) // o curl tenta de novo, e a nova tentativa precisa postar
+		}
 		log.Printf("[alert] %s falhou, mas o aviso não saiu: %v", unit, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to notify"})
 		return
@@ -85,6 +88,12 @@ func (h *UnitHandler) firstInAWhile(unit string, now time.Time) bool {
 	}
 	h.last[unit] = now
 	return true
+}
+
+func (h *UnitHandler) forget(unit string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.last, unit)
 }
 
 // fromThisMachine: veio de 127.0.0.1/::1 e não passou por proxy.
