@@ -159,3 +159,33 @@ func mustNow(t *testing.T, db *pgxpool.Pool) time.Time {
 	}
 	return now
 }
+
+func TestResumeCandidatesSoVozRecemNascida(t *testing.T) {
+	owned := []ownedReport{
+		{rep: Report{Kind: KindCall, CallID: callA}, inserted: true},
+		{rep: Report{Kind: KindCall, CallID: callA}, inserted: false},
+		{rep: Report{Kind: KindCall}, inserted: true},
+		{rep: Report{Kind: KindWatch, CallID: callA}, inserted: true},
+		{rep: Report{Kind: KindCall, CallID: callB}, inserted: true},
+	}
+	got := resumeCandidates(owned)
+	if len(got) != 2 || got[0] != 0 || got[1] != 4 {
+		t.Errorf("candidatas = %v, quer [0 4]", got)
+	}
+}
+
+func TestResumedDetail(t *testing.T) {
+	cases := []struct {
+		r    resumed
+		want string
+	}{
+		{resumed{73, "0.6.97", "0.6.98"}, "73 s · 0.6.97 → 0.6.98"},
+		{resumed{40, "0.6.97", "0.6.97"}, "40 s"},
+		{resumed{40, "", "0.6.103"}, "40 s · — → 0.6.103"},
+	}
+	for _, c := range cases {
+		if got := c.r.detail(); got != c.want {
+			t.Errorf("detail = %q, quer %q", got, c.want)
+		}
+	}
+}
