@@ -30,16 +30,18 @@ func buildReport(from, to time.Time, sessions []SessionStats, minutes []ServerMi
 	lives := worstRows(sessions, maxWorst, isNotCall)
 	calls := worstRows(sessions, maxWorstCalls, isCall)
 	return LiveReport{
-		From:       from,
-		To:         to,
-		BucketMin:  int(bucket / time.Minute),
-		Server:     bucketSeries(minutes, bucket),
-		Lives:      liveRows(sessions, maxLives),
-		Worst:      append(slices.Clone(lives), calls...),
-		WorstLives: lives,
-		WorstCalls: calls,
-		Breakdown:  breakdowns(sessions),
-		Events:     events,
+		From:            from,
+		To:              to,
+		BucketMin:       int(bucket / time.Minute),
+		Server:          bucketSeries(minutes, bucket),
+		Lives:           liveRows(sessions, maxLives),
+		Worst:           append(slices.Clone(lives), calls...),
+		WorstLives:      lives,
+		WorstCalls:      calls,
+		Breakdown:       breakdowns(sessions),
+		Events:          events,
+		CollectionGaps:  collectionGaps(minutes, to),
+		LiveKitRestarts: liveKitRestarts(minutes),
 	}
 }
 

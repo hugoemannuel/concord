@@ -83,6 +83,14 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   rotas mais lentas e com erro, WebSockets, pool do banco, panics) e **LiveKit**
   (picos de saída, pessoas, perda na descida; banda e CPU). Ver
   [Servidor: API e VPS](#servidor-api-e-vps).
+  O bloco LiveKit mostra também **sem coleta e reinícios do LiveKit** (`collection_gaps`, `livekit_restarts`).
+  O coletor roda dentro do backend: quando o backend ou a VPS param não fica
+  linha nenhuma (`up = false` só aparece com o backend de pé e o LiveKit fora, e
+  não apareceu nenhuma vez de 11/11 a 25/11). Por isso 2 ou mais minutos
+  seguidos faltando na `livekit_metrics` aparecem como "sem coleta" (início, fim,
+  duração; o começo do período não conta). Buracos de 2–3 min logo depois de um
+  merge na `main` são o deploy do backend. Reinício do LiveKit = o
+  `livekit_started_at` (o `process_start_time_seconds` dele) mudou.
 - **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e
   conexão; e, com as calls, por plataforma (desktop, web, android), rede e
   aparelho Android.
@@ -366,6 +374,17 @@ GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 50;
 ```
 Sessões de voz do app antigo que nunca conectaram aparecem sem transporte em
 nenhuma amostra (`bool_and(transport = '')`).
+
+**Buracos na coleta** (backend ou VPS fora) **e reinícios do LiveKit:**
+```sql
+SELECT prev + interval '1 minute' AS sem_coleta_desde, minute AS voltou, minute - prev - interval '1 minute' AS duracao
+FROM (SELECT minute, lag(minute) OVER (ORDER BY minute) AS prev FROM livekit_metrics) m
+WHERE minute - prev > interval '2 minutes' ORDER BY minute DESC;
+SELECT minute, livekit_started_at
+FROM (SELECT minute, livekit_started_at, lag(livekit_started_at) OVER (ORDER BY minute) AS antes
+      FROM livekit_metrics WHERE livekit_started_at IS NOT NULL) m
+WHERE livekit_started_at <> antes ORDER BY minute DESC;
+```
 
 **Eventos das últimas 24 h, por tipo:**
 ```sql

@@ -195,6 +195,31 @@ describe('abas do relatório das lives', () => {
     expect(html).not.toContain('não mandou métricas')
     expect(render(ServerTab, ready(false))).toContain('não mandou métricas')
   })
+  it('Servidor: buracos na coleta e reinícios do LiveKit', () => {
+    const r = report(true)
+    const withGaps: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        collection_gaps: [{ from: '2026-11-23T01:55:00', to: '2026-11-23T10:16:00', minutes: 501 }],
+        livekit_restarts: [{ at: '2026-11-24T21:17:00', seen_at: '2026-11-24T21:18:00' }]
+      }
+    }
+    const html = render(ServerTab, withGaps)
+    expect(html).toContain('Sem coleta e reinícios do LiveKit')
+    expect(html).toContain('23/11, 01:55 → 10:16 · 8 h 21 min')
+    expect(html).toContain('LiveKit reiniciou')
+    expect(html).toContain('24/11, 21:17')
+    const clean: ReportState = {
+      status: 'ready',
+      report: { ...r, collection_gaps: [], livekit_restarts: [] }
+    }
+    expect(render(ServerTab, clean)).toContain(
+      'Nenhum buraco na coleta e nenhum reinício do LiveKit no período.'
+    )
+    // Backend de antes: sem os campos, a seção não aparece.
+    expect(render(ServerTab, ready())).not.toContain('Sem coleta')
+  })
   it('Distribuição e Eventos', () => {
     const breakdown = render(BreakdownTab, ready())
     for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede (com as calls)', 'Aparelho Android (com as calls)']) {
@@ -211,7 +236,13 @@ describe('abas do relatório das lives', () => {
       report: {
         ...r,
         call_events: [
-          { at: '2026-10-23T10:00:00Z', type: 'reconectou', detail: '16 s', kind: 'call', username: 'caio' }
+          {
+            at: '2026-10-23T10:00:00Z',
+            type: 'reconectou',
+            detail: '16 s',
+            kind: 'call',
+            username: 'caio'
+          }
         ]
       }
     }

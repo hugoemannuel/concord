@@ -102,6 +102,19 @@ export interface EventRow {
   username: string
 }
 
+/** Minutos seguidos sem nenhuma linha do coletor (o backend ou a VPS fora). */
+export interface CollectionGap {
+  from: string
+  to: string
+  minutes: number
+}
+
+/** O LiveKit começou de novo (at: o início do processo novo). */
+export interface LiveKitRestart {
+  at: string
+  seen_at: string
+}
+
 export interface LiveReport {
   from: string
   to: string
@@ -120,6 +133,9 @@ export interface LiveReport {
   events: EventRow[]
   /** Quedas e falhas da voz do período inteiro (ausente num backend de antes). */
   call_events?: EventRow[]
+  /** Buracos na coleta e reinícios do LiveKit, do mais recente (ausentes num backend de antes). */
+  collection_gaps?: CollectionGap[]
+  livekit_restarts?: LiveKitRestart[]
 }
 
 export function fetchLiveReport(days: number): Promise<LiveReport> {

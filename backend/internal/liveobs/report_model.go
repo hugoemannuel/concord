@@ -137,4 +137,7 @@ type LiveReport struct {
 	// CallEvents: quedas e falhas da voz do período inteiro (Events são só
 	// os últimos, quase todos congelamentos).
 	CallEvents []EventRow `json:"call_events"`
+	// Buracos na coleta (o backend ou a VPS fora) e reinícios do LiveKit.
+	CollectionGaps  []CollectionGap  `json:"collection_gaps"`
+	LiveKitRestarts []LiveKitRestart `json:"livekit_restarts"`
 }
