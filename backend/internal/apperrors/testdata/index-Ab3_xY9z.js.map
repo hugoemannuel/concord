@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": ["../src/features/chat/mensagem.ts", "../src/main.ts"],
+  "mappings": "AAAO,SAASA,EAAMC,EAA0C,CAC9D,OAAOA,EAAM,EACf,CAEO,SAASC,EAAOC,EAAuB,CAE5C,OADeA,EAAM,MAAM,GAAG,EAChB,OAASH,EAAM,MAAS,EAAE,MAC1C,CCLO,SAASI,GAAkB,CAChC,OAAOC,EAAO,aAAa,CAC7B",
+  "names": ["lerId", "item", "enviar", "texto", "iniciar", "enviar"]
+}
