@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 vi.mock('../../features/call/store/callStore', () => ({ useCallStore: () => undefined }))
 import { AppErrorBoundary, AppErrorScreen } from './AppErrorScreen'
+import { setErrorSink } from '../lib/errorSink'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  setErrorSink(null)
 })
 
 describe('AppErrorScreen', () => {
@@ -28,5 +30,15 @@ describe('AppErrorScreen', () => {
     const err = new TypeError("Cannot read properties of undefined (reading 'id')")
     expect(AppErrorBoundary.getDerivedStateFromError(err)).toEqual({ error: err })
     expect(AppErrorBoundary.getDerivedStateFromError(undefined).error).toBeInstanceOf(Error)
+  })
+
+  it('o boundary avisa o relatório de erros só com o erro (sem o componentStack)', () => {
+    const sink = vi.fn()
+    setErrorSink(sink)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const err = new Error('boom')
+    new AppErrorBoundary({ children: null }).componentDidCatch(err, { componentStack: '\n    at Tela' })
+    expect(sink).toHaveBeenCalledWith(err, 'tela')
+    vi.restoreAllMocks()
   })
 })
