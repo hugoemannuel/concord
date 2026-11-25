@@ -52,6 +52,9 @@ func (a *app) wireAlerts() {
 		Engine:    engine,
 		Lifecycle: alert.NewLifecycle(repo, engine, alert.BuildVersion()),
 		Database:  alert.NewDatabaseWatch(a.db.Ping, engine.Notify),
+		Watches: []func(ctx context.Context){
+			alert.NewFreezeWatch(repo, engine.Notify).Run,
+		},
 		// Banco instável no boot: lê o estado de novo a cada 15 s.
 		RetryEvery: 15 * time.Second,
 	}

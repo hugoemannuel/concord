@@ -50,6 +50,7 @@ func Titles(rules []Rule) map[string]string {
 		backendDownRuleID:  "Backend fora do ar",
 		databaseDownRuleID: "Banco fora do ar",
 		unitFailedRuleID:   "Serviço do systemd falhou",
+		freezeRuleID:       "Máquina congelada",
 	}
 	for _, r := range rules {
 		out[r.ID] = r.Title

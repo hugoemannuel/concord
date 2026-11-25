@@ -102,3 +102,18 @@ func withRest(big int, bigUnit string, rest int, restUnit string) string {
 	}
 	return fmt.Sprintf("%d %s %d %s", big, bigUnit, rest, restUnit)
 }
+
+// frozenText: a máquina voltou de um congelamento e o relógio ainda está atrasado.
+func frozenText(from, to time.Time) string {
+	d := duration(to.Sub(from))
+	return fmt.Sprintf("%s: a máquina ficou congelada por %s (de %s a %s, estimado) e voltou sem reiniciar: pausa do provedor. "+
+		"O relógio do sistema está %s atrasado e as mensagens saem com a hora errada até sincronizar (systemctl restart systemd-timesyncd força). Veja o painel do provedor.",
+		severityPrefix(LevelCritical), d, clock(from, to), clock(to, to), d)
+}
+
+// frozenJumpText: o relógio saltou para a frente (o NTP corrigiu um congelamento
+// que o relógio de hardware não viu, ou a máquina foi suspensa).
+func frozenJumpText(from, to time.Time) string {
+	return fmt.Sprintf("%s: o relógio do sistema saltou %s para a frente: a máquina ficou parada (congelada pelo provedor ou suspensa) de %s a %s, estimado, e voltou sem reiniciar. Veja o painel do provedor.",
+		severityPrefix(LevelCritical), duration(to.Sub(from)), clock(from, to), clock(to, to))
+}

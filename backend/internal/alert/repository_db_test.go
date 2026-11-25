@@ -117,3 +117,23 @@ func mustExec(t *testing.T, repo *Repository, sql string, args ...any) {
 		t.Fatalf("%s: %v", sql, err)
 	}
 }
+
+func TestRepositoryUltimoIncidenteDaRegra(t *testing.T) {
+	repo := newAlertDB(t)
+	ctx := context.Background()
+	if last, err := repo.LastIncident(ctx, "host_frozen"); err != nil || last != nil {
+		t.Fatalf("vazio = %+v, %v", last, err)
+	}
+	t0 := time.Date(2026, 11, 25, 9, 32, 0, 0, time.UTC)
+	for i, rule := range []string{"host_frozen", "host_frozen", "host_cpu"} {
+		end := t0.Add(time.Duration(i+1) * time.Hour)
+		inc := &Incident{RuleID: rule, Channel: "alert_infra", Severity: "critico", StartedAt: t0.Add(time.Duration(i) * time.Hour), EndedAt: &end}
+		if err := repo.InsertIncident(ctx, inc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	last, err := repo.LastIncident(ctx, "host_frozen")
+	if err != nil || last == nil || !last.StartedAt.Equal(t0.Add(time.Hour)) {
+		t.Fatalf("último = %+v, %v", last, err)
+	}
+}

@@ -129,3 +129,13 @@ func (r *Repository) CrashedRunsSince(ctx context.Context, since time.Time) (int
 	}
 	return n, nil
 }
+
+// LastIncident: o incidente mais novo da regra (nil = nenhum).
+func (r *Repository) LastIncident(ctx context.Context, ruleID string) (*Incident, error) {
+	rows, err := r.incidents(ctx, `SELECT `+incidentColumns+` FROM alert_incidents
+		WHERE rule_id = $1 ORDER BY started_at DESC LIMIT 1`, ruleID)
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	return &rows[0], nil
+}
