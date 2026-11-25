@@ -37,6 +37,9 @@ type ServerMinute struct {
 	// Máquina inteira (todas as vCPUs = 100%).
 	HostCPUPercent *float64
 	HostMemPercent *float64
+	// LiveKitStartedAt: quando o processo do LiveKit começou
+	// (process_start_time_seconds); mudou de um minuto para o outro = reiniciou.
+	LiveKitStartedAt *time.Time
 }
 
 // Contadores e medidores lidos numa coleta.
@@ -72,6 +75,7 @@ const (
 	gVideoIn
 	gVideoOut
 	gRSS
+	gStarted
 	numGauges
 )
 
@@ -116,6 +120,7 @@ var gaugeQueries = [numGauges]query{
 	gVideoIn:      {"livekit_track_published_total", video},
 	gVideoOut:     {"livekit_track_subscribed_total", video},
 	gRSS:          {"process_resident_memory_bytes", nil},
+	gStarted:      {"process_start_time_seconds", nil},
 }
 
 // counters: uma coleta do /metrics.
@@ -181,7 +186,17 @@ func serverMinute(prev, now counters, seconds float64) ServerMinute {
 		VideoTracksOut:     g(gVideoOut),
 		LiveKitCPUPercent:  cpuOver(now.delta(prev, cCPUSeconds), seconds),
 		LiveKitMemMB:       &mem,
+		LiveKitStartedAt:   unixTime(now.g[gStarted]),
 	}
+}
+
+// unixTime: segundos desde 1970 (como o Prometheus exporta); nil sem o valor.
+func unixTime(seconds float64) *time.Time {
+	if seconds <= 0 {
+		return nil
+	}
+	t := time.Unix(0, int64(seconds*1e9)).UTC()
+	return &t
 }
 
 func cpuOver(cpuSeconds, seconds float64) *float64 {

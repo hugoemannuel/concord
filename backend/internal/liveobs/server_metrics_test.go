@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"gin-quickstart/backend/internal/platform/promtext"
 )
@@ -69,6 +70,7 @@ livekit_track_subscribed_total{kind="AUDIO"} 12
 livekit_track_subscribed_total{kind="VIDEO"} 6
 process_cpu_seconds_total 40
 process_resident_memory_bytes 1.048576e+08
+process_start_time_seconds 1.79399868e+09
 `
 
 func near(a, b float64) bool { return math.Abs(a-b) < 0.01 }
@@ -109,6 +111,12 @@ func TestServerMinuteDeltasEntreLeituras(t *testing.T) {
 	}
 	if !m.Up {
 		t.Error("Up = false com as duas leituras")
+	}
+	if m.LiveKitStartedAt == nil || !m.LiveKitStartedAt.Equal(time.Unix(1_793_998_680, 0)) {
+		t.Errorf("início do LiveKit = %v", m.LiveKitStartedAt)
+	}
+	if a := serverMinute(prev, prev, 60); a.LiveKitStartedAt != nil {
+		t.Errorf("sem process_start_time_seconds: %v, quer nil", a.LiveKitStartedAt)
 	}
 }
 
