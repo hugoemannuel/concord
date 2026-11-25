@@ -91,9 +91,13 @@ export class CallMedia {
   private connected = false
   /** O que baixar de cada pessoa (tela só de quem assisto; vídeo pausado fora de vista). */
   private subscriptions = new RemoteSubscriptions()
-  /** O H.265 das lives que assisto decodifica aqui? (ADR 0073) */
+  /** O decodificador dá conta das lives que assisto? (camada baixa, H.265; ADR 0073) */
   private receiveWatch = new ScreenReceiveWatch({
     participants: () => this.room.remoteParticipants.values(),
+    onOverload: (identity, low) => {
+      this.subscriptions.setDecodeLimited(identity, low)
+      this.applySubscriptions()
+    },
     onHevcFailed: (userId, rates) => void reportHevcDecodeFailure(userId, rates)
   })
   private stopWindowWatch: () => void

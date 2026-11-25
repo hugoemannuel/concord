@@ -1,10 +1,13 @@
 import { mediaOwner } from './screenIdentity'
+import { decodeOverloadTick, initialDecodeOverload, type DecodeOverloadState } from './screenDecodeOverload'
 import { hevcGuardTick, initialHevcGuard, type HevcGuardState } from './screenHevcDecodeGuard'
 import { receiveCounters, receiveRates, type ReceiveCounters, type ReceiveRates } from './screenReceiveRates'
 
 // Vigia a recepção das lives que estou assistindo (a cada 2 s, só as
-// assinadas e com vídeo ligado) e passa cada leitura ao detector do H.265 que
-// chega e não decodifica (marca para a próxima abertura). Ver docs/adr/0073.
+// assinadas e com vídeo ligado) e passa cada leitura aos dois detectores do
+// decodificador: o H.265 que chega e não decodifica (marca para a próxima
+// abertura) e o decodificador que não dá conta da camada de cima (pede a de
+// baixo, se a live tiver). Ver docs/adr/0073.
 
 export const RECEIVE_TICK_MS = 2000
 
@@ -13,6 +16,7 @@ export interface ReceivePublicationLike {
   kind: string
   readonly isDesired: boolean
   readonly isEnabled: boolean
+  trackInfo?: { layers?: unknown[] }
   track?: { getRTCStatsReport(): Promise<RTCStatsReport | undefined> }
 }
 
@@ -23,6 +27,8 @@ export interface ReceiveParticipantLike {
 
 export interface ReceiveWatchDeps {
   participants(): Iterable<ReceiveParticipantLike>
+  /** A live dessa identidade passa para a camada de baixo (true) ou volta (false). */
+  onOverload(identity: string, low: boolean): void
   /** O H.265 da live de `userId` chega e não decodifica (uma vez por chamada). */
   onHevcFailed(userId: string, rates: ReceiveRates): void
 }
@@ -30,6 +36,7 @@ export interface ReceiveWatchDeps {
 interface Watched {
   counters: ReceiveCounters | null
   hevc: HevcGuardState
+  overload: DecodeOverloadState
 }
 
 function screenOf(participant: ReceiveParticipantLike): ReceivePublicationLike | null {
@@ -39,6 +46,10 @@ function screenOf(participant: ReceiveParticipantLike): ReceivePublicationLike |
   }
   return null
 }
+
+/** A live tem uma camada menor para pedir (H.264 com a camada extra de 720p). */
+const hasLowerLayer = (publication: ReceivePublicationLike): boolean =>
+  (publication.trackInfo?.layers?.length ?? 0) > 1
 
 export class ScreenReceiveWatch {
   private timer: ReturnType<typeof setInterval> | null = null
@@ -90,12 +101,13 @@ export class ScreenReceiveWatch {
     watched.counters = counters
     if (!counters) return
     this.checkHevc(identity, watched, rates)
+    this.checkOverload(identity, publication, watched, rates)
   }
 
   private entry(identity: string): Watched {
     let watched = this.watched.get(identity)
     if (!watched) {
-      watched = { counters: null, hevc: initialHevcGuard() }
+      watched = { counters: null, hevc: initialHevcGuard(), overload: initialDecodeOverload() }
       this.watched.set(identity, watched)
     }
     return watched
@@ -109,10 +121,24 @@ export class ScreenReceiveWatch {
     this.deps.onHevcFailed(mediaOwner(identity), rates)
   }
 
-  /** Parou de assistir: esquece. */
+  private checkOverload(
+    identity: string,
+    publication: ReceivePublicationLike,
+    watched: Watched,
+    rates: ReceiveRates | null
+  ): void {
+    const before = watched.overload.low
+    if (!before && !hasLowerLayer(publication)) return
+    watched.overload = decodeOverloadTick(watched.overload, rates, Date.now())
+    if (watched.overload.low !== before) this.deps.onOverload(identity, watched.overload.low)
+  }
+
+  /** Parou de assistir: esquece, e quem estava na camada de baixo volta à de cima. */
   private forget(seen: Set<string>): void {
-    for (const identity of this.watched.keys()) {
-      if (!seen.has(identity)) this.watched.delete(identity)
+    for (const [identity, watched] of this.watched) {
+      if (seen.has(identity)) continue
+      this.watched.delete(identity)
+      if (watched.overload.low) this.deps.onOverload(identity, false)
     }
   }
 }
