@@ -57,9 +57,10 @@ export const router = createRouter([
           </MobileBackFrame>
         )
       },
-      // Painel das lives, só devs e sem link no app (docs/OBSERVABILIDADE.md).
+      // Painel de observabilidade em abas (/observabilidade/<aba>), só devs e sem
+      // link no app (docs/OBSERVABILIDADE.md).
       {
-        path: 'observabilidade',
+        path: 'observabilidade/:aba?',
         element: (
           <MobileBackFrame>
             <LiveObservability />
