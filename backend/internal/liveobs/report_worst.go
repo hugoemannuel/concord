@@ -17,7 +17,7 @@ type reasonRule struct {
 func ratioAtLeast(v *float64, min float64) bool { return v != nil && *v >= min }
 
 func freezesPerMin(s SessionStats) float64 {
-	if v := ratePerMinute(s.Freezes, s.Seconds); v != nil {
+	if v := ratePerMinute(seenFreezes(s), s.Seconds); v != nil {
 		return *v
 	}
 	return 0
@@ -37,8 +37,8 @@ var reasonRules = []reasonRule{
 }
 
 // allRules: as de cima e, depois, as da ADR 0032 (onde os quadros se perdem e
-// a voz) e as do celular (ADR 0070).
-var allRules = slices.Concat(reasonRules, qualityRules, mobileRules)
+// a voz), as do celular (ADR 0070) e as da ADR 0074 (report_media.go).
+var allRules = slices.Concat(reasonRules, qualityRules, mobileRules, mediaRules)
 
 func reasons(s SessionStats) []string {
 	out := []string{}

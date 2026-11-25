@@ -23,6 +23,7 @@ import type { LocalParticipant } from 'livekit-client'
 import { H264_HIGH_CONTENT_TYPE, requireHighH264 } from './screenH264Profile'
 import { ScreenSender } from './screenSender'
 import { takeScreenCodecChoice } from './screenCodecChoice'
+import { takeLiveFailures, takeLiveStart } from './screenStartTelemetry'
 import { ADAPT } from './screenAdaptController'
 import { rememberScreenSource, rememberStreamQuality } from './screenShareQuality'
 import { SIMULCAST_KEY } from './screenSimulcast'
@@ -222,6 +223,23 @@ describe('ScreenSender', () => {
       'auto: h265 + h264 | av1 proc., h265 placa, h264 proc. | som: nenhum'
     )
     screen.stop()
+  })
+
+  it('anota o tempo até a live no ar (telemetria, ADR 0074)', async () => {
+    const { screen, stream } = setup({ h264: true })
+    takeLiveStart()
+    await screen.publish(stream)
+    expect(takeLiveStart()).not.toBeNull()
+    screen.stop()
+  })
+
+  it('a publicação falhou: anota a etapa e o erro segue', async () => {
+    const { screen, stream, participant } = setup({ h264: true })
+    takeLiveFailures()
+    participant.publishTrack.mockRejectedValueOnce(new DOMException('x', 'TimeoutError'))
+    await expect(screen.publish(stream)).rejects.toThrow()
+    expect(takeLiveFailures().map((e) => e.detail)).toEqual(['publicação · TimeoutError'])
+    expect(takeLiveStart()).toBeNull()
   })
 
   it('sem AV1 nem H.265 por hardware: H.264 com VP8 de reserva', async () => {

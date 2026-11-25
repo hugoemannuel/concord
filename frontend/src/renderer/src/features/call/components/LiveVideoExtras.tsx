@@ -2,6 +2,7 @@ import { useAuthStore } from '../../auth/store/authStore'
 import { useCallStore } from '../store/callStore'
 import { liveOwner } from '../lib/liveVideo'
 import { useLiveInView } from '../hooks/useLiveInView'
+import { useLiveFirstFrame } from '../hooks/useLiveFirstFrame'
 import ScreenStatsCorner from './ScreenStatsPanel'
 import LivePipButton from './LivePipButton'
 
@@ -21,7 +22,9 @@ export default function LiveVideoExtras({
   const localScreen = useCallStore((s) => s.localScreenStream)
   const screenStreams = useCallStore((s) => s.screenStreams)
   const owner = liveOwner(stream, localScreen, screenStreams, meId)
-  useLiveInView(owner && !owner.local ? owner.userId : null, videoRef)
+  const remote = owner && !owner.local ? owner.userId : null
+  useLiveInView(remote, videoRef)
+  useLiveFirstFrame(remote, videoRef, stream)
   if (!owner) return null
   return (
     <>

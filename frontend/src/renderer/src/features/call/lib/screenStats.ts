@@ -42,6 +42,15 @@ export interface ScreenStatsInput {
   driverHint?: string | null
   /** Envio: a live trocou de codec porque o publicado falhou (ver screenCodecGuard). */
   codecFallback?: CodecFallback | null
+  /** Envio: a fonte antes de reduzir (tamanho e monitor/janela; telemetria, ADR 0074). */
+  source?: ScreenSourceInfo | null
+}
+
+/** O tamanho da fonte da live e o tipo (monitor, window, browser; nunca o título). */
+export interface ScreenSourceInfo {
+  width: number | null
+  height: number | null
+  surface: string | null
 }
 
 export interface ScreenStatsView {

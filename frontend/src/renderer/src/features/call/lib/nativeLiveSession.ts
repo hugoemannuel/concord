@@ -6,6 +6,9 @@ import { ScreenAdapt } from './screenAdapt'
 import { encoderInfoFromReport, type ScreenEncoderInfo } from './screenEncoderInfo'
 import type { ScreenShareQuality } from './screenShareQuality'
 import type { ScreenStatsInput } from './screenStats'
+import { describeNativeChoice, noteScreenCodecChoice } from './screenCodecChoice'
+import { failureName, noteLiveFailure, noteLiveStart } from './screenStartTelemetry'
+import type { Stat } from './screenStatsFormat'
 
 // Uma live pelo motor nativo, vista do renderer: pede o token do participante
 // "tela", manda o helper começar e liga o mesmo controlador de degraus da live
@@ -47,6 +50,10 @@ export class NativeLiveSession implements NativeScreen {
   private adapt: ScreenAdapt | null = null
   private view: ScreenAdaptView | null = null
   private startError: NativeStartResult | null = null
+  /** Telemetria (ADR 0074): quando a captura começou, por que não começou e se o motor já foi anotado. */
+  private capturedAt: number | null = null
+  private failure: unknown = null
+  private choiceNoted = false
   private settle: (result: NativeStartResult) => void = () => {}
   private unsubscribe: () => void = () => {}
 
@@ -72,7 +79,8 @@ export class NativeLiveSession implements NativeScreen {
         audio: false
       })
       if (!started) this.finishStart('failed')
-    } catch {
+    } catch (err) {
+      this.failure = err
       this.finishStart('failed')
     }
     return result
@@ -104,27 +112,58 @@ export class NativeLiveSession implements NativeScreen {
       enabled: true,
       streamState: 'active',
       requestedFps: this.chosen.frameRate,
-      quality: this.view
+      quality: this.view,
+      source: {
+        width: this.source?.width ?? null,
+        height: this.source?.height ?? null,
+        surface: null
+      }
     }
   }
 
   encoderInfo(): ScreenEncoderInfo | null {
     if (this.phase !== 'live') return null
-    return encoderInfoFromReport(nativeStatsReport(this.stats), this.view?.effective ?? null, 'h264')
+    return encoderInfoFromReport(
+      nativeStatsReport(this.stats),
+      this.view?.effective ?? null,
+      'h264'
+    )
   }
 
   private handle(event: NativeLiveEvent): void {
-    if (event.event === 'capturing') this.source = { width: event.width, height: event.height }
-    else if (event.event === 'stats') this.stats = stampNativeStats(event.stats, Date.now())
+    if (event.event === 'capturing') this.onCapturing(event.width, event.height)
+    else if (event.event === 'stats') this.onStats(event.stats)
     else if (event.event === 'published') this.onPublished()
-    else if (event.event === 'error' && this.phase === 'starting')
-      this.startError = event.code === 'capture_denied' ? 'cancelled' : 'failed'
+    else if (event.event === 'error' && this.phase === 'starting') this.onStartError(event.code)
     else if (event.event === 'ended') this.onEnded(event.reason)
+  }
+
+  private onCapturing(width: number, height: number): void {
+    this.source = { width, height }
+    this.capturedAt = performance.now()
+  }
+
+  private onStartError(code: string): void {
+    this.startError = code === 'capture_denied' ? 'cancelled' : 'failed'
+    this.failure = code
+  }
+
+  /** As estatísticas do helper; a primeira depois de publicar diz onde o H.264 saiu. */
+  private onStats(stats: Record<string, unknown>[]): void {
+    this.stats = stampNativeStats(stats, Date.now())
+    if (this.phase !== 'live' || this.choiceNoted) return
+    const out = this.stats.find((s) => s.type === 'outbound-rtp' && s.kind === 'video') as
+      Stat | undefined
+    if (!out) return
+    const efficient = out.powerEfficientEncoder
+    noteScreenCodecChoice(describeNativeChoice(typeof efficient === 'boolean' ? efficient : null))
+    this.choiceNoted = true
   }
 
   private onPublished(): void {
     if (this.phase !== 'starting') return
     this.phase = 'live'
+    if (this.capturedAt !== null) noteLiveStart(performance.now() - this.capturedAt)
     this.watchQuality()
     this.settle('started')
   }
@@ -141,7 +180,10 @@ export class NativeLiveSession implements NativeScreen {
 
   private finishStart(result: NativeStartResult): void {
     if (this.phase !== 'starting') return
-    if (result === 'failed') this.deps.bridge.stop()
+    if (result === 'failed') {
+      noteLiveFailure('nativo', failureName(this.failure))
+      this.deps.bridge.stop()
+    }
     this.cleanup()
     this.settle(result)
   }

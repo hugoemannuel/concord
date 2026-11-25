@@ -58,7 +58,8 @@ SELECT s.id, s.user_id, COALESCE(u.username, ''), s.kind, COALESCE(s.call_id::te
 	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'conexao_falhou'
 		AND e.detail LIKE '` + accessFailurePrefix + `%'),
 	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'segundo_plano'),
-	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'rede_trocou')
+	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'rede_trocou')` +
+	mediaStatsSQL + `
 FROM live_sessions s
 LEFT JOIN users u ON u.id = s.user_id
 LEFT JOIN live_samples x ON x.session_id = s.id
@@ -68,13 +69,13 @@ ORDER BY s.started_at DESC
 LIMIT $2`
 
 func (s *SessionStats) fields() []any {
-	return []any{&s.ID, &s.UserID, &s.Username, &s.Kind, &s.CallID, &s.StreamerID, &s.OS, &s.GPU,
+	return append([]any{&s.ID, &s.UserID, &s.Username, &s.Kind, &s.CallID, &s.StreamerID, &s.OS, &s.GPU,
 		&s.AppVersion, &s.Target, &s.Cores, &s.Network, &s.Device, &s.StartedAt, &s.EndedAt, &s.Seconds, &s.Codec, &s.Transport,
 		&s.FPS, &s.TargetFPS, &s.Height, &s.HardwareRatio, &s.BelowRatio, &s.CPURatio, &s.BandwidthRatio,
 		&s.BackupRatio, &s.PausedRatio, &s.Freezes, &s.FreezeMs, &s.StepChanges, &s.BitrateKbps, &s.LossPct, &s.RTTMs,
 		&s.CaptureFPS, &s.RecvFPS, &s.CodecMs, &s.ConcealedPct, &s.RecvLossPct, &s.ConnectMs,
 		&s.RoboticMinutes, &s.LossMinutes, &s.BadMinutes, &s.Reconnects, &s.Failures, &s.AccessFailures,
-		&s.Backgrounds, &s.NetworkChanges}
+		&s.Backgrounds, &s.NetworkChanges}, s.MediaStats.fields()...)
 }
 
 // Sessions: as sessões vistas desde from, agregadas, da mais recente.

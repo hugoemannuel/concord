@@ -22,6 +22,7 @@ import type { ScreenEncoderInfo } from './screenEncoderInfo'
 import type { ScreenStatsInput } from './screenStats'
 import { RemoteEncoders, serveScreenEncoder } from './screenEncoderRpc'
 import { readCallReport } from './callStatsReport'
+import { noteWatchedScreens } from './screenFirstFrame'
 import {
   clearActiveScreenStats,
   readScreenStatsInput,
@@ -325,6 +326,7 @@ export class CallMedia {
 
   /** Passa a baixar a tela (e o som dela) só dessas pessoas. */
   setWatchedScreens(userIds: string[]): void {
+    noteWatchedScreens(userIds)
     this.subscriptions.setWatched(userIds)
     this.applySubscriptions()
   }
@@ -335,6 +337,7 @@ export class CallMedia {
 
   disconnect(): void {
     this.closing = true
+    noteWatchedScreens([])
     clearActiveScreenStats(this)
     this.receiveWatch.stop()
     this.screen.stop()

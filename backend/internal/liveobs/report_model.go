@@ -65,6 +65,8 @@ type SessionStats struct {
 	// Backgrounds e NetworkChanges: eventos segundo_plano e rede_trocou (ADR 0070).
 	Backgrounds    int64 `json:"backgrounds"`
 	NetworkChanges int64 `json:"network_changes"`
+	// Sinais da ADR 0074 (report_media.go).
+	MediaStats
 }
 
 // LiveRow: uma live (sessão de quem transmite) com quem assistiu.

@@ -1,0 +1,13 @@
+ALTER TABLE live_samples
+    DROP COLUMN qp,
+    DROP COLUMN start_ms,
+    DROP COLUMN source_width,
+    DROP COLUMN source_height,
+    DROP COLUMN surface,
+    DROP COLUMN dsp_underrun_pct,
+    DROP COLUMN dsp,
+    DROP COLUMN playout_synth_pct,
+    DROP COLUMN cam_fps,
+    DROP COLUMN cam_height,
+    DROP COLUMN cam_limitation,
+    DROP COLUMN cam_freezes;

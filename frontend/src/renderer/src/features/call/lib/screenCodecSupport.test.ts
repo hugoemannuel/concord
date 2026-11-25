@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  av1WithoutLayers,
   clearScreenCodecCache,
+  detectAv1WithoutLayers,
   detectScreenCodecs,
   H264_CONTENT_TYPE,
   MARK_TTL_MS,
@@ -125,16 +127,66 @@ describe('screenCodecSupport', () => {
   })
 })
 
+describe('av1WithoutLayers (é o L1T3 que barra o AV1 na placa?)', () => {
+  const byMode = (l1t3: Info, l1t1: Info) => ({
+    encodingInfo: vi.fn(async (config: { video: { scalabilityMode?: string } }) =>
+      config.video.scalabilityMode === 'L1T1' ? l1t1 : l1t3
+    )
+  })
+  const support = (av1: 'hardware' | 'software' | null) => ({
+    av1,
+    h265: null,
+    h264: 'software' as const,
+    vp8: 'software' as const
+  })
+
+  it('AV1 no processador com L1T3: pergunta sem as camadas temporais', async () => {
+    expect(await av1WithoutLayers(video, byMode(sw, hw), support('software'))).toBe('hardware')
+    expect(await av1WithoutLayers(video, byMode(sw, sw), support('software'))).toBe('software')
+  })
+  it('AV1 já na placa, sem AV1 ou sem a API: nem pergunta', async () => {
+    const probe = byMode(hw, hw)
+    expect(await av1WithoutLayers(video, probe, support('hardware'))).toBeUndefined()
+    expect(await av1WithoutLayers(video, probe, support(null))).toBeUndefined()
+    expect(await av1WithoutLayers(video, undefined, support('software'))).toBeUndefined()
+    expect(probe.encodingInfo).not.toHaveBeenCalled()
+  })
+  it('detectAv1WithoutLayers guarda a resposta por tamanho; limpar a detecção refaz', async () => {
+    const probe = byMode(sw, hw)
+    vi.stubGlobal('navigator', { mediaCapabilities: probe })
+    expect(await detectAv1WithoutLayers(video, support('software'))).toBe('hardware')
+    await detectAv1WithoutLayers(video, support('software'))
+    expect(probe.encodingInfo).toHaveBeenCalledTimes(1)
+    clearScreenCodecCache()
+    await detectAv1WithoutLayers(video, support('software'))
+    expect(probe.encodingInfo).toHaveBeenCalledTimes(2)
+  })
+  it('erro na pergunta: sem resposta', async () => {
+    const broken = {
+      encodingInfo: async () => {
+        throw new Error('x')
+      }
+    }
+    expect(await av1WithoutLayers(video, broken, support('software'))).toBeUndefined()
+  })
+})
+
 describe('needsHighH264', () => {
   it('só quando a placa codifica o High e não o Baseline', async () => {
     expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(true)
-    expect(await needsHighH264(video, api({ [H264]: hw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(false)
-    expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: sw }))).toBe(false)
+    expect(await needsHighH264(video, api({ [H264]: hw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(
+      false
+    )
+    expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: sw }))).toBe(
+      false
+    )
   })
 
   it('codec que já caiu no processador neste aparelho: segue o padrão', async () => {
     markSoftwareCodec('h264')
-    expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(false)
+    expect(await needsHighH264(video, api({ [H264]: sw, [H264_HIGH_CONTENT_TYPE]: hw }))).toBe(
+      false
+    )
   })
 
   it('sem a API ou com erro: segue o padrão', async () => {

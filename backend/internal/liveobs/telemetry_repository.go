@@ -191,17 +191,20 @@ func queueSample(batch *pgx.Batch, sessionID string, s *Sample) {
 	if s == nil {
 		return
 	}
+	args := []any{sessionID, s.Seconds, s.Codec, s.Hardware, s.Width, s.Height, s.FPS, s.TargetHeight, s.TargetFPS,
+		s.BitrateKbps, s.Limitation, s.Step, s.StepChanges, s.Layers, s.Backup, s.LossPct, s.JitterMs, s.RTTMs,
+		s.Freezes, s.FreezeMs, s.Dropped, s.KeyFrames, s.PLI, s.NACK, s.Transport, s.Paused,
+		s.CaptureFPS, s.RecvFPS, s.CodecMs, s.ConcealedPct, s.RecvLossPct, s.ConnectMs}
 	batch.Queue(`INSERT INTO live_samples
 		(session_id, seconds, codec, hardware, width, height, fps, target_height, target_fps,
 		 bitrate_kbps, limitation, step, step_changes, layers, backup, loss_pct, jitter_ms, rtt_ms,
 		 freezes, freeze_ms, frames_dropped, key_frames, pli, nack, transport, paused,
-		 capture_fps, recv_fps, codec_ms, concealed_pct, recv_loss_pct, connect_ms)
+		 capture_fps, recv_fps, codec_ms, concealed_pct, recv_loss_pct, connect_ms,
+		 qp, start_ms, source_width, source_height, surface, dsp_underrun_pct, dsp, playout_synth_pct,
+		 cam_fps, cam_height, cam_limitation, cam_freezes)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
-		 $27,$28,$29,$30,$31,$32)`,
-		sessionID, s.Seconds, s.Codec, s.Hardware, s.Width, s.Height, s.FPS, s.TargetHeight, s.TargetFPS,
-		s.BitrateKbps, s.Limitation, s.Step, s.StepChanges, s.Layers, s.Backup, s.LossPct, s.JitterMs, s.RTTMs,
-		s.Freezes, s.FreezeMs, s.Dropped, s.KeyFrames, s.PLI, s.NACK, s.Transport, s.Paused,
-		s.CaptureFPS, s.RecvFPS, s.CodecMs, s.ConcealedPct, s.RecvLossPct, s.ConnectMs)
+		 $27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44)`,
+		append(args, s.MediaSignals.values()...)...)
 }
 
 // Prune apaga as sessões vistas pela última vez antes de before (amostras e

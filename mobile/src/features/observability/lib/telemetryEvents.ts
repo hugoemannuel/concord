@@ -6,14 +6,16 @@ import type { SessionKind, TelemetryEvent, TelemetrySample } from './telemetryTy
 /** Congelamentos somando isso no intervalo viram "congelamento longo". */
 export const LONG_FREEZE_MS = 2000
 
-type Rule = (prev: TelemetrySample | null, now: TelemetrySample) => TelemetryEvent | null
+/** component: o nome do codificador/decodificador ('' sem nome). */
+type Rule = (prev: TelemetrySample | null, now: TelemetrySample, component: string) => TelemetryEvent | null
 
 const event = (type: string, detail = ''): TelemetryEvent => ({ type, detail })
 
+/** "H265 · c2.android.hevc.decoder": o codec e, quando o WebRTC diz, qual componente caiu no processador (ADR 0074). */
 const software =
   (type: string): Rule =>
-  (prev, now) =>
-    now.hardware === false && prev?.hardware !== false ? event(type, now.codec) : null
+  (prev, now, component) =>
+    now.hardware === false && prev?.hardware !== false ? event(type, component ? `${now.codec} · ${component}` : now.codec) : null
 
 const codec: Rule = (prev, now) =>
   prev?.codec && now.codec && prev.codec !== now.codec ? event('codec_trocou', `${prev.codec} → ${now.codec}`) : null
@@ -32,6 +34,6 @@ const RULES: Record<SessionKind, Rule[]> = {
   call: []
 }
 
-export function sampleEvents(kind: SessionKind, prev: TelemetrySample | null, now: TelemetrySample): TelemetryEvent[] {
-  return RULES[kind].flatMap((rule) => rule(prev, now) ?? [])
+export function sampleEvents(kind: SessionKind, prev: TelemetrySample | null, now: TelemetrySample, component = ''): TelemetryEvent[] {
+  return RULES[kind].flatMap((rule) => rule(prev, now, component) ?? [])
 }

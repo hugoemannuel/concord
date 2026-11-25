@@ -55,6 +55,21 @@ export interface SessionStats {
   loss_minutes?: number
   bad_minutes?: number
   access_failures?: number
+  // Sinais da ADR 0074 (ausentes num backend de antes): congelamentos de tela
+  // parada (já dentro de freezes), QP, tempo até o ar ou o 1º quadro, a fonte,
+  // o motor, o microfone, a saída de áudio e a câmera.
+  static_freezes?: number
+  qp?: number | null
+  start_ms?: number | null
+  source_height?: number | null
+  surface?: string
+  engine?: string
+  dsp_underrun_pct?: number | null
+  dsp?: string
+  playout_synth_pct?: number | null
+  cam_fps?: number | null
+  cam_freezes?: number
+  cam_seconds?: number
 }
 
 export interface LiveRow extends SessionStats {
@@ -136,7 +151,9 @@ export interface LiveReport {
   breakdown: Record<
     'os' | 'gpu' | 'codec' | 'transport' | 'target' | 'network' | 'device',
     BreakdownRow[]
-  >
+  > &
+    /** Fonte e motor da live (docs/adr/0074; ausentes num backend de antes). */
+    Partial<Record<'surface' | 'engine', BreakdownRow[]>>
   events: EventRow[]
   /** Quedas e falhas da voz do período inteiro (ausente num backend de antes). */
   call_events?: EventRow[]

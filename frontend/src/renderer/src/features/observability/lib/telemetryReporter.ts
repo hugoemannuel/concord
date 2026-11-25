@@ -9,7 +9,8 @@ import {
   type Draft,
   type TimedEvent
 } from './telemetryOutbox'
-import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
+import { watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
+import { shareSample } from './telemetryShare'
 import type {
   ClientContext,
   SessionKind,
@@ -17,6 +18,8 @@ import type {
   TelemetryReport,
   TelemetrySample
 } from './telemetryTypes'
+import type { DspReading } from '../../call/lib/micDspStats'
+import { mediaExtras, type MediaExtraSources } from './telemetryMediaExtras'
 
 // Telemetria das lives e calls (docs/adr/0029 e 0032): a cada leitura (20 s), uma
 // sessão por coisa ativa — a call, a minha live e cada live que assisto — e
@@ -53,6 +56,10 @@ export interface ReporterDeps {
   now?(): number
   /** O H.265 da live desse streamer chegou e não decodificou (screenHevcFailure); leva e limpa. */
   decodeFailure?(streamerId: string): string | null
+  /** O processamento do microfone agora (micDspStats). */
+  micDsp?(): DspReading | null
+  /** Tempo até o ar, primeiro quadro, falhas ao começar e o PC que dormiu (ADR 0074). */
+  media?: MediaExtraSources
 }
 
 interface Wanted {
@@ -133,7 +140,7 @@ export function createTelemetryReporter(deps: ReporterDeps): {
   async function read(s: Session): Promise<SampleResult | null> {
     if (s.kind === 'call') {
       if (s.ticks % CALL_EVERY !== 0) return null
-      return callSample((await deps.readCall()) ?? new Map(), s.counters)
+      return callSample((await deps.readCall()) ?? new Map(), s.counters, deps.micDsp?.() ?? null)
     }
     const input = await deps.readScreen(s.streamerId, s.kind === 'transmite')
     if (!input) return null
@@ -165,10 +172,19 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     s.ticks++
     if (!result) return null
     const extra = extras(s)
-    const sample = { ...result.sample, connect_ms: extra.connectMs ?? result.sample.connect_ms }
+    const media = mediaExtras(deps.media, s.kind, s.streamerId, s.last === null)
+    const sample = {
+      ...result.sample,
+      ...media.patch,
+      connect_ms: extra.connectMs ?? result.sample.connect_ms
+    }
     const events = [
       ...extra.events,
-      ...sampleEvents(s.kind, s.last, sample, { stepReason: result.stepReason })
+      ...media.events,
+      ...sampleEvents(s.kind, s.last, sample, {
+        stepReason: result.stepReason,
+        implementation: result.implementation
+      })
     ]
     s.counters = result.counters
     s.last = sample
@@ -177,7 +193,10 @@ export function createTelemetryReporter(deps: ReporterDeps): {
 
   /** Os eventos que vão no fim da sessão. */
   function endEvents(s: Session): TelemetryEvent[] {
-    if (s.kind === 'call') return deps.connection?.takeEvents(s.callId) ?? []
+    if (s.kind === 'call') {
+      const media = mediaExtras(deps.media, 'call', '').events
+      return [...(deps.connection?.takeEvents(s.callId) ?? []), ...media]
+    }
     return s.kind === 'assiste' ? extras(s).events : []
   }
 

@@ -21,6 +21,13 @@ describe('sampleEvents', () => {
     expect(sampleEvents('assiste', s({ paused: true }), s({ paused: true, freeze_ms: 1999 }))).toEqual([])
   })
 
+  it('o software leva o nome do componente quando o WebRTC diz; sem nome, só o codec', () => {
+    const now = s({ hardware: false, codec: 'H265' })
+    expect(sampleEvents('assiste', null, now, 'c2.android.hevc.decoder')).toEqual([{ type: 'decoder_software', detail: 'H265 · c2.android.hevc.decoder' }])
+    expect(sampleEvents('transmite', null, now, 'libvpx')).toEqual([{ type: 'encoder_software', detail: 'H265 · libvpx' }])
+    expect(sampleEvents('transmite', null, now, '')).toEqual([{ type: 'encoder_software', detail: 'H265' }])
+  })
+
   it('call: a voz não gera eventos de vídeo', () => {
     expect(sampleEvents('call', null, s({ hardware: false }))).toEqual([])
   })

@@ -55,8 +55,31 @@ describe('readScreenStatsInput', () => {
       enabled: true,
       streamState: 'active',
       requestedFps: 60,
-      codecFallback: null
+      codecFallback: null,
+      source: null
     })
+  })
+
+  it('minha live: a fonte (tamanho antes de reduzir e o tipo de superfície)', async () => {
+    const settings = {
+      width: 3840,
+      height: 2160,
+      displaySurface: 'window',
+      deviceId: 'window:42:0'
+    }
+    const input = await readScreenStatsInput(
+      room({
+        local: {
+          videoTrack: {
+            getRTCStatsReport: async () => report,
+            mediaStreamTrack: { getSettings: () => settings } as unknown as MediaStreamTrack
+          }
+        }
+      }),
+      'eu',
+      true
+    )
+    expect(input?.source).toEqual({ width: 3840, height: 2160, surface: 'window' })
   })
 
   it('codec de reserva ativo: junta o envio do sender de reserva (VP8) ao do principal', async () => {

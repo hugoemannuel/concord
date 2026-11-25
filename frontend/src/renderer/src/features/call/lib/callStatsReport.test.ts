@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('livekit-client', () => ({
-  Track: { Source: { Microphone: 'microphone' } }
+  Track: { Source: { Microphone: 'microphone', Camera: 'camera' } }
 }))
 
 import { readCallReport, type CallStatsRoom } from './callStatsReport'
@@ -33,6 +33,22 @@ describe('readCallReport', () => {
   })
   it('ninguém com microfone: null', async () => {
     expect(await readCallReport(room())).toBeNull()
+  })
+  it('câmeras também (a minha e as que recebo), no mesmo relatório (ADR 0074)', async () => {
+    const cam = new Map([
+      ['c', { type: 'outbound-rtp', kind: 'video' }]
+    ]) as unknown as RTCStatsReport
+    const theirCam = new Map([
+      ['d', { type: 'inbound-rtp', kind: 'video' }]
+    ]) as unknown as RTCStatsReport
+    const bySource = (pubs: Record<string, RTCStatsReport>) => ({
+      getTrackPublication: (source: string) => (pubs[source] ? track(pubs[source]) : undefined)
+    })
+    const r: CallStatsRoom = {
+      localParticipant: bySource({ microphone: mine, camera: cam }),
+      remoteParticipants: new Map([['bia', bySource({ microphone: theirs, camera: theirCam })]])
+    }
+    expect(ids(await readCallReport(r)).sort()).toEqual(['a', 'b', 'c', 'd'])
   })
   it('track removida no meio da leitura: junta as outras', async () => {
     const r = room(undefined, [theirs])

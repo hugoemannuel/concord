@@ -182,6 +182,18 @@ describe('createTelemetryReporter (Android)', () => {
     expect(t.sent[1][0]).toMatchObject({ kind: 'call', ended: true, sample: expect.objectContaining({ connect_ms: 2400, seconds: 0 }) })
   })
 
+  it('codificador caiu para o processador: o evento leva o nome do componente', async () => {
+    const t = setup({ callId: 'c1', sharing: true, watching: [] })
+    t.deps.readScreen = async () => {
+      const input = sending(20_000)
+      const out = input.report.get('o') as Record<string, unknown>
+      Object.assign(out, { powerEfficientEncoder: false, encoderImplementation: 'libvpx' })
+      return input
+    }
+    await t.tick()
+    expect(t.sent[0].find((r) => r.kind === 'transmite')!.events).toEqual([{ type: 'encoder_software', detail: 'VP8 · libvpx' }])
+  })
+
   it('mais de 8 sessões: divide em pedidos', async () => {
     const watching = Array.from({ length: 9 }, (_, i) => `u${i}`)
     const t = setup({ callId: 'c1', sharing: false, watching })

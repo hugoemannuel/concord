@@ -60,6 +60,24 @@ function samplerDeps(platform: NodeJS.Platform): SamplerDeps {
   }
 }
 
+/**
+ * O PC dormiu (docs/adr/0074): ao acordar, a janela principal fica sabendo
+ * quanto tempo ficou suspenso (a telemetria da voz manda o evento pc_dormiu).
+ */
+function watchSleep(getWindow: GetWindow): void {
+  let suspendedAt: number | null = null
+  powerMonitor.on('suspend', () => {
+    suspendedAt = Date.now()
+  })
+  powerMonitor.on('resume', () => {
+    const win = getWindow()
+    if (suspendedAt !== null && win && !win.isDestroyed()) {
+      win.webContents.send('device-stats:slept', Date.now() - suspendedAt)
+    }
+    suspendedAt = null
+  })
+}
+
 /** Eventos só contam: travada da janela principal, GPU que caiu, limite de velocidade. */
 function watchEvents(sampler: DeviceSampler, getWindow: GetWindow): void {
   app.on('browser-window-created', (_event, win) => {
@@ -71,6 +89,7 @@ function watchEvents(sampler: DeviceSampler, getWindow: GetWindow): void {
     if (isGpuCrash(details)) sampler.noteGpuCrash()
   })
   powerMonitor.on('speed-limit-change', (details) => sampler.noteSpeedLimit(details.limit))
+  watchSleep(getWindow)
 }
 
 /** Chamar no whenReady, antes de criar a janela principal (para ver o browser-window-created). */

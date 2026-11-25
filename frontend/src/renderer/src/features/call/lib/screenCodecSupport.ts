@@ -122,6 +122,41 @@ async function encoderOf(
   }
 }
 
+/**
+ * O AV1 sem camadas temporais (L1T1) sai na placa quando o L1T3 do LiveKit
+ * não sai? Só pergunta nesse caso (telemetria, ADR 0074): undefined = não
+ * perguntou ou não deu para saber.
+ */
+export async function av1WithoutLayers(
+  video: ScreenVideoShape,
+  api: EncodingInfoApi | undefined,
+  support: ScreenCodecSupport
+): Promise<CodecEncoder | undefined> {
+  if (!api || support.av1 === null || support.av1 === 'hardware') return undefined
+  try {
+    return (await ask(api, 'video/AV1', video, 'L1T1')).powerEfficient ? 'hardware' : 'software'
+  } catch {
+    return undefined
+  }
+}
+
+const plainAv1Cache = new Map<string, Promise<CodecEncoder | undefined>>()
+
+/** Com cache por sessão, como a detecção (limpo junto com ela). */
+export function detectAv1WithoutLayers(
+  video: ScreenVideoShape,
+  support: ScreenCodecSupport
+): Promise<CodecEncoder | undefined> {
+  const key = `${video.width}x${video.height}@${video.framerate}:${video.bitrate}:${support.av1}`
+  let answer = plainAv1Cache.get(key)
+  if (!answer) {
+    const api = globalThis.navigator?.mediaCapabilities as EncodingInfoApi | undefined
+    answer = av1WithoutLayers(video, api, support)
+    plainAv1Cache.set(key, answer)
+  }
+  return answer
+}
+
 /** A placa só codifica o H.264 no High? Então a live precisa oferecer só ele. */
 export async function needsHighH264(
   video: ScreenVideoShape,
@@ -171,6 +206,7 @@ export function detectScreenCodecs(video: ScreenVideoShape): Promise<ScreenCodec
 
 export function clearScreenCodecCache(): void {
   cache.clear()
+  plainAv1Cache.clear()
 }
 
 /**
@@ -186,5 +222,5 @@ export function markSoftwareCodec(codec: ScreenVideoCodec, gpu = screenGpu()): v
   } catch {
     /* Compartilhar continua funcionando sem armazenamento local. */
   }
-  cache.clear()
+  clearScreenCodecCache()
 }

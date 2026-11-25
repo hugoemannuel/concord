@@ -100,7 +100,7 @@ export function createTelemetryReporter(deps: ReporterDeps): { tick: () => Promi
     if (!result) return null
     const extra = s.kind === 'call' ? await deps.callExtras() : { connectMs: null, events: [] }
     const sample = { ...result.sample, connect_ms: extra.connectMs ?? result.sample.connect_ms }
-    const events = [...extra.events, ...sampleEvents(s.kind, s.last, sample)]
+    const events = [...extra.events, ...sampleEvents(s.kind, s.last, sample, result.component)]
     // Sem relatório (a voz ainda entrando, ou sozinho e mudo) não vira base: a próxima leitura é a primeira.
     if (result.counters.timestamp > 0) s.counters = result.counters
     s.last = sample

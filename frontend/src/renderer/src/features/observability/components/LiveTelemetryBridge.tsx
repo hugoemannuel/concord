@@ -8,6 +8,9 @@ import { loadClientContext } from '../lib/telemetryContext'
 import { changeCallId, createConnectionLog } from '../lib/telemetryConnection'
 import { takeScreenCodecChoice } from '../../call/lib/screenCodecChoice'
 import { takeHevcDecodeFailure } from '../../call/lib/screenHevcFailure'
+import { readMicDsp } from '../../call/lib/micDspStats'
+import { createSleepLog } from '../lib/sleepLog'
+import { mediaSources } from '../lib/telemetryMediaSources'
 import {
   createTelemetryReporter,
   stepChanged,
@@ -36,6 +39,8 @@ function snapshot(): CallSnapshot {
 function LiveTelemetryBridge(): null {
   useEffect(() => {
     const connection = createConnectionLog()
+    const sleeps = createSleepLog(Date.now, () => snapshot().callId !== null)
+    const offSleep = window.api?.deviceStats?.onSlept?.(sleeps.note)
     const reporter = createTelemetryReporter({
       snapshot,
       readScreen: readActiveScreenStats,
@@ -45,7 +50,9 @@ function LiveTelemetryBridge(): null {
       newId: () => crypto.randomUUID(),
       connection,
       codecChoice: takeScreenCodecChoice,
-      decodeFailure: takeHevcDecodeFailure
+      decodeFailure: takeHevcDecodeFailure,
+      micDsp: () => readMicDsp(),
+      media: mediaSources(sleeps.take)
     })
     const timer = setInterval(() => void reporter.tick(), TELEMETRY_INTERVAL_MS)
     const offAdapt = useScreenAdaptStore.subscribe((state, previous) => {
@@ -61,6 +68,7 @@ function LiveTelemetryBridge(): null {
       clearInterval(timer)
       offAdapt()
       offConnection()
+      offSleep?.()
     }
   }, [])
   return null

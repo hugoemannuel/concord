@@ -120,7 +120,13 @@ const report = (up: boolean): LiveReport => ({
     codec: [],
     transport: [],
     target: [
-      { key: 'android', sessions: 1, below_ratio: null, freezes_per_min: null, software_ratio: null }
+      {
+        key: 'android',
+        sessions: 1,
+        below_ratio: null,
+        freezes_per_min: null,
+        software_ratio: null
+      }
     ],
     network: [],
     device: []
@@ -182,6 +188,23 @@ describe('abas do relatório das lives', () => {
     const lives = render(LivesTab, both)
     expect(lives).toContain('lia')
     expect(lives).not.toContain('davi')
+  })
+  it('a sessão mostra os sinais da ADR 0074 (microfone, câmera) quando o backend manda', () => {
+    const r = report(true)
+    const [live, call] = r.worst
+    const state: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        worst: [],
+        worst_lives: [{ ...live, start_ms: 1200, static_freezes: 3 }],
+        worst_calls: [{ ...call, dsp_underrun_pct: 2, dsp: 'rnnoise', cam_fps: 12 }]
+      }
+    }
+    expect(render(CallsTab, state)).toContain('Microfone atrasou 2% (rnnoise) · câmera 12 fps')
+    expect(render(LivesTab, state)).toContain(
+      '1º quadro em 1,2 s · 3 congel. de tela parada descontados'
+    )
   })
   it('Chamadas sem sessão ruim', () => {
     const empty: ReportState = { status: 'ready', report: { ...report(true), worst: [] } }
@@ -257,7 +280,13 @@ describe('abas do relatório das lives', () => {
   })
   it('Distribuição e Eventos', () => {
     const breakdown = render(BreakdownTab, ready())
-    for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede do Android (com as calls)', 'Aparelho Android (com as calls)']) {
+    for (const text of [
+      'Distribuição',
+      'Plataforma (com as calls)',
+      'android',
+      'Rede do Android (com as calls)',
+      'Aparelho Android (com as calls)'
+    ]) {
       expect(breakdown).toContain(text)
     }
     const events = render(EventsTab, ready())

@@ -29,11 +29,20 @@ export interface SampleCounters {
   /** Call: amostras de áudio sintetizadas (sem o silêncio) e recebidas. */
   concealed: number
   samples: number
+  /** Envio: soma do QP dos quadros codificados (qpSum); -1 = o WebRTC não conta. */
+  qp: number
+  /** Call: ms de áudio que a saída sintetizou e ms tocados (media-playout). */
+  synth: number
+  playout: number
+  /** A camada (ssrc) lida: a perda na subida só conta entre leituras da mesma. */
+  ssrc: number
 }
 
 export interface SampleResult {
   sample: TelemetrySample
   counters: SampleCounters
+  /** Nome do codificador/decodificador (encoderImplementation/decoderImplementation); '' sem nome. */
+  component: string
 }
 
 export const n0 = (value: unknown): number => num(value) ?? 0
@@ -67,7 +76,11 @@ export function countersOf(stat: Stat, keys: CounterKeys, source?: Stat): Sample
     captured: n0(source?.frames),
     codecMs: n0(stat[keys.codecTime]) * 1000,
     concealed: 0,
-    samples: 0
+    samples: 0,
+    qp: num(stat.qpSum) ?? -1,
+    synth: 0,
+    playout: 0,
+    ssrc: n0(stat.ssrc)
   }
 }
 
@@ -178,19 +191,61 @@ function captureFps({ prev, d }: Reading, source: Stat | undefined): number | nu
   return (prev ? perSecond(d.captured, d) : null) ?? num(source.framesPerSecond)
 }
 
+/** O que o servidor diz que recebeu do envio principal (o remote-inbound-rtp ligado a ele). */
+function remoteOf(report: StatsReport, stat: Stat): Stat | undefined {
+  let found: Stat | undefined
+  report.forEach((other) => {
+    if (other.type === 'remote-inbound-rtp' && other.localId === stat.id) found = other
+  })
+  return found
+}
+
+/** Perdidos e recebidos na subida (ADR 0074); sem packetsReceived, recebidos = mandados − perdidos. */
+function uplink(stat: Stat, remote: Stat | undefined): Pick<SampleCounters, 'lost' | 'received'> {
+  if (!remote) return { lost: 0, received: 0 }
+  const lost = n0(remote.packetsLost)
+  return { lost, received: num(remote.packetsReceived) ?? Math.max(0, n0(stat.packetsSent) - lost) }
+}
+
+/** QP médio do intervalo; sem qpSum (numa das leituras) ou sem quadro novo: null. */
+function qpOf({ now, prev, d }: Reading): number | null {
+  const counted = prev !== null && now.qp >= 0 && prev.qp >= 0
+  return counted && d.frames > 0 ? round1(d.qp / d.frames) : null
+}
+
+/** A leitura anterior é da mesma camada e também tinha o remote-inbound-rtp. */
+function sameLayerWithRemote({ now, prev }: Reading): boolean {
+  return prev !== null && prev.ssrc === now.ssrc && prev.lost + prev.received > 0
+}
+
+/** Os sinais da ADR 0074 no envio: QP, fonte, perda e jitter na subida. */
+function shareSignals(read: Reading, source: Stat | undefined, remote: Stat | undefined): Partial<TelemetrySample> {
+  return {
+    qp: qpOf(read),
+    source_width: num(source?.width),
+    source_height: num(source?.height),
+    loss_pct: sameLayerWithRemote(read) ? lossPct(read.d) : null,
+    jitter_ms: ms(remote?.jitter)
+  }
+}
+
 /** A minha transmissão de tela. */
 export function shareSample(input: ScreenStatsInput, prev: SampleCounters | null): SampleResult | null {
   const stat = videoRtp(input.report, 'outbound-rtp', 'bytesSent')
   if (!stat) return null
   const source = mediaSource(input.report, stat)
-  const read = reading(stat, input.report, countersOf(stat, SEND, source), prev)
+  const remote = remoteOf(input.report, stat)
+  const read = reading(stat, input.report, { ...countersOf(stat, SEND, source), ...uplink(stat, remote) }, prev)
   const base = videoBase(read)
+  const component = text(stat.encoderImplementation) ?? ''
   return {
     counters: read.now,
+    component,
     sample: {
       ...base,
+      ...shareSignals(read, source, remote),
       layers: layersOf(input.report, base.codec),
-      hardware: onHardware(text(stat.encoderImplementation) ?? '', stat.powerEfficientEncoder),
+      hardware: onHardware(component, stat.powerEfficientEncoder),
       capture_fps: captureFps(read, source),
       target_fps: input.requestedFps,
       limitation: text(stat.qualityLimitationReason) ?? ''
@@ -204,11 +259,13 @@ export function watchSample(input: ScreenStatsInput, prev: SampleCounters | null
   if (!stat) return null
   const read = reading(stat, input.report, countersOf(stat, RECEIVE), prev)
   const { d } = read
+  const component = text(stat.decoderImplementation) ?? ''
   return {
     counters: read.now,
+    component,
     sample: {
       ...videoBase(read),
-      hardware: onHardware(text(stat.decoderImplementation) ?? '', stat.powerEfficientDecoder),
+      hardware: onHardware(component, stat.powerEfficientDecoder),
       recv_fps: prev ? perSecond(d.framesReceived, d) : null,
       loss_pct: lossPct(d),
       jitter_ms: ms(stat.jitter),

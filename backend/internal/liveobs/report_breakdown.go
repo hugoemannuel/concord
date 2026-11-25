@@ -26,6 +26,9 @@ var dimensions = []dimension{
 	{"target", func(s SessionStats) string { return s.Target }, true, false},
 	{"network", androidNetwork, true, true},
 	{"device", func(s SessionStats) string { return s.Device }, true, true},
+	// ADR 0074: a fonte da live (monitor, janela) e o motor (nativo, Chromium).
+	{"surface", func(s SessionStats) string { return s.Surface }, false, true},
+	{"engine", func(s SessionStats) string { return s.Engine }, false, true},
 }
 
 // androidNetwork: a rede só do Android. No desktop e na web a coluna é o
@@ -53,7 +56,7 @@ func (t *tally) add(s SessionStats) {
 	t.below.add(s.BelowRatio)
 	t.sw.add(software(s))
 	if s.Kind == KindWatch {
-		t.freezes += s.Freezes
+		t.freezes += seenFreezes(s)
 		t.watchSeconds += s.Seconds
 	}
 }

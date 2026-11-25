@@ -2,7 +2,29 @@
 
 export type SessionKind = 'transmite' | 'assiste' | 'call'
 
-export interface TelemetrySample {
+/** Sinais novos de mídia (docs/adr/0074); nulos onde não se aplicam. */
+export interface MediaSignals {
+  /** Transmite: QP médio do intervalo (escala do codec). */
+  qp: number | null
+  /** 1ª amostra: transmite = ms até a live publicada; assiste = até o 1º quadro. */
+  start_ms: number | null
+  /** Transmite: tamanho da fonte antes de reduzir e o tipo (monitor, window, browser). */
+  source_width: number | null
+  source_height: number | null
+  surface: string | null
+  /** Call: % do tempo com o processamento do microfone atrasado e o que estava ligado. */
+  dsp_underrun_pct: number | null
+  dsp: string | null
+  /** Call: % do áudio tocado que a saída do PC teve de sintetizar. */
+  playout_synth_pct: number | null
+  /** Call: a minha câmera enviada e os congelamentos das câmeras que recebo. */
+  cam_fps: number | null
+  cam_height: number | null
+  cam_limitation: string | null
+  cam_freezes: number | null
+}
+
+export interface TelemetrySample extends MediaSignals {
   seconds: number
   codec: string
   hardware: boolean | null
@@ -106,6 +128,24 @@ export function emptySample(): TelemetrySample {
     codec_ms: null,
     concealed_pct: null,
     recv_loss_pct: null,
-    connect_ms: null
+    connect_ms: null,
+    ...emptyMedia()
+  }
+}
+
+export function emptyMedia(): MediaSignals {
+  return {
+    qp: null,
+    start_ms: null,
+    source_width: null,
+    source_height: null,
+    surface: null,
+    dsp_underrun_pct: null,
+    dsp: null,
+    playout_synth_pct: null,
+    cam_fps: null,
+    cam_height: null,
+    cam_limitation: null,
+    cam_freezes: null
   }
 }

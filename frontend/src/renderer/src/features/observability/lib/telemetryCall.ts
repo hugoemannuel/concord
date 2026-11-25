@@ -13,14 +13,18 @@ import {
   type VoiceCounters
 } from './telemetrySample'
 import { emptySample } from './telemetryTypes'
+import { callMediaCounters, callMediaSignals } from './telemetryCallMedia'
+import type { DspReading } from '../../call/lib/micDspStats'
 
 // Telemetria da voz das calls: o que o servidor diz que recebe de mim (perda
-// média do intervalo, jitter), o RTT, o par ICE e o que eu ouço de cada voz. Puro.
+// média do intervalo, jitter), o RTT, o par ICE e o que eu ouço de cada voz;
+// a saída de áudio, o microfone e a câmera vêm do telemetryCallMedia. Puro.
 
 function remoteInbound(report: RTCStatsReport): Stat | undefined {
   let found: Stat | undefined
   report.forEach((stat: Stat) => {
-    if (stat.type === 'remote-inbound-rtp') found ??= stat
+    // O da câmera também vem no relatório: só o do microfone.
+    if (stat.type === 'remote-inbound-rtp' && stat.kind === 'audio') found ??= stat
   })
   return found
 }
@@ -38,12 +42,17 @@ function readAt(report: RTCStatsReport): number {
  * Os contadores da subida (o que o servidor diz que recebeu de mim): perdidos e
  * recebidos. Sem packetsReceived no relatório, recebidos = mandados − perdidos.
  */
-function uplink(report: RTCStatsReport, remote: Stat | undefined): { lost: number; received: number } {
+function uplink(
+  report: RTCStatsReport,
+  remote: Stat | undefined
+): { lost: number; received: number } {
   const lost = n0(remote?.packetsLost)
   const received = num(remote?.packetsReceived)
   if (received !== null) return { lost, received }
   const local =
-    typeof remote?.localId === 'string' ? (report.get(remote.localId) as Stat | undefined) : undefined
+    typeof remote?.localId === 'string'
+      ? (report.get(remote.localId) as Stat | undefined)
+      : undefined
   return { lost, received: Math.max(0, n0(local?.packetsSent) - lost) }
 }
 
@@ -108,7 +117,11 @@ function heardLossPct(voices: VoiceCounters[]): number | null {
  * RTT e o que eu ouço das outras pessoas (áudio sintetizado, perda até mim),
  * voz a voz (ADR 0032, emenda de 2026-11-25).
  */
-export function callSample(report: RTCStatsReport, last: SampleCounters | null): SampleResult {
+export function callSample(
+  report: RTCStatsReport,
+  last: SampleCounters | null,
+  dsp: DspReading | null = null
+): SampleResult {
   // Leitura anterior vazia (sem relatório): esta é a base, não um intervalo.
   const prev = last && last.timestamp > 0 ? last : null
   const remote = remoteInbound(report)
@@ -116,6 +129,7 @@ export function callSample(report: RTCStatsReport, last: SampleCounters | null):
     ...countersOf({}, NO_KEYS),
     ...uplink(report, remote),
     voices: heard(report),
+    media: callMediaCounters(report, dsp),
     timestamp: readAt(report)
   }
   const d = deltas(counters, prev)
@@ -131,7 +145,8 @@ export function callSample(report: RTCStatsReport, last: SampleCounters | null):
       loss_pct: prev ? lossPct(d) : null,
       jitter_ms: ms(remote?.jitter),
       concealed_pct: concealedPct(voiceD),
-      recv_loss_pct: heardLossPct(voiceD)
+      recv_loss_pct: heardLossPct(voiceD),
+      ...callMediaSignals(report, counters.media, prev?.media ?? null, dsp)
     }
   }
 }
