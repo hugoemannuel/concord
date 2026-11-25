@@ -15,6 +15,9 @@ type SystemNotice struct {
 	Content  string
 	// Kind: o messages.system_kind.
 	Kind string
+	// MentionAll: pinga todos do servidor (mention_everyone = all), o que gera
+	// push (push.pushesMessage). Só o alerta crítico usa.
+	MentionAll bool
 }
 
 // PostSystemNotice grava a mensagem e avisa quem está no canal.
@@ -25,6 +28,10 @@ func (s *Service) PostSystemNotice(ctx context.Context, n SystemNotice) (*Messag
 		ChannelID:  &n.ChannelID,
 		Content:    n.Content,
 		SystemKind: &n.Kind,
+	}
+	if n.MentionAll {
+		all := MentionAll
+		msg.MentionEveryone = &all
 	}
 	if err := s.repository.Create(ctx, msg); err != nil {
 		return nil, err

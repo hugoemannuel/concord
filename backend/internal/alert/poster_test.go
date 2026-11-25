@@ -9,7 +9,7 @@ import (
 
 type written struct {
 	channelID, text string
-	mentionAll       bool
+	mentionAll      bool
 }
 
 func newTestPoster(clock *time.Time) (*Poster, *[]written) {
