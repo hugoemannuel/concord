@@ -77,9 +77,9 @@ func TestReportRepositoryPeople(t *testing.T) {
 		got  *float64
 		want float64
 	}{
-		{"cpu do app", a.CPUApp, (26.0 + 3 + 30) / 3},
+		{"cpu do app (pelo tempo)", a.CPUApp, (26.0*60 + 3*240 + 30*60) / 360},
 		{"renderer em call", a.CPURendererCall, 25},
-		{"memória", a.MemAppMB, 1200},
+		{"memória (pelo tempo)", a.MemAppMB, (1400.0*60 + 1000*240) / 300},
 		{"memória livre mínima", a.MemFreeMinMB, 600},
 		{"memória total", a.MemTotalMB, 8000},
 		{"lag (mediana)", a.LagP95Ms, 60},
@@ -137,7 +137,7 @@ func TestReportRepositoryVersions(t *testing.T) {
 		t.Errorf("ordem = %q", keys)
 	}
 	old := rows[2]
-	if old.People != 1 || old.Samples != 2 || !near(old.CPUAppCall, 26) || !near(old.MemAppMB, 1200) ||
+	if old.People != 1 || old.Samples != 2 || !near(old.CPUAppCall, 26) || !near(old.MemAppMB, 1080) ||
 		!near(old.LongMsPerMin, 1000) || old.Hangs != 1 || old.SoftwareGPUPeople != 1 {
 		t.Errorf("1.40.0 = %+v", old)
 	}
@@ -157,5 +157,40 @@ func TestReportRepositoryIsDev(t *testing.T) {
 		if err != nil || got != want {
 			t.Errorf("IsDev(%s) = %v %v, quer %v", user, got, err, want)
 		}
+	}
+}
+
+// Média pelo tempo, não pela linha: 5 min a 10% e 1 min a 40% dão 15%, não 25%.
+// Linha sem a medida não puxa a média para baixo.
+func TestReportRepositoryMediaPonderadaPeloTempo(t *testing.T) {
+	db := newTestDB(t)
+	b := Batch{
+		Session: Session{ID: sessionA, AppVersion: "1.42.0", Target: "desktop"},
+		Samples: []Sample{
+			{Seconds: 300, State: StateCall, CPURenderer: fp(10), MemAppMB: fp(1000), SysCPUPct: fp(20)},
+			{Seconds: 60, State: StateCall, CPURenderer: fp(40), MemAppMB: fp(1600), SysCPUPct: fp(80)},
+			{Seconds: 60, State: StateCall},
+		},
+	}
+	if err := NewRepository(db).Save(context.Background(), userAna, b); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewReportRepository(db)
+	from := time.Now().Add(-time.Hour)
+	people, err := repo.People(context.Background(), from)
+	if err != nil || len(people) != 1 {
+		t.Fatalf("pessoas = %+v %v", people, err)
+	}
+	p := people[0]
+	if !near(p.CPUApp, 15) || !near(p.CPURendererCall, 15) || !near(p.MemAppMB, 1100) || !near(p.SysCPU, 30) {
+		t.Errorf("médias = cpu %v, renderer %v, mem %v, sys %v; quer 15, 15, 1100, 30",
+			show(p.CPUApp), show(p.CPURendererCall), show(p.MemAppMB), show(p.SysCPU))
+	}
+	versions, err := repo.Versions(context.Background(), from)
+	if err != nil || len(versions) != 1 {
+		t.Fatalf("versões = %+v %v", versions, err)
+	}
+	if v := versions[0]; !near(v.CPUAppCall, 15) || !near(v.MemAppMB, 1100) {
+		t.Errorf("versão = cpu %v, mem %v; quer 15, 1100", show(v.CPUAppCall), show(v.MemAppMB))
 	}
 }

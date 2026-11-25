@@ -44,14 +44,26 @@ const samplesCTE = `WITH x AS (
 )
 `
 
+// timeAvg: média de expr pesada pelos segundos de cada linha (uma linha de
+// 5 min vale cinco de 1 min), só nas linhas que mediram expr e, se cond não
+// for vazio, que passam em cond. Vazio se nenhuma linha mediu.
+func timeAvg(expr, cond string) string {
+	where := expr + " IS NOT NULL"
+	if cond != "" {
+		where += " AND " + cond
+	}
+	return fmt.Sprintf("(SUM((%[1]s) * x.seconds) FILTER (WHERE %[2]s) / NULLIF(SUM(x.seconds) FILTER (WHERE %[2]s), 0))::float8",
+		expr, where)
+}
+
 // Contexto (SO, placa, versão) da abertura vista por último.
-const peopleSQL = samplesCTE + `
+var peopleSQL = samplesCTE + `
 SELECT x.user_id::text, COALESCE(u.username, ''),
 	(array_agg(x.os ORDER BY x.last_seen_at DESC))[1], (array_agg(x.gpu ORDER BY x.last_seen_at DESC))[1],
 	(array_agg(x.app_version ORDER BY x.last_seen_at DESC))[1], (array_agg(x.target ORDER BY x.last_seen_at DESC))[1],
 	count(*), SUM(x.seconds)::float8 / 60,
-	AVG(x.cpu_app), AVG(x.cpu_renderer) FILTER (WHERE x.in_call), AVG(x.mem_app_mb),
-	MIN(x.sys_mem_free_mb)::float8, MAX(x.mem_total_mb)::float8, AVG(x.sys_cpu_pct),
+	` + timeAvg("x.cpu_app", "") + `, ` + timeAvg("x.cpu_renderer", "x.in_call") + `, ` + timeAvg("x.mem_app_mb", "") + `,
+	MIN(x.sys_mem_free_mb)::float8, MAX(x.mem_total_mb)::float8, ` + timeAvg("x.sys_cpu_pct", "") + `,
 	percentile_cont(0.5) WITHIN GROUP (ORDER BY x.lag_p95_ms),
 	SUM(x.visible_s) / 60, SUM(x.long_ms)::float8 / NULLIF(SUM(x.visible_s) / 60, 0),
 	SUM(x.slow_inputs), SUM(x.hangs), SUM(x.gpu_crashes), BOOL_OR(x.software_gpu),
@@ -110,9 +122,9 @@ func (r *ReportRepository) Baseline(ctx context.Context, from time.Time) ([]Base
 	})
 }
 
-const versionsSQL = samplesCTE + `
+var versionsSQL = samplesCTE + `
 SELECT x.app_version, x.target, count(DISTINCT x.user_id), count(*),
-	AVG(x.cpu_app) FILTER (WHERE x.in_call), AVG(x.mem_app_mb),
+	` + timeAvg("x.cpu_app", "x.in_call") + `, ` + timeAvg("x.mem_app_mb", "") + `,
 	percentile_cont(0.5) WITHIN GROUP (ORDER BY x.lag_p95_ms),
 	SUM(x.long_ms)::float8 / NULLIF(SUM(x.visible_s) / 60, 0),
 	SUM(x.hangs), count(DISTINCT x.user_id) FILTER (WHERE x.software_gpu)
