@@ -49,6 +49,12 @@ export interface SessionStats {
   connect_ms: number | null
   reconnects: number
   failures: number
+  // Minutos com a voz ruim (sintetizado ≥ 3% ou perda recebida ≥ 5%) e as
+  // falhas de acesso (não são queda). Ausentes num backend de antes.
+  robotic_minutes?: number
+  loss_minutes?: number
+  bad_minutes?: number
+  access_failures?: number
 }
 
 export interface LiveRow extends SessionStats {
@@ -102,7 +108,11 @@ export interface LiveReport {
   bucket_minutes: number
   server: ServerPoint[]
   lives: LiveRow[]
+  /** As duas listas juntas (para o app de antes). */
   worst: WorstRow[]
+  /** Piores lives e piores chamadas, cada uma com o seu teto (ausentes num backend de antes). */
+  worst_lives?: WorstRow[]
+  worst_calls?: WorstRow[]
   breakdown: Record<
     'os' | 'gpu' | 'codec' | 'transport' | 'target' | 'network' | 'device',
     BreakdownRow[]

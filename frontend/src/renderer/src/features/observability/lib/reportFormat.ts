@@ -82,6 +82,8 @@ export interface QualitySignals {
   connect_ms: number | null
   reconnects: number
   failures: number
+  bad_minutes?: number
+  access_failures?: number
 }
 
 type Part = [value: number | null, label: (v: string) => string, digits?: number]
@@ -93,9 +95,11 @@ function partsOf(s: QualitySignals): Part[] {
     return [
       [s.concealed_pct, (v) => `Áudio sintetizado ${v}%`],
       [s.recv_loss_pct, (v) => `perda recebida ${v}%`],
+      [positive(s.bad_minutes ?? 0), (v) => `${v} min de voz ruim`, 0],
       [s.connect_ms === null ? null : s.connect_ms / 1000, (v) => `entrou em ${v} s`],
       [positive(s.reconnects), (v) => `${v} ${s.reconnects === 1 ? 'reconexão' : 'reconexões'}`, 0],
-      [positive(s.failures), (v) => `${v} ${s.failures === 1 ? 'falha' : 'falhas'}`, 0]
+      [positive(s.failures), (v) => `${v} ${s.failures === 1 ? 'falha' : 'falhas'}`, 0],
+      [positive(s.access_failures ?? 0), (v) => `${v} sem acesso à chamada`, 0]
     ]
   }
   const [first, second] =

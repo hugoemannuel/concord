@@ -91,8 +91,10 @@ func TestReportRepositoryAgregaOsSinaisDaVoz(t *testing.T) {
 		{Seconds: 0, ConnectMs: intp(1800)},
 		{Seconds: 60, ConcealedPct: fp(2), RecvLossPct: fp(1), CaptureFPS: fp(40), RecvFPS: fp(50), CodecMs: fp(4)},
 		{Seconds: 60, ConcealedPct: fp(6), RecvLossPct: fp(3), CaptureFPS: fp(50), RecvFPS: fp(30), CodecMs: fp(8)},
+		{Seconds: 30, RecvLossPct: fp(5)},
 	}
-	events := [][]Event{nil, {{Type: EventReconnected, Detail: "3 s"}}, {{Type: EventReconnected}, {Type: EventConnectFailed}}}
+	access := Event{Type: EventConnectFailed, Detail: "entrando (acesso): Você não tem mais acesso a esta chamada"}
+	events := [][]Event{nil, {{Type: EventReconnected, Detail: "3 s"}}, {{Type: EventReconnected}, {Type: EventConnectFailed}}, {access}}
 	for i := range samples {
 		r := Report{SessionID: sessionA, Kind: KindCall, CallID: callA, Sample: &samples[i], Events: events[i]}
 		if err := tel.Save(ctx, userAna, r); err != nil {
@@ -109,7 +111,10 @@ func TestReportRepositoryAgregaOsSinaisDaVoz(t *testing.T) {
 		ok   bool
 	}{
 		{"áudio sintetizado médio", s.ConcealedPct != nil && near(*s.ConcealedPct, 4)},
-		{"perda recebida média", s.RecvLossPct != nil && near(*s.RecvLossPct, 2)},
+		{"perda recebida média", s.RecvLossPct != nil && near(*s.RecvLossPct, 3)},
+		{"minutos ruins: 1 robotizado, 0,5 com perda ≥ 5%", near(s.RoboticMinutes, 1) && near(s.LossMinutes, 0.5) &&
+			near(s.BadMinutes, 1.5)},
+		{"falha de acesso à parte", s.AccessFailures == 1},
 		{"captura, recebidos e codec médios", s.CaptureFPS != nil && near(*s.CaptureFPS, 45) &&
 			s.RecvFPS != nil && near(*s.RecvFPS, 40) && s.CodecMs != nil && near(*s.CodecMs, 6)},
 		{"tempo para conectar", s.ConnectMs != nil && near(*s.ConnectMs, 1800)},

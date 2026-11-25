@@ -92,14 +92,21 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   disparou no período (recorrência) e o histórico (regra, gravidade, de quando
   a quando). Pedido próprio: `GET /api/obs/alerts?days=N`. Ver [Alertas](#alertas).
 
-Piores sessões: pontuação (abaixo do alvo, congelamentos, pausa, perda,
-CPU/banda, processador; na voz: não conectou, reconexões, áudio sintetizado,
-perda) e os motivos prováveis, com a linha de números da sessão (captura ×
-codificado, chegam × decodificados, ms por quadro; na voz, áudio sintetizado,
-perda recebida, tempo para entrar) e de onde veio (plataforma, aparelho e
-rede). No Android, dois motivos a mais: "Caiu com o app em segundo plano" e
-"Caiu ao trocar de rede" (só quando a voz reconectou ou não conectou). O backend manda uma lista só; o app separa
-por tipo (`kind = call` na aba Chamadas, o resto na aba Lives).
+Piores sessões: pontuação e os motivos prováveis, com a linha de números da
+sessão (captura × codificado, chegam × decodificados, ms por quadro; na voz,
+áudio sintetizado, perda recebida, minutos de voz ruim, tempo para entrar) e de
+onde veio (plataforma, aparelho e rede). No Android, dois motivos a mais: "Caiu
+com o app em segundo plano" e "Caiu ao trocar de rede" (só quando a voz
+reconectou ou não conectou). São
+**duas listas**, cada uma com o seu teto, porque as escalas não se comparam:
+`worst_lives` (15, quem transmite e quem assiste: abaixo do alvo, congelamentos,
+perda, CPU/banda, processador) e `worst_calls` (10, a voz). A voz pontua por
+**minutos ruins** (minuto medido com áudio sintetizado ≥ 3% ou perda recebida ≥
+5%) × 10, reconexões × 20 e falhas × 100, e não pela média da sessão (que dilui
+um episódio longo: a pior call de 13/11, 48 minutos robotizados, ficava em 63º).
+A `conexao_falhou` na etapa de **acesso** ("entrando (acesso)": chamada encerrada
+ou sem permissão) não é queda: vai à parte (`access_failures`) e não pesa. O
+campo antigo `worst` leva as duas listas juntas, para o app de antes.
 
 As abas Lives, Chamadas, Servidor, Distribuição e Eventos usam o mesmo pedido
 (`useSharedLiveReport`): trocar entre elas não busca de novo. A aba Servidor

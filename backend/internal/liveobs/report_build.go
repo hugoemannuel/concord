@@ -11,6 +11,8 @@ import (
 const (
 	maxLives = 30
 	maxWorst = 15
+	// maxWorstCalls: teto das piores chamadas (lista própria).
+	maxWorstCalls = 10
 	// Sessões com menos que isso medido não entram nas piores (início/fim).
 	minWorstSeconds = 60.0
 	maxPoints       = 300
@@ -23,15 +25,21 @@ var bucketSteps = []time.Duration{
 
 func buildReport(from, to time.Time, sessions []SessionStats, minutes []ServerMinute, events []EventRow) LiveReport {
 	bucket := bucketFor(to.Sub(from))
+	// Cada lista com o seu teto: a pontuação da live e a da voz têm escalas
+	// diferentes, e numa lista só a voz nunca entrava.
+	lives := worstRows(sessions, maxWorst, isNotCall)
+	calls := worstRows(sessions, maxWorstCalls, isCall)
 	return LiveReport{
-		From:      from,
-		To:        to,
-		BucketMin: int(bucket / time.Minute),
-		Server:    bucketSeries(minutes, bucket),
-		Lives:     liveRows(sessions, maxLives),
-		Worst:     worstRows(sessions, maxWorst),
-		Breakdown: breakdowns(sessions),
-		Events:    events,
+		From:       from,
+		To:         to,
+		BucketMin:  int(bucket / time.Minute),
+		Server:     bucketSeries(minutes, bucket),
+		Lives:      liveRows(sessions, maxLives),
+		Worst:      append(slices.Clone(lives), calls...),
+		WorstLives: lives,
+		WorstCalls: calls,
+		Breakdown:  breakdowns(sessions),
+		Events:     events,
 	}
 }
 

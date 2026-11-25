@@ -12,6 +12,9 @@ const (
 	robotPct = 3.0
 	// Perda (%) no áudio recebido que já explica a síntese.
 	audioLossPct = 2.0
+	// Minuto ruim da voz (report_repository.go): áudio sintetizado ≥ robotPct
+	// ou perda recebida ≥ badLossPct.
+	badLossPct = 5.0
 	// Abaixo disso de perda, a síntese não veio da rede.
 	noLossPct = 0.5
 )
@@ -34,7 +37,15 @@ func notDecoded(s SessionStats) bool {
 	return *s.RecvFPS-*s.FPS >= max(5, 0.2**s.RecvFPS)
 }
 
-func robotic(s SessionStats) bool { return ratioAtLeast(s.ConcealedPct, robotPct) }
+// robotic: a média da sessão ou ao menos um minuto medido robotizado.
+func robotic(s SessionStats) bool {
+	return ratioAtLeast(s.ConcealedPct, robotPct) || s.RoboticMinutes > 0
+}
+
+// lossy: perda recebida alta na média ou ao menos um minuto com perda ≥ 5%.
+func lossy(s SessionStats) bool {
+	return ratioAtLeast(s.RecvLossPct, audioLossPct) || s.LossMinutes > 0
+}
 
 func kindIs(kind string, hit func(SessionStats) bool) func(SessionStats) bool {
 	return func(s SessionStats) bool { return s.Kind == kind && hit(s) }
@@ -45,16 +56,18 @@ var qualityRules = []reasonRule{
 	{"Codificador não dá conta do fps", kindIs(KindShare, slowCodec)},
 	{"Quadros chegam e não decodificam", kindIs(KindWatch, notDecoded)},
 	{"Voz robotizada (áudio sintetizado)", kindIs(KindCall, robotic)},
-	{"Perda no áudio recebido", kindIs(KindCall, func(s SessionStats) bool { return ratioAtLeast(s.RecvLossPct, audioLossPct) })},
+	{"Perda no áudio recebido", kindIs(KindCall, lossy)},
 	{"Áudio sintetizado sem perda (PC de quem ouve)", kindIs(KindCall, func(s SessionStats) bool {
 		return robotic(s) && s.RecvLossPct != nil && *s.RecvLossPct < noLossPct
 	})},
 	{"Voz reconectou", func(s SessionStats) bool { return s.Reconnects > 0 }},
 	{"Voz não conectou", func(s SessionStats) bool { return s.Failures > 0 }},
+	{"Sem acesso à chamada (não é queda)", func(s SessionStats) bool { return s.AccessFailures > 0 }},
 }
 
-// callScore: quanto pior a voz, maior (não conectar pesa mais que tudo).
+// callScore: quanto pior a voz, maior. Conta os minutos ruins (não a média da
+// sessão, que dilui um episódio longo), as quedas e as falhas de rede; a falha
+// de acesso (chamada encerrada, sem permissão) não pesa.
 func callScore(s SessionStats) float64 {
-	return orZero(s.ConcealedPct)*10 + orZero(s.RecvLossPct)*5 + orZero(s.LossPct)*5 +
-		float64(s.Reconnects)*20 + float64(s.Failures)*100
+	return s.BadMinutes*10 + float64(s.Reconnects)*20 + float64(s.Failures)*100
 }

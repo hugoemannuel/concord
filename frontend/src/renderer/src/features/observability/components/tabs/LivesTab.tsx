@@ -1,4 +1,4 @@
-import { splitWorst } from '../../lib/worstByKind'
+import { worstLists } from '../../lib/worstByKind'
 import { LiveReportGate } from '../LiveReportGate'
 import { LivesTable } from '../LivesTable'
 import { WorstSessions } from '../WorstSessions'
@@ -13,7 +13,7 @@ export default function LivesTab({ days }: { days: number }): React.JSX.Element 
           <WorstSessions
             title="Piores lives e por quê"
             empty="Nenhuma live ruim no período."
-            rows={splitWorst(report.worst).lives}
+            rows={worstLists(report).lives}
           />
         </>
       )}

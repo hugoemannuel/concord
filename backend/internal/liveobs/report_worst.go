@@ -73,12 +73,12 @@ func sessionScore(s SessionStats) float64 {
 	return score(s)
 }
 
-// worstRows: as sessões com pontuação acima de zero; a curta demais só entra
-// se a voz não conectou.
-func worstRows(sessions []SessionStats, limit int) []WorstRow {
+// worstRows: as sessões com pontuação acima de zero, só das que keep aceita;
+// a curta demais só entra se a voz não conectou.
+func worstRows(sessions []SessionStats, limit int, keep func(SessionStats) bool) []WorstRow {
 	rows := []WorstRow{}
 	for _, s := range sessions {
-		if s.Seconds < minWorstSeconds && s.Failures == 0 {
+		if !keep(s) || (s.Seconds < minWorstSeconds && s.Failures == 0) {
 			continue
 		}
 		if sc := sessionScore(s); sc > 0 {
@@ -89,3 +89,6 @@ func worstRows(sessions []SessionStats, limit int) []WorstRow {
 	slices.SortStableFunc(rows, func(a, b WorstRow) int { return cmp.Compare(b.Score, a.Score) })
 	return rows[:min(limit, len(rows))]
 }
+
+func isCall(s SessionStats) bool    { return s.Kind == KindCall }
+func isNotCall(s SessionStats) bool { return s.Kind != KindCall }

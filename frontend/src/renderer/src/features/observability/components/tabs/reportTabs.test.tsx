@@ -163,6 +163,26 @@ describe('abas do relatório das lives', () => {
     expect(html).not.toContain('bia')
     expect(html).not.toContain('Lives recentes')
   })
+  it('cada aba lê a sua lista do backend', () => {
+    const r = report(true)
+    const [live, call] = r.worst
+    const both: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        worst: [],
+        worst_lives: [{ ...live, username: 'lia' }],
+        worst_calls: [{ ...call, username: 'davi', bad_minutes: 48 }]
+      }
+    }
+    const calls = render(CallsTab, both)
+    expect(calls).toContain('davi')
+    expect(calls).toContain('48 min de voz ruim')
+    expect(calls).not.toContain('lia')
+    const lives = render(LivesTab, both)
+    expect(lives).toContain('lia')
+    expect(lives).not.toContain('davi')
+  })
   it('Chamadas sem sessão ruim', () => {
     const empty: ReportState = { status: 'ready', report: { ...report(true), worst: [] } }
     expect(render(CallsTab, empty)).toContain('Nenhuma chamada ruim no período.')

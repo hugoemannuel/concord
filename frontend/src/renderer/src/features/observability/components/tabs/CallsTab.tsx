@@ -1,4 +1,4 @@
-import { splitWorst } from '../../lib/worstByKind'
+import { worstLists } from '../../lib/worstByKind'
 import { LiveReportGate } from '../LiveReportGate'
 import { WorstSessions } from '../WorstSessions'
 
@@ -10,7 +10,7 @@ export default function CallsTab({ days }: { days: number }): React.JSX.Element 
         <WorstSessions
           title="Piores chamadas e por quê"
           empty="Nenhuma chamada ruim no período."
-          rows={splitWorst(report.worst).calls}
+          rows={worstLists(report).calls}
         />
       )}
     </LiveReportGate>

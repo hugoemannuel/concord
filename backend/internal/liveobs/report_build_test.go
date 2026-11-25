@@ -1,6 +1,7 @@
 package liveobs
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -157,7 +158,8 @@ func TestWorstRowsOrdenaPelasPiores(t *testing.T) {
 	failed := session("falhou", KindCall, "f", 0, 0)
 	failed.Failures = 1
 
-	rows := worstRows([]SessionStats{good, frozen, slow, short, call, failed}, 3)
+	all := func(SessionStats) bool { return true }
+	rows := worstRows([]SessionStats{good, frozen, slow, short, call, failed}, 3, all)
 	ids := []string{}
 	for _, r := range rows {
 		ids = append(ids, r.ID)
@@ -213,7 +215,7 @@ func TestBuildReportJuntaTudo(t *testing.T) {
 	if r.BucketMin != 1 || len(r.Server) != 1 || len(r.Lives) != 1 || len(r.Events) != 1 || r.Breakdown["os"] == nil {
 		t.Errorf("relatório = %+v", r)
 	}
-	if r.Worst == nil {
+	if r.Worst == nil || r.WorstLives == nil || r.WorstCalls == nil {
 		t.Error("piores nil (o JSON precisa de [])")
 	}
 }
@@ -261,5 +263,71 @@ func TestReasonsDaVoz(t *testing.T) {
 	}
 	if callScore(net) <= callScore(cpu) || callScore(session("ok", KindCall, "c", 0, 10)) != 0 {
 		t.Errorf("pontuação da voz: rede %v, cpu %v", callScore(net), callScore(cpu))
+	}
+
+	access := session("acesso", KindCall, "duda", 0, 10)
+	access.AccessFailures = 1
+	want = []string{"Sem acesso à chamada (não é queda)"}
+	if got := reasons(access); !slices.Equal(got, want) {
+		t.Errorf("acesso: %q, quer %q", got, want)
+	}
+
+	// Média baixa, mas 5 minutos robotizados numa sessão longa: o motivo aparece.
+	long := session("longa", KindCall, "edu", 0, 120)
+	long.ConcealedPct, long.RoboticMinutes, long.BadMinutes = fp(0.4), 5, 5
+	if got := reasons(long); !slices.Contains(got, "Voz robotizada (áudio sintetizado)") {
+		t.Errorf("minutos robotizados sem motivo: %q", got)
+	}
+}
+
+func TestCallScoreContaMinutosRuins(t *testing.T) {
+	// A pior call real (13/11): 48 minutos ruins numa sessão de 3 h; a média
+	// da sessão fica baixa, mas ela tem de ficar acima de tudo isto.
+	worst := session("pior", KindCall, "ana", 0, 180)
+	worst.ConcealedPct, worst.RecvLossPct, worst.BadMinutes = fp(1.2), fp(8), 48
+	short := session("curta", KindCall, "bia", 0, 2)
+	short.ConcealedPct, short.RecvLossPct, short.LossPct = fp(9), fp(9), fp(20)
+	short.BadMinutes = 2
+	access := session("acesso", KindCall, "caio", 0, 5)
+	access.AccessFailures = 2
+	drop := session("caiu", KindCall, "duda", 0, 30)
+	drop.Reconnects, drop.Failures = 1, 1
+	if !(callScore(worst) > callScore(drop) && callScore(drop) > callScore(short)) {
+		t.Errorf("pior %v, caiu %v, curta %v", callScore(worst), callScore(drop), callScore(short))
+	}
+	if callScore(access) != 0 {
+		t.Errorf("falha de acesso pesou como queda: %v", callScore(access))
+	}
+	// Médias altas sem nenhum minuto ruim não pontuam (o ruído de 1 amostra).
+	noisy := session("ruido", KindCall, "edu", 0, 10)
+	noisy.ConcealedPct, noisy.RecvLossPct, noisy.LossPct = fp(2), fp(1), fp(3)
+	if callScore(noisy) != 0 {
+		t.Errorf("sem minuto ruim: %v", callScore(noisy))
+	}
+}
+
+func TestBuildReportSeparaPioresLivesEChamadas(t *testing.T) {
+	sessions := []SessionStats{}
+	// 20 lives muito ruins (pontuação de centenas) não escondem a call ruim.
+	for i := range 20 {
+		s := session(fmt.Sprintf("live%d", i), KindShare, "ana", 0, 30)
+		s.BelowRatio, s.CPURatio = fp(1), 1
+		sessions = append(sessions, s)
+	}
+	call := session("voz", KindCall, "bia", 0, 60)
+	call.BadMinutes = 3
+	sessions = append(sessions, call)
+	r := buildReport(t0.Add(-time.Hour), t0.Add(time.Hour), sessions, nil, nil)
+	if len(r.WorstLives) != maxWorst || len(r.WorstCalls) != 1 || r.WorstCalls[0].ID != "voz" {
+		t.Fatalf("piores lives = %d, chamadas = %+v", len(r.WorstLives), r.WorstCalls)
+	}
+	for _, w := range r.WorstLives {
+		if w.Kind == KindCall {
+			t.Errorf("call na lista das lives: %s", w.ID)
+		}
+	}
+	// O campo antigo (o app de antes separa por kind) leva as duas listas.
+	if len(r.Worst) != maxWorst+1 || r.Worst[maxWorst].ID != "voz" {
+		t.Errorf("worst = %d linhas", len(r.Worst))
 	}
 }
