@@ -17,6 +17,7 @@ import { useUnreadLive } from '../src/features/chat/hooks/useUnreadLive'
 import { useChannelsLive } from '../src/features/servers/hooks/useChannelsLive'
 import { useInAppNotifications } from '../src/features/notifications/hooks/useInAppNotifications'
 import { useCallForeground } from '../src/features/call/hooks/useCallForeground'
+import { ErrorReportBridge } from '../src/features/errorReports/components/ErrorReportBridge'
 import { registerCallService } from '../src/features/call/lib/notifeeForeground'
 import { useNotificationTap } from '../src/features/notifications/hooks/useNotificationTap'
 import { usePushRegistration } from '../src/features/notifications/hooks/usePushRegistration'
@@ -83,6 +84,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bgApp }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
+        <ErrorReportBridge />
         <ErrorBoundary>
           <Gate />
         </ErrorBoundary>
