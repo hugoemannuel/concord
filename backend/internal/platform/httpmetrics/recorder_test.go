@@ -18,7 +18,10 @@ func newEngine(r *Recorder) *gin.Engine {
 	e.GET("/api/missing", func(c *gin.Context) { c.Status(http.StatusNotFound) })
 	e.GET("/api/moved", func(c *gin.Context) { c.Status(http.StatusFound) })
 	e.GET("/api/boom", func(*gin.Context) { panic("boom") })
-	e.GET("/api/abort", func(*gin.Context) { panic(http.ErrAbortHandler) })
+	e.GET("/api/abort", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+		panic(http.ErrAbortHandler)
+	})
 	e.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 	e.GET("/ws", func(c *gin.Context) {
 		r.mu.Lock()
@@ -73,8 +76,8 @@ func TestRecorderPanicContaComo5xxERelanca(t *testing.T) {
 	}
 	get(e, "/api/abort")
 	m := r.TakeMinute()
-	if m.Panics != 1 || m.Status5xx != 2 {
-		t.Errorf("panics=%d 5xx=%d, quer 1 panic (o ErrAbortHandler não conta) e 2 5xx", m.Panics, m.Status5xx)
+	if m.Panics != 1 || m.Status5xx != 1 || m.Status2xx != 1 {
+		t.Errorf("minuto = %+v, quer 1 panic e 1 5xx (a conexão cortada não é panic nem 5xx)", m)
 	}
 	routes := r.TakeRoutes(10)
 	if len(routes) == 0 || routes[0].Status5xx != 1 {
@@ -98,11 +101,12 @@ func TestRecorderEmAndamento(t *testing.T) {
 	r := New(Config{})
 	r.begin()
 	r.begin()
-	r.end()
+	r.observe(observation{route: "GET /x", status: http.StatusOK})
 	m := r.TakeMinute()
 	if m.InFlight != 1 || m.InFlightMax != 2 {
 		t.Errorf("em andamento = %d, máx = %d; quer 1 e 2", m.InFlight, m.InFlightMax)
 	}
+	r.TakeRoutes(10)
 	if m = r.TakeMinute(); m.InFlightMax != 1 {
 		t.Errorf("máx do minuto seguinte = %d, quer 1 (o que segue aberto)", m.InFlightMax)
 	}

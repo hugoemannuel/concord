@@ -22,15 +22,16 @@ func TestMiddlewaresValemParaAsRotasDoAPI(t *testing.T) {
 		api.GET("/channels/:id", func(c *gin.Context) { c.Status(http.StatusOK) })
 		r.GET("/updates/*file", func(c *gin.Context) { c.Status(http.StatusOK) })
 		r.Any("/rtc", func(c *gin.Context) { c.Status(http.StatusOK) })
+		api.GET("/music/video/:itemId", func(c *gin.Context) { c.Status(http.StatusOK) })
 	})
 	a.registerRoutes(router)
-	for _, path := range []string{"/api/channels/1", "/updates/app.exe"} {
+	for _, path := range []string{"/api/channels/1", "/updates/app.exe", "/api/music/video/abc"} {
 		router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
 	}
 	rtc := httptest.NewRequest(http.MethodGet, "/rtc", nil)
 	rtc.Header.Set("Upgrade", "websocket")
 	router.ServeHTTP(httptest.NewRecorder(), rtc)
 	if m := recorder.TakeMinute(); m.Requests != 1 {
-		t.Errorf("pedidos = %d, quer 1 (download longo e o /rtc ficam de fora)", m.Requests)
+		t.Errorf("pedidos = %d, quer 1 (downloads longos, o vídeo e o /rtc ficam de fora)", m.Requests)
 	}
 }

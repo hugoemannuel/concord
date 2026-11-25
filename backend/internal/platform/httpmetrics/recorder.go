@@ -91,12 +91,6 @@ func (r *Recorder) begin() {
 	r.mu.Unlock()
 }
 
-func (r *Recorder) end() {
-	r.mu.Lock()
-	r.minute.InFlight--
-	r.mu.Unlock()
-}
-
 func (r *Recorder) connect(delta int64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

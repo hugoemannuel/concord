@@ -10,8 +10,9 @@ ADR: [0067](../../adr/0067-metricas-da-api-e-da-vps.md). Branch `feat/obs-metric
 2. **`platform/hoststats`**: parsers puros (CPU com iowait/steal, loadavg,
    meminfo, diskstats + mountinfo, net/dev + net/route, net/snmp, processo
    `/proc/<pid>/stat|status`, btime); `statfs` só no Linux; `Machine` com as
-   diferenças entre duas leituras. O `Reader` atual (livekit_metrics) não muda
-   de comportamento.
+   diferenças entre duas leituras. O `Reader` atual (livekit_metrics) passa a
+   deixar `guest`/`guest_nice` fora do total (já estão dentro de user/nice; na
+   VPS são 0, então o número não muda).
 3. **Migrations 000210 (`api_metrics`, `api_route_metrics`) e 000211
    (`host_metrics`, `db_table_sizes`)**.
 4. **`serverobs`**: repositórios (inserir, `Latest`, `Recent(n)`, série em

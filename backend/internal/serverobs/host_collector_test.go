@@ -53,6 +53,11 @@ func TestHostCollectorGravaAMaquinaOBancoEOBackup(t *testing.T) {
 	backupAt := time.Date(2026, 11, 25, 3, 0, 0, 0, time.UTC)
 	_ = os.Chtimes(old, backupAt.Add(-24*time.Hour), backupAt.Add(-24*time.Hour))
 	_ = os.Chtimes(recent, backupAt, backupAt)
+	// Dump que falhou (ou em andamento): mais novo, mas não é backup.
+	failed := filepath.Join(dir, "concord-3.sql.gz.tmp")
+	if err := os.WriteFile(failed, make([]byte, 7), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	boot := time.Date(2026, 11, 24, 10, 0, 0, 0, time.UTC)
 	cpuPct := 33.0
 	m := hoststats.Machine{
@@ -112,5 +117,20 @@ func TestHostCollectorSemNadaGravaNulos(t *testing.T) {
 	row := store.minutes[0]
 	if row.CPUPct != nil || row.DBSizeBytes != nil || row.BackupAt != nil || row.BootAt != nil {
 		t.Errorf("linha = %+v, quer nulos", row)
+	}
+}
+
+type countingMachine struct{ reads int }
+
+func (c *countingMachine) Read() hoststats.Machine {
+	c.reads++
+	return hoststats.Machine{}
+}
+
+func TestHostCollectorLeAMaquinaJaNoBoot(t *testing.T) {
+	m := &countingMachine{}
+	NewHostCollector(m, &fakeHostStore{}, "")
+	if m.reads != 1 {
+		t.Errorf("leituras = %d, quer 1 (a base das taxas do primeiro minuto)", m.reads)
 	}
 }

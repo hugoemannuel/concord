@@ -32,7 +32,7 @@ func (m *APIMinute) fields() []any {
 		&m.DBInUse, &m.DBIdle, &m.DBTotal, &m.DBMax, &m.DBWaits, &m.DBWaitMs}
 }
 
-var insertAPISQL = upsertSQL("api_metrics", apiColumns, "minute", 29)
+var insertAPISQL = upsertSQL("api_metrics", apiColumns, "minute")
 
 func (r *APIRepository) InsertAPIMinute(ctx context.Context, m APIMinute) error {
 	if _, err := r.db.Exec(ctx, insertAPISQL, m.fields()...); err != nil {
@@ -43,7 +43,7 @@ func (r *APIRepository) InsertAPIMinute(ctx context.Context, m APIMinute) error 
 
 const routeColumns = `minute, route, requests, status_4xx, status_5xx, p50_ms, p95_ms, max_ms, total_ms`
 
-var insertRouteSQL = upsertSQL("api_route_metrics", routeColumns, "minute, route", 9)
+var insertRouteSQL = upsertSQL("api_route_metrics", routeColumns, "minute, route")
 
 // InsertRoutes grava as rotas de uma janela num pedido só.
 func (r *APIRepository) InsertRoutes(ctx context.Context, rows []RouteWindow) error {

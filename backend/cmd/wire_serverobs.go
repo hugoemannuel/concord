@@ -34,11 +34,14 @@ func (a *app) wireServerObs() {
 	go serverobs.NewRetention(apiRepo, hostRepo).Run(a.ctx)
 }
 
-// skipMetrics: fora da conta da API ficam o /healthz, os downloads longos e
+// skipMetrics: fora da conta da API ficam o /healthz, os downloads longos
+// (atualizações, mídia do chat, o vídeo do assistir junto, que dura minutos) e
 // os WebSockets que não são o do app (o /rtc do LiveKit); o /ws conta como
 // conexão.
 func skipMetrics(c *gin.Context) bool {
-	return c.FullPath() == "/healthz" || isLongDownload(c.Request) || (c.FullPath() != "/ws" && isUpgrade(c.Request))
+	route := c.FullPath()
+	return route == "/healthz" || route == "/api/music/video/:itemId" || isLongDownload(c.Request) ||
+		(route != "/ws" && isUpgrade(c.Request))
 }
 
 func isUpgrade(r *http.Request) bool {

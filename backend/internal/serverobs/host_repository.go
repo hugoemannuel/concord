@@ -37,7 +37,7 @@ func (m *HostMinute) fields() []any {
 		&m.DBSizeBytes, &m.DBConnections, &m.BackupAt, &m.BackupBytes, &m.BootAt}
 }
 
-var insertHostSQL = upsertSQL("host_metrics", hostColumns, "minute", 36)
+var insertHostSQL = upsertSQL("host_metrics", hostColumns, "minute")
 
 func (r *HostRepository) InsertHostMinute(ctx context.Context, m HostMinute) error {
 	if _, err := r.db.Exec(ctx, insertHostSQL, m.fields()...); err != nil {
@@ -136,9 +136,11 @@ func collectTables(rows pgx.Rows, what string) ([]TableSize, error) {
 	return out, nil
 }
 
-// InsertTableSizes grava as tabelas de uma hora.
+// InsertTableSizes grava as tabelas de uma hora (substitui a hora inteira:
+// o processo novo no meio da hora não deixa mais de maxTables linhas).
 func (r *HostRepository) InsertTableSizes(ctx context.Context, hour time.Time, tables []TableSize) error {
 	batch := &pgx.Batch{}
+	batch.Queue(`DELETE FROM db_table_sizes WHERE hour = $1`, hour)
 	for _, s := range tables {
 		batch.Queue(`INSERT INTO db_table_sizes (hour, table_name, total_bytes) VALUES ($1, $2, $3)
 			ON CONFLICT (hour, table_name) DO UPDATE SET total_bytes = EXCLUDED.total_bytes`, hour, s.Name, s.Bytes)

@@ -33,7 +33,11 @@ type HostCollector struct {
 	lastHour  time.Time
 }
 
+// NewHostCollector já faz a primeira leitura da máquina: as taxas (CPU,
+// disco, rede) são a diferença entre duas, e o primeiro minuto depois de um
+// boot é o que mais interessa.
 func NewHostCollector(machine machineSource, store hostStore, backupDir string) *HostCollector {
+	machine.Read()
 	return &HostCollector{machine: machine, store: store, backupDir: backupDir, now: time.Now}
 }
 
@@ -45,7 +49,7 @@ func (c *HostCollector) Run(ctx context.Context) {
 func (c *HostCollector) Tick(ctx context.Context) error {
 	at := c.now()
 	row := hostRow(c.machine.Read())
-	row.Minute = at.Truncate(time.Minute)
+	row.Minute = at.Round(time.Minute)
 	row.BackupAt, row.BackupBytes = newestFile(c.backupDir)
 	dbErr := c.fillDatabase(ctx, &row)
 	err := c.store.InsertHostMinute(ctx, row)

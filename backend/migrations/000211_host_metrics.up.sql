@@ -1,7 +1,8 @@
 -- Métricas da VPS (internal/serverobs, ADR 0067), lidas do /proc e do statfs.
 -- Uma linha por minuto; nulo = não deu para ler (ou fora do Linux). Taxas e
 -- contadores = no minuto; o resto = no momento da coleta. CPU de processo em %
--- da máquina inteira (todas as vCPUs), como cpu_pct. Retenção de 14 dias.
+-- da máquina inteira (todas as vCPUs), como cpu_pct. *_bps = BYTES por
+-- segundo (não bits); *_pps = pacotes por segundo. Retenção de 14 dias.
 CREATE TABLE host_metrics (
     minute TIMESTAMPTZ PRIMARY KEY,
     seconds REAL NOT NULL DEFAULT 0,

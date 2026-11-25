@@ -28,7 +28,12 @@ func every(ctx context.Context, interval time.Duration, what string, fn func(con
 	}
 }
 
+// tickTimeout: prazo de uma coleta (banco travado não segura o coletor).
+const tickTimeout = 20 * time.Second
+
 func run(ctx context.Context, what string, fn func(context.Context) error) {
+	ctx, cancel := context.WithTimeout(ctx, tickTimeout)
+	defer cancel()
 	if err := fn(ctx); err != nil {
 		log.Printf("[serverobs] %s: %v", what, err)
 	}

@@ -3,6 +3,7 @@ package httpmetrics
 import (
 	"errors"
 	"net/http"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,7 +39,7 @@ func (r *Recorder) request(c *gin.Context) {
 	r.begin()
 	defer func() {
 		if p := recover(); p != nil {
-			r.observe(observation{route: route, status: http.StatusInternalServerError, latency: time.Since(start), panicked: !isAbort(p)})
+			r.observe(panicObservation(c, route, time.Since(start), p))
 			panic(p)
 		}
 	}()
@@ -53,8 +54,18 @@ func routeOf(c *gin.Context) string {
 	return c.Request.Method + " " + c.FullPath()
 }
 
-// isAbort: http.ErrAbortHandler é o jeito normal de cortar uma resposta.
-func isAbort(p any) bool {
+// panicObservation: panic de verdade vira 5xx e conta; conexão quebrada fica
+// com o status que já tinha saído.
+func panicObservation(c *gin.Context, route string, latency time.Duration, p any) observation {
+	if isBrokenConnection(p) {
+		return observation{route: route, status: c.Writer.Status(), latency: latency}
+	}
+	return observation{route: route, status: http.StatusInternalServerError, latency: latency, panicked: true}
+}
+
+// isBrokenConnection: a mesma regra do gin.Recovery (cliente fechou a
+// conexão; http.ErrAbortHandler é o jeito normal de cortar uma resposta).
+func isBrokenConnection(p any) bool {
 	err, ok := p.(error)
-	return ok && errors.Is(err, http.ErrAbortHandler)
+	return ok && (errors.Is(err, http.ErrAbortHandler) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET))
 }

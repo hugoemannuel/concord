@@ -18,8 +18,15 @@ func placeholders(n int) string {
 }
 
 // upsertSQL: INSERT que substitui a linha da mesma chave (coleta dupla no
-// mesmo minuto, ou o processo novo no minuto do antigo).
-func upsertSQL(table, columns, key string, n int) string {
-	return `INSERT INTO ` + table + ` (` + columns + `) VALUES (` + placeholders(n) + `)
-		ON CONFLICT (` + key + `) DO UPDATE SET (` + columns + `) = ROW(EXCLUDED.*)`
+// mesmo minuto, ou o processo novo no minuto do antigo), coluna a coluna (uma
+// coluna nova na tabela não quebra o INSERT).
+func upsertSQL(table, columns, key string) string {
+	cols := strings.Split(columns, ",")
+	set := make([]string, len(cols))
+	for i, c := range cols {
+		c = strings.TrimSpace(c)
+		set[i] = c + " = EXCLUDED." + c
+	}
+	return `INSERT INTO ` + table + ` (` + columns + `) VALUES (` + placeholders(len(cols)) + `)
+		ON CONFLICT (` + key + `) DO UPDATE SET ` + strings.Join(set, ", ")
 }

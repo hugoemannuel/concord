@@ -89,7 +89,9 @@ máximo, quantas esperas por conexão e quanto tempo esperaram).
 - **Panics**: o middleware fica depois do `gin.Recovery`, vê o panic, conta,
   marca o pedido como 5xx e relança para o `Recovery` (que segue escrevendo no
   journal como hoje). Não há gancho no `Recovery`: o relatório de erros (ADR 0068)
-  pode trocar o `Recovery` sem conflitar. `http.ErrAbortHandler` não é panic.
+  pode trocar o `Recovery` sem conflitar. Conexão quebrada (`http.ErrAbortHandler`,
+  `EPIPE`, `ECONNRESET`, a mesma regra do `Recovery`) não é panic nem 5xx. Panic
+  no handler do `/ws` e nas rotas fora da conta não entra no contador.
 - O log de pedidos (`httplog`) não muda.
 
 **Por rota (`api_route_metrics`, 5 em 5 min, até 20 rotas, migration 000210).**

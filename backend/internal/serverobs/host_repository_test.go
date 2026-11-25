@@ -64,6 +64,9 @@ func TestHostRepositoryTabelasEBanco(t *testing.T) {
 	if err := repo.InsertTableSizes(ctx, hour.Add(-time.Hour), []TableSize{{Name: "velha", Bytes: 1}}); err != nil {
 		t.Fatal(err)
 	}
+	if err := repo.InsertTableSizes(ctx, hour, []TableSize{{Name: "de antes do reinício", Bytes: 1}}); err != nil {
+		t.Fatal(err)
+	}
 	if err := repo.InsertTableSizes(ctx, hour, tables); err != nil {
 		t.Fatal(err)
 	}

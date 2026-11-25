@@ -78,7 +78,7 @@ func (c *APICollector) Run(ctx context.Context) {
 func (c *APICollector) Tick(ctx context.Context) error {
 	at := c.now()
 	row := apiRow(c.source.TakeMinute())
-	row.Minute, row.Seconds = at.Truncate(time.Minute), at.Sub(c.last).Seconds()
+	row.Minute, row.Seconds = at.Round(time.Minute), at.Sub(c.last).Seconds()
 	c.last = at
 	c.fillRuntime(&row)
 	c.fillPool(&row)

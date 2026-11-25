@@ -2,11 +2,16 @@ package serverobs
 
 import (
 	"os"
+	"path/filepath"
 	"time"
 )
 
-// newestFile: hora e tamanho do arquivo mais novo da pasta de backups (nil
-// sem a pasta, como em dev, ou sem arquivo).
+// backupPattern: o nome que o deploy/concord-backup.service dá ao dump pronto.
+// O .tmp (dump em andamento ou que falhou) não conta.
+const backupPattern = "concord-*.sql.gz"
+
+// newestFile: hora e tamanho do backup pronto mais novo da pasta (nil sem a
+// pasta, como em dev, ou sem backup).
 func newestFile(dir string) (*time.Time, *int64) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -15,6 +20,9 @@ func newestFile(dir string) (*time.Time, *int64) {
 	var at *time.Time
 	var size *int64
 	for _, e := range entries {
+		if ok, _ := filepath.Match(backupPattern, e.Name()); !ok {
+			continue
+		}
 		info, err := e.Info()
 		if err != nil || !info.Mode().IsRegular() {
 			continue
