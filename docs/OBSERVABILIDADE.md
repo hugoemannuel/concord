@@ -15,8 +15,8 @@ Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do 
 | LiveKit (`/metrics`, Prometheus em 127.0.0.1) + `/proc` da VPS | `livekit_metrics` | 1 min | banda entrando/saindo, retransmissões, perda na subida (quem publica → SFU) e na descida (SFU → quem assiste), NACK, PLI, RTT, jitter, nota de qualidade, salas, participantes, tracks, CPU e memória do LiveKit e da VPS |
 | App (quem transmite) | `live_sessions` (`transmite`) + `live_samples` | 20 s | codec, placa ou processador, resolução e fps codificados × escolhidos, **fps da captura** (`capture_fps`), **ms por quadro no codificador** (`codec_ms`), Mbps, `qualityLimitationReason`, degrau do controlador e trocas, camadas, reserva, quadros-chave, PLI, NACK, UDP/TCP/TURN |
 | App (quem assiste) | `live_sessions` (`assiste`) + `live_samples` | 20 s | codec, decodificador na placa ou no processador, resolução, **quadros/s que chegaram** (`recv_fps`) × decodificados (`fps`), **ms por quadro no decodificador** (`codec_ms`), perda, jitter, congelamentos, quadros descartados, pausa do servidor, UDP/TCP/TURN |
-| App (voz) | `live_sessions` (`call`) + `live_samples` | 60 s | RTT, perda e jitter vistos pelo servidor, UDP/TCP/TURN; **o que eu ouço**: % de áudio sintetizado (`concealed_pct`) e perda no áudio recebido (`recv_loss_pct`); **tempo para conectar** (`connect_ms`) |
-| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)**; do Android: **saiu do app** (`segundo_plano`), **voltou ao app** (`primeiro_plano`, tempo fora), **trocou de rede** (`rede_trocou`, `wifi → cellular-4g`), **saída do áudio** (`rota_do_audio`: `bluetooth`, `headset`, `speaker`, `earpiece`) |
+| App (voz) | `live_sessions` (`call`) + `live_samples` | 60 s | RTT, perda (média do intervalo) e jitter vistos pelo servidor, UDP/TCP/TURN; **o que eu ouço**: % de áudio sintetizado (`concealed_pct`, voz a voz) e perda no áudio recebido (`recv_loss_pct`, a **menor** entre as vozes); **tempo para conectar** (`connect_ms`) |
+| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)**, **entrada lenta (tempo por etapa)**, **entrada abandonada (nova tentativa ou saiu)**, **retomou** (o app recomeçou no meio da call: buraco e versão; do servidor); do Android: **saiu do app** (`segundo_plano`), **voltou ao app** (`primeiro_plano`, tempo fora), **trocou de rede** (`rede_trocou`, `wifi → cellular-4g`), **saída do áudio** (`rota_do_audio`: `bluetooth`, `headset`, `speaker`, `earpiece`) |
 
 Contexto de cada sessão: SO, versão do app, plataforma (`target`: `desktop`,
 `web` ou `android`; o backend descarta outro valor), placa de vídeo (renderer
@@ -35,6 +35,29 @@ Nos contadores das amostras (`freezes`, `freeze_ms`, `frames_dropped`,
 `recv_loss_pct` são médias do intervalo (a partir do app com a ADR 0032; antes,
 `fps` era o do momento da leitura); o resto é o valor no momento. A primeira amostra de cada sessão é a
 base (contadores zerados, `seconds = 0`).
+
+**Mudou de significado** com a [emenda de 25/11/2026 da ADR 0032](adr/0032-sinais-de-qualidade-das-lives-e-calls.md#emenda-2026-11-25-a-telemetria-não-perde-nem-distorce-o-que-mede)
+(compare períodos filtrando por `app_version`; vale para o desktop e o app web: o
+app Android tem a cópia própria e segue com o significado antigo até ser portado):
+
+- `recv_loss_pct`: era a perda somando todas as vozes (acusava a rede de quem ouve
+  quando a perda era da subida de quem fala); agora é a **menor** perda entre as vozes
+  com ≥ 100 pacotes no intervalo (nula sem voz com tráfego).
+- `concealed_pct`: soma das diferenças voz a voz; voz que entra ou sai no intervalo
+  não zera nem infla mais a leitura.
+- `loss_pct` da voz: era o `fractionLost` do último RTCP (instante); agora é a média
+  do intervalo (nula com o microfone mudo, sem pacotes).
+- `seconds` da voz: era a hora do último RTCP (chegava a 600 s perto de quedas);
+  agora é a hora da leitura.
+- `degrau_caiu`: o motivo entre parênteses é o do controlador (`bandwidth`, `cpu`), não
+  o `qualityLimitationReason` (que dava `none` em 85 % das quedas).
+- `app_version` no app web: era vazia; agora é a versão do build.
+- Hora dos eventos e do fim: era a da chegada ao servidor; agora é a do fato (o app
+  manda `ago_ms`, com teto de 15 min) e o que falhou no envio vai de novo no ciclo
+  seguinte (fila de 20, sem as amostras).
+- Fim das sessões: além do que o app manda, a sessão de voz retomada (mesma pessoa e
+  call, parada há 30 s–5 min) e a sessão sem notícia há mais de 10 min são fechadas
+  pelo servidor no último sinal delas (`ended_at = last_seen_at`).
 
 ### O que o app Android manda (e o que não manda)
 
@@ -373,13 +396,20 @@ WHERE s.kind = 'call' GROUP BY s.id, u.username
 ORDER BY sintetizado_pct DESC NULLS LAST LIMIT 30;
 ```
 
-**Voz que não conectou ou caiu** (muitas ao mesmo tempo = servidor):
+**Voz que não conectou, caiu, demorou ou foi refeita** (muitas ao mesmo tempo = servidor):
 ```sql
 SELECT date_trunc('minute', e.at) AS minuto, e.type, count(*) AS quantas,
        string_agg(DISTINCT u.username, ', ') AS quem, min(e.detail) AS exemplo
 FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u.id = s.user_id
-WHERE e.type IN ('conexao_falhou', 'reconectou')
+WHERE e.type IN ('conexao_falhou', 'reconectou', 'entrada_lenta', 'entrada_abandonada')
 GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 50;
+```
+
+**Quanto a retomada (atualização no meio da call, crash, recarga) tira da call:**
+```sql
+SELECT e.at, u.username, e.detail AS buraco_e_versao
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u.id = s.user_id
+WHERE e.type = 'retomou' ORDER BY e.at DESC LIMIT 30;
 ```
 Sessões de voz do app antigo que nunca conectaram aparecem sem transporte em
 nenhuma amostra (`bool_and(transport = '')`).
@@ -470,6 +500,12 @@ ORDER BY x.at DESC LIMIT 50;
 | Android: queda junto de `rede_trocou` | troca de IP (Wi-Fi ↔ dados) | não é o servidor; ver se o LiveKit reconecta (`reconectou`) ou cai |
 | Android: `concealed_pct` alto só com `rota_do_audio = bluetooth` | perfil de voz do fone Bluetooth (HFP) | não é a rede; orientar fone com fio/alto-falante |
 | piora só numa `target` ou num `device` | o app/SDK daquela plataforma ou o aparelho | exceção de codec/qualidade para ele |
+| `entrada_lenta` com o tempo na etapa **acesso** | nosso backend (token) lento | ver CPU/Postgres da VPS e o log do backend naquela hora |
+| `entrada_lenta` com o tempo na etapa **sinal** | Caddy/WebSocket do LiveKit | conferir o proxy e o LiveKit; várias pessoas juntas = servidor |
+| `entrada_lenta` com o tempo na etapa **mídia** | UDP/ICE da rede da pessoa | uma pessoa só: TURN/TLS na 443; várias: `LIVEKIT_NODE_IP`/portas |
+| `entrada_abandonada` crescendo numa versão ou rede | entrada travando e a pessoa refazendo | ver a etapa no detalhe; reverter a versão ou investigar a rede |
+| `retomou` com "versão X → Y" frequente ou buraco grande | a atualização com retomada tira a pessoa da call | rever quando o app instala a atualização (ex.: só ao sair da call) |
+| `retomou` sem troca de versão | recarga ou crash do app no meio da call | cruzar com o relatório de erros do app naquela hora |
 
 **Na VPS, se a perda na subida subir com lives pesadas:** o LiveKit avisa no
 boot que o buffer de UDP é pequeno (425 984 × 5 000 000 sugeridos); confira
