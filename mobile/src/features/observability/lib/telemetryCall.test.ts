@@ -42,4 +42,22 @@ describe('callSample', () => {
     const first = callSample(at(1000), null)
     expect(callSample(at(61_000), first.counters).sample.seconds).toBe(60)
   })
+
+  it('saída de áudio: % do tocado que o aparelho sintetizou (media-playout, contado uma vez)', () => {
+    const at = (t: number, synth: number, total: number) =>
+      report({
+        a: { type: 'inbound-rtp', kind: 'audio', timestamp: t, playoutId: 'po' },
+        b: { type: 'inbound-rtp', kind: 'audio', timestamp: t, playoutId: 'po' },
+        po: { type: 'media-playout', kind: 'audio', synthesizedSamplesDuration: synth, totalSamplesDuration: total }
+      })
+    const first = callSample(at(5000, 0.1, 5), null)
+    expect(first.sample.playout_synth_pct).toBeNull()
+    expect(callSample(at(65_000, 0.7, 65), first.counters).sample.playout_synth_pct).toBe(1)
+  })
+
+  it('sem media-playout (o WebRTC do Android pode não trazer): null; o resto da 0074 fica vazio', () => {
+    const at = (t: number) => report({ a: { type: 'inbound-rtp', kind: 'audio', timestamp: t, totalSamplesReceived: t } })
+    const { sample } = callSample(at(61_000), callSample(at(1000), null).counters)
+    expect(sample).toMatchObject({ playout_synth_pct: null, dsp_underrun_pct: null, dsp: null, cam_fps: null, cam_height: null, cam_limitation: null, cam_freezes: null })
+  })
 })

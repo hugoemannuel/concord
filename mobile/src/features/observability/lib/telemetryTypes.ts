@@ -41,6 +41,26 @@ export interface TelemetrySample {
   recv_loss_pct: number | null
   /** Call: ms do "entrar" até a voz conectar (só na amostra seguinte). */
   connect_ms: number | null
+  // Sinais da ADR 0074 (mesmo formato do desktop): nulos onde não se aplicam ou o Android não mede.
+  /** Transmite: QP médio do intervalo (Δ qpSum / Δ quadros codificados). */
+  qp: number | null
+  /** 1ª amostra: até a live publicada (transmite) ou até o 1º quadro (assiste). Não medido no Android. */
+  start_ms: number | null
+  /** Transmite: tamanho do que a captura entrega (media-source). */
+  source_width: number | null
+  source_height: number | null
+  /** Transmite: monitor, window ou browser. O MediaProjection não diz (Android 14 deixa escolher um app). */
+  surface: string | null
+  /** Call: o processamento do microfone. O app não tem (sem RNNoise nem efeitos). */
+  dsp_underrun_pct: number | null
+  dsp: string | null
+  /** Call: % do áudio tocado que a saída do aparelho sintetizou (media-playout). */
+  playout_synth_pct: number | null
+  /** Call: a minha câmera enviada e os congelamentos das recebidas. Sem leitura no Android (só o microfone). */
+  cam_fps: number | null
+  cam_height: number | null
+  cam_limitation: string | null
+  cam_freezes: number | null
 }
 
 export interface TelemetryEvent {
@@ -107,6 +127,18 @@ export function emptySample(): TelemetrySample {
     codec_ms: null,
     concealed_pct: null,
     recv_loss_pct: null,
-    connect_ms: null
+    connect_ms: null,
+    qp: null,
+    start_ms: null,
+    source_width: null,
+    source_height: null,
+    surface: null,
+    dsp_underrun_pct: null,
+    dsp: null,
+    playout_synth_pct: null,
+    cam_fps: null,
+    cam_height: null,
+    cam_limitation: null,
+    cam_freezes: null
   }
 }

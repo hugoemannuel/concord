@@ -74,6 +74,36 @@ describe('shareSample (a minha tela no celular)', () => {
     expect(next.sample).toMatchObject({ fps: 12, capture_fps: 15, codec_ms: 5 })
   })
 
+  it('QP médio do intervalo (Δ qpSum / Δ quadros); sem qpSum ou na 1ª leitura: null', () => {
+    const first = shareSample(shareInput({ framesEncoded: 1000, qpSum: 20_000 }), null)!
+    expect(first.sample.qp).toBeNull()
+    const next = shareSample(shareInput({ timestamp: 40_000, framesEncoded: 1240, qpSum: 27_380 }), first.counters)!
+    expect(next.sample.qp).toBe(30.8)
+    const without = shareSample(shareInput({ framesEncoded: 1000 }), null)!
+    expect(shareSample(shareInput({ timestamp: 40_000, framesEncoded: 1240 }), without.counters)!.sample.qp).toBeNull()
+  })
+
+  it('tamanho da fonte pela media-source; a superfície o Android não diz', () => {
+    const input = shareInput({ mediaSourceId: 'm1' }, { m1: { type: 'media-source', kind: 'video', width: 1080, height: 2400 } })
+    expect(shareSample(input, null)!.sample).toMatchObject({ source_width: 1080, source_height: 2400, surface: null })
+    expect(shareSample(shareInput({}), null)!.sample).toMatchObject({ source_width: null, source_height: null })
+  })
+
+  it('perda e jitter na subida pelo remote-inbound-rtp do envio principal', () => {
+    const at = (t: number, sent: number, lost: number, more: Record<string, unknown> = {}): ScreenStatsInput =>
+      shareInput({ timestamp: t, packetsSent: sent }, { r1: { type: 'remote-inbound-rtp', kind: 'video', localId: 'o1', packetsLost: lost, jitter: 0.015, ...more } })
+    const first = shareSample(at(20_000, 1005, 5), null)!
+    expect(first.sample).toMatchObject({ loss_pct: null, jitter_ms: 15 })
+    expect(shareSample(at(40_000, 2005, 15), first.counters)!.sample.loss_pct).toBe(1)
+    const received = shareSample(at(20_000, 0, 5, { packetsReceived: 995 }), null)!
+    expect(shareSample(at(40_000, 0, 25, { packetsReceived: 1975 }), received.counters)!.sample.loss_pct).toBe(2)
+    expect(shareSample(shareInput({}), null)!.sample).toMatchObject({ loss_pct: null, jitter_ms: null })
+  })
+
+  it('o nome do codificador vai junto, para o evento', () => {
+    expect(shareSample(shareInput({}), null)!.component).toBe('c2.exynos.vp8.encoder')
+  })
+
   it('codificador de software do Android e sem envio', () => {
     expect(shareSample(shareInput({ encoderImplementation: 'libvpx' }), null)!.sample.hardware).toBe(false)
     expect(shareSample({ ...shareInput({}), report: report({}) }, null)).toBeNull()
@@ -132,6 +162,11 @@ describe('watchSample (assistindo no celular)', () => {
       first.counters
     )!
     expect(sample).toMatchObject({ seconds: 20, loss_pct: 2, freezes: 2, freeze_ms: 2500, frames_dropped: 0, fps: 12, recv_fps: 44, codec_ms: 2.5 })
+  })
+
+  it('o nome do decodificador vai junto, para o evento', () => {
+    expect(watchSample(watchInput({}), null)!.component).toBe('c2.android.avc.decoder')
+    expect(watchSample(watchInput({ decoderImplementation: undefined }), null)!.component).toBe('')
   })
 
   it('pausada pelo servidor; sem recepção ainda: null', () => {
