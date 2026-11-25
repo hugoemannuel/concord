@@ -20,7 +20,9 @@ Forças:
 - **Leitura útil**: "este erro aconteceu 40 vezes com 6 pessoas", não 40 linhas;
   outro agente (obs-alertas) vai ler "grupo novo desde X" e "pessoas afetadas por
   grupo numa janela".
-- **Pilha minificada**: em produção o renderer sai como `index-abc123.js:1:23456`.
+- **Pilha do bundle**: em produção o renderer web sai minificado
+  (`index-abc123.js:1:23456`); o do desktop não é minificado (electron-vite 5 usa
+  `minify: false`), mas aponta para o bundle, não para o arquivo do código.
   Sem dependência nova e sem publicar o código-fonte.
 - O processo main do Electron não tem login; o backend não tem conta no panic.
 
@@ -58,7 +60,7 @@ Forças:
   viram `N`, ids e tokens viram marcadores, quadro reduzido ao nome do arquivo e
   à função (sem linha e coluna, que mudam a cada build).
 - **Source maps hidden no servidor** (opção 1 da pilha). Fica traduzido: a pilha do
-  **renderer** (desktop e web) cujos `.map` estejam em `SOURCEMAPS_DIR`. Não fica:
+  **renderer** (web minificado e desktop, este para o arquivo do código) cujos `.map` estejam em `SOURCEMAPS_DIR`. Não fica:
   o **main do Electron** (o bundle do main não é minificado: nomes e linhas do
   `out/main/index.js` já se leem), o **Android** (Hermes gera bytecode; traduzir
   exigiria o `.map` composto do Metro + Hermes de cada APK, fica para depois) e o
