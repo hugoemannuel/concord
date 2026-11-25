@@ -18,7 +18,10 @@ const (
 var (
 	// 1. query string e fragmento de URL (a linha e a coluna do quadro ficam).
 	reURLTail = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://[^\s?#'"()<>]*)[?#][^\s'"()<>]*`)
-	reLineCol = regexp.MustCompile(`(:\d+){1,2}$`)
+	// URL relativa (/api/x?token=1): só caminho começando com "/", sem espaço, e
+	// com algo depois do "?" (o "?" de uma frase fica).
+	reRelURLTail = regexp.MustCompile(`(?:^|[\s('"])/[^\s?#'"()<>]*[?#][^\s'"()<>]+`)
+	reLineCol    = regexp.MustCompile(`(:\d+){1,2}$`)
 	// 2. tokens.
 	reBearer    = regexp.MustCompile(`(?i)\bBearer\s+[^\s'"]+`)
 	reJWT       = regexp.MustCompile(`eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*`)
@@ -40,6 +43,7 @@ var (
 // scrubText aplica as regras 1–5 a um texto qualquer.
 func scrubText(s string) string {
 	s = reURLTail.ReplaceAllStringFunc(s, dropQuery)
+	s = reRelURLTail.ReplaceAllStringFunc(s, dropQuery)
 	s = reBearer.ReplaceAllString(s, "Bearer <token>")
 	s = reJWT.ReplaceAllString(s, "<token>")
 	s = reEmail.ReplaceAllStringFunc(s, maskEmail)

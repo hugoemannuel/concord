@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,7 +18,7 @@ import (
 // (nome)"; o que não achar fica como está. Pasta vazia ou ausente: sem tradução.
 const (
 	DefaultSourceMapsDir = "/opt/concord/sourcemaps"
-	maxMapBytes          = 64 << 20
+	maxMapBytes          = 16 << 20
 	mapCacheSize         = 2
 )
 
@@ -33,16 +34,20 @@ type cachedMap struct {
 	m    *SourceMap
 }
 
-// Translator lê os .map da pasta sob demanda e guarda os 2 últimos usados.
+// Translator lê os .map da pasta sob demanda e guarda os 2 últimos usados. O
+// mutex só protege o cache: ler e decodificar o .map fica fora dele.
 type Translator struct {
 	dir      string
 	maxBytes int64
+	readMap  func(name string) *SourceMap
 	mu       sync.Mutex
 	cache    []cachedMap
 }
 
 func NewTranslator(dir string) *Translator {
-	return &Translator{dir: dir, maxBytes: maxMapBytes}
+	t := &Translator{dir: dir, maxBytes: maxMapBytes}
+	t.readMap = t.read
+	return t
 }
 
 // Translate devolve a pilha traduzida, ou "" quando nenhum quadro traduziu.
@@ -50,8 +55,6 @@ func (t *Translator) Translate(stack string) string {
 	if t == nil || t.dir == "" {
 		return ""
 	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	lines := strings.Split(stack, "\n")
 	translated := false
 	for i, line := range lines {
@@ -105,23 +108,40 @@ func cleanSource(src string) string {
 	}
 }
 
-// load: o mapa de name (do cache ou da pasta); nil sem mapa.
+// load: o mapa de name (do cache ou da pasta); nil sem mapa. Dois pedidos ao
+// mesmo tempo pelo mesmo mapa que não está no cache leem o arquivo os dois.
 func (t *Translator) load(name string) *SourceMap {
+	if m := t.cached(name); m != nil {
+		return m
+	}
+	m := t.readMap(name)
+	if m != nil {
+		t.remember(name, m)
+	}
+	return m
+}
+
+// cached: o mapa do cache, que passa a ser o mais recente.
+func (t *Translator) cached(name string) *SourceMap {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	for i, c := range t.cache {
 		if c.name == name {
 			t.cache = append([]cachedMap{c}, append(t.cache[:i:i], t.cache[i+1:]...)...)
 			return c.m
 		}
 	}
-	m := t.read(name)
-	if m == nil {
-		return nil
-	}
+	return nil
+}
+
+func (t *Translator) remember(name string, m *SourceMap) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.cache = slices.DeleteFunc(t.cache, func(c cachedMap) bool { return c.name == name })
 	t.cache = append([]cachedMap{{name, m}}, t.cache...)
 	if len(t.cache) > mapCacheSize {
 		t.cache = t.cache[:mapCacheSize]
 	}
-	return m
 }
 
 // read abre <name>.map só dentro da pasta (os.Root não segue link para fora).

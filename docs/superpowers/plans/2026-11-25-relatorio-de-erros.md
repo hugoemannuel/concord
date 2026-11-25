@@ -75,14 +75,19 @@ ou texto até 32 B.
 
 ## Regras de limpeza (iguais no TS e no Go; teste de tabela nos dois)
 
-1. Query string e fragmento de URL saem (`https://x/a?token=1#y` → `https://x/a`).
-2. `Bearer <qualquer>` → `Bearer <token>`; JWT (`eyJ….….…`) → `<token>`; sequência
+1. Query string e fragmento de URL saem, de qualquer esquema (`https://x/a?token=1#y`
+   → `https://x/a`, `salinha://x?y=1` → `salinha://x`) e de URL relativa (`GET
+   /api/media/x?token=abc` → `GET /api/media/x`); o `:linha:coluna` do quadro fica.
+2. `Bearer <qualquer>` (sem diferenciar caixa) → `Bearer <token>`; JWT (`eyJ….….…`) → `<token>`; sequência
    hex/base64url ≥ 32 caracteres → `<token>`.
 3. E-mail → `<email>`; UUID → `<id>`.
 4. Caminho de usuário: `C:\Users\<nome>`, `C:/Users/<nome>`, `/home/<nome>`,
-   `/Users/<nome>` → mesmo prefixo com `<user>` (inclui `file:///C:/Users/...`).
+   `/Users/<nome>` → mesmo prefixo com `<user>` (inclui `file:///C:/Users/...`; no
+   Windows sem diferenciar caixa e com a barra repetida ou escapada, `C:\\Users\\…`).
 5. Texto entre aspas (`"…"`, `'…'`, `` `…` ``) com mais de 24 caracteres → `"…"`.
-6. Mensagem: uma linha, até 300 bytes. Pilha: até 30 linhas, 4 KB, cada quadro com
+6. No aparelho, a entrada crua é cortada **antes** das regras (mensagem até 2 KB;
+   pilha até 30 linhas de 1 KB e 8 KB no total), para uma mensagem enorme não travar
+   o app. Mensagem: uma linha, até 300 bytes. Pilha: até 30 linhas, 4 KB, cada quadro com
    a URL reduzida ao caminho (sem origem): `https://app/assets/index-abc.js:1:2` →
    `assets/index-abc.js:1:2`; `file:///…/app.asar/out/renderer/assets/x.js` →
    `out/renderer/assets/x.js`.
@@ -90,7 +95,10 @@ ou texto até 32 B.
 Impressão digital (só no servidor): `sha256(source \x00 kind \x00 msgNorm \x00
 frame1 \x00 frame2 \x00 frame3)` em hex, onde `msgNorm` = mensagem limpa com
 números → `N`, e cada quadro = nome do arquivo sem hash do Vite (`index-abc123.js`
-→ `index.js`) + nome da função, sem linha/coluna.
+→ `index.js`; `index.android.bundle` fica), sem linha/coluna. Em JS o nome da função
+fica de fora (web e Hermes são minificados: o nome muda a cada build); no Go entra
+(`server.(*Handler).Get handler.go`). Consequência aceita: erros diferentes no mesmo
+bundle com o mesmo tipo e a mesma mensagem caem no mesmo grupo.
 
 ## Erros que não vão (aparelho)
 

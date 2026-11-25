@@ -26,6 +26,16 @@ func TestScrubText(t *testing.T) {
 		{"aspas simples longas", `reading 'uma propriedade com nome enorme mesmo'`, `reading "…"`},
 		{"crase longa", "msg `um template literal comprido demais aqui`", "msg \"…\""},
 		{"aspas curtas ficam", `reading 'id'`, `reading 'id'`},
+		// Mesmos casos da tabela do desktop e do mobile (errorScrub.test.ts).
+		{"bearer minúsculo", "bearer abc", "Bearer <token>"},
+		{"bearer maiúsculo", "BEARER abc", "Bearer <token>"},
+		{"windows minúsculo", `c:\users\ana\x`, `c:\users\<user>\x`},
+		{"windows com barras escapadas", `C:\\Users\\Ana Silva\\x`, `C:\\Users\\<user>\\x`},
+		{"esquema do app perde a query", "salinha://x?y=1", "salinha://x"},
+		{"url relativa perde a query", "GET /api/media/x?token=abc", "GET /api/media/x"},
+		{"url relativa no quadro mantém linha e coluna", "at f (/a/b.js?v=1:3:4)", "at f (/a/b.js:3:4)"},
+		{"interrogação de texto fica", "o que é /isto? nada", "o que é /isto? nada"},
+		{"caminho sem query fica", "at f (/data/app/x.js:1:2)", "at f (/data/app/x.js:1:2)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

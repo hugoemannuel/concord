@@ -3,6 +3,8 @@ package apperrors
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -41,7 +43,7 @@ ON CONFLICT ON CONSTRAINT app_error_occurrences_key DO UPDATE SET
 func (r *Repository) SaveAll(ctx context.Context, userID string, cc ClientContext, errs []Captured, at time.Time) error {
 	at = at.UTC()
 	batch := &pgx.Batch{}
-	for _, e := range errs {
+	for _, e := range byFingerprint(errs) {
 		batch.Queue(upsertGroupSQL, e.Fingerprint, e.Source, e.Kind, e.Message, e.Stack, at, cc.AppVersion)
 		batch.Queue(upsertOccurrenceSQL, e.Fingerprint, nullable(userID), at.Truncate(time.Hour), at,
 			cc.AppVersion, cc.OS, cc.Target, e.Screen, e.InCall, e.InLive, e.Count)
@@ -65,6 +67,15 @@ func (r *Repository) Prune(ctx context.Context, before time.Time) error {
 		return fmt.Errorf("apagar grupos antigos: %w", err)
 	}
 	return nil
+}
+
+// byFingerprint: uma cópia na ordem da impressão digital. Duas transações que
+// tocam os mesmos grupos travam as linhas na mesma ordem e não se esperam em
+// círculo (deadlock).
+func byFingerprint(errs []Captured) []Captured {
+	return slices.SortedStableFunc(slices.Values(errs), func(a, b Captured) int {
+		return strings.Compare(a.Fingerprint, b.Fingerprint)
+	})
 }
 
 func nullable(s string) any {

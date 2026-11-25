@@ -120,3 +120,30 @@ func TestCleanSource(t *testing.T) {
 		}
 	}
 }
+
+func TestTranslateTetoDe16MB(t *testing.T) {
+	if got := NewTranslator("x").maxBytes; got != 16<<20 {
+		t.Errorf("maxBytes = %d, quer 16 MB (os .map reais têm ~3,5 MB)", got)
+	}
+}
+
+// Ler e decodificar um .map de MB não pode segurar a tradução de outro pedido.
+func TestTranslateLeOMapForaDoLock(t *testing.T) {
+	tr := NewTranslator(mapsDir(t, "index-Ab3_xY9z.js"))
+	read := tr.readMap
+	locked := false
+	tr.readMap = func(name string) *SourceMap {
+		if tr.mu.TryLock() {
+			tr.mu.Unlock()
+		} else {
+			locked = true
+		}
+		return read(name)
+	}
+	if tr.Translate("    at e (assets/index-Ab3_xY9z.js:1:22)") == "" {
+		t.Fatal("não traduziu")
+	}
+	if locked {
+		t.Error("o mutex estava preso durante a leitura do .map")
+	}
+}

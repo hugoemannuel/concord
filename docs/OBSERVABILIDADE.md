@@ -423,7 +423,7 @@ vão props, estado nem a pilha de componentes do React.
 
 ### O que é limpo (no aparelho e de novo no servidor)
 
-Query string e fragmento das URLs; tokens (`Bearer …`, JWT, sequências longas de
+Query string e fragmento das URLs (inclusive relativas, `/api/x?token=…`); tokens (`Bearer …`, JWT, sequências longas de
 hex/base64) → `<token>`; e-mail → `<email>`; UUID → `<id>`; caminhos de usuário
 (`C:\Users\<nome>`, `/home/<nome>`, `/Users/<nome>`) → `<user>`; texto entre aspas
 com mais de 24 caracteres → `"…"`; a URL de cada quadro da pilha fica só com o
@@ -434,7 +434,10 @@ pilha até 30 linhas e 4 KB.
 
 - `app_error_groups`: um por erro distinto. A impressão digital (no servidor) é
   `sha256(origem, tipo, mensagem com números → N, 3 primeiros quadros sem linha
-  e coluna e sem o hash do arquivo)`. Guarda a primeira pilha, a primeira e a
+  e coluna e sem o hash do arquivo)`. Em JS o quadro é só o nome do arquivo (sem a
+  função: o web e o Hermes são minificados e o nome muda a cada build); no Go, a
+  função e o arquivo. Por isso erros diferentes no mesmo bundle, com o mesmo tipo e
+  a mesma mensagem, caem no mesmo grupo. Guarda a primeira pilha, a primeira e a
   última vez e a primeira versão.
 - `app_error_occurrences`: uma linha por (grupo, pessoa, hora, versão), com a
   contagem somada; tela, SO e call/live da última vez naquela hora.

@@ -84,7 +84,7 @@ func TestFingerprint(t *testing.T) {
 		Fingerprint(SourceMain, "TypeError", "falhou no item 3", "    at Xy (assets/index-abc123.js:1:100)\n    at Zq (assets/index-abc123.js:1:200)"),
 		Fingerprint(SourceRenderer, "RangeError", "falhou no item 3", "    at Xy (assets/index-abc123.js:1:100)\n    at Zq (assets/index-abc123.js:1:200)"),
 		Fingerprint(SourceRenderer, "TypeError", "outra mensagem", "    at Xy (assets/index-abc123.js:1:100)\n    at Zq (assets/index-abc123.js:1:200)"),
-		Fingerprint(SourceRenderer, "TypeError", "falhou no item 3", "    at Xy (assets/index-abc123.js:1:100)\n    at Ww (assets/index-abc123.js:1:200)"),
+		Fingerprint(SourceRenderer, "TypeError", "falhou no item 3", "    at Xy (assets/index-abc123.js:1:100)\n    at Zq (assets/vendor-abc123.js:1:200)"),
 	}
 	for i, fp := range others {
 		if fp == base {
@@ -109,5 +109,42 @@ created by net/http.(*Server).Serve in goroutine 1
 	b := Fingerprint(SourceBackend, "panic", "runtime error: index out of range [5] with length 4", other)
 	if a != b {
 		t.Error("o mesmo panic em outra linha/máquina devia cair no mesmo grupo")
+	}
+}
+
+// O web e o Hermes são minificados: o nome da função muda a cada build. Em JS o
+// quadro é só o arquivo normalizado.
+func TestFingerprintJSIgnoraNomeDaFuncao(t *testing.T) {
+	tests := []struct{ name, a, b string }{
+		{"web com hash do vite", "    at Xy (assets/index-abc123.js:1:100)\n    at Zq (assets/index-abc123.js:1:200)",
+			"    at Qa (assets/index-Zz9_Yy8x.js:5:10)\n    at Rb (assets/index-Zz9_Yy8x.js:5:20)"},
+		{"hermes", "    at anonymous (address at index.android.bundle:1:2345)\nrender@index.android.bundle:1:99",
+			"    at h (address at index.android.bundle:1:777)\nk@index.android.bundle:1:88"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := Fingerprint(SourceRenderer, "TypeError", "x", tt.a)
+			b := Fingerprint(SourceRenderer, "TypeError", "x", tt.b)
+			if a != b {
+				t.Error("mesmo arquivo com outra função (outro build) devia cair no mesmo grupo")
+			}
+		})
+	}
+}
+
+func TestFrameKey(t *testing.T) {
+	tests := []struct {
+		f    frame
+		want string
+	}{
+		{frame{Func: "Xy", File: "assets/index-abc123.js", Line: 1, Col: 2}, "index.js"},
+		{frame{Func: "anonymous", File: "index.android.bundle", Line: 1, Col: 2}, "index.android.bundle"},
+		{frame{Func: "f", File: `out\main\index.js`, Line: 3}, "index.js"},
+		{frame{Func: "server.(*Handler).Get", File: "/x/internal/server/handler.go", Line: 120}, "server.(*Handler).Get handler.go"},
+	}
+	for _, tt := range tests {
+		if got := frameKey(tt.f); got != tt.want {
+			t.Errorf("frameKey(%+v) = %q, quer %q", tt.f, got, tt.want)
+		}
 	}
 }

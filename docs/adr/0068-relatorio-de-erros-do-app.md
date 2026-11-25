@@ -57,8 +57,11 @@ Forças:
 - **Grupos + ocorrências por hora** (opção 2 do agrupamento). Impressão digital
   calculada **no servidor** (o cliente não é confiável): `sha256(origem + tipo +
   mensagem normalizada + 3 primeiros quadros normalizados)`, normalização = números
-  viram `N`, ids e tokens viram marcadores, quadro reduzido ao nome do arquivo e
-  à função (sem linha e coluna, que mudam a cada build).
+  viram `N`, ids e tokens viram marcadores, quadro reduzido ao nome do arquivo sem
+  hash (sem linha e coluna, que mudam a cada build). Em JS sem a função também (o web
+  e o Hermes são minificados e o nome muda a cada build; erros diferentes no mesmo
+  bundle com tipo e mensagem iguais se juntam, e a mensagem continua no hash); no Go,
+  arquivo e função.
 - **Source maps hidden no servidor** (opção 1 da pilha). Fica traduzido: a pilha do
   **renderer** (web minificado e desktop, este para o arquivo do código) cujos `.map` estejam em `SOURCEMAPS_DIR`. Não fica:
   o **main do Electron** (o bundle do main não é minificado: nomes e linhas do

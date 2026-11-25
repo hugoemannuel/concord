@@ -12,8 +12,9 @@ import (
 // Impressão digital (só no servidor; o cliente não é confiável):
 // sha256(source \x00 kind \x00 msgNorm \x00 frame1 \x00 frame2 \x00 frame3) em
 // hex. msgNorm = mensagem limpa com os números trocados por N; cada quadro =
-// função + nome do arquivo sem o hash do Vite, sem linha e coluna (mudam a
-// cada build). Faltando quadro, o lugar fica vazio.
+// nome do arquivo sem o hash do Vite, sem linha e coluna (mudam a cada build).
+// Em JS o nome da função fica de fora (o web e o Hermes são minificados e o
+// nome muda a cada build); no Go ela entra. Faltando quadro, o lugar fica vazio.
 const fingerprintFrames = 3
 
 // frame: um quadro da pilha (Col = 0 nos quadros do Go).
@@ -53,7 +54,11 @@ func Fingerprint(source, kind, message, stack string) string {
 }
 
 func frameKey(f frame) string {
-	return f.Func + " " + stripViteHash(path.Base(strings.ReplaceAll(f.File, `\`, "/")))
+	file := stripViteHash(path.Base(strings.ReplaceAll(f.File, `\`, "/")))
+	if strings.HasSuffix(file, ".go") {
+		return f.Func + " " + file
+	}
+	return file
 }
 
 func stripViteHash(base string) string {

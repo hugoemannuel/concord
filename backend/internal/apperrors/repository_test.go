@@ -2,6 +2,7 @@ package apperrors
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -123,5 +124,22 @@ func TestPruneApagaPelaHoraEPelaUltimaVez(t *testing.T) {
 	}
 	if groups != 1 || occ != 1 {
 		t.Errorf("depois da retenção: %d grupos e %d ocorrências, quer 1 e 1", groups, occ)
+	}
+}
+
+// Duas gravações com os mesmos grupos em ordem diferente travariam uma à outra
+// (deadlock): a ordem das linhas na transação é sempre a da impressão digital.
+func TestByFingerprintOrdenaSemMexerNaEntrada(t *testing.T) {
+	in := []Captured{{Fingerprint: "c"}, {Fingerprint: "a", Count: 1}, {Fingerprint: "b"}, {Fingerprint: "a", Count: 2}}
+	got := byFingerprint(in)
+	var fps []string
+	for _, e := range got {
+		fps = append(fps, e.Fingerprint)
+	}
+	if strings.Join(fps, ",") != "a,a,b,c" || got[0].Count != 1 || got[1].Count != 2 {
+		t.Errorf("byFingerprint = %+v, quer a,a,b,c (estável)", got)
+	}
+	if in[0].Fingerprint != "c" {
+		t.Error("a entrada não pode mudar de ordem")
 	}
 }
