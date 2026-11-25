@@ -103,3 +103,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0067. Métricas da API por minuto e da VPS no Postgres, lidas pelo próprio backend](0067-metricas-da-api-e-da-vps.md)
 - [0068. Relatório de erros do app: grupos por impressão digital e pilha traduzida no servidor](0068-relatorio-de-erros-do-app.md)
 - [0069. Medir o aparelho (app lento, travado ou pesado) com agregados por minuto feitos no app](0069-metricas-do-aparelho.md)
+- [0070. Telemetria das calls e lives no app Android: a mesma rota, cópia adaptada e três sinais do celular](0070-telemetria-de-calls-e-lives-no-android.md)

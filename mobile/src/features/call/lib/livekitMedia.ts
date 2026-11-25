@@ -3,6 +3,8 @@ import { ConnectionState, DisconnectReason, Room, RoomEvent, Track, type LocalVi
 import type { CallMedia, MediaConnection } from './callMedia'
 import { clearCameraTracks, setCameraTrack } from './livekitCamera'
 import { createNativeTracks, releaseNativeTrack } from './releaseNativeTrack'
+import { clearActiveCallStats, setActiveCallStats, type CallStatsReader } from './callStatsSource'
+import { createLiveKitStats } from './livekitStats'
 import { disableVideoStartBitrate } from './startBitrate'
 
 // Os dois únicos arquivos do app que falam com o SDK do LiveKit (ADR 0023): este e livekitScreen.tsx (que só
@@ -55,6 +57,10 @@ async function closeRoom(current: Room | null): Promise<void> {
   if (current.state !== ConnectionState.Disconnected) await current.disconnect()
 }
 
+/** Saída pedida pelo servidor ou por mim, não queda de rede (a telemetria não conta como "caiu", ADR 0070). */
+const expectedDisconnect = (reason: DisconnectReason | undefined): boolean =>
+  reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.ROOM_DELETED || reason === DisconnectReason.CLIENT_INITIATED
+
 /** Faixas que capturam no aparelho (tela e câmera): liberadas no nativo ao sair, senão a captura fica presa. */
 const isNativeSource = (source: Track.Source): boolean => source === Track.Source.ScreenShare || source === Track.Source.Camera
 
@@ -62,14 +68,16 @@ export function createLiveKitMedia(): CallMedia {
   let room: Room | null = null
   let listening = true
   const speakerListeners = new Set<(ids: string[]) => void>()
-  const connectionListeners = new Set<(state: MediaConnection) => void>()
+  const connectionListeners = new Set<(state: MediaConnection, info?: { expected: boolean }) => void>()
   const screenListeners = new Set<(ids: string[]) => void>()
   const peerListeners = new Set<(peers: Record<string, string>) => void>()
   const cameraListeners = new Set<(ids: string[]) => void>()
   let facing: 'user' | 'environment' = 'user'
   const native = createNativeTracks()
+  // A telemetria lê o getStats() desta sala (docs/adr/0070).
+  let stats: CallStatsReader | null = null
 
-  const emitConnection = (state: MediaConnection): void => connectionListeners.forEach((l) => l(state))
+  const emitConnection = (state: MediaConnection, info?: { expected: boolean }): void => connectionListeners.forEach((l) => l(state, info))
 
   /** Quem está transmitindo a tela (eu e quem publicou a faixa de tela). */
   function emitScreens(current: Room): void {
@@ -107,7 +115,7 @@ export function createLiveKitMedia(): CallMedia {
     next.on(RoomEvent.Disconnected, (reason) => {
       // Derrubado pelo servidor ou por outro aparelho: as publicações já sumiram, então libera pelo registro.
       native.releaseAll()
-      emitConnection(reason === DisconnectReason.DUPLICATE_IDENTITY ? 'replaced' : 'disconnected')
+      emitConnection(reason === DisconnectReason.DUPLICATE_IDENTITY ? 'replaced' : 'disconnected', { expected: expectedDisconnect(reason) })
     })
     next.on(RoomEvent.ParticipantConnected, () => {
       setRemoteVolume(next, listening)
@@ -166,10 +174,12 @@ export function createLiveKitMedia(): CallMedia {
       emitScreens(next)
       emitPeers(next)
       emitCameras(next)
+      setActiveCallStats((stats = createLiveKitStats(next)))
     },
     async disconnect() {
       const current = room
       room = null
+      if (stats) clearActiveCallStats(stats)
       screenTracks.clear()
       clearCameraTracks()
       await closeRoom(current)

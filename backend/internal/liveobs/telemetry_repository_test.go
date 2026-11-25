@@ -13,6 +13,7 @@ import (
 const (
 	telemetryMigration = "000173_live_telemetry.up.sql"
 	qualityMigration   = "000176_live_samples_quality.up.sql"
+	deviceMigration    = "000214_live_sessions_device.up.sql"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 )
 
 func newTelemetryDB(t *testing.T) *pgxpool.Pool {
-	db := newTestDB(t, serverMigration, telemetryMigration, qualityMigration)
+	db := newTestDB(t, serverMigration, telemetryMigration, qualityMigration, deviceMigration)
 	if _, err := db.Exec(context.Background(), `INSERT INTO users (id) VALUES ($1), ($2)`, userAna, userBia); err != nil {
 		t.Fatal(err)
 	}
@@ -177,5 +178,18 @@ func TestTelemetryRepositoryGravaOsSinaisDeQualidade(t *testing.T) {
 	}
 	if gotCodec < 6.19 || gotCodec > 6.21 || gotLoss < 0.39 || gotLoss > 0.41 {
 		t.Errorf("codec %v ms, perda recebida %v", gotCodec, gotLoss)
+	}
+}
+
+func TestTelemetryRepositoryGravaOAparelho(t *testing.T) {
+	db := newTelemetryDB(t)
+	repo := NewTelemetryRepository(db)
+	r := Report{SessionID: sessionA, Kind: KindCall, CallID: callA,
+		Context: ClientContext{OS: "Android 14", Target: "android", Device: "samsung SM-A515F", Network: "wifi"}}
+	if err := repo.Save(context.Background(), userAna, r); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, db, `SELECT count(*) FROM live_sessions WHERE id = $1 AND device = 'samsung SM-A515F' AND target = 'android'`, sessionA); n != 1 {
+		t.Error("sessão sem o aparelho")
 	}
 }

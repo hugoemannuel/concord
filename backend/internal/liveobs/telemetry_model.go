@@ -29,6 +29,12 @@ const (
 	EventConnectFailed = "conexao_falhou"
 	// A voz caiu e voltou sozinha (quanto tempo ficou fora).
 	EventReconnected = "reconectou"
+	// Só do app Android (ADR 0070): saiu do app e voltou (quanto tempo fora),
+	// trocou de rede no meio da call e por onde sai o áudio.
+	EventBackground     = "segundo_plano"
+	EventForeground     = "primeiro_plano"
+	EventNetworkChanged = "rede_trocou"
+	EventAudioRoute     = "rota_do_audio"
 )
 
 // Batch: um pedido do app, com todas as sessões ativas dele.
@@ -54,7 +60,7 @@ type Report struct {
 type ClientContext struct {
 	OS         string `json:"os"`
 	AppVersion string `json:"app_version"`
-	// Target: desktop ou web.
+	// Target: desktop, web ou android.
 	Target string `json:"target"`
 	// GPU: o renderer do WebGL ("ANGLE (NVIDIA, GeForce RTX 3070 ...)").
 	GPU string `json:"gpu"`
@@ -62,6 +68,8 @@ type ClientContext struct {
 	Network string `json:"network"`
 	// Cores: núcleos lógicos do processador.
 	Cores int `json:"cores"`
+	// Device: fabricante e modelo do celular (só o app Android; ADR 0070).
+	Device string `json:"device"`
 }
 
 // Sample: uma leitura. Contadores = diferença no intervalo de Seconds.

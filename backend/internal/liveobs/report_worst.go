@@ -37,8 +37,9 @@ var reasonRules = []reasonRule{
 	{"Conexão por TURN", func(s SessionStats) bool { return s.Transport == "relay" }},
 }
 
-// allRules: as de cima e, depois, as da ADR 0032 (onde os quadros se perdem e a voz).
-var allRules = slices.Concat(reasonRules, qualityRules)
+// allRules: as de cima e, depois, as da ADR 0032 (onde os quadros se perdem e
+// a voz) e as do celular (ADR 0070).
+var allRules = slices.Concat(reasonRules, qualityRules, mobileRules)
 
 func reasons(s SessionStats) []string {
 	out := []string{}

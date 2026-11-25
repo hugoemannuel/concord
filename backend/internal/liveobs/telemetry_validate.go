@@ -30,10 +30,12 @@ var (
 	kinds        = map[string]bool{KindShare: true, KindWatch: true, KindCall: true}
 	transports   = map[string]bool{"udp": true, "tcp": true, "relay": true}
 	limitations  = map[string]bool{"none": true, "cpu": true, "bandwidth": true, "other": true}
+	targets      = map[string]bool{"desktop": true, "web": true, "android": true}
 	clientEvents = map[string]bool{
 		EventStepDown: true, EventStepUp: true, EventBackupOn: true, EventEncoderSW: true,
 		EventDecoderSW: true, EventLongFreeze: true, EventServerPaused: true, EventCodecSwitched: true,
 		EventCodecChosen: true, EventConnectFailed: true, EventReconnected: true,
+		EventBackground: true, EventForeground: true, EventNetworkChanged: true, EventAudioRoute: true,
 	}
 )
 
@@ -75,10 +77,11 @@ func optionalUUID(s string) bool {
 func (c *ClientContext) clean() {
 	c.OS = cut(c.OS, maxText)
 	c.AppVersion = cut(c.AppVersion, maxCodec*2)
-	c.Target = cut(c.Target, maxCodec)
+	c.Target = oneOf(c.Target, targets)
 	c.GPU = cut(c.GPU, maxText)
 	c.Network = cut(c.Network, maxCodec)
 	c.Cores = max(0, min(c.Cores, 1024))
+	c.Device = cut(c.Device, maxText)
 }
 
 func (s *Sample) clean() {

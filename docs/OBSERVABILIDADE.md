@@ -3,7 +3,8 @@
 O que existe para saber como as lives e calls estão de fato, e onde agir.
 Decisão e alternativas: [ADR 0029](adr/0029-observabilidade-das-lives.md); os
 sinais de qualidade (cada um com a pergunta e a ação que ele habilita):
-[ADR 0032](adr/0032-sinais-de-qualidade-das-lives-e-calls.md).
+[ADR 0032](adr/0032-sinais-de-qualidade-das-lives-e-calls.md); o app Android:
+[ADR 0070](adr/0070-telemetria-de-calls-e-lives-no-android.md).
 Como ligar na VPS: [HOSPEDAGEM.md](HOSPEDAGEM.md#métricas-do-livekit-observabilidade-das-lives).
 Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do app](#erros-do-app).
 
@@ -15,10 +16,12 @@ Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do 
 | App (quem transmite) | `live_sessions` (`transmite`) + `live_samples` | 20 s | codec, placa ou processador, resolução e fps codificados × escolhidos, **fps da captura** (`capture_fps`), **ms por quadro no codificador** (`codec_ms`), Mbps, `qualityLimitationReason`, degrau do controlador e trocas, camadas, reserva, quadros-chave, PLI, NACK, UDP/TCP/TURN |
 | App (quem assiste) | `live_sessions` (`assiste`) + `live_samples` | 20 s | codec, decodificador na placa ou no processador, resolução, **quadros/s que chegaram** (`recv_fps`) × decodificados (`fps`), **ms por quadro no decodificador** (`codec_ms`), perda, jitter, congelamentos, quadros descartados, pausa do servidor, UDP/TCP/TURN |
 | App (voz) | `live_sessions` (`call`) + `live_samples` | 60 s | RTT, perda e jitter vistos pelo servidor, UDP/TCP/TURN; **o que eu ouço**: % de áudio sintetizado (`concealed_pct`) e perda no áudio recebido (`recv_loss_pct`); **tempo para conectar** (`connect_ms`) |
-| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)** |
+| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)**; do Android: **saiu do app** (`segundo_plano`), **voltou ao app** (`primeiro_plano`, tempo fora), **trocou de rede** (`rede_trocou`, `wifi → cellular-4g`), **saída do áudio** (`rota_do_audio`: `bluetooth`, `headset`, `speaker`, `earpiece`) |
 
-Contexto de cada sessão: SO, versão do app, web/desktop, placa de vídeo (renderer
-do WebGL), núcleos do processador e tipo de rede (quando o navegador conta).
+Contexto de cada sessão: SO, versão do app, plataforma (`target`: `desktop`,
+`web` ou `android`; o backend descarta outro valor), placa de vídeo (renderer
+do WebGL), núcleos do processador, tipo de rede (quando o navegador conta) e,
+no Android, o aparelho (`device`, fabricante e modelo).
 Nada do que se fala, escreve ou mostra. Tudo fica 14 dias (o backend apaga de
 hora em hora). Visitante sem conta não manda.
 
@@ -28,6 +31,38 @@ Nos contadores das amostras (`freezes`, `freeze_ms`, `frames_dropped`,
 `recv_loss_pct` são médias do intervalo (a partir do app com a ADR 0032; antes,
 `fps` era o do momento da leitura); o resto é o valor no momento. A primeira amostra de cada sessão é a
 base (contadores zerados, `seconds = 0`).
+
+### O que o app Android manda (e o que não manda)
+
+A mesma rota e o mesmo formato do desktop (`mobile/src/features/observability/`,
+cópia adaptada), para a **call de voz**, a **live assistida** e a **tela
+transmitida**, no mesmo ritmo (voz a cada 60 s, live a cada 20 s, num pedido
+só). O timer só existe com a call em andamento; ao sair, uma última leitura
+manda o fim. Fora de call não lê, não ouve e não manda nada.
+
+| Campo | No Android |
+|---|---|
+| `os` | `Android 14` (a versão do sistema) |
+| `app_version` | a do `app.config.ts` (hoje fixa em `0.1.0`: não separa builds) |
+| `target` | `android` |
+| `device` | fabricante e modelo (`samsung SM-A515F`), do `Platform.constants` |
+| `network` | `wifi`, `cellular-4g`, `cellular-5g`, `cellular`, `none`... (NetInfo); atualizado a cada envio |
+| `gpu`, `cores` | vazio e 0 (sem API no React Native) |
+| voz: RTT, perda, jitter, transporte, `concealed_pct`, `recv_loss_pct`, `connect_ms` | iguais ao desktop (o `getStats()` do libwebrtc nativo usa os nomes do W3C) |
+| `connect_ms` | de "entrando" até a voz conectar (numa DM, conta do atender) |
+| `conexao_falhou` | `entrando (acesso)`: o nosso servidor, só rede ou erro 5xx (sala trancada e sem permissão não contam); `entrando (voz)`: o LiveKit; `conectada: caiu`, `reconectando: caiu`. Não contam: sair, cancelar no meio da entrada, entrar em outro aparelho, ser tirado da sala pelo servidor |
+| live: codec, placa/processador, resolução, fps, `capture_fps`, `recv_fps`, `codec_ms`, perda, jitter, congelamentos, pausa | iguais ao desktop; placa × processador pelo nome do MediaCodec quando o WebRTC não diz (`c2.qti...`, `OMX.Exynos...` = placa; `c2.android...`, `OMX.google...`, `libvpx` = processador) |
+| `streamer_id` (live do helper nativo, `<id>:screen`) | o dono da live (sem o sufixo) |
+| `target_fps` (minha tela) | o fps pedido na publicação; null se for o padrão do SDK |
+| degrau, trocas de degrau, reserva, `codec_escolhido`, `target_height` | não manda (o app não tem controlador, reserva nem escolha de codec) |
+
+A saída do áudio é **inferida**: das saídas disponíveis, a que o AudioSwitch do
+LiveKit escolhe (Bluetooth > fone com fio > alto-falante > auricular; o app não
+tem seletor). Entrada que falhou antes da primeira leitura vira uma sessão de
+voz só com os eventos e o fim (`call_id` vazio).
+
+Não manda: bateria, temperatura, modo de economia, intensidade do sinal,
+operadora, SSID, IP (ADR 0070, "Fora").
 
 ## Painel
 
@@ -48,7 +83,9 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   rotas mais lentas e com erro, WebSockets, pool do banco, panics) e **LiveKit**
   (picos de saída, pessoas, perda na descida; banda e CPU). Ver
   [Servidor: API e VPS](#servidor-api-e-vps).
-- **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e conexão.
+- **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e
+  conexão; e, com as calls, por plataforma (desktop, web, android), rede e
+  aparelho Android.
 - **Eventos** (`eventos`): eventos recentes das lives e calls.
 - **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).
 
@@ -56,7 +93,9 @@ Piores sessões: pontuação (abaixo do alvo, congelamentos, pausa, perda,
 CPU/banda, processador; na voz: não conectou, reconexões, áudio sintetizado,
 perda) e os motivos prováveis, com a linha de números da sessão (captura ×
 codificado, chegam × decodificados, ms por quadro; na voz, áudio sintetizado,
-perda recebida, tempo para entrar). O backend manda uma lista só; o app separa
+perda recebida, tempo para entrar) e de onde veio (plataforma, aparelho e
+rede). No Android, dois motivos a mais: "Caiu com o app em segundo plano" e
+"Caiu ao trocar de rede" (só quando a voz reconectou ou não conectou). O backend manda uma lista só; o app separa
 por tipo (`kind = call` na aba Chamadas, o resto na aba Lives).
 
 As abas Lives, Chamadas, Servidor, Distribuição e Eventos usam o mesmo pedido
@@ -248,6 +287,39 @@ FROM live_samples WHERE session_id = '<id>' ORDER BY at;
 SELECT at, type, detail FROM live_events WHERE session_id = '<id>' ORDER BY at;
 ```
 
+**Android × desktop × web na voz** (ADR 0070):
+```sql
+SELECT s.target, s.network, count(DISTINCT s.id) AS sessoes,
+       round(avg(x.concealed_pct)::numeric, 2) AS sintetizado_pct,
+       round(avg(x.recv_loss_pct)::numeric, 2) AS perda_recebida_pct,
+       round(avg(x.rtt_ms)::numeric) AS rtt_ms,
+       count(*) FILTER (WHERE e.type = 'reconectou') AS reconexoes,
+       count(*) FILTER (WHERE e.type = 'conexao_falhou') AS falhas
+FROM live_sessions s
+LEFT JOIN live_samples x ON x.session_id = s.id AND x.seconds > 0
+LEFT JOIN live_events e ON e.session_id = s.id AND e.type IN ('reconectou', 'conexao_falhou')
+WHERE s.kind = 'call' GROUP BY 1, 2 ORDER BY 3 DESC;
+```
+
+**Call no Android: o que aconteceu, na ordem** (segundo plano, troca de rede,
+saída do áudio e quedas):
+```sql
+SELECT e.at, u.username, s.device, e.type, e.detail
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u.id = s.user_id
+WHERE s.target = 'android' AND e.type IN ('segundo_plano', 'primeiro_plano', 'rede_trocou',
+      'rota_do_audio', 'reconectou', 'conexao_falhou')
+ORDER BY e.at DESC, e.id DESC LIMIT 100;
+```
+
+**Leitura que demorou em segundo plano** (o JavaScript foi pausado: o serviço em
+primeiro plano não segurou; a voz sai a cada 60 s):
+```sql
+SELECT u.username, s.device, x.at, x.seconds
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+WHERE s.target = 'android' AND s.kind = 'call' AND x.seconds > 120
+ORDER BY x.at DESC LIMIT 50;
+```
+
 ## Onde agir (como ler)
 
 | Sinal | Provável causa | O que fazer |
@@ -271,6 +343,10 @@ SELECT at, type, detail FROM live_events WHERE session_id = '<id>' ORDER BY at;
 | vários `conexao_falhou` "entrando (mídia)" no mesmo minuto | servidor (IP anunciado, firewall, LiveKit) | conferir `LIVEKIT_NODE_IP`/portas; reverter a mudança |
 | `conexao_falhou` de uma pessoa só, etapa mídia | UDP bloqueado na rede dela | TURN/TLS na 443 |
 | `reconectou` em muitas sessões juntas | reinício/queda do LiveKit | não rodar `--infra` com gente na call |
+| Android: queda logo depois de `segundo_plano`, ou amostra de voz com `seconds` ≫ 60 | o serviço em primeiro plano não segurou (economia de bateria do fabricante) | ver o aparelho (`device`); instrução para liberar o app da otimização de bateria ou rever o serviço (ADR 0030) |
+| Android: queda junto de `rede_trocou` | troca de IP (Wi-Fi ↔ dados) | não é o servidor; ver se o LiveKit reconecta (`reconectou`) ou cai |
+| Android: `concealed_pct` alto só com `rota_do_audio = bluetooth` | perfil de voz do fone Bluetooth (HFP) | não é a rede; orientar fone com fio/alto-falante |
+| piora só numa `target` ou num `device` | o app/SDK daquela plataforma ou o aparelho | exceção de codec/qualidade para ele |
 
 **Na VPS, se a perda na subida subir com lives pesadas:** o LiveKit avisa no
 boot que o buffer de UDP é pequeno (425 984 × 5 000 000 sugeridos); confira

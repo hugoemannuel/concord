@@ -29,5 +29,6 @@ export interface CallMedia {
   /** Quem está na sala de mídia agora: identidade -> nome (o Maestro só aparece aqui). */
   onPeers(listener: (peers: Record<string, string>) => void): () => void
   onSpeakers(listener: (userIds: string[]) => void): () => void
-  onConnection(listener: (state: MediaConnection) => void): () => void
+  /** `expected`: o servidor tirou da sala ou ela acabou (não é queda de rede; a telemetria não conta). */
+  onConnection(listener: (state: MediaConnection, info?: { expected: boolean }) => void): () => void
 }
