@@ -1,5 +1,5 @@
 import type { AlertReport, AlertRow, AlertSeverity } from '../../api/alerts'
-import { alertDuration, recurrence, severityLabel } from '../../lib/alertFormat'
+import { alertDuration, channelLabel, recurrence, severityLabel } from '../../lib/alertFormat'
 import { timeLabel } from '../../lib/timeLabel'
 import { Empty, Panel, ScrollTable } from '../Panel'
 
@@ -25,6 +25,7 @@ function ActiveAlerts({ rows }: { rows: AlertRow[] }): React.JSX.Element {
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <SeverityBadge severity={r.severity} />
                 <span className="font-medium text-strong">{r.title || r.rule_id}</span>
+                <span className="text-muted">{channelLabel(r.channel)}</span>
                 <span className="text-muted">
                   desde {timeLabel(r.started_at)} ({alertDuration(r)})
                 </span>
@@ -61,11 +62,12 @@ function History({ rows }: { rows: AlertRow[] }): React.JSX.Element {
       {rows.length === 0 ? (
         <Empty>Nenhum alerta no período.</Empty>
       ) : (
-        <ScrollTable head={['Início', 'Regra', 'Gravidade', 'Duração', 'Detalhe']}>
+        <ScrollTable head={['Início', 'Regra', 'Canal', 'Gravidade', 'Duração', 'Detalhe']}>
           {rows.map((r) => (
             <tr key={r.id}>
               <td>{timeLabel(r.started_at)}</td>
               <td>{r.title || r.rule_id}</td>
+              <td>{channelLabel(r.channel)}</td>
               <td>
                 <SeverityBadge severity={r.severity} />
               </td>
@@ -79,6 +81,15 @@ function History({ rows }: { rows: AlertRow[] }): React.JSX.Element {
   )
 }
 
+/** Quando saiu o último resumo em #resumo-diario. */
+function LastSummary({ at }: { at: string | null | undefined }): React.JSX.Element {
+  return (
+    <p className="text-ds-sm text-muted">
+      {at ? `Último resumo diário: ${timeLabel(at)}.` : 'Nenhum resumo diário enviado ainda (sai às 8h).'}
+    </p>
+  )
+}
+
 /** A aba Alertas pronta: o que está disparado, a recorrência e o histórico. */
 export function AlertSections({ report }: { report: AlertReport }): React.JSX.Element {
   return (
@@ -88,6 +99,7 @@ export function AlertSections({ report }: { report: AlertReport }): React.JSX.El
           Os alertas estão desligados neste servidor (ALERTS_SERVER_ID vazio). Veja docs/HOSPEDAGEM.md.
         </p>
       )}
+      {report.enabled && <LastSummary at={report.last_summary_at} />}
       <ActiveAlerts rows={report.active} />
       <Recurrence rows={report.history} />
       <History rows={report.history} />
