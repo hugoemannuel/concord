@@ -165,7 +165,8 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     const ended: Draft[] = []
     for (const [key, s] of sessions) {
       if (keys.has(key)) continue
-      ended.push(draft(s, null, s.kind === 'call' ? extras(s).events : [], true))
+      // A minha live não leva o motivo do codec no fim (é da próxima live).
+      ended.push(draft(s, null, s.kind === 'transmite' ? [] : extras(s).events, true))
       sessions.delete(key)
     }
     return ended

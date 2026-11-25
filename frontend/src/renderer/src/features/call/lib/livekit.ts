@@ -93,7 +93,9 @@ export class CallMedia {
   private subscriptions = new RemoteSubscriptions()
   /** O decodificador dá conta das lives que assisto? (camada baixa, H.265; ADR 0073) */
   private receiveWatch = new ScreenReceiveWatch({
-    participants: () => this.room.remoteParticipants.values(),
+    // A prévia da minha live nativa não conta (é o meu próprio envio).
+    participants: () =>
+      [...this.room.remoteParticipants.values()].filter((p) => p.identity !== this.nativeScreen?.identity),
     onOverload: (identity, low) => {
       this.subscriptions.setDecodeLimited(identity, low)
       this.applySubscriptions()

@@ -11,8 +11,11 @@ interface HevcFailureApi {
   hevcDecodeFailed(): void
 }
 
-/** streamerId → detalhe do evento, até a próxima amostra da live levar. */
-const pending = new Map<string, string>()
+/** streamerId → detalhe do evento, até a próxima amostra (ou o fim) da live levar. */
+const pending = new Map<string, { detail: string; at: number }>()
+
+/** A telemetria lê a cada 20 s: o que ninguém levou nisso é de uma live que já acabou. */
+const PENDING_MAX_MS = 2 * 60_000
 
 const decimal = (value: number): string =>
   value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
@@ -36,13 +39,14 @@ export function reportHevcDecodeFailure(
 ): boolean {
   if (isBasicRenderDriver(gpu)) return false
   api?.hevcDecodeFailed()
-  pending.set(streamerId, hevcFailureDetail(rates))
+  const detail = hevcFailureDetail(rates) + (api ? '' : ' (navegador, sem marca)')
+  pending.set(streamerId, { detail, at: Date.now() })
   return true
 }
 
 /** O evento da live desse streamer (telemetryReporter); leva e limpa. */
 export function takeHevcDecodeFailure(streamerId: string): string | null {
-  const detail = pending.get(streamerId) ?? null
+  const entry = pending.get(streamerId)
   pending.delete(streamerId)
-  return detail
+  return entry && Date.now() - entry.at <= PENDING_MAX_MS ? entry.detail : null
 }

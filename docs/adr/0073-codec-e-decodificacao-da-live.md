@@ -106,7 +106,13 @@ receber**. **Decisão: (d).**
   `hevc_receive=off`.
 - Com o driver fora do ar (Basic Render Driver) não marca.
 - A telemetria da live assistida leva o evento `decoder_falhou` (detalhe:
-  `h265: 12,9 chegam, 0,4 decodificados por segundo`).
+  `h265: 12,9 chegam, 0,4 decodificados por segundo`; no navegador, onde não há
+  como desligar o H.265, o detalhe termina em `(navegador, sem marca)`), na
+  amostra seguinte ou no fim da sessão; o que ninguém levou em 2 min é descartado.
+- Com a marca, quem transmite continua codificando H.265: o
+  `setCodecPreferences` do perfil High (ADR 0049) é validado pelo libwebrtc
+  contra a união dos codecs de envio e de recepção (`VerifyCodecPreferences` em
+  `pc/rtp_transceiver.cc`), e o H.265 segue no envio.
 - **Validade de 3 dias**, contada da primeira falha (o codificador usa 7). O
   aparelho ruim volta a receber H.265 depois disso, tem ~16 s de tela preta e é
   marcado de novo; o aparelho bom marcado por engano fica no H.264 só 3 dias.
@@ -167,3 +173,6 @@ decodificador de quem assiste); (c) **detector no app que chama
 - O `trackInfo.layers` de uma live H.264 com a camada extra no SFU real (o teste
   usa um dublê); se vier vazio, o detector da camada baixa nunca age.
 - O comportamento numa Intel UHD 730 e numa Iris Xe reais.
+- Se a camada do Blink acrescenta alguma validação ao `setCodecPreferences` além
+  da do libwebrtc (o código do Blink não pôde ser baixado aqui): se acrescentar, o
+  H.264 High de quem transmite com a marca cairia no OpenH264.

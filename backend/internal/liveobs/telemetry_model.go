@@ -35,8 +35,8 @@ const (
 	EventForeground     = "primeiro_plano"
 	EventNetworkChanged = "rede_trocou"
 	EventAudioRoute     = "rota_do_audio"
-	// O H.265 de uma live chegou e não decodificou (ADR 0073): o app deixa de
-	// anunciá-lo para receber na próxima abertura.
+	// O H.265 de uma live chegou e não decodificou (ADR 0073): o app desktop
+	// deixa de anunciá-lo para receber na próxima abertura (no navegador, só o evento).
 	EventDecoderFailed = "decoder_falhou"
 )
 
