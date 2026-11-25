@@ -23,11 +23,10 @@ func below(v, target *float64) bool {
 	return v != nil && target != nil && *target > 0 && *v < belowTarget**target
 }
 
-// slowCodec: o codificador gasta quase todo o tempo de um quadro no alvo.
-func slowCodec(s SessionStats) bool {
-	return s.CodecMs != nil && s.TargetFPS != nil && *s.TargetFPS > 0 &&
-		*s.CodecMs >= belowTarget*1000 / *s.TargetFPS
-}
+// slowEncoder: o codificador entrega bem menos quadros do que a captura
+// manda. O codec_ms alto na placa sozinho não diz isso: é latência de fila
+// (AMD entregando 49–55 fps com 15 ms/quadro, an-transmite P4).
+func slowEncoder(s SessionStats) bool { return below(s.FPS, s.CaptureFPS) }
 
 // notDecoded: chegam bem mais quadros do que saem do decodificador.
 func notDecoded(s SessionStats) bool {
@@ -53,7 +52,7 @@ func kindIs(kind string, hit func(SessionStats) bool) func(SessionStats) bool {
 
 var qualityRules = []reasonRule{
 	{"Captura abaixo do alvo (não é o codificador)", kindIs(KindShare, func(s SessionStats) bool { return below(s.CaptureFPS, s.TargetFPS) })},
-	{"Codificador não dá conta do fps", kindIs(KindShare, slowCodec)},
+	{"Codificador não dá conta (codifica menos quadros que a captura)", kindIs(KindShare, slowEncoder)},
 	{"Quadros chegam e não decodificam", kindIs(KindWatch, notDecoded)},
 	{"Voz robotizada (áudio sintetizado)", kindIs(KindCall, robotic)},
 	{"Perda no áudio recebido", kindIs(KindCall, lossy)},

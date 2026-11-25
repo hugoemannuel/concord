@@ -130,7 +130,8 @@ func TestReasonsDizPorQue(t *testing.T) {
 
 	w := session("y", KindWatch, "bia", 0, 10)
 	w.HardwareRatio, w.PausedRatio, w.Freezes, w.Transport = fp(0.2), 0.3, 20, "relay"
-	want = []string{"Decodificando no processador", "Pausada pelo servidor (conexão de quem assiste)", "Congelamentos", "Conexão por TURN"}
+	// paused fica fora: com o LiveKit de hoje (allow_pause desligado) não acontece.
+	want = []string{"Decodificando no processador", "Congelamentos", "Conexão por TURN"}
 	if got := reasons(w); !slices.Equal(got, want) {
 		t.Errorf("motivos = %q\nquer %q", got, want)
 	}
@@ -139,6 +140,14 @@ func TestReasonsDizPorQue(t *testing.T) {
 	ok.HardwareRatio, ok.Transport = fp(1), "udp"
 	if got := reasons(ok); len(got) != 0 {
 		t.Errorf("sessão boa com motivos: %q", got)
+	}
+}
+
+func TestScoreIgnoraPausaDoServidor(t *testing.T) {
+	paused := session("pausa", KindWatch, "a", 0, 10)
+	paused.PausedRatio = 1
+	if got := score(paused); got != 0 {
+		t.Errorf("pausa pontuou: %v", got)
 	}
 }
 
@@ -229,10 +238,17 @@ func TestReasonsDizOndeOsQuadrosSePerdem(t *testing.T) {
 	}
 
 	slowEncoder := session("enc", KindShare, "ana", 0, 10)
-	slowEncoder.TargetFPS, slowEncoder.CaptureFPS, slowEncoder.CodecMs = fp(60), fp(60), fp(15)
-	want = []string{"Codificador não dá conta do fps"}
+	slowEncoder.TargetFPS, slowEncoder.CaptureFPS, slowEncoder.FPS, slowEncoder.CodecMs = fp(60), fp(58), fp(40), fp(4)
+	want = []string{"Codificador não dá conta (codifica menos quadros que a captura)"}
 	if got := reasons(slowEncoder); !slices.Equal(got, want) {
 		t.Errorf("codificador: %q, quer %q", got, want)
+	}
+	// codec_ms alto na placa é latência de fila: entregando o que a captura
+	// manda (AMD a 49–55 fps com 15 ms/quadro), o codificador não é o gargalo.
+	latency := session("lat", KindShare, "ana", 0, 10)
+	latency.TargetFPS, latency.CaptureFPS, latency.FPS, latency.CodecMs = fp(60), fp(56), fp(55), fp(15)
+	if got := reasons(latency); len(got) != 0 {
+		t.Errorf("codec_ms alto com o fps da captura: %q", got)
 	}
 
 	decoder := session("dec", KindWatch, "bia", 0, 10)

@@ -20,8 +20,12 @@ Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do 
 
 Contexto de cada sessão: SO, versão do app, plataforma (`target`: `desktop`,
 `web` ou `android`; o backend descarta outro valor), placa de vídeo (renderer
-do WebGL), núcleos do processador, tipo de rede (quando o navegador conta) e,
-no Android, o aparelho (`device`, fabricante e modelo).
+do WebGL), núcleos do processador, a coluna `network` e, no Android, o aparelho
+(`device`, fabricante e modelo). **No desktop e na web, `network` não é o tipo de
+rede** (wi-fi/cabo/4G): é o `navigator.connection.effectiveType` do Chromium, uma
+estimativa de velocidade, que dá "4g" em ~90% das sessões do desktop (1 362 de
+1 467, de 11/11 a 25/11). Não use para separar wi-fi de cabo; por isso a
+distribuição por rede só conta o Android, onde o valor é o tipo de rede de fato.
 Nada do que se fala, escreve ou mostra. Tudo fica 14 dias (o backend apaga de
 hora em hora). Visitante sem conta não manda.
 
@@ -438,13 +442,15 @@ ORDER BY x.at DESC LIMIT 50;
 | `limitation = cpu` alto em quem transmite, `na_placa_pct` baixo | encoder por software | conferir placa/driver; codec que a placa codifica |
 | `limitation = bandwidth` alto | upload de quem transmite | preset menor ou camada de 720p |
 | perda na **subida** alta (`packets_lost_in`) | rede de quem transmite | idem; ver `transport` (TCP piora) |
-| perda na **descida** alta, `paused` em quem assiste | rede de quem assiste / banda da VPS | camada de 720p (simulcast); conferir `mbps_saida` perto do limite da VPS |
+| perda na **descida** alta em quem assiste | rede de quem assiste / banda da VPS | camada de 720p (simulcast); conferir `mbps_saida` perto do limite da VPS |
+| `paused` / "pausada pelo servidor" | **não acontece** com a configuração atual do LiveKit (`congestion_control` padrão, sem `allow_pause`: o SFU só baixa de camada, nunca pausa; `paused` falso em 43 222 amostras de 11/11 a 25/11) | nada; o sinal segue gravado, mas saiu da pontuação e dos motivos do painel. Se ligar o `allow_pause`, volte a olhar |
 | `decodificou_no_processador` em quem tem congelamentos | decodificador por software | driver (ex.: nvidia-vaapi-driver no Linux), codec mais leve |
 | `backup` alto | alguém sem o codec principal | ver quem (SO/placa) e a ordem de codecs |
 | muitas sessões `tcp`/`relay` | rede bloqueando UDP | TURN/TLS na 443 (relatório da investigação §3.8) |
 | CPU da VPS > 80% ou `mbps_saida` no teto do plano | VPS no limite | VPS maior, teto de bitrate, simulcast |
 | `capture_fps` < 80% do alvo, `limitation = none` | a captura do Chromium não entrega o fps | captura nativa (ADR 0031) ou outra fonte; codec/bitrate não resolvem |
-| `codec_ms` (transmite) perto de 1000/alvo | codificador não dá conta | preset menor ou outro codec para aquela placa |
+| `fps` (codificado) < 80% da `capture_fps` em quem transmite | codificador não dá conta | preset menor ou outro codec para aquela placa |
+| `codec_ms` (transmite) alto, mas `fps` ≈ `capture_fps` | **latência de fila** do codificador na placa, não gargalo (AMD entrega 49–55 fps com ~15 ms/quadro) | nada pelo codificador; se o fps está baixo, olhe a captura (`capture_fps` × alvo) |
 | quem assiste: `recv_fps` ≫ `fps`, congelamentos | decodificador | tirar o codec da ordem para aquela placa/SO; driver |
 | quem assiste: `recv_fps` baixo com perda 0 | não chega: quem transmite ou SFU | comparar com o `fps`/`capture_fps` de quem transmite e a pausa/camada |
 | todos os espectadores congelam juntos, perda 0, e a `capture_fps` de quem transmite oscila | a captura do Chromium no Windows (cópia do quadro para a CPU + teto de 50% de CPU do capturador) | não é rede nem codec: captura nativa no Windows (marco 2 da ADR 0031) |
