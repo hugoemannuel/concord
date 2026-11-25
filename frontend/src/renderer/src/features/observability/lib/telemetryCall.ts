@@ -14,8 +14,8 @@ import {
 } from './telemetrySample'
 import { emptySample } from './telemetryTypes'
 
-// Telemetria da voz das calls: o que o servidor diz que recebe de mim (perda,
-// jitter), o RTT e o par ICE. Puro.
+// Telemetria da voz das calls: o que o servidor diz que recebe de mim (perda
+// média do intervalo, jitter), o RTT, o par ICE e o que eu ouço de cada voz. Puro.
 
 function remoteInbound(report: RTCStatsReport): Stat | undefined {
   let found: Stat | undefined
@@ -25,18 +25,34 @@ function remoteInbound(report: RTCStatsReport): Stat | undefined {
   return found
 }
 
-function fractionPct(value: unknown): number | null {
-  const fraction = num(value)
-  return fraction === null ? null : Math.round(fraction * 10000) / 100
+/** A hora da leitura: o maior timestamp (o do remote-inbound-rtp é o do último RTCP). */
+function readAt(report: RTCStatsReport): number {
+  let latest = 0
+  report.forEach((stat: Stat) => {
+    latest = Math.max(latest, n0(stat.timestamp))
+  })
+  return latest
+}
+
+/**
+ * Os contadores da subida (o que o servidor diz que recebeu de mim): perdidos e
+ * recebidos. Sem packetsReceived no relatório, recebidos = mandados − perdidos.
+ */
+function uplink(report: RTCStatsReport, remote: Stat | undefined): { lost: number; received: number } {
+  const lost = n0(remote?.packetsLost)
+  const received = num(remote?.packetsReceived)
+  if (received !== null) return { lost, received }
+  const local =
+    typeof remote?.localId === 'string' ? (report.get(remote.localId) as Stat | undefined) : undefined
+  return { lost, received: Math.max(0, n0(local?.packetsSent) - lost) }
 }
 
 /** Voz com menos pacotes que isso no intervalo (calada, mudo) não entra na perda. */
 const MIN_VOICE_PACKETS = 100
 
 /** O que eu ouço: cada voz recebida pelo id da faixa (o vídeo não entra). */
-function heard(report: RTCStatsReport): { voices: Record<string, VoiceCounters>; timestamp: number } {
+function heard(report: RTCStatsReport): Record<string, VoiceCounters> {
   const voices: Record<string, VoiceCounters> = {}
-  let timestamp = 0
   report.forEach((stat: Stat) => {
     if (stat.type !== 'inbound-rtp' || stat.kind !== 'audio') return
     voices[String(stat.id)] = {
@@ -45,9 +61,8 @@ function heard(report: RTCStatsReport): { voices: Record<string, VoiceCounters>;
       lost: n0(stat.packetsLost),
       received: n0(stat.packetsReceived)
     }
-    timestamp = Math.max(timestamp, n0(stat.timestamp))
   })
-  return { voices, timestamp }
+  return voices
 }
 
 /**
@@ -95,11 +110,11 @@ function heardLossPct(voices: VoiceCounters[]): number | null {
  */
 export function callSample(report: RTCStatsReport, prev: SampleCounters | null): SampleResult {
   const remote = remoteInbound(report)
-  const { timestamp: heardAt, voices } = heard(report)
   const counters = {
     ...countersOf({}, NO_KEYS),
-    voices,
-    timestamp: n0(remote?.timestamp) || heardAt
+    ...uplink(report, remote),
+    voices: heard(report),
+    timestamp: readAt(report)
   }
   const d = deltas(counters, prev)
   const voiceD = voiceDeltas(counters, prev)
@@ -111,7 +126,7 @@ export function callSample(report: RTCStatsReport, prev: SampleCounters | null):
       seconds: elapsed / 1000,
       transport: transportOf(report),
       rtt_ms: rttMs(report),
-      loss_pct: fractionPct(remote?.fractionLost),
+      loss_pct: prev ? lossPct(d) : null,
       jitter_ms: ms(remote?.jitter),
       concealed_pct: concealedPct(voiceD),
       recv_loss_pct: heardLossPct(voiceD)

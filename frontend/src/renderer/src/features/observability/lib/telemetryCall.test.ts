@@ -21,7 +21,7 @@ describe('callSample', () => {
     expect(callSample(r, null).sample).toMatchObject({
       transport: 'relay',
       rtt_ms: 80,
-      loss_pct: 5,
+      loss_pct: null,
       jitter_ms: 20,
       codec: '',
       seconds: 0
@@ -122,5 +122,43 @@ describe('callSample', () => {
       report({ a: { type: 'inbound-rtp', kind: 'audio', timestamp: t, totalSamplesReceived: t } })
     const first = callSample(at(1000), null)
     expect(callSample(at(61_000), first.counters).sample.seconds).toBe(60)
+  })
+
+  it('o intervalo é o da leitura, não o do último relatório do servidor', () => {
+    const at = (readAt: number, rtcpAt: number): RTCStatsReport =>
+      report({
+        t1: { type: 'transport', timestamp: readAt },
+        r1: { type: 'remote-inbound-rtp', kind: 'audio', timestamp: rtcpAt }
+      })
+    const first = callSample(at(20_000, 5000), null)
+    expect(callSample(at(80_000, 25_000), first.counters).sample.seconds).toBe(60)
+  })
+
+  it('perda na subida: a média do intervalo, não o último fractionLost', () => {
+    const at = (t: number, lost: number, received: number): RTCStatsReport =>
+      report({
+        r1: {
+          type: 'remote-inbound-rtp',
+          kind: 'audio',
+          timestamp: t,
+          fractionLost: 0.9,
+          packetsLost: lost,
+          packetsReceived: received
+        }
+      })
+    const first = callSample(at(0, 10, 1000), null)
+    expect(callSample(at(60_000, 40, 3970), first.counters).sample.loss_pct).toBe(1)
+  })
+
+  it('perda na subida sem packetsReceived: sobre os pacotes que mandei; mudo = sem perda', () => {
+    const at = (t: number, lost: number, sent: number): RTCStatsReport =>
+      report({
+        o1: { type: 'outbound-rtp', kind: 'audio', timestamp: t, packetsSent: sent },
+        r1: { type: 'remote-inbound-rtp', kind: 'audio', localId: 'o1', timestamp: t, packetsLost: lost }
+      })
+    const first = callSample(at(0, 10, 1000), null)
+    const next = callSample(at(60_000, 70, 4000), first.counters)
+    expect(next.sample.loss_pct).toBe(2)
+    expect(callSample(at(120_000, 70, 4000), next.counters).sample.loss_pct).toBeNull()
   })
 })
