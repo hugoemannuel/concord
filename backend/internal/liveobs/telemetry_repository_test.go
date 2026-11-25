@@ -193,3 +193,45 @@ func TestTelemetryRepositoryGravaOAparelho(t *testing.T) {
 		t.Error("sessão sem o aparelho")
 	}
 }
+
+// Evento e fim que chegaram atrasados (reenvio depois de uma queda) ficam na
+// hora em que aconteceram; sem a idade (versão antiga do app), na da chegada.
+func TestTelemetryRepositoryGravaAHoraDoFato(t *testing.T) {
+	db := newTelemetryDB(t)
+	repo := NewTelemetryRepository(db)
+	ctx := context.Background()
+	r := Report{SessionID: sessionA, Kind: KindCall, CallID: callA}
+	if err := repo.Save(ctx, userAna, r); err != nil {
+		t.Fatal(err)
+	}
+	r.AgoMs = 4 * 60_000
+	r.Ended = true
+	r.Events = []Event{{Type: EventReconnected, AgoMs: 5 * 60_000}, {Type: EventConnectFailed}}
+	if err := repo.Save(ctx, userAna, r); err != nil {
+		t.Fatal(err)
+	}
+	ago := func(sql string) float64 {
+		t.Helper()
+		var s float64
+		if err := db.QueryRow(ctx, sql, sessionA).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	checks := []struct {
+		name string
+		sql  string
+		want float64
+	}{
+		{"reconectou", `SELECT extract(epoch FROM now() - at) FROM live_events WHERE session_id = $1 AND type = 'reconectou'`, 300},
+		{"evento sem idade", `SELECT extract(epoch FROM now() - at) FROM live_events WHERE session_id = $1 AND type = 'conexao_falhou'`, 0},
+		{"fim", `SELECT extract(epoch FROM now() - at) FROM live_events WHERE session_id = $1 AND type = 'fim'`, 240},
+		{"ended_at", `SELECT extract(epoch FROM now() - ended_at) FROM live_sessions WHERE id = $1`, 240},
+		{"last_seen_at não volta", `SELECT extract(epoch FROM now() - last_seen_at) FROM live_sessions WHERE id = $1`, 0},
+	}
+	for _, c := range checks {
+		if got := ago(c.sql); got < c.want-2 || got > c.want+2 {
+			t.Errorf("%s: %.0f s atrás, quer %.0f", c.name, got, c.want)
+		}
+	}
+}

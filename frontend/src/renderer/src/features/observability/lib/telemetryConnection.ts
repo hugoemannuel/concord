@@ -1,4 +1,5 @@
 import type { CallConnection, CallJoinStep } from '../../call/lib/callConnection'
+import type { TimedEvent } from './telemetryOutbox'
 import type { TelemetryEvent } from './telemetryTypes'
 
 // Telemetria da conexão da voz (docs/adr/0032): quanto demorou para entrar,
@@ -10,7 +11,8 @@ import type { TelemetryEvent } from './telemetryTypes'
 /** O que a próxima amostra da voz leva. */
 export interface ConnectionTelemetry {
   connectMs: number | null
-  events: TelemetryEvent[]
+  /** Com a hora em que cada um aconteceu. */
+  events: TimedEvent[]
 }
 
 /** De onde a telemetria da voz tira a conexão (createConnectionLog). */
@@ -21,7 +23,7 @@ export interface ConnectionSource {
    * Só os eventos (a sessão da call que termina): o tempo para entrar é da
    * call nova e fica para a primeira amostra dela.
    */
-  takeEvents(): TelemetryEvent[]
+  takeEvents(): TimedEvent[]
 }
 
 /** Evento guardado há mais que isso é de outra call: descarta. */
@@ -63,8 +65,10 @@ export function createConnectionLog(now: () => number = Date.now): ConnectionSou
 } {
   let connectMs: number | null = null
   let events: { at: number; event: TelemetryEvent }[] = []
-  function takeEvents(): TelemetryEvent[] {
-    const fresh = events.filter((e) => now() - e.at <= MAX_AGE_MS).map((e) => e.event)
+  function takeEvents(): TimedEvent[] {
+    const fresh = events
+      .filter((e) => now() - e.at <= MAX_AGE_MS)
+      .map((e) => ({ ...e.event, at: e.at }))
     events = []
     return fresh
   }

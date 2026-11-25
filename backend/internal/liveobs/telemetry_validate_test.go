@@ -161,3 +161,31 @@ func TestValidateReportLimitaOsSinaisDeQualidade(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateReportLimitaAIdadeDosEventos(t *testing.T) {
+	r := validReport()
+	r.AgoMs = -5
+	r.Events = []Event{{Type: EventReconnected, AgoMs: 90_000}, {Type: EventConnectFailed, AgoMs: 99 * 60_000}, {Type: EventStepUp, AgoMs: -1}}
+	if err := r.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if r.AgoMs != 0 {
+		t.Errorf("idade negativa do relatório = %d, quer 0", r.AgoMs)
+	}
+	want := []int{90_000, maxAgoMs, 0}
+	for i, e := range r.Events {
+		if e.AgoMs != want[i] {
+			t.Errorf("evento %d: idade = %d, quer %d", i, e.AgoMs, want[i])
+		}
+	}
+}
+
+func TestSessionEventsInicioEFimNaHoraDoRelatorio(t *testing.T) {
+	got := sessionEvents(Report{AgoMs: 30_000, Events: []Event{{Type: EventReconnected, AgoMs: 50_000}}, Ended: true}, true)
+	want := []int{30_000, 50_000, 30_000}
+	for i, e := range got {
+		if e.AgoMs != want[i] {
+			t.Errorf("%s: idade = %d, quer %d", e.Type, e.AgoMs, want[i])
+		}
+	}
+}

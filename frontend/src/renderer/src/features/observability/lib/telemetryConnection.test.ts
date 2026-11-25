@@ -46,7 +46,7 @@ describe('createConnectionLog', () => {
     log.observe(at('reconnecting', 5000), at('connected', 6000))
     expect(log.take()).toEqual({
       connectMs: 900,
-      events: [{ type: 'reconectou', detail: '1 s' }]
+      events: [{ type: 'reconectou', detail: '1 s', at: 0 }]
     })
     expect(log.take()).toEqual({ connectMs: null, events: [] })
   })

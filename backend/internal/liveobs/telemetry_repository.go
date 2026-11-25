@@ -60,14 +60,15 @@ type ownedReport struct {
 	inserted bool
 }
 
-// sessionEvents: os do app, com o início (sessão nova) e o fim do servidor.
+// sessionEvents: os do app, com o início (sessão nova) e o fim do servidor,
+// esses dois na hora em que o app montou o relatório.
 func sessionEvents(rep Report, inserted bool) []Event {
 	events := rep.Events
 	if inserted {
-		events = append([]Event{{Type: EventStart}}, events...)
+		events = append([]Event{{Type: EventStart, AgoMs: rep.AgoMs}}, events...)
 	}
 	if rep.Ended {
-		events = append(events, Event{Type: EventEnd})
+		events = append(events, Event{Type: EventEnd, AgoMs: rep.AgoMs})
 	}
 	return events
 }
@@ -103,20 +104,25 @@ func upsertSessions(ctx context.Context, tx pgx.Tx, userID string, reps []Report
 	return owned, results.Close()
 }
 
-// queueUpsertSession: sem linha de volta = a sessão é de outra pessoa.
+// queueUpsertSession: sem linha de volta = a sessão é de outra pessoa. As
+// horas são as de quando o app montou o relatório (AgoMs); o último sinal não
+// volta no tempo com um reenvio atrasado.
 func queueUpsertSession(batch *pgx.Batch, userID string, rep Report) {
 	c := rep.Context
 	batch.Queue(`INSERT INTO live_sessions
-			(id, user_id, kind, call_id, streamer_id, os, app_version, target, gpu, network, cores, device, ended_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $13 THEN NOW() END)
+			(id, user_id, kind, call_id, streamer_id, os, app_version, target, gpu, network, cores, device,
+			 started_at, last_seen_at, ended_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+			NOW() - $14 * interval '1 millisecond', NOW() - $14 * interval '1 millisecond',
+			CASE WHEN $13 THEN NOW() - $14 * interval '1 millisecond' END)
 		ON CONFLICT (id) DO UPDATE SET
-			last_seen_at = NOW(),
+			last_seen_at = GREATEST(live_sessions.last_seen_at, EXCLUDED.last_seen_at),
 			network = EXCLUDED.network,
 			ended_at = COALESCE(live_sessions.ended_at, EXCLUDED.ended_at)
 		WHERE live_sessions.user_id = EXCLUDED.user_id
 		RETURNING (xmax = 0)`,
 		rep.SessionID, userID, rep.Kind, nullable(rep.CallID), nullable(rep.StreamerID),
-		c.OS, c.AppVersion, c.Target, c.GPU, c.Network, c.Cores, c.Device, rep.Ended,
+		c.OS, c.AppVersion, c.Target, c.GPU, c.Network, c.Cores, c.Device, rep.Ended, rep.AgoMs,
 	)
 }
 
@@ -127,9 +133,11 @@ func insertDetails(ctx context.Context, tx pgx.Tx, owned []ownedReport) error {
 	for _, o := range owned {
 		queueSample(batch, o.rep.SessionID, o.rep.Sample)
 	}
-	if sessions, types, details := eventColumns(owned); len(sessions) > 0 {
-		batch.Queue(`INSERT INTO live_events (session_id, type, detail)
-			SELECT * FROM unnest($1::uuid[], $2::text[], $3::text[])`, sessions, types, details)
+	if cols := eventColumns(owned); len(cols.sessions) > 0 {
+		batch.Queue(`INSERT INTO live_events (session_id, type, detail, at)
+			SELECT s, t, d, NOW() - a * interval '1 millisecond'
+			FROM unnest($1::uuid[], $2::text[], $3::text[], $4::int[]) AS u(s, t, d, a)`,
+			cols.sessions, cols.types, cols.details, cols.agos)
 	}
 	if batch.Len() == 0 {
 		return nil
@@ -140,16 +148,24 @@ func insertDetails(ctx context.Context, tx pgx.Tx, owned []ownedReport) error {
 	return nil
 }
 
+// eventCols: os eventos de todas as sessões em colunas (para o unnest).
+type eventCols struct {
+	sessions, types, details []string
+	agos                     []int
+}
+
 // eventColumns: os eventos de todas as sessões em colunas, na ordem.
-func eventColumns(owned []ownedReport) (sessions, types, details []string) {
+func eventColumns(owned []ownedReport) eventCols {
+	var c eventCols
 	for _, o := range owned {
 		for _, e := range sessionEvents(o.rep, o.inserted) {
-			sessions = append(sessions, o.rep.SessionID)
-			types = append(types, e.Type)
-			details = append(details, e.Detail)
+			c.sessions = append(c.sessions, o.rep.SessionID)
+			c.types = append(c.types, e.Type)
+			c.details = append(c.details, e.Detail)
+			c.agos = append(c.agos, e.AgoMs)
 		}
 	}
-	return sessions, types, details
+	return c
 }
 
 func queueSample(batch *pgx.Batch, sessionID string, s *Sample) {

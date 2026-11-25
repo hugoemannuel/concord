@@ -204,6 +204,40 @@ describe('createTelemetryReporter', () => {
     expect(t.deps.send).toHaveBeenCalledTimes(2)
   })
 
+  it('envio falhou: evento e fim voltam no próximo ciclo, sem a amostra', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: [] })
+    const connection = fakeConnection({ connectMs: null, events: [] })
+    t.deps.connection = connection
+    await t.tick()
+    const send = t.deps.send
+    t.deps.send = vi.fn(async () => {
+      throw new Error('servidor fora')
+    })
+    connection.pending = { connectMs: null, events: [{ type: 'conexao_falhou', detail: 'x', at: 0 }] }
+    t.set({ callId: null, sharing: false, watching: [] })
+    await t.tick()
+    t.deps.send = send
+    await t.tick()
+    const retried = t.sent[1]
+    expect(retried).toHaveLength(1)
+    expect(retried[0]).toMatchObject({ kind: 'call', ended: true, sample: null })
+    expect(retried[0].events.map((e) => e.type)).toEqual(['conexao_falhou'])
+  })
+
+  it('cada evento diz há quanto tempo aconteceu', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: [] })
+    let now = 100_000
+    t.deps.now = () => now
+    const connection = fakeConnection({ connectMs: null, events: [] })
+    t.deps.connection = connection
+    await t.tick()
+    connection.pending = { connectMs: null, events: [{ type: 'reconectou', detail: '3 s', at: 70_000 }] }
+    t.set({ callId: null, sharing: false, watching: [] })
+    now = 130_000
+    await t.tick()
+    expect(t.sent[1][0]).toMatchObject({ ago_ms: 0, events: [{ ago_ms: 60_000 }] })
+  })
+
   it('mais de 8 sessões: divide em pedidos', async () => {
     const watching = Array.from({ length: 9 }, (_, i) => `u${i}`)
     const t = setup({ callId: 'c1', sharing: false, watching })
@@ -225,7 +259,7 @@ describe('createTelemetryReporter: conexão e codec', () => {
     await t.tick()
     const call = t.sent.flat()[1]
     expect(call.sample?.connect_ms).toBe(1850)
-    expect(call.events).toEqual([{ type: 'reconectou', detail: '3 s' }])
+    expect(call.events).toMatchObject([{ type: 'reconectou', detail: '3 s' }])
   })
 
   it('saiu da call: os eventos de conexão vão com o fim', async () => {
@@ -272,7 +306,8 @@ describe('createTelemetryReporter: conexão e codec', () => {
     const shares = t.sent.flat().filter((r) => r.kind === 'transmite')
     expect(shares[0].events).toContainEqual({
       type: 'codec_escolhido',
-      detail: 'auto: h265 + h264'
+      detail: 'auto: h265 + h264',
+      ago_ms: expect.any(Number)
     })
     expect(shares[1].events.map((e) => e.type)).not.toContain('codec_escolhido')
   })

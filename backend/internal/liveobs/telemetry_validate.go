@@ -24,6 +24,8 @@ const (
 	maxKbps    = 200_000
 	maxCount   = 1_000_000
 	maxMs      = 600_000.0
+	// maxAgoMs: evento mais velho que isso fica com a hora de 15 min atrás.
+	maxAgoMs = 15 * 60_000
 )
 
 var (
@@ -62,6 +64,7 @@ func (r *Report) Validate() error {
 		r.Sample.clean()
 	}
 	r.Events = cleanEvents(r.Events)
+	r.AgoMs = agoIn(r.AgoMs)
 	return nil
 }
 
@@ -125,7 +128,7 @@ func cleanEvents(events []Event) []Event {
 			break
 		}
 		if clientEvents[e.Type] {
-			out = append(out, Event{Type: e.Type, Detail: cut(e.Detail, maxText)})
+			out = append(out, Event{Type: e.Type, Detail: cut(e.Detail, maxText), AgoMs: agoIn(e.AgoMs)})
 		}
 	}
 	return out
@@ -167,6 +170,10 @@ func intIn(p *int, hi int) *int {
 	}
 	v := min(*p, hi)
 	return &v
+}
+
+func agoIn(v int) int {
+	return max(0, min(v, maxAgoMs))
 }
 
 func countIn(v int) int {

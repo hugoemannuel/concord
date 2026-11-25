@@ -55,6 +55,9 @@ type Report struct {
 	Events     []Event       `json:"events"`
 	// Ended: última amostra (parou de transmitir/assistir, saiu da call).
 	Ended bool `json:"ended"`
+	// AgoMs: há quanto tempo o app montou o relatório (reenvio depois de uma
+	// falha). O fim e o início ficam nessa hora; versões antigas não mandam (0).
+	AgoMs int `json:"ago_ms"`
 }
 
 type ClientContext struct {
@@ -115,4 +118,6 @@ type Sample struct {
 type Event struct {
 	Type   string `json:"type"`
 	Detail string `json:"detail"`
+	// AgoMs: há quanto tempo aconteceu (0 = agora; teto de 15 min).
+	AgoMs int `json:"ago_ms"`
 }

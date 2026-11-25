@@ -2,11 +2,11 @@ import type { ScreenStatsInput } from '../../call/lib/screenStats'
 import { sampleEvents } from './telemetryEvents'
 import { callSample } from './telemetryCall'
 import type { ConnectionSource, ConnectionTelemetry } from './telemetryConnection'
+import { createOutbox, toWire, type Draft, type TimedEvent } from './telemetryOutbox'
 import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
 import type {
   ClientContext,
   SessionKind,
-  TelemetryEvent,
   TelemetryReport,
   TelemetrySample
 } from './telemetryTypes'
@@ -14,7 +14,8 @@ import type {
 // Telemetria das lives e calls (docs/adr/0029 e 0032): a cada leitura (20 s), uma
 // sessão por coisa ativa — a call, a minha live e cada live que assisto — e
 // um pedido só com todas. A voz sai a cada 3 leituras (1 min). Sessão que
-// some manda o fim. Falhas de envio são ignoradas (é só telemetria).
+// some manda o fim. O que não foi por falha no envio e tem evento ou fim
+// volta no ciclo seguinte (telemetryOutbox); as amostras, não.
 
 export const TELEMETRY_INTERVAL_MS = 20_000
 /** A voz é lida a cada CALL_EVERY leituras. */
@@ -41,6 +42,8 @@ export interface ReporterDeps {
   connection?: ConnectionSource
   /** Por que a live saiu nesse codec (screenCodecChoice); leva e limpa. */
   codecChoice?(): string | null
+  /** Relógio (ms); o padrão é Date.now. */
+  now?(): number
 }
 
 interface Wanted {
@@ -56,8 +59,6 @@ interface Session extends Wanted {
   last: TelemetrySample | null
   ticks: number
 }
-
-type Draft = Omit<TelemetryReport, 'context'>
 
 const NOTHING: ConnectionTelemetry = { connectMs: null, events: [] }
 
@@ -88,8 +89,9 @@ function wantedSessions(snap: CallSnapshot): Wanted[] {
 function draft(
   s: Session,
   sample: TelemetrySample | null,
-  events: TelemetryEvent[],
-  ended: boolean
+  events: TimedEvent[],
+  ended: boolean,
+  at: number
 ): Draft {
   return {
     session_id: s.id,
@@ -98,7 +100,8 @@ function draft(
     streamer_id: s.streamerId,
     sample,
     events,
-    ended
+    ended,
+    at
   }
 }
 
@@ -113,6 +116,8 @@ export function createTelemetryReporter(deps: ReporterDeps): {
   noteStepChange: () => void
 } {
   const sessions = new Map<string, Session>()
+  const outbox = createOutbox()
+  const now = (): number => deps.now?.() ?? Date.now()
   let stepChanges = 0
   let busy = false
 
@@ -147,7 +152,7 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     const events = [...extra.events, ...sampleEvents(s.kind, s.last, sample)]
     s.counters = result.counters
     s.last = sample
-    return draft(s, sample, events, false)
+    return draft(s, sample, events, false, now())
   }
 
   function endGone(wanted: Wanted[]): Draft[] {
@@ -157,7 +162,7 @@ export function createTelemetryReporter(deps: ReporterDeps): {
       if (keys.has(key)) continue
             // Só os eventos: o tempo para entrar, se houver, é da call nova.
       const events = s.kind === 'call' ? (deps.connection?.takeEvents() ?? []) : []
-      ended.push(draft(s, null, events, true))
+      ended.push(draft(s, null, events, true, now()))
       sessions.delete(key)
     }
     return ended
@@ -178,12 +183,30 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     return drafts
   }
 
-  async function send(drafts: Draft[]): Promise<void> {
-    if (drafts.length === 0) return
-    const context = await deps.context()
-    for (const batch of chunks(drafts, PER_REQUEST)) {
-      await deps.send(batch.map((d) => ({ ...d, context })))
+  /** Manda em pedidos de até 8; devolve o que não foi. */
+  async function sendAll(pending: Draft[]): Promise<Draft[]> {
+    const batches = chunks(pending, PER_REQUEST)
+    try {
+      const context = await deps.context()
+      for (const [i, batch] of batches.entries()) {
+        try {
+          const at = now()
+          await deps.send(batch.map((d) => toWire(d, context, at)))
+        } catch {
+          return batches.slice(i).flat()
+        }
+      }
+      return []
+    } catch {
+      return pending
     }
+  }
+
+  /** O que ficou da vez anterior vai primeiro; o que não for, espera a próxima. */
+  async function send(drafts: Draft[]): Promise<void> {
+    const pending = [...outbox.take(now()), ...drafts]
+    if (pending.length === 0) return
+    outbox.keep(await sendAll(pending))
   }
 
   return {
