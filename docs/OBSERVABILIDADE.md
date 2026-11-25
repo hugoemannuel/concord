@@ -124,7 +124,8 @@ desligado (o padrão). Como ligar: [HOSPEDAGEM.md](HOSPEDAGEM.md#alertas-no-serv
 
 **Como avisa**: uma mensagem ao disparar, uma se piorar (aviso → crítico), uma
 ao normalizar ("Normalizou: … Durou X"), um lembrete a cada 6 h se continuar e
-no máximo 10 mensagens por hora por canal (o resto só no log e no painel).
+no máximo 10 mensagens por hora por canal (o resto só no log e no painel; o
+crítico sempre passa).
 **Aviso** é só a mensagem; **crítico** começa com `@all` e chega como push para
 todos do servidor (respeitando o silenciar de cada um). O estado (incidente
 aberto) fica em `alert_incidents`: reiniciar o backend não repete o aviso.
@@ -135,16 +136,19 @@ aberto) fica em `alert_incidents`: reiniciar o backend não repete o aviso.
 | Backend reiniciando sem parar (`restart_loop`) | alertas | — | 3 boots sem parada limpa em 10 min (os "backend no ar" de cada volta não saem) | menos de 3 em 10 min |
 | CPU da máquina (`host_cpu`) | alertas | ≥ 85% por 5 min | ≥ 95% por 10 min | abaixo por 3 min |
 | Memória da máquina (`host_mem`) | alertas | ≥ 90% por 5 min | ≥ 95% por 5 min | abaixo por 3 min |
-| LiveKit fora do ar (`livekit_down`) | alertas | `up = false` por 2 min | por 5 min | respondeu por 1 min |
+| LiveKit fora do ar (`livekit_down`) | alertas | `up = false` por 3 min | por 5 min | respondeu por 1 min |
 | CPU do LiveKit (`livekit_cpu`) | alertas | ≥ 150% de uma vCPU por 5 min | — | abaixo por 3 min |
-| Banco fora do ar (`database_down`) | alertas | quando volta: de quando a quando (2 pings de 15 s sem resposta) | — | (evento) |
+| Banco fora do ar (`database_down`) | alertas | quando volta: de quando a quando (3 pings de 15 s sem resposta) | — | (evento) |
 | Serviço do systemd falhou (`unit_failed`) | alertas | `OnFailure=` de `concord-*`/`salinha-*` (backup, yt-dlp, firewall); a mesma unidade de novo em 1 h só vai para o histórico | — | (evento) |
 | Voz sem conectar (`call_failures`) | qualidade | — | 3+ pessoas com `conexao_falhou` na etapa de mídia em 5 min | abaixo por 10 min |
-| Voz reconectando em massa (`call_reconnects`) | qualidade | — | 4+ pessoas com `reconectou` em 3 min | abaixo por 10 min |
+| Voz reconectando em massa (`call_reconnects`) | qualidade | 4+ pessoas com `reconectou` em 3 min | — | abaixo por 10 min |
 
 Os números estão em constantes no começo de cada `backend/internal/alert/rule_*.go`.
 O LiveKit fora só avisa se ele respondeu alguma vez na última hora (sem o
-Prometheus ligado ele estaria "fora" para sempre). O backup que roda e não gera
+Prometheus ligado ele estaria "fora" para sempre); fora há mais de 1 h, o
+incidente fica aberto sem lembrete até ele voltar. Todo membro do servidor de
+`ALERTS_SERVER_ID` vê os canais (canal de sistema não tem permissão própria):
+use um servidor só dos devs. O backup que roda e não gera
 arquivo fica para a parte 2 (idade do arquivo, coletada pela tarefa obs-servidor).
 
 **Limite**: o alerta é postado pelo próprio backend, então **não avisa enquanto

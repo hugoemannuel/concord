@@ -1058,10 +1058,10 @@ do servidor). Quem hospeda a própria Salinha deixa vazio.
 `OnFailure=concord-alerta@%n.service`. A rota só atende a própria máquina
 (recusa quem não vem de 127.0.0.1 e todo pedido com `X-Forwarded-For`, que o
 Caddy sempre põe) e o [`deploy/Caddyfile`](../deploy/Caddyfile) responde 404
-em `/internal/*`. O `scripts/deploy-vps.sh` instala o modelo e um complemento
-`<unidade>.d/alerta.conf` com o `OnFailure` em cada `concord-*`/`salinha-*`.service
-da VPS (menos o `concord-server`, que avisa ao voltar), sem tocar nos arquivos
-delas; o `concord-ytdlp-update.service` que ele gera já nasce com o
+em `/internal/*`. Com `ALERTS_SERVER_ID` no `.env` da VPS, o `scripts/deploy-vps.sh` instala o
+modelo e um complemento `<unidade>.d/alerta.conf` com o `OnFailure` em cada
+`concord-*`/`salinha-*`.service da VPS (menos o `concord-server`, que avisa ao
+voltar), sem tocar nos arquivos delas; o `concord-ytdlp-update.service` que ele gera já nasce com o
 `OnFailure`, e os arquivos de `deploy/` (`concord-backup.service`,
 `salinha-firewall.service`) também trazem a linha, para instalações novas.
 

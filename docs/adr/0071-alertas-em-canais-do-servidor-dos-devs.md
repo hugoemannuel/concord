@@ -57,12 +57,13 @@ Forças:
 - **Mensagens**: uma ao disparar, uma se agravar (aviso → crítico), uma ao
   normalizar ("normalizou, durou X"), um lembrete a cada 6 h se continuar, e no
   máximo 10 mensagens por hora por canal (o que passar só vai para o log e o
-  histórico).
+  histórico; o crítico nunca é barrado, porque já sai uma vez só por incidente).
 - **Gravidade**: aviso é só a mensagem; crítico começa com `@all` e grava
   `mention_everyone = all`, o que gera push para todos do servidor (respeitando
   o silenciar de cada um). Crítico só onde há algo fora para todo mundo ou
   prestes a cair: CPU ≥ 95% por 10 min, memória ≥ 95% por 5 min, LiveKit fora
-  por 5 min, backend reiniciando sem parar e falha de voz de várias pessoas.
+  por 5 min, backend reiniciando sem parar e voz sem conectar para várias
+  pessoas (reconexão em massa é aviso: a voz já voltou sozinha).
 
 **Onde e quem escreve**:
 
@@ -98,7 +99,8 @@ unidades; o modelo `deploy/concord-alerta@.service` faz um `curl` para
 `deploy/Caddyfile` responde 404 em `/internal/*` antes do backend. O
 `scripts/deploy-vps.sh` instala o modelo e um complemento `alerta.conf` com o
 `OnFailure` em cada `concord-*`/`salinha-*.service` da VPS (menos o
-`concord-server`), sem tocar no arquivo das unidades.
+`concord-server`), sem tocar no arquivo das unidades, e só quando o `.env` da
+VPS tem `ALERTS_SERVER_ID`.
 
 ## Consequências
 
@@ -110,10 +112,18 @@ unidades; o modelo `deploy/concord-alerta@.service` faz um `curl` para
   dia; pior caso com o teto, ~240 por canal por dia) e `backend_runs` uma por
   boot (deploys e quedas, < 50 por dia). Em 14 dias, menos de 5 mil linhas no
   pior caso e algumas centenas no normal; o backend apaga o que passa de 14
-  dias. Uma avaliação por minuto lê no máximo 11 linhas do `livekit_metrics`
-  (chave primária) e conta eventos de 5 min do `live_events` (índice `at`).
+  dias. Uma avaliação por minuto lê as linhas dos últimos 3 min do
+  `livekit_metrics` por regra (e da última hora, ~60 linhas, na do LiveKit
+  fora), sempre pela chave primária `minute`, e conta eventos de 3 a 5 min do
+  `live_events` (índice `at`).
 - As sequências da histerese ficam na memória: depois de um reinício a regra
   espera o `Hold` de novo antes de avisar (e antes de normalizar).
+- **Quem vê**: canal de sistema não aceita regras de permissão próprias nem
+  herda a categoria, então todo membro do servidor de `ALERTS_SERVER_ID` vê os
+  4 canais e recebe o push do crítico. O servidor tem de ser só dos devs. Os
+  textos são técnicos (números, nomes de unidade, nenhum dado de pessoa).
+- LiveKit fora há mais de 1 h vira "sem dado" (a regra só vale se ele
+  respondeu na última hora): o incidente fica aberto, sem lembrete, até voltar.
 - Canais de sistema não podem ser apagados pelo app; se `ALERTS_SERVER_ID`
   mudar, os canais do servidor antigo ficam lá (apagar por SQL).
 - Silenciar: cada dev silencia o canal ou o servidor no app; para desligar
