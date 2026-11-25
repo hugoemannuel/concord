@@ -122,6 +122,8 @@ type Sample struct {
 	ConcealedPct *float64 `json:"concealed_pct"`
 	RecvLossPct  *float64 `json:"recv_loss_pct"`
 	ConnectMs    *int     `json:"connect_ms"`
+	// Sinais da ADR 0074 (telemetry_media.go; migration 000219).
+	MediaSignals
 }
 
 type Event struct {

@@ -14,16 +14,18 @@ const (
 	telemetryMigration = "000173_live_telemetry.up.sql"
 	qualityMigration   = "000176_live_samples_quality.up.sql"
 	deviceMigration    = "000214_live_sessions_device.up.sql"
+	mediaMigration     = "000219_live_samples_media_signals.up.sql"
 )
 
 const (
 	sessionB = "6f1c1b7e-8a5e-4a51-9f2a-eeeeeeeeeeee"
+	sessionC = "6f1c1b7e-8a5e-4a51-9f2a-dddddddddddd"
 	userAna  = "6f1c1b7e-8a5e-4a51-9f2a-000000000001"
 	userBia  = "6f1c1b7e-8a5e-4a51-9f2a-000000000002"
 )
 
 func newTelemetryDB(t *testing.T) *pgxpool.Pool {
-	db := newTestDB(t, serverMigration, startedMigration, telemetryMigration, qualityMigration, deviceMigration)
+	db := newTestDB(t, serverMigration, startedMigration, telemetryMigration, qualityMigration, deviceMigration, mediaMigration)
 	if _, err := db.Exec(context.Background(), `INSERT INTO users (id) VALUES ($1), ($2)`, userAna, userBia); err != nil {
 		t.Fatal(err)
 	}

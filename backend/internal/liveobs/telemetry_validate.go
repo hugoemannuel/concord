@@ -40,6 +40,7 @@ var (
 		EventBackground: true, EventForeground: true, EventNetworkChanged: true, EventAudioRoute: true,
 		EventSlowJoin: true, EventJoinAbandoned: true,
 		EventDecoderFailed: true,
+		EventLiveFailed:    true, EventSlept: true,
 	}
 )
 
@@ -110,6 +111,7 @@ func (s *Sample) clean() {
 	}
 	s.FreezeMs = int(between(float64(s.FreezeMs), 0, maxMs))
 	s.cleanQuality()
+	s.MediaSignals.clean()
 }
 
 // cleanQuality: os sinais da ADR 0032.
