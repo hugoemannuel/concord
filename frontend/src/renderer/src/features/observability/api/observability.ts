@@ -77,6 +77,11 @@ export interface BreakdownRow {
   below_ratio: number | null
   freezes_per_min: number | null
   software_ratio: number | null
+  /** Pessoas no grupo e as medianas por pessoa (ausentes num backend de antes). */
+  people?: number
+  below_ratio_median?: number | null
+  freezes_per_min_median?: number | null
+  software_ratio_median?: number | null
 }
 
 export interface ServerPoint {

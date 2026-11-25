@@ -220,6 +220,41 @@ describe('abas do relatório das lives', () => {
     // Backend de antes: sem os campos, a seção não aparece.
     expect(render(ServerTab, ready())).not.toContain('Sem coleta')
   })
+  it('Distribuição: pessoas e a mediana por pessoa ao lado da média', () => {
+    const r = report(true)
+    const withMedian: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        breakdown: {
+          ...r.breakdown,
+          os: [
+            {
+              key: 'Windows',
+              sessions: 40,
+              people: 7,
+              below_ratio: 0.25,
+              below_ratio_median: 0.1,
+              freezes_per_min: 3.5,
+              freezes_per_min_median: 0.8,
+              software_ratio: 0,
+              software_ratio_median: 0
+            }
+          ]
+        }
+      }
+    }
+    const html = render(BreakdownTab, withMedian)
+    expect(html).toContain('Pessoas')
+    expect(html).toContain('>7<')
+    expect(html).toContain('3,5 · med. 0,8')
+    expect(html).toContain('25% · med. 10%')
+    expect(html).toContain('mediana por pessoa')
+    // Backend de antes: sem mediana, só a média.
+    const old = render(BreakdownTab, ready())
+    expect(old).toContain('0,4')
+    expect(old).not.toContain('med.')
+  })
   it('Distribuição e Eventos', () => {
     const breakdown = render(BreakdownTab, ready())
     for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede (com as calls)', 'Aparelho Android (com as calls)']) {

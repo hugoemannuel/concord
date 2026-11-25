@@ -94,6 +94,12 @@ type BreakdownRow struct {
 	BelowRatio    *float64 `json:"below_ratio"`
 	FreezesPerMin *float64 `json:"freezes_per_min"`
 	SoftwareRatio *float64 `json:"software_ratio"`
+	// People: quantas pessoas; *Median: a mediana do valor por pessoa (cada
+	// pessoa pesa igual, quanto tempo for que ela tenha assistido).
+	People              int      `json:"people"`
+	BelowRatioMedian    *float64 `json:"below_ratio_median"`
+	FreezesPerMinMedian *float64 `json:"freezes_per_min_median"`
+	SoftwareRatioMedian *float64 `json:"software_ratio_median"`
 }
 
 // ServerPoint: um intervalo da série do LiveKit (médias no intervalo).

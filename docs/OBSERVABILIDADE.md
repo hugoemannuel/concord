@@ -97,7 +97,10 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   `livekit_started_at` (o `process_start_time_seconds` dele) mudou.
 - **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e
   conexão; e, com as calls, por plataforma (desktop, web, android), rede e
-  aparelho Android.
+  aparelho Android. Cada linha traz quantas pessoas e, ao lado de cada média, a
+  **mediana por pessoa** (`*_median`): de 11/11 a 25/11 uma pessoa só era 22% das
+  horas assistidas e 27% dos congelamentos, e a média por placa ou sistema era,
+  na prática, a dela.
 - **Eventos** (`eventos`): as **quedas e falhas da voz do período inteiro**
   (`call_events`: `reconectou`, `conexao_falhou`, `retomou`; até 300) e os 100
   eventos mais recentes das lives e calls (quase todos congelamentos longos, ~310

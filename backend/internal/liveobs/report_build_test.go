@@ -347,3 +347,45 @@ func TestBuildReportSeparaPioresLivesEChamadas(t *testing.T) {
 		t.Errorf("worst = %d linhas", len(r.Worst))
 	}
 }
+
+func TestBreakdownsMedianaPorPessoa(t *testing.T) {
+	// Uma pessoa assiste muito e congela muito: puxa a média, não a mediana.
+	heavy1 := session("h1", KindWatch, "ana", 0, 100)
+	heavy1.OS, heavy1.Freezes, heavy1.HardwareRatio = "Windows", 900, fp(0)
+	heavy2 := session("h2", KindWatch, "ana", 0, 100)
+	heavy2.OS, heavy2.Freezes, heavy2.HardwareRatio = "Windows", 900, fp(0)
+	bia := session("b", KindWatch, "bia", 0, 10)
+	bia.OS, bia.Freezes, bia.HardwareRatio = "Windows", 0, fp(1)
+	caio := session("c", KindWatch, "caio", 0, 10)
+	caio.OS, caio.Freezes, caio.HardwareRatio = "Windows", 10, fp(1)
+	share := session("s", KindShare, "duda", 0, 10)
+	share.OS, share.BelowRatio = "Windows", fp(0.5)
+
+	win := breakdowns([]SessionStats{heavy1, heavy2, bia, caio, share})["os"][0]
+	if win.Sessions != 5 || win.People != 4 {
+		t.Fatalf("sessões %d, pessoas %d; quer 5 e 4", win.Sessions, win.People)
+	}
+	// Média ponderada: 1810 congelamentos em 220 min ≈ 8,2/min. Por pessoa:
+	// ana 9, bia 0, caio 1 → mediana 1.
+	if win.FreezesPerMin == nil || !near(*win.FreezesPerMin, 1810.0/220) {
+		t.Errorf("média = %v", win.FreezesPerMin)
+	}
+	if win.FreezesPerMinMedian == nil || !near(*win.FreezesPerMinMedian, 1) {
+		t.Errorf("mediana por pessoa = %v, quer 1", win.FreezesPerMinMedian)
+	}
+	// No processador por pessoa: ana 1, bia 0, caio 0 (duda sem dado) → 0.
+	if win.SoftwareRatioMedian == nil || *win.SoftwareRatioMedian != 0 {
+		t.Errorf("no processador, mediana = %v, quer 0", win.SoftwareRatioMedian)
+	}
+	// Abaixo do alvo: só duda tem → 0,5; com duas pessoas, a média das duas do meio.
+	if win.BelowRatioMedian == nil || !near(*win.BelowRatioMedian, 0.5) {
+		t.Errorf("abaixo do alvo, mediana = %v", win.BelowRatioMedian)
+	}
+	two := breakdowns([]SessionStats{bia, caio})["os"][0]
+	if two.FreezesPerMinMedian == nil || !near(*two.FreezesPerMinMedian, 0.5) {
+		t.Errorf("mediana de 2 pessoas (0 e 1) = %v, quer 0,5", two.FreezesPerMinMedian)
+	}
+	if two.BelowRatioMedian != nil {
+		t.Errorf("sem dado, mediana = %v, quer nil", *two.BelowRatioMedian)
+	}
+}
