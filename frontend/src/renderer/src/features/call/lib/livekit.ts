@@ -6,6 +6,8 @@ import {
   Track
 } from 'livekit-client'
 import { RemoteSubscriptions } from './remoteSubscriptions'
+import { ScreenReceiveWatch } from './screenReceiveWatch'
+import { reportHevcDecodeFailure } from './screenHevcFailure'
 import { watchVideoPause } from './screenVideoPause'
 import { groupTracks, listScreenPublishers, StreamCache, type MediaKind } from './callMedia'
 import { remoteEntries } from './remoteEntries'
@@ -89,6 +91,11 @@ export class CallMedia {
   private connected = false
   /** O que baixar de cada pessoa (tela só de quem assisto; vídeo pausado fora de vista). */
   private subscriptions = new RemoteSubscriptions()
+  /** O H.265 das lives que assisto decodifica aqui? (ADR 0073) */
+  private receiveWatch = new ScreenReceiveWatch({
+    participants: () => this.room.remoteParticipants.values(),
+    onHevcFailed: (userId, rates) => void reportHevcDecodeFailure(userId, rates)
+  })
   private stopWindowWatch: () => void
   private refreshQueued = false
   private mic = new MicPublisher(() => this.room.localParticipant)
@@ -125,6 +132,7 @@ export class CallMedia {
     serveScreenEncoder(this.room, async () =>
       this.nativeScreen ? this.nativeScreen.encoderInfo() : this.screen.encoderInfo()
     )
+    this.receiveWatch.start()
     this.stopWindowWatch = watchVideoPause((pause) => {
       if (this.subscriptions.setPause(pause)) this.applySubscriptions()
     })
@@ -322,6 +330,7 @@ export class CallMedia {
   disconnect(): void {
     this.closing = true
     clearActiveScreenStats(this)
+    this.receiveWatch.stop()
     this.screen.stop()
     this.stopWindowWatch()
     this.cache.clear()

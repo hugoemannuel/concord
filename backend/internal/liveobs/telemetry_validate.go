@@ -36,6 +36,7 @@ var (
 		EventDecoderSW: true, EventLongFreeze: true, EventServerPaused: true, EventCodecSwitched: true,
 		EventCodecChosen: true, EventConnectFailed: true, EventReconnected: true,
 		EventBackground: true, EventForeground: true, EventNetworkChanged: true, EventAudioRoute: true,
+		EventDecoderFailed: true,
 	}
 )
 

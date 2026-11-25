@@ -36,6 +36,8 @@ export interface ScreenShareApi {
   onWindowHidden(cb: () => void): () => void
   ended(): void
   videoHint(): Promise<string | null>
+  /** O H.265 de uma live chegou e não decodificou (ADR 0073): vale na próxima abertura. */
+  hevcDecodeFailed(): void
 }
 
 export interface UpdatesApi {

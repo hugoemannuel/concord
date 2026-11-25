@@ -41,3 +41,15 @@ describe('chromiumFeatures', () => {
     }
   })
 })
+
+describe('chromiumFeatures: H.265 que chega e não decodifica (ADR 0073)', () => {
+  it('com a marca, o app não anuncia H.265 para receber (o servidor manda a reserva H.264)', () => {
+    expect(chromiumFeatures('win32', null, false).disable).toBe(
+      'CalculateNativeWinOcclusion,WebRtcAllowH265Receive'
+    )
+  })
+
+  it('sem a marca, nada muda', () => {
+    expect(chromiumFeatures('win32', null, true)).toEqual(chromiumFeatures('win32'))
+  })
+})

@@ -138,7 +138,7 @@ func TestValidateReportLimitaOsSinaisDeQualidade(t *testing.T) {
 	capture, recv, codecMs, concealed, recvLoss := 999.0, -1.0, 1e9, 140.0, 12.5
 	r.Sample = &Sample{CaptureFPS: &capture, RecvFPS: &recv, CodecMs: &codecMs,
 		ConcealedPct: &concealed, RecvLossPct: &recvLoss, ConnectMs: intp(9_000_000)}
-	r.Events = []Event{{Type: EventCodecChosen}, {Type: EventConnectFailed}, {Type: EventReconnected}}
+	r.Events = []Event{{Type: EventCodecChosen}, {Type: EventConnectFailed}, {Type: EventReconnected}, {Type: EventDecoderFailed}}
 	if err := r.Validate(); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func TestValidateReportLimitaOsSinaisDeQualidade(t *testing.T) {
 		{"áudio sintetizado até 100%", *s.ConcealedPct == 100},
 		{"perda recebida fica", *s.RecvLossPct == 12.5},
 		{"tempo para conectar no teto", *s.ConnectMs == int(maxMs)},
-		{"eventos de codec e conexão aceitos", len(r.Events) == 3},
+		{"eventos de codec, conexão e decodificador aceitos", len(r.Events) == 4},
 	}
 	for _, c := range checks {
 		if !c.ok {
