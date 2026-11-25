@@ -7,6 +7,7 @@ import type { PortalStatus, ScreenShareFlow } from '../shared/screenShareFlow'
 import type { ServerDiagnostics } from '../shared/serverConnection'
 import type { TTSVoiceState } from '../shared/ttsVoice'
 import type { NativeLiveApi } from './nativeLiveApi'
+import type { ErrorReportApi } from './errorReportApi'
 
 export interface ScreenSourceInfo {
   id: string
@@ -35,6 +36,8 @@ export interface ScreenShareApi {
   onWindowHidden(cb: () => void): () => void
   ended(): void
   videoHint(): Promise<string | null>
+  /** O H.265 de uma live chegou e não decodificou (ADR 0073): vale na próxima abertura. */
+  hevcDecodeFailed(): void
 }
 
 export interface UpdatesApi {
@@ -200,6 +203,12 @@ declare global {
       /** Sistema operacional do app desktop (process.platform). */
       platform?: string
       appMetrics?: { sample(reset?: boolean): Promise<AppMetrics | null> }
+      deviceStats?: {
+        take(): Promise<import('../shared/deviceStats').DeviceTake | null>
+        usable(): void
+        /** O PC acordou: quanto tempo ficou suspenso (ms). Versões antigas do preload não têm. */
+        onSlept?(cb: (sleptMs: number) => void): () => void
+      }
       perf?: { enabled(): Promise<boolean>; report(event: PerfEvent): void }
       /** Foco/visibilidade da janela; o renderer valida com parseWindowActivity. */
       windowActivity?: { onChange(cb: (activity: unknown) => void): () => void }
@@ -222,6 +231,8 @@ declare global {
       nativeLive?: NativeLiveApi
       /** Esconde a janela de print/gravação (só no app desktop). */
       contentProtection?: { set(on: boolean): Promise<void> }
+      /** Erros do main do Electron para o relatório de erros (docs/adr/0068). */
+      errorReport?: ErrorReportApi
     }
   }
 }

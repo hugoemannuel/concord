@@ -1005,6 +1005,105 @@ Até o `--infra`, o backend grava as linhas só com a CPU/memória da VPS
 `LIVEKIT_PROMETHEUS_PORT` no `/opt/concord/.env` (o backend e o compose leem
 a mesma variável).
 
+### Métricas da API e da VPS
+
+O backend grava, a cada minuto, a saúde da API (`api_metrics`; rotas de 5 em 5
+min em `api_route_metrics`) e da máquina (`host_metrics`; as maiores tabelas
+de hora em hora em `db_table_sizes`), lendo só o `/proc` e o `statfs`: nada a
+instalar e nenhuma porta nova. 14 dias de retenção. Painel e consultas:
+[OBSERVABILIDADE.md](OBSERVABILIDADE.md#servidor-api-e-vps) ([ADR 0067](adr/0067-metricas-da-api-e-da-vps.md)).
+
+Variáveis (opcionais, no `/opt/concord/.env`):
+
+| Variável | Padrão | Para quê |
+|---|---|---|
+| `OBS_DISK_PATH` | `.` (a pasta de trabalho do serviço: `/opt/concord`) | pasta cujo disco é medido (espaço, inodes, leitura/escrita) |
+| `OBS_BACKUP_DIR` | `backups` (= `/opt/concord/backups`) | idade e tamanho do backup mais novo; sem a pasta, fica nulo |
+
+O CPU e a memória do Postgres saem dos processos `postgres` no `/proc` (os do
+container aparecem para o host); se o `/proc` estiver montado com `hidepid`,
+ficam nulos.
+
+### Erros do app (pilha traduzida)
+
+Nada a ligar: os erros do app e os panics do backend vão para o banco com a
+migration 000212 ([OBSERVABILIDADE.md](OBSERVABILIDADE.md#erros-do-app)). Para a
+pilha do renderer sair traduzida no painel, o deploy guarda os source maps do
+build em `/opt/concord/sourcemaps/` (fora do que o Caddy serve; os de mais de
+90 dias são apagados a cada deploy). Outra pasta: `SOURCEMAPS_DIR` no
+`/opt/concord/.env` (vazia = sem tradução; a pilha aparece crua).
+
+### Alertas no servidor dos devs
+
+O backend avisa falhas e limites (backend fora, máquina congelada pelo
+provedor, CPU/memória/disco/swap, LiveKit, banco e pool, API com erro ou lenta,
+backup atrasado e outros serviços do systemd, coleta parada, voz sem conectar,
+erros novos do app) em canais de texto de um servidor da própria Salinha, e
+manda um resumo do dia anterior às 8h em `#resumo-diario`. Regras, limiares e como silenciar:
+[OBSERVABILIDADE.md](OBSERVABILIDADE.md#alertas) ([ADR 0071](adr/0071-alertas-em-canais-do-servidor-dos-devs.md)).
+
+| Variável (`/opt/concord/.env`) | Padrão | O quê |
+|---|---|---|
+| `ALERTS_SERVER_ID` | vazio (desligado) | id do servidor que recebe os alertas (o "Devs Salinha") |
+| `ALERTS_MUTED` | vazio | ids de regras que não postam (ex.: `livekit_cpu,host_cpu`) |
+| `APP_URL` | `http://localhost:5173` | base dos links do painel nas mensagens (`<APP_URL>/observabilidade/<aba>`) |
+| `OBS_DISK_PATH` | `.` (a pasta do serviço, `/opt/concord`) | o disco que as regras `host_disk`/`host_inodes` olham (da coleta da VPS, ADR 0067) |
+| `OBS_BACKUP_DIR` | `backups` | a pasta dos `concord-*.sql.gz` que a regra `backup_late` olha |
+
+As regras da parte 2 (ADR 0071, emenda) não pedem variável nova: leem as
+tabelas da coleta da VPS e da API (`host_metrics`, `api_metrics`) e dos erros
+do app. A máquina congelada lê `/sys/class/rtc/rtc0/since_epoch` (legível por
+qualquer usuário; o `concord-server.service` não esconde o `/sys`); com o
+backend dentro de um contêiner sem esse arquivo, só o salto do relógio vale.
+O deploy aplica a migration 000220 (`alert_daily_summaries`).
+
+Ligado, o boot garante a categoria **Monitoramento** com `#alertas`, `#erros`,
+`#qualidade` e `#resumo-diario` (canais de sistema: não dá para apagar pelo
+app; os que já existem são reaproveitados, mesmo renomeados ou movidos). As
+mensagens saem como **Salinha Bot**; o crítico pinga `@all` (push para todos
+do servidor). Quem hospeda a própria Salinha deixa vazio.
+
+**Falha de serviço do systemd**: o modelo
+[`deploy/concord-alerta@.service`](../deploy/concord-alerta@.service) chama
+`POST /internal/alerts/unit-failed` em `127.0.0.1:8090`, e cada unidade tem
+`OnFailure=concord-alerta@%n.service`. A rota só atende a própria máquina
+(recusa quem não vem de 127.0.0.1 e todo pedido com `X-Forwarded-For`, que o
+Caddy sempre põe) e o [`deploy/Caddyfile`](../deploy/Caddyfile) responde 404
+em `/internal/*`. Com `ALERTS_SERVER_ID` no `.env` da VPS, o `scripts/deploy-vps.sh` instala o
+modelo e um complemento `<unidade>.d/alerta.conf` com o `OnFailure` em cada
+`concord-*`/`salinha-*`.service da VPS (menos o `concord-server`, que avisa ao
+voltar), sem tocar nos arquivos delas; o `concord-ytdlp-update.service` que ele gera já nasce com o
+`OnFailure`, e os arquivos de `deploy/` (`concord-backup.service`,
+`salinha-firewall.service`) também trazem a linha, para instalações novas.
+
+**Ligar na VPS (uma vez):**
+
+1. No app, copie o id do servidor "Devs Salinha" (o mesmo da URL
+   `/servers/<id>/...`).
+2. `ssh root@IP` e acrescente ao `/opt/concord/.env`:
+   `ALERTS_SERVER_ID=<id>` (e `APP_URL=https://app-salinha.bhrx.com.br`, se
+   ainda não estiver lá).
+3. Faça o deploy desta versão (`scripts/deploy-vps.sh root@IP` ou o merge na
+   `main`): ele aplica as migrations 000215/000216 (e a 000220, do resumo diário), instala o
+   `concord-alerta@.service` e os complementos `alerta.conf`, e reinicia o
+   backend, que cria os canais e posta "Backend no ar, versão …" em `#alertas`.
+4. Caddy, quando ninguém estiver em chamada:
+   `scripts/apply-caddyfile.sh root@IP deploy/Caddyfile` (o bloco novo de
+   `/internal/*`). Até lá a rota já recusa quem vem de fora pelo
+   `X-Forwarded-For`; o Caddy é a segunda trava.
+5. Conferir:
+
+```bash
+ssh root@IP 'systemctl cat concord-backup.service | grep OnFailure'     # concord-alerta@%n.service
+ssh root@IP 'systemctl start concord-alerta@teste.service'              # "Aviso: o serviço teste falhou..." em #alertas
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://app-salinha.bhrx.com.br/internal/alerts/unit-failed   # 405: cai no app web, não no backend
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://74-0-5-252.sslip.io/internal/alerts/unit-failed       # 404 (de fora)
+```
+
+Desligar: apague `ALERTS_SERVER_ID` e reinicie o backend. Os canais ficam (são
+de sistema); para tirá-los, `UPDATE channels SET is_system = false,
+system_kind = NULL WHERE system_kind LIKE 'alert_%';` e apague pelo app.
+
 ## Nomes de usuário sem diferenciar caixa
 
 O login aceita e-mail ou nome de usuário sem diferenciar maiúsculas de

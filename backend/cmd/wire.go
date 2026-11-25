@@ -97,6 +97,8 @@ type app struct {
 	badgeDone chan struct{}
 
 	routes []func(router *gin.Engine, api *gin.RouterGroup)
+	// middlewares: globais, depois dos do newRouter (ex.: métricas da API).
+	middlewares []gin.HandlerFunc
 }
 
 // route guarda o registro de rotas de uma área para depois do wiring.
@@ -105,6 +107,7 @@ func (a *app) route(register func(router *gin.Engine, api *gin.RouterGroup)) {
 }
 
 func (a *app) registerRoutes(router *gin.Engine) {
+	router.Use(a.middlewares...)
 	// Teto do corpo antes de qualquer rota (internal/platform/bodylimit).
 	api := router.Group("/api", bodylimit.Middleware(bodylimit.APIConfig()))
 	for _, register := range a.routes {
@@ -146,5 +149,9 @@ func wire(ctx context.Context, db *pgxpool.Pool) *app {
 	a.wireAccount()
 	a.wireUpdates()
 	a.wireLiveObs()
+	a.wireServerObs()
+	a.wireAppErrors()
+	a.wireDeviceObs()
+	a.wireAlerts()
 	return a
 }

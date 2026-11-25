@@ -1,9 +1,18 @@
 import type { WorstRow } from '../api/observability'
-import { durationLabel, kindLabel, numberLabel, pctLabel, qualityLine } from '../lib/reportFormat'
+import {
+  durationLabel,
+  kindLabel,
+  numberLabel,
+  pctLabel,
+  platformLabel,
+  qualityLine
+} from '../lib/reportFormat'
+import { mediaLine } from '../lib/mediaFormat'
 import { Empty, Panel } from './Panel'
 
 function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
   const quality = qualityLine(row)
+  const media = mediaLine(row)
   return (
     <li className="flex flex-col gap-2 rounded-lg bg-surface p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -11,7 +20,8 @@ function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
           {row.username || '—'} · {kindLabel(row.kind)}
         </span>
         <span className="text-ds-sm text-gray-400">
-          {durationLabel(row.duration_seconds)} · {row.codec || '—'} · {row.os || '—'}
+          {durationLabel(row.duration_seconds)} · {row.codec || '—'} · {row.os || '—'} ·{' '}
+          {platformLabel(row)}
         </span>
       </div>
       {row.kind !== 'call' && (
@@ -21,6 +31,7 @@ function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
         </p>
       )}
       {quality && <p className="text-ds-sm text-secondary">{quality}</p>}
+      {media && <p className="text-ds-sm text-secondary">{media}</p>}
       {row.reasons.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
           {row.reasons.map((reason) => (
@@ -34,12 +45,20 @@ function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
   )
 }
 
-/** As piores sessões (lives e voz das calls) e o motivo provável. */
-export function WorstSessions({ rows }: { rows: WorstRow[] }): React.JSX.Element {
+/** As piores sessões (de live ou de voz das calls) e o motivo provável. */
+export function WorstSessions({
+  title,
+  empty,
+  rows
+}: {
+  title: string
+  empty: string
+  rows: WorstRow[]
+}): React.JSX.Element {
   return (
-    <Panel title="Piores sessões e por quê">
+    <Panel title={title}>
       {rows.length === 0 ? (
-        <Empty>Nenhuma sessão ruim no período.</Empty>
+        <Empty>{empty}</Empty>
       ) : (
         <ul className="grid gap-2 lg:grid-cols-2">
           {rows.map((row) => (

@@ -5,6 +5,7 @@ import {
   type NativeLiveQuality,
   type NativeLiveStart
 } from '../../shared/nativeLive'
+import { reportHelperExit } from '../errorReport/mainErrors'
 
 // O processo do helper concord-live de uma live: manda os comandos (um JSON
 // por linha no stdin) e entrega os eventos validados. stdin aberto até o fim:
@@ -14,7 +15,7 @@ import {
 export interface LiveChild {
   stdin: Writable | null
   stdout: Readable | null
-  on(event: 'exit', listener: (code: number | null) => void): unknown
+  on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown
   on(event: 'error', listener: (error: Error) => void): unknown
   kill(): boolean
 }
@@ -98,7 +99,7 @@ export class LiveProcess {
       this.log(`helper: ${error.message}`)
       this.finish(child, null)
     })
-    child.on('exit', (code) => this.finish(child, code))
+    child.on('exit', (code, signal) => this.finish(child, code, signal))
   }
 
   private handleLine(line: string): void {
@@ -108,15 +109,20 @@ export class LiveProcess {
     this.onEvent(event)
   }
 
-  /** O processo acabou: se não disse por quê, foi falha. */
-  private finish(child: LiveChild, code: number | null): void {
+  /**
+   * O processo acabou: se não disse por quê, foi falha. Depois de um `stop` (o
+   * kill de quem não parou a tempo) a saída foi pedida: não vai para o relatório.
+   */
+  private finish(child: LiveChild, code: number | null, signal: NodeJS.Signals | null = null): void {
     if (this.child !== child) return
     this.child = null
+    const stopping = this.killTimer !== null
     if (this.killTimer) clearTimeout(this.killTimer)
     this.killTimer = null
     if (this.ended) return
     this.ended = true
     this.log(`helper saiu sem avisar (código ${code})`)
+    if (!stopping) reportHelperExit('concord-live', code, signal)
     this.onEvent({ event: 'error', code: 'helper_failed', message: `saiu com código ${code}` })
     this.onEvent({ event: 'ended', reason: 'helper_exit' })
   }

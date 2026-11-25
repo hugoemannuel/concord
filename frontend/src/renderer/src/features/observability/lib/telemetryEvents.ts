@@ -6,25 +6,42 @@ import type { SessionKind, TelemetryEvent, TelemetrySample } from './telemetryTy
 /** Congelamentos somando isso no intervalo viram "congelamento longo". */
 export const LONG_FREEZE_MS = 2000
 
-type Rule = (prev: TelemetrySample | null, now: TelemetrySample) => TelemetryEvent | null
+/** O que a amostra não leva e os eventos precisam. */
+export interface EventHints {
+  /** Por que o controlador da minha live desceu (bandwidth, cpu). */
+  stepReason?: string | null
+  /** O nome do codificador/decodificador (libvpx, OpenH264...). */
+  implementation?: string | null
+}
+
+type Rule = (
+  prev: TelemetrySample | null,
+  now: TelemetrySample,
+  hints: EventHints
+) => TelemetryEvent | null
 
 const event = (type: string, detail = ''): TelemetryEvent => ({ type, detail })
 
-const step: Rule = (prev, now) => {
+// O motivo é o do controlador; sem ele, o qualityLimitationReason (quase sempre none).
+const step: Rule = (prev, now, hints) => {
   if (prev?.step == null || now.step == null || prev.step === now.step) return null
   const detail = `${prev.step} → ${now.step}`
+  const reason = hints.stepReason || now.limitation || '—'
   return now.step > prev.step
-    ? event('degrau_caiu', `${detail} (${now.limitation || '—'})`)
+    ? event('degrau_caiu', `${detail} (${reason})`)
     : event('degrau_subiu', detail)
 }
 
 const backup: Rule = (prev, now) =>
   now.backup && !prev?.backup ? event('reserva_ligada', now.codec) : null
 
+/** "H265 · libavcodec": o codec e qual componente caiu no processador (sem nome, só o codec). */
 const software =
   (type: string): Rule =>
-  (prev, now) =>
-    now.hardware === false && prev?.hardware !== false ? event(type, now.codec) : null
+  (prev, now, hints) =>
+    now.hardware === false && prev?.hardware !== false
+      ? event(type, [now.codec, hints.implementation].filter(Boolean).join(' · '))
+      : null
 
 const codec: Rule = (prev, now) =>
   prev?.codec && now.codec && prev.codec !== now.codec
@@ -49,7 +66,8 @@ const RULES: Record<SessionKind, Rule[]> = {
 export function sampleEvents(
   kind: SessionKind,
   prev: TelemetrySample | null,
-  now: TelemetrySample
+  now: TelemetrySample,
+  hints: EventHints = {}
 ): TelemetryEvent[] {
-  return RULES[kind].flatMap((rule) => rule(prev, now) ?? [])
+  return RULES[kind].flatMap((rule) => rule(prev, now, hints) ?? [])
 }

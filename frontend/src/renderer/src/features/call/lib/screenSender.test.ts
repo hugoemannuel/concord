@@ -23,6 +23,7 @@ import type { LocalParticipant } from 'livekit-client'
 import { H264_HIGH_CONTENT_TYPE, requireHighH264 } from './screenH264Profile'
 import { ScreenSender } from './screenSender'
 import { takeScreenCodecChoice } from './screenCodecChoice'
+import { takeLiveFailures, takeLiveStart } from './screenStartTelemetry'
 import { ADAPT } from './screenAdaptController'
 import { rememberScreenSource, rememberStreamQuality } from './screenShareQuality'
 import { SIMULCAST_KEY } from './screenSimulcast'
@@ -224,6 +225,23 @@ describe('ScreenSender', () => {
     screen.stop()
   })
 
+  it('anota o tempo até a live no ar (telemetria, ADR 0074)', async () => {
+    const { screen, stream } = setup({ h264: true })
+    takeLiveStart()
+    await screen.publish(stream)
+    expect(takeLiveStart()).not.toBeNull()
+    screen.stop()
+  })
+
+  it('a publicação falhou: anota a etapa e o erro segue', async () => {
+    const { screen, stream, participant } = setup({ h264: true })
+    takeLiveFailures()
+    participant.publishTrack.mockRejectedValueOnce(new DOMException('x', 'TimeoutError'))
+    await expect(screen.publish(stream)).rejects.toThrow()
+    expect(takeLiveFailures().map((e) => e.detail)).toEqual(['publicação · TimeoutError'])
+    expect(takeLiveStart()).toBeNull()
+  })
+
   it('sem AV1 nem H.265 por hardware: H.264 com VP8 de reserva', async () => {
     const { screen, participant, stream } = setup()
     await screen.publish(stream)
@@ -408,7 +426,7 @@ describe('ScreenSender', () => {
       expect.anything(),
       expect.objectContaining({ videoCodec: 'h264', backupCodec: { codec: 'vp8' } })
     )
-    expect(Number(data.get('salinha:screen-h265-software'))).toBeGreaterThan(0)
+    expect(JSON.parse(data.get('salinha:screen-h265-software') ?? '{}').at).toBeGreaterThan(0)
     expect(fallbacks.at(-1)).toEqual({ from: 'h265', to: 'h264' })
     // Republicada em H.264 e saindo nele: não republica de novo.
     track.getRTCStatsReport.mockResolvedValue(sendingCodec('video/H264'))
@@ -431,6 +449,30 @@ describe('ScreenSender', () => {
     expect(fallbacks.at(-1)).toEqual({ from: 'h265', to: 'vp8' })
     await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 4)
     expect(participant.publishTrack).toHaveBeenCalledTimes(3)
+    screen.stop()
+  })
+  it('regressão: H.264 no processador com o plano esperando a placa marca uma vez só na live', async () => {
+    const { screen, stream, track, data } = setup({ h264: true })
+    await screen.publish(stream)
+    const soft = sendingCodec('video/H264') as Map<string, Record<string, unknown>>
+    soft.set('o1', { ...soft.get('o1'), powerEfficientEncoder: false })
+    track.getRTCStatsReport.mockResolvedValue(soft as never)
+    const writes = vi.spyOn(localStorage, 'setItem')
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 10)
+    expect(writes.mock.calls.filter(([key]) => key === 'salinha:screen-h264-software')).toHaveLength(1)
+    expect(data.has('salinha:screen-h264-software')).toBe(true)
+    screen.stop()
+  })
+
+  it('regressão: o plano já contava com o processador (marca vigente ou sem placa): não regrava', async () => {
+    const { screen, stream, track } = setup()
+    await screen.publish(stream)
+    const soft = sendingCodec('video/H264') as Map<string, Record<string, unknown>>
+    soft.set('o1', { ...soft.get('o1'), powerEfficientEncoder: false })
+    track.getRTCStatsReport.mockResolvedValue(soft as never)
+    const writes = vi.spyOn(localStorage, 'setItem')
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 10)
+    expect(writes.mock.calls.filter(([key]) => key === 'salinha:screen-h264-software')).toHaveLength(0)
     screen.stop()
   })
 })

@@ -6,6 +6,8 @@ import {
   Track
 } from 'livekit-client'
 import { RemoteSubscriptions } from './remoteSubscriptions'
+import { ScreenReceiveWatch } from './screenReceiveWatch'
+import { reportHevcDecodeFailure } from './screenHevcFailure'
 import { watchVideoPause } from './screenVideoPause'
 import { groupTracks, listScreenPublishers, StreamCache, type MediaKind } from './callMedia'
 import { remoteEntries } from './remoteEntries'
@@ -20,6 +22,7 @@ import type { ScreenEncoderInfo } from './screenEncoderInfo'
 import type { ScreenStatsInput } from './screenStats'
 import { RemoteEncoders, serveScreenEncoder } from './screenEncoderRpc'
 import { readCallReport } from './callStatsReport'
+import { noteWatchedScreens } from './screenFirstFrame'
 import {
   clearActiveScreenStats,
   readScreenStatsInput,
@@ -89,6 +92,17 @@ export class CallMedia {
   private connected = false
   /** O que baixar de cada pessoa (tela só de quem assisto; vídeo pausado fora de vista). */
   private subscriptions = new RemoteSubscriptions()
+  /** O decodificador dá conta das lives que assisto? (camada baixa, H.265; ADR 0073) */
+  private receiveWatch = new ScreenReceiveWatch({
+    // A prévia da minha live nativa não conta (é o meu próprio envio).
+    participants: () =>
+      [...this.room.remoteParticipants.values()].filter((p) => p.identity !== this.nativeScreen?.identity),
+    onOverload: (identity, low) => {
+      this.subscriptions.setDecodeLimited(identity, low)
+      this.applySubscriptions()
+    },
+    onHevcFailed: (userId, rates) => void reportHevcDecodeFailure(userId, rates)
+  })
   private stopWindowWatch: () => void
   private refreshQueued = false
   private mic = new MicPublisher(() => this.room.localParticipant)
@@ -125,6 +139,7 @@ export class CallMedia {
     serveScreenEncoder(this.room, async () =>
       this.nativeScreen ? this.nativeScreen.encoderInfo() : this.screen.encoderInfo()
     )
+    this.receiveWatch.start()
     this.stopWindowWatch = watchVideoPause((pause) => {
       if (this.subscriptions.setPause(pause)) this.applySubscriptions()
     })
@@ -311,6 +326,7 @@ export class CallMedia {
 
   /** Passa a baixar a tela (e o som dela) só dessas pessoas. */
   setWatchedScreens(userIds: string[]): void {
+    noteWatchedScreens(userIds)
     this.subscriptions.setWatched(userIds)
     this.applySubscriptions()
   }
@@ -321,7 +337,9 @@ export class CallMedia {
 
   disconnect(): void {
     this.closing = true
+    noteWatchedScreens([])
     clearActiveScreenStats(this)
+    this.receiveWatch.stop()
     this.screen.stop()
     this.stopWindowWatch()
     this.cache.clear()

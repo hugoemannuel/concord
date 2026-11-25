@@ -46,8 +46,9 @@ describe('initialPanel', () => {
     ['/ranking', 'content'],
     // Visita (link de visitante): abre direto na call, com o voltar para a lista.
     ['/visitas/s1', 'content'],
-    // Painel das lives (devs): tela própria, sem lista.
+    // Painel de observabilidade (devs): tela própria, sem lista, em qualquer aba.
     ['/observabilidade', 'content'],
+    ['/observabilidade/chamadas', 'content'],
     // Mensagens favoritas: tela própria, com o voltar para a lista.
     ['/favoritas', 'content']
   ] as const)('abrir em %s mostra %s', (path, panel) => {

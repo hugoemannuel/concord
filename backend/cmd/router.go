@@ -11,6 +11,7 @@ import (
 	"gin-quickstart/backend/internal/platform/health"
 	"gin-quickstart/backend/internal/platform/httplog"
 	"gin-quickstart/backend/internal/platform/lifecycle"
+	"gin-quickstart/backend/internal/platform/recovery"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -28,7 +29,8 @@ func newRouter(db *pgxpool.Pool) (*gin.Engine, *lifecycle.Streams, *health.Readi
 	}
 	log.Printf("trusted proxies: %v", trustedProxies)
 	// O deploy e o apply-caddyfile consultam /healthz em laço: fora do log.
-	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{Formatter: httplog.Formatter, SkipPaths: []string{"/healthz"}}), gin.Recovery())
+	// recovery.Middleware é o gin.Recovery() com observadores de panic (ADR 0068).
+	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{Formatter: httplog.Formatter, SkipPaths: []string{"/healthz"}}), recovery.Middleware())
 
 	// Downloads longos não seguram o desligamento (ver isLongDownload).
 	streams := lifecycle.NewStreams()

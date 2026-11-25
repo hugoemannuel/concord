@@ -4,6 +4,7 @@ import type { AvatarStore } from './overlayAvatars'
 import type { OverlayHost, OverlaySurface } from './overlaySurface'
 import { nativeStateLine, parseNativeOverlayEvent } from './nativeOverlayProtocol'
 import type { Foreground } from './overlayPolicy'
+import { reportHelperExit } from '../errorReport/mainErrors'
 
 // Overlay desenhado pelo helper nativo (`concord-audio.exe overlay`): uma
 // janela Win32 em camada com Direct2D, sem Chromium por cima do jogo. O estado
@@ -57,7 +58,11 @@ export function createNativeOverlay(host: OverlayHost, deps: NativeOverlayDeps):
   }
 
   child.on('error', (err) => fail(`não iniciou: ${err.message}`))
-  child.on('exit', (code) => fail(`saiu (código ${code})`))
+  child.on('exit', (code, signal) => {
+    // done = o fim foi pedido (destroy) ou já tratado (sem resposta a tempo).
+    if (!done) reportHelperExit('concord-overlay', code, signal)
+    fail(`saiu (código ${code})`)
+  })
   // Pipe fechado no meio de uma escrita: o 'exit' explica o resto.
   child.stdin?.on('error', () => {})
   child.stderr?.setEncoding('utf8')

@@ -91,8 +91,10 @@ func TestReportRepositoryAgregaOsSinaisDaVoz(t *testing.T) {
 		{Seconds: 0, ConnectMs: intp(1800)},
 		{Seconds: 60, ConcealedPct: fp(2), RecvLossPct: fp(1), CaptureFPS: fp(40), RecvFPS: fp(50), CodecMs: fp(4)},
 		{Seconds: 60, ConcealedPct: fp(6), RecvLossPct: fp(3), CaptureFPS: fp(50), RecvFPS: fp(30), CodecMs: fp(8)},
+		{Seconds: 30, RecvLossPct: fp(5)},
 	}
-	events := [][]Event{nil, {{Type: EventReconnected, Detail: "3 s"}}, {{Type: EventReconnected}, {Type: EventConnectFailed}}}
+	access := Event{Type: EventConnectFailed, Detail: "entrando (acesso): Você não tem mais acesso a esta chamada"}
+	events := [][]Event{nil, {{Type: EventReconnected, Detail: "3 s"}}, {{Type: EventReconnected}, {Type: EventConnectFailed}}, {access}}
 	for i := range samples {
 		r := Report{SessionID: sessionA, Kind: KindCall, CallID: callA, Sample: &samples[i], Events: events[i]}
 		if err := tel.Save(ctx, userAna, r); err != nil {
@@ -109,7 +111,10 @@ func TestReportRepositoryAgregaOsSinaisDaVoz(t *testing.T) {
 		ok   bool
 	}{
 		{"áudio sintetizado médio", s.ConcealedPct != nil && near(*s.ConcealedPct, 4)},
-		{"perda recebida média", s.RecvLossPct != nil && near(*s.RecvLossPct, 2)},
+		{"perda recebida média", s.RecvLossPct != nil && near(*s.RecvLossPct, 3)},
+		{"minutos ruins: 1 robotizado, 0,5 com perda ≥ 5%", near(s.RoboticMinutes, 1) && near(s.LossMinutes, 0.5) &&
+			near(s.BadMinutes, 1.5)},
+		{"falha de acesso à parte", s.AccessFailures == 1},
 		{"captura, recebidos e codec médios", s.CaptureFPS != nil && near(*s.CaptureFPS, 45) &&
 			s.RecvFPS != nil && near(*s.RecvFPS, 40) && s.CodecMs != nil && near(*s.CodecMs, 6)},
 		{"tempo para conectar", s.ConnectMs != nil && near(*s.ConnectMs, 1800)},
@@ -119,5 +124,67 @@ func TestReportRepositoryAgregaOsSinaisDaVoz(t *testing.T) {
 		if !c.ok {
 			t.Errorf("%s: %+v", c.name, s)
 		}
+	}
+}
+
+func TestReportRepositoryLeOContextoESinaisDoCelular(t *testing.T) {
+	db := newTelemetryDB(t)
+	ctx := context.Background()
+	tel := NewTelemetryRepository(db)
+	c := ClientContext{OS: "Android 14", Target: "android", Device: "motorola moto g54", Network: "cellular-4g"}
+	events := []Event{{Type: EventBackground}, {Type: EventForeground}, {Type: EventBackground},
+		{Type: EventNetworkChanged, Detail: "wifi → cellular-4g"}}
+	r := Report{SessionID: sessionA, Kind: KindCall, CallID: callA, Context: c, Sample: &Sample{Seconds: 60}, Events: events}
+	if err := tel.Save(ctx, userAna, r); err != nil {
+		t.Fatal(err)
+	}
+	got, err := NewReportRepository(db).Sessions(ctx, time.Now().Add(-time.Hour))
+	if err != nil || len(got) != 1 {
+		t.Fatalf("sessões = %v, %v", got, err)
+	}
+	s := got[0]
+	if s.Device != "motorola moto g54" || s.Network != "cellular-4g" || s.Target != "android" {
+		t.Errorf("contexto = %+v", s)
+	}
+	if s.Backgrounds != 2 || s.NetworkChanges != 1 {
+		t.Errorf("segundo plano = %d, trocas de rede = %d; quer 2 e 1", s.Backgrounds, s.NetworkChanges)
+	}
+}
+
+func TestReportRepositoryEventosDaVozDoPeriodoInteiro(t *testing.T) {
+	db := newTelemetryDB(t)
+	ctx := context.Background()
+	tel := NewTelemetryRepository(db)
+	call := Report{SessionID: sessionA, Kind: KindCall, CallID: callA, Sample: &Sample{Seconds: 60},
+		Events: []Event{{Type: EventReconnected, Detail: "16 s"}, {Type: EventConnectFailed, Detail: "reconectando: caiu"}}}
+	if err := tel.Save(ctx, userAna, call); err != nil {
+		t.Fatal(err)
+	}
+	// Depois, muitos congelamentos de live: os últimos N eventos são só eles.
+	freezes := []Event{}
+	for range 5 {
+		freezes = append(freezes, Event{Type: EventLongFreeze})
+	}
+	watch := Report{SessionID: sessionB, Kind: KindWatch, CallID: callA, StreamerID: userAna,
+		Sample: &Sample{Seconds: 20}, Events: freezes}
+	if err := tel.Save(ctx, userBia, watch); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewReportRepository(db)
+	from := time.Now().Add(-time.Hour)
+	recent, err := repo.Events(ctx, from, 3)
+	if err != nil || len(recent) != 3 || recent[0].Type != EventLongFreeze {
+		t.Fatalf("recentes = %+v, %v", recent, err)
+	}
+	got, err := repo.CallEvents(ctx, from, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Type != EventConnectFailed || got[1].Type != EventReconnected || got[1].Detail != "16 s" ||
+		got[0].Kind != KindCall {
+		t.Errorf("eventos da voz = %+v", got)
+	}
+	if few, _ := repo.CallEvents(ctx, from, 1); len(few) != 1 {
+		t.Errorf("teto ignorado: %d", len(few))
 	}
 }

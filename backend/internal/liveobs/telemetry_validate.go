@@ -24,16 +24,23 @@ const (
 	maxKbps    = 200_000
 	maxCount   = 1_000_000
 	maxMs      = 600_000.0
+	// maxAgoMs: evento mais velho que isso fica com a hora de 15 min atrás.
+	maxAgoMs = 15 * 60_000
 )
 
 var (
 	kinds        = map[string]bool{KindShare: true, KindWatch: true, KindCall: true}
 	transports   = map[string]bool{"udp": true, "tcp": true, "relay": true}
 	limitations  = map[string]bool{"none": true, "cpu": true, "bandwidth": true, "other": true}
+	targets      = map[string]bool{"desktop": true, "web": true, "android": true}
 	clientEvents = map[string]bool{
 		EventStepDown: true, EventStepUp: true, EventBackupOn: true, EventEncoderSW: true,
 		EventDecoderSW: true, EventLongFreeze: true, EventServerPaused: true, EventCodecSwitched: true,
 		EventCodecChosen: true, EventConnectFailed: true, EventReconnected: true,
+		EventBackground: true, EventForeground: true, EventNetworkChanged: true, EventAudioRoute: true,
+		EventSlowJoin: true, EventJoinAbandoned: true,
+		EventDecoderFailed: true,
+		EventLiveFailed:    true, EventSlept: true,
 	}
 )
 
@@ -60,6 +67,7 @@ func (r *Report) Validate() error {
 		r.Sample.clean()
 	}
 	r.Events = cleanEvents(r.Events)
+	r.AgoMs = agoIn(r.AgoMs)
 	return nil
 }
 
@@ -75,10 +83,11 @@ func optionalUUID(s string) bool {
 func (c *ClientContext) clean() {
 	c.OS = cut(c.OS, maxText)
 	c.AppVersion = cut(c.AppVersion, maxCodec*2)
-	c.Target = cut(c.Target, maxCodec)
+	c.Target = oneOf(c.Target, targets)
 	c.GPU = cut(c.GPU, maxText)
 	c.Network = cut(c.Network, maxCodec)
 	c.Cores = max(0, min(c.Cores, 1024))
+	c.Device = cut(c.Device, maxText)
 }
 
 func (s *Sample) clean() {
@@ -102,6 +111,7 @@ func (s *Sample) clean() {
 	}
 	s.FreezeMs = int(between(float64(s.FreezeMs), 0, maxMs))
 	s.cleanQuality()
+	s.MediaSignals.clean()
 }
 
 // cleanQuality: os sinais da ADR 0032.
@@ -122,7 +132,7 @@ func cleanEvents(events []Event) []Event {
 			break
 		}
 		if clientEvents[e.Type] {
-			out = append(out, Event{Type: e.Type, Detail: cut(e.Detail, maxText)})
+			out = append(out, Event{Type: e.Type, Detail: cut(e.Detail, maxText), AgoMs: agoIn(e.AgoMs)})
 		}
 	}
 	return out
@@ -164,6 +174,10 @@ func intIn(p *int, hi int) *int {
 	}
 	v := min(*p, hi)
 	return &v
+}
+
+func agoIn(v int) int {
+	return max(0, min(v, maxAgoMs))
 }
 
 func countIn(v int) int {

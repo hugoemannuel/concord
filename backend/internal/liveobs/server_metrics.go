@@ -37,6 +37,9 @@ type ServerMinute struct {
 	// Máquina inteira (todas as vCPUs = 100%).
 	HostCPUPercent *float64
 	HostMemPercent *float64
+	// LiveKitStartedAt: quando o processo do LiveKit começou
+	// (process_start_time_seconds); mudou de um minuto para o outro = reiniciou.
+	LiveKitStartedAt *time.Time
 }
 
 // Contadores e medidores lidos numa coleta.
@@ -72,6 +75,7 @@ const (
 	gVideoIn
 	gVideoOut
 	gRSS
+	gStarted
 	numGauges
 )
 
@@ -104,14 +108,19 @@ var counterQueries = [numCounters]query{
 	cCPUSeconds:         {"process_cpu_seconds_total", nil},
 }
 
+// video: o rótulo kind que o LiveKit publica (TrackType.String(), em
+// maiúsculas; conferido na produção em 25/11/2026: kind="VIDEO" e "AUDIO").
+var video = map[string]string{"kind": "VIDEO"}
+
 var gaugeQueries = [numGauges]query{
 	gRooms:        {"livekit_room_total", nil},
 	gParticipants: {"livekit_participant_total", nil},
 	gTracksIn:     {"livekit_track_published_total", nil},
 	gTracksOut:    {"livekit_track_subscribed_total", nil},
-	gVideoIn:      {"livekit_track_published_total", map[string]string{"kind": "video"}},
-	gVideoOut:     {"livekit_track_subscribed_total", map[string]string{"kind": "video"}},
+	gVideoIn:      {"livekit_track_published_total", video},
+	gVideoOut:     {"livekit_track_subscribed_total", video},
 	gRSS:          {"process_resident_memory_bytes", nil},
+	gStarted:      {"process_start_time_seconds", nil},
 }
 
 // counters: uma coleta do /metrics.
@@ -139,13 +148,34 @@ func (now counters) delta(prev counters, c counter) float64 {
 	return now.c[c] - prev.c[c]
 }
 
-// average de um histograma (soma/contagem) no intervalo; nil sem amostras.
-func (now counters) average(prev counters, sum, count counter, scale float64) *float64 {
-	n := now.delta(prev, count)
-	if n <= 0 {
+// histogram: soma e contagem de um histograma do LiveKit, a escala para a
+// unidade gravada e o maior valor possível nela.
+type histogram struct {
+	sum, count counter
+	scale, max float64
+}
+
+// minHistogramSamples: com menos amostras no intervalo, a média não vale (o
+// RTT de minuto ocioso, com 1 ou 2 amostras, chega a centenas de ms).
+const minHistogramSamples = 3
+
+var (
+	rttHist    = histogram{cRTTSum, cRTTCount, 1, 10_000}           // ms; 10 s
+	jitterHist = histogram{cJitterSum, cJitterCount, 0.001, 10_000} // µs → ms; 10 s
+	scoreHist  = histogram{cScoreSum, cScoreCount, 1, 5}            // nota de 0 a 5
+)
+
+// average de um histograma no intervalo; nil com poucas amostras ou valor
+// impossível (23/11: RTT de 3 855 065 ms num minuto).
+func (now counters) average(prev counters, h histogram) *float64 {
+	n := now.delta(prev, h.count)
+	if n < minHistogramSamples {
 		return nil
 	}
-	v := now.delta(prev, sum) / n * scale
+	v := now.delta(prev, h.sum) / n * h.scale
+	if v < 0 || v > h.max {
+		return nil
+	}
 	return &v
 }
 
@@ -166,9 +196,9 @@ func serverMinute(prev, now counters, seconds float64) ServerMinute {
 		PacketsLostOut:     d(cLostOut),
 		Nack:               d(cNack),
 		Pli:                d(cPli),
-		RTTMs:              now.average(prev, cRTTSum, cRTTCount, 1),
-		JitterMs:           now.average(prev, cJitterSum, cJitterCount, 0.001),
-		QualityScore:       now.average(prev, cScoreSum, cScoreCount, 1),
+		RTTMs:              now.average(prev, rttHist),
+		JitterMs:           now.average(prev, jitterHist),
+		QualityScore:       now.average(prev, scoreHist),
 		Rooms:              g(gRooms),
 		Participants:       g(gParticipants),
 		TracksIn:           g(gTracksIn),
@@ -177,7 +207,17 @@ func serverMinute(prev, now counters, seconds float64) ServerMinute {
 		VideoTracksOut:     g(gVideoOut),
 		LiveKitCPUPercent:  cpuOver(now.delta(prev, cCPUSeconds), seconds),
 		LiveKitMemMB:       &mem,
+		LiveKitStartedAt:   unixTime(now.g[gStarted]),
 	}
+}
+
+// unixTime: segundos desde 1970 (como o Prometheus exporta); nil sem o valor.
+func unixTime(seconds float64) *time.Time {
+	if seconds <= 0 {
+		return nil
+	}
+	t := time.Unix(0, int64(seconds*1e9)).UTC()
+	return &t
 }
 
 func cpuOver(cpuSeconds, seconds float64) *float64 {

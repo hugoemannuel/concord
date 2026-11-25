@@ -79,6 +79,11 @@
 (salinha_app) {
 	import salinha_rtc
 	import salinha_updates
+	# Rotas internas do backend (/internal/*: o aviso de falha do systemd,
+	# docs/adr/0071) são só da própria VPS: nunca saem daqui.
+	handle /internal/* {
+		respond 404
+	}
 	handle {
 		import salinha_backend
 	}

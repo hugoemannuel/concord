@@ -3,13 +3,14 @@ package liveobs
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ServerRepository: a tabela livekit_metrics (migration 000172).
+// ServerRepository: a tabela livekit_metrics (migrations 000172 e 000217).
 type ServerRepository struct {
 	db *pgxpool.Pool
 }
@@ -21,20 +22,36 @@ func NewServerRepository(db *pgxpool.Pool) *ServerRepository {
 const serverColumns = `minute, seconds, up, bytes_in, bytes_out, retransmit_bytes_out,
 	packets_in, packets_out, packets_lost_in, packets_lost_out, nack, pli,
 	rtt_ms, jitter_ms, quality_score, rooms, participants, tracks_in, tracks_out,
-	video_tracks_in, video_tracks_out, livekit_cpu_pct, livekit_mem_mb, host_cpu_pct, host_mem_pct`
+	video_tracks_in, video_tracks_out, livekit_cpu_pct, livekit_mem_mb, host_cpu_pct, host_mem_pct,
+	livekit_started_at`
+
+// serverUpdate: o SET do "mesmo minuto de novo" coluna a coluna (e não
+// ROW(EXCLUDED.*), que quebra quando a tabela ganha uma coluna que o
+// coletor não grava).
+var serverUpdate = excludedSet(serverColumns)
+
+func excludedSet(columns string) string {
+	cols := strings.Split(columns, ",")
+	for i, c := range cols {
+		c = strings.TrimSpace(c)
+		cols[i] = c + " = EXCLUDED." + c
+	}
+	return strings.Join(cols, ", ")
+}
 
 func (m *ServerMinute) fields() []any {
 	return []any{&m.Minute, &m.Seconds, &m.Up, &m.BytesIn, &m.BytesOut, &m.RetransmitBytesOut,
 		&m.PacketsIn, &m.PacketsOut, &m.PacketsLostIn, &m.PacketsLostOut, &m.Nack, &m.Pli,
 		&m.RTTMs, &m.JitterMs, &m.QualityScore, &m.Rooms, &m.Participants, &m.TracksIn, &m.TracksOut,
-		&m.VideoTracksIn, &m.VideoTracksOut, &m.LiveKitCPUPercent, &m.LiveKitMemMB, &m.HostCPUPercent, &m.HostMemPercent}
+		&m.VideoTracksIn, &m.VideoTracksOut, &m.LiveKitCPUPercent, &m.LiveKitMemMB, &m.HostCPUPercent, &m.HostMemPercent,
+		&m.LiveKitStartedAt}
 }
 
 // InsertServerMinute grava o minuto (o mesmo minuto de novo substitui).
 func (r *ServerRepository) InsertServerMinute(ctx context.Context, m ServerMinute) error {
 	_, err := r.db.Exec(ctx, `INSERT INTO livekit_metrics (`+serverColumns+`)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
-		ON CONFLICT (minute) DO UPDATE SET (`+serverColumns+`) = ROW(EXCLUDED.*)`, m.fields()...)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+		ON CONFLICT (minute) DO UPDATE SET `+serverUpdate, m.fields()...)
 	if err != nil {
 		return fmt.Errorf("inserir livekit_metrics: %w", err)
 	}

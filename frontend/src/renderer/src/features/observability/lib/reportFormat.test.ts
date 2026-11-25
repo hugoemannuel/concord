@@ -8,6 +8,7 @@ import {
   niceMax,
   numberLabel,
   pctLabel,
+  platformLabel,
   qualityLine
 } from './reportFormat'
 
@@ -32,6 +33,29 @@ describe('rótulos', () => {
     expect(eventLabel('degrau_caiu')).toBe('Qualidade caiu')
     expect(eventLabel('novo')).toBe('novo')
     expect(eventLabel('conexao_falhou')).toBe('Voz não conectou')
+    expect(eventLabel('retomou')).toBe('Voltou à call (o app reiniciou)')
+    expect(eventLabel('live_falhou')).toBe('Live não começou')
+    expect(eventLabel('pc_dormiu')).toBe('PC dormiu')
+    // Falha na etapa de acesso (chamada encerrada, sem permissão) não é queda.
+    expect(eventLabel('conexao_falhou', 'entrando (acesso): Você não tem mais acesso')).toBe(
+      'Sem acesso à chamada'
+    )
+    expect(eventLabel('conexao_falhou', 'reconectando: caiu e não voltou')).toBe('Voz não conectou')
+  })
+  it('eventos do app Android', () => {
+    expect(eventLabel('segundo_plano')).toBe('Saiu do app')
+    expect(eventLabel('primeiro_plano')).toBe('Voltou ao app')
+    expect(eventLabel('rede_trocou')).toBe('Trocou de rede')
+    expect(eventLabel('rota_do_audio')).toBe('Saída do áudio')
+  })
+  it('plataforma, com o aparelho e a rede quando houver', () => {
+    expect(platformLabel({ target: 'desktop', device: '', network: '' })).toBe('Desktop')
+    // No navegador a "rede" é a estimativa de velocidade (4g mesmo no Wi-Fi): não aparece.
+    expect(platformLabel({ target: 'web', device: '', network: '4g' })).toBe('Navegador')
+    expect(
+      platformLabel({ target: 'android', device: 'samsung SM-A515F', network: 'cellular-4g' })
+    ).toBe('App Android · samsung SM-A515F · cellular-4g')
+    expect(platformLabel({ target: '', device: '', network: '' })).toBe('plataforma desconhecida')
   })
 })
 
@@ -69,6 +93,18 @@ describe('qualityLine', () => {
     ).toBe(
       'Áudio sintetizado 4,5% · perda recebida 0,1% · entrou em 1,9 s · 2 reconexões · 1 falha'
     )
+  })
+  it('voz: minutos de voz ruim e falhas de acesso (não são queda)', () => {
+    expect(
+      qualityLine({
+        ...none,
+        kind: 'call',
+        concealed_pct: 1.2,
+        bad_minutes: 48.4,
+        access_failures: 1
+      })
+    ).toBe('Áudio sintetizado 1,2% · 48 min de voz ruim · 1 sem acesso à chamada')
+    expect(qualityLine({ ...none, kind: 'call', bad_minutes: 0, access_failures: 0 })).toBeNull()
   })
   it('sem dado: null', () => {
     expect(qualityLine({ ...none, kind: 'call' })).toBeNull()

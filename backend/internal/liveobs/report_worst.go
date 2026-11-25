@@ -17,7 +17,7 @@ type reasonRule struct {
 func ratioAtLeast(v *float64, min float64) bool { return v != nil && *v >= min }
 
 func freezesPerMin(s SessionStats) float64 {
-	if v := ratePerMinute(s.Freezes, s.Seconds); v != nil {
+	if v := ratePerMinute(seenFreezes(s), s.Seconds); v != nil {
 		return *v
 	}
 	return 0
@@ -29,7 +29,6 @@ var reasonRules = []reasonRule{
 	{"Codificando no processador", func(s SessionStats) bool { return s.Kind == KindShare && ratioAtLeast(software(s), 0.5) }},
 	{"Decodificando no processador", func(s SessionStats) bool { return s.Kind == KindWatch && ratioAtLeast(software(s), 0.5) }},
 	{"Reserva ligada (alguém sem o codec)", func(s SessionStats) bool { return s.BackupRatio >= 0.3 }},
-	{"Pausada pelo servidor (conexão de quem assiste)", func(s SessionStats) bool { return s.PausedRatio >= 0.1 }},
 	{"Perda de pacotes", func(s SessionStats) bool { return ratioAtLeast(s.LossPct, 2) }},
 	{"Congelamentos", func(s SessionStats) bool { return freezesPerMin(s) >= 1 }},
 	{"Latência alta", func(s SessionStats) bool { return ratioAtLeast(s.RTTMs, 150) }},
@@ -37,8 +36,9 @@ var reasonRules = []reasonRule{
 	{"Conexão por TURN", func(s SessionStats) bool { return s.Transport == "relay" }},
 }
 
-// allRules: as de cima e, depois, as da ADR 0032 (onde os quadros se perdem e a voz).
-var allRules = slices.Concat(reasonRules, qualityRules)
+// allRules: as de cima e, depois, as da ADR 0032 (onde os quadros se perdem e
+// a voz), as do celular (ADR 0070) e as da ADR 0074 (report_media.go).
+var allRules = slices.Concat(reasonRules, qualityRules, mobileRules, mediaRules)
 
 func reasons(s SessionStats) []string {
 	out := []string{}
@@ -57,10 +57,12 @@ func orZero(v *float64) float64 {
 	return *v
 }
 
-// score: quanto pior, maior (abaixo do alvo, congelamentos, pausa e perda
-// pesam mais que o motivo provável).
+// score: quanto pior, maior (abaixo do alvo, congelamentos e perda pesam mais
+// que o motivo provável). A pausa do servidor (paused) fica fora: com o
+// LiveKit de hoje (allow_pause desligado) ela não acontece (falsa em 43 mil
+// amostras de 11/11 a 25/11).
 func score(s SessionStats) float64 {
-	return orZero(s.BelowRatio)*100 + freezesPerMin(s)*20 + s.PausedRatio*100 + orZero(s.LossPct)*5 +
+	return orZero(s.BelowRatio)*100 + freezesPerMin(s)*20 + orZero(s.LossPct)*5 +
 		(s.CPURatio+s.BandwidthRatio)*30 + orZero(software(s))*10
 }
 
@@ -72,12 +74,12 @@ func sessionScore(s SessionStats) float64 {
 	return score(s)
 }
 
-// worstRows: as sessões com pontuação acima de zero; a curta demais só entra
-// se a voz não conectou.
-func worstRows(sessions []SessionStats, limit int) []WorstRow {
+// worstRows: as sessões com pontuação acima de zero, só das que keep aceita;
+// a curta demais só entra se a voz não conectou.
+func worstRows(sessions []SessionStats, limit int, keep func(SessionStats) bool) []WorstRow {
 	rows := []WorstRow{}
 	for _, s := range sessions {
-		if s.Seconds < minWorstSeconds && s.Failures == 0 {
+		if !keep(s) || (s.Seconds < minWorstSeconds && s.Failures == 0) {
 			continue
 		}
 		if sc := sessionScore(s); sc > 0 {
@@ -88,3 +90,6 @@ func worstRows(sessions []SessionStats, limit int) []WorstRow {
 	slices.SortStableFunc(rows, func(a, b WorstRow) int { return cmp.Compare(b.Score, a.Score) })
 	return rows[:min(limit, len(rows))]
 }
+
+func isCall(s SessionStats) bool    { return s.Kind == KindCall }
+func isNotCall(s SessionStats) bool { return s.Kind != KindCall }

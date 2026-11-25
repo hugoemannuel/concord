@@ -34,14 +34,24 @@ const NVIDIA_VAAPI = [
 /** Oclusão nativa marca a janela coberta como oculta e congela a captura. */
 const DISABLE = ['CalculateNativeWinOcclusion']
 
+/**
+ * Sem anunciar H.265 para receber no WebRTC (o vídeo comum segue igual): o
+ * servidor manda a reserva H.264. Liga quando o H.265 chegou e não decodificou
+ * neste aparelho (hevcDecodeMark, docs/adr/0073). Nome conferido no Chromium do
+ * Electron 44: `rtc_video_decoder_factory.cc` só lista o H.265 com ela ligada.
+ */
+const NO_HEVC_RECEIVE = ['WebRtcAllowH265Receive']
+
 export function chromiumFeatures(
   platform: NodeJS.Platform,
   /** Placa de vídeo no Linux (ver linuxGpu); null nas outras plataformas. */
-  gpu: LinuxGpu | null = null
+  gpu: LinuxGpu | null = null,
+  /** false = o H.265 recebido não decodificou aqui (marca vigente). */
+  receiveHevc = true
 ): { enable: string; disable: string } {
   const nvidia = platform === 'linux' && gpu?.nvidiaVaapi ? NVIDIA_VAAPI : []
   return {
     enable: [...CAPTURE, ...(HARDWARE_VIDEO[platform] ?? []), ...nvidia].join(','),
-    disable: DISABLE.join(',')
+    disable: [...DISABLE, ...(receiveHevc ? [] : NO_HEVC_RECEIVE)].join(',')
   }
 }

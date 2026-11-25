@@ -8,6 +8,8 @@ import { overlayApi } from './overlayApi'
 import { ttsApi } from './ttsApi'
 import { nativeLiveApi } from './nativeLiveApi'
 import { contentProtectionApi } from './contentProtectionApi'
+import { errorReportApi } from './errorReportApi'
+import { deviceStatsApi } from './deviceStatsApi'
 
 interface ScreenSourceInfo {
   id: string
@@ -101,6 +103,10 @@ const api = {
     /** O que falta para a placa de vídeo decodificar (Linux/NVIDIA sem driver); null = nada. */
     videoHint(): Promise<string | null> {
       return ipcRenderer.invoke('screen-share:video-hint')
+    },
+    /** O H.265 de uma live chegou e não decodificou: a próxima abertura não o anuncia. */
+    hevcDecodeFailed(): void {
+      ipcRenderer.send('screen-share:hevc-decode-failed')
     }
   },
   screenAudio: {
@@ -322,6 +328,8 @@ const api = {
   },
   overlay: overlayApi,
   contentProtection: contentProtectionApi,
+  errorReport: errorReportApi,
+  deviceStats: deviceStatsApi,
   /** Voz do /tts baixada no primeiro uso: só no Linux (os outros usam a Web Speech). */
   tts: process.platform === 'linux' ? ttsApi : undefined,
   /** Live pelo motor nativo (helper concord-live): só no Linux por enquanto. */

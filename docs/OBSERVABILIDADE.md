@@ -3,21 +3,29 @@
 O que existe para saber como as lives e calls estão de fato, e onde agir.
 Decisão e alternativas: [ADR 0029](adr/0029-observabilidade-das-lives.md); os
 sinais de qualidade (cada um com a pergunta e a ação que ele habilita):
-[ADR 0032](adr/0032-sinais-de-qualidade-das-lives-e-calls.md).
+[ADR 0032](adr/0032-sinais-de-qualidade-das-lives-e-calls.md); o app Android:
+[ADR 0070](adr/0070-telemetria-de-calls-e-lives-no-android.md).
 Como ligar na VPS: [HOSPEDAGEM.md](HOSPEDAGEM.md#métricas-do-livekit-observabilidade-das-lives).
+Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do app](#erros-do-app).
 
 ## O que é coletado
 
 | Fonte | Tabela | De quanto em quanto | O quê |
 |---|---|---|---|
 | LiveKit (`/metrics`, Prometheus em 127.0.0.1) + `/proc` da VPS | `livekit_metrics` | 1 min | banda entrando/saindo, retransmissões, perda na subida (quem publica → SFU) e na descida (SFU → quem assiste), NACK, PLI, RTT, jitter, nota de qualidade, salas, participantes, tracks, CPU e memória do LiveKit e da VPS |
-| App (quem transmite) | `live_sessions` (`transmite`) + `live_samples` | 20 s | codec, placa ou processador, resolução e fps codificados × escolhidos, **fps da captura** (`capture_fps`), **ms por quadro no codificador** (`codec_ms`), Mbps, `qualityLimitationReason`, degrau do controlador e trocas, camadas, reserva, quadros-chave, PLI, NACK, UDP/TCP/TURN |
-| App (quem assiste) | `live_sessions` (`assiste`) + `live_samples` | 20 s | codec, decodificador na placa ou no processador, resolução, **quadros/s que chegaram** (`recv_fps`) × decodificados (`fps`), **ms por quadro no decodificador** (`codec_ms`), perda, jitter, congelamentos, quadros descartados, pausa do servidor, UDP/TCP/TURN |
-| App (voz) | `live_sessions` (`call`) + `live_samples` | 60 s | RTT, perda e jitter vistos pelo servidor, UDP/TCP/TURN; **o que eu ouço**: % de áudio sintetizado (`concealed_pct`) e perda no áudio recebido (`recv_loss_pct`); **tempo para conectar** (`connect_ms`) |
-| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)** |
+| App (quem transmite) | `live_sessions` (`transmite`) + `live_samples` | 20 s | codec, placa ou processador, resolução e fps codificados × escolhidos, **fps da captura** (`capture_fps`), **ms por quadro no codificador** (`codec_ms`), Mbps, `qualityLimitationReason`, degrau do controlador e trocas, camadas, reserva, quadros-chave, PLI, NACK, UDP/TCP/TURN; **perda e jitter na subida** (`loss_pct`, `jitter_ms`, do `remote-inbound-rtp`), **QP médio** (`qp`), **fonte** (`source_width`/`source_height` e `surface`: `monitor`, `window`, `browser`) e, na 1ª amostra, **tempo até a live no ar** (`start_ms`) |
+| App (quem assiste) | `live_sessions` (`assiste`) + `live_samples` | 20 s | codec, decodificador na placa ou no processador, resolução, **quadros/s que chegaram** (`recv_fps`) × decodificados (`fps`), **ms por quadro no decodificador** (`codec_ms`), perda, jitter, congelamentos, quadros descartados, pausa do servidor, UDP/TCP/TURN; na 1ª amostra, **tempo até o primeiro quadro** (`start_ms`) |
+| App (voz) | `live_sessions` (`call`) + `live_samples` | 60 s | RTT, perda (média do intervalo) e jitter vistos pelo servidor, UDP/TCP/TURN; **o que eu ouço**: % de áudio sintetizado (`concealed_pct`, voz a voz) e perda no áudio recebido (`recv_loss_pct`, a **menor** entre as vozes); **tempo para conectar** (`connect_ms`); **processamento do microfone** (`dsp_underrun_pct`: % do tempo atrasado; `dsp`: o que estava ligado), **saída de áudio** (`playout_synth_pct`: % sintetizado pela saída do PC) e **câmera** (`cam_fps`, `cam_height`, `cam_limitation` da minha câmera; `cam_freezes` das que recebo) |
+| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)**, **entrada lenta (tempo por etapa)**, **entrada abandonada (nova tentativa ou saiu)**, **retomou** (o app recomeçou no meio da call: buraco e versão; do servidor), **live não começou** (`live_falhou`: `seletor`, `codec`, `publicação` ou `nativo`, e o nome do erro; na sessão da voz), **PC dormiu** (`pc_dormiu`: quanto tempo, na hora em que acordou; na sessão da voz); do Android: **saiu do app** (`segundo_plano`), **voltou ao app** (`primeiro_plano`, tempo fora), **trocou de rede** (`rede_trocou`, `wifi → cellular-4g`), **saída do áudio** (`rota_do_audio`: `bluetooth`, `headset`, `speaker`, `earpiece`) |
 
-Contexto de cada sessão: SO, versão do app, web/desktop, placa de vídeo (renderer
-do WebGL), núcleos do processador e tipo de rede (quando o navegador conta).
+Contexto de cada sessão: SO, versão do app, plataforma (`target`: `desktop`,
+`web` ou `android`; o backend descarta outro valor), placa de vídeo (renderer
+do WebGL), núcleos do processador, a coluna `network` e, no Android, o aparelho
+(`device`, fabricante e modelo). **No desktop e na web, `network` não é o tipo de
+rede** (wi-fi/cabo/4G): é o `navigator.connection.effectiveType` do Chromium, uma
+estimativa de velocidade, que dá "4g" em ~90% das sessões do desktop (1 362 de
+1 467, de 11/11 a 25/11). Não use para separar wi-fi de cabo; por isso a
+distribuição por rede só conta o Android, onde o valor é o tipo de rede de fato.
 Nada do que se fala, escreve ou mostra. Tudo fica 14 dias (o backend apaga de
 hora em hora). Visitante sem conta não manda.
 
@@ -28,27 +36,292 @@ Nos contadores das amostras (`freezes`, `freeze_ms`, `frames_dropped`,
 `fps` era o do momento da leitura); o resto é o valor no momento. A primeira amostra de cada sessão é a
 base (contadores zerados, `seconds = 0`).
 
+**Mudou de significado** com a [emenda de 25/11/2026 da ADR 0032](adr/0032-sinais-de-qualidade-das-lives-e-calls.md#emenda-2026-11-25-a-telemetria-não-perde-nem-distorce-o-que-mede)
+(compare períodos filtrando por `app_version`; vale para o desktop e o app web: o
+app Android tem a cópia própria e segue com o significado antigo até ser portado):
+
+- `recv_loss_pct`: era a perda somando todas as vozes (acusava a rede de quem ouve
+  quando a perda era da subida de quem fala); agora é a **menor** perda entre as vozes
+  com ≥ 100 pacotes no intervalo (nula sem voz com tráfego).
+- `concealed_pct`: soma das diferenças voz a voz; voz que entra ou sai no intervalo
+  não zera nem infla mais a leitura.
+- `loss_pct` da voz: era o `fractionLost` do último RTCP (instante); agora é a média
+  do intervalo (nula com o microfone mudo, sem pacotes).
+- `seconds` da voz: era a hora do último RTCP (chegava a 600 s perto de quedas);
+  agora é a hora da leitura.
+- `degrau_caiu`: o motivo entre parênteses é o do controlador (`bandwidth`, `cpu`), não
+  o `qualityLimitationReason` (que dava `none` em 85 % das quedas).
+- `app_version` no app web: era vazia; agora é a versão do build.
+- Hora dos eventos e do fim: era a da chegada ao servidor; agora é a do fato (o app
+  manda `ago_ms`, com teto de 15 min) e o que falhou no envio vai de novo no ciclo
+  seguinte (fila de 20, sem as amostras).
+- Fim das sessões: além do que o app manda, a sessão de voz retomada (mesma pessoa e
+  call, parada há 30 s–5 min) e a sessão sem notícia há mais de 10 min são fechadas
+  pelo servidor no último sinal delas (`ended_at = last_seen_at`).
+
+### Sinais novos de mídia (ADR 0074)
+
+[ADR 0074](adr/0074-sinais-novos-de-midia.md): o que as análises de 11/11 a 25/11
+não conseguiram responder. Tudo nulo em versões anteriores do app.
+
+- **Tela parada não é congelamento.** O Chromium para de capturar quando a tela não
+  muda; quem assiste recebe só quadros de repetição e o `freezeCount` conta intervalos
+  que ninguém vê. O painel separa os congelamentos das amostras de `assiste` com
+  menos de **1 000 bytes por quadro recebido** (`bitrate_kbps × 125 / recv_fps`) em
+  `static_freezes` e os desconta dos "congelamentos por minuto" (piores sessões,
+  lives recentes e distribuição). Vale também para os dados antigos. A regra é
+  provisória: calibre com a consulta "bytes por quadro" abaixo. A amostra de 20 s
+  que mistura tela parada e movimento não é descontada.
+- `start_ms`: quem transmite = do stream do seletor (Chromium) ou do `capturing` do
+  helper (nativa) até a publicação; quem assiste = do "assistir" ao primeiro quadro
+  no `<video>` (`loadeddata`; se a live só aparece na tela depois, conta essa espera).
+  Acima de 60 s é descartado.
+- `codec_escolhido` da live nativa: `nativo: h264 placa` (ou `proc.`). Sem `nativo:` é
+  o Chromium. No Chromium, `av1 proc. (L1T1 placa)` = o AV1 sem camadas temporais
+  sairia na placa (é o L1T3 que barra).
+- `encoder_software`/`decoder_software`: o detalhe leva o componente (`H265 ·
+  libavcodec`).
+- `dsp_underrun_pct` vem do `AudioContext.playbackStats` do microfone (Chromium do
+  Electron 44); onde não existe, fica nulo e o `dsp` vai sozinho. `playout_synth_pct`
+  vem do `media-playout` do `getStats()`; nulo se o relatório não trouxer.
+- **Não repetidos aqui** (cruze com `device_samples`, ADR 0069, por pessoa e
+  horário): CPU do app por processo e a janela visível (`visible_pct`). Consultas
+  abaixo.
+
+### O que o app Android manda (e o que não manda)
+
+A mesma rota e o mesmo formato do desktop (`mobile/src/features/observability/`,
+cópia adaptada), para a **call de voz**, a **live assistida** e a **tela
+transmitida**, no mesmo ritmo (voz a cada 60 s, live a cada 20 s, num pedido
+só). O timer só existe com a call em andamento; ao sair, uma última leitura
+manda o fim. Fora de call não lê, não ouve e não manda nada.
+
+| Campo | No Android |
+|---|---|
+| `os` | `Android 14` (a versão do sistema) |
+| `app_version` | a do `app.config.ts` (hoje fixa em `0.1.0`: não separa builds) |
+| `target` | `android` |
+| `device` | fabricante e modelo (`samsung SM-A515F`), do `Platform.constants` |
+| `network` | `wifi`, `cellular-4g`, `cellular-5g`, `cellular`, `none`... (NetInfo); atualizado a cada envio |
+| `gpu`, `cores` | vazio e 0 (sem API no React Native) |
+| voz: RTT, perda, jitter, transporte, `concealed_pct`, `recv_loss_pct`, `connect_ms` | iguais ao desktop (o `getStats()` do libwebrtc nativo usa os nomes do W3C) |
+| `connect_ms` | de "entrando" até a voz conectar (numa DM, conta do atender) |
+| `conexao_falhou` | `entrando (acesso)`: o nosso servidor, só rede ou erro 5xx (sala trancada e sem permissão não contam); `entrando (voz)`: o LiveKit; `conectada: caiu`, `reconectando: caiu`. Não contam: sair, cancelar no meio da entrada, entrar em outro aparelho, ser tirado da sala pelo servidor |
+| live: codec, placa/processador, resolução, fps, `capture_fps`, `recv_fps`, `codec_ms`, perda, jitter, congelamentos, pausa | iguais ao desktop; placa × processador pelo nome do MediaCodec quando o WebRTC não diz (`c2.qti...`, `OMX.Exynos...` = placa; `c2.android...`, `OMX.google...`, `libvpx` = processador) |
+| `streamer_id` (live do helper nativo, `<id>:screen`) | o dono da live (sem o sufixo) |
+| `target_fps` (minha tela) | o fps pedido na publicação; null se for o padrão do SDK |
+| degrau, trocas de degrau, reserva, `codec_escolhido`, `target_height` | não manda (o app não tem controlador, reserva nem escolha de codec) |
+| ADR 0074: `qp`, perda e jitter na subida, `playout_synth_pct`, nome do componente em `encoder_software`/`decoder_software` | iguais ao desktop (`playout_synth_pct` nulo se o WebRTC do Android não trouxer o `media-playout`) |
+| ADR 0074: `source_width`/`source_height` | da `media-source` (o tamanho que a captura entrega) |
+| ADR 0074: `surface`, `start_ms`, `dsp*`, `cam_*`, `live_falhou`, `pc_dormiu` | nulos/não manda: o Android não informa a superfície, o app não processa o microfone e ler a câmera e medir o início pediria código novo em `call/` |
+
+A saída do áudio é **inferida**: das saídas disponíveis, a que o AudioSwitch do
+LiveKit escolhe (Bluetooth > fone com fio > alto-falante > auricular; o app não
+tem seletor). Entrada que falhou antes da primeira leitura vira uma sessão de
+voz só com os eventos e o fim (`call_id` vazio).
+
+Não manda: bateria, temperatura, modo de economia, intensidade do sinal,
+operadora, SSID, IP (ADR 0070, "Fora").
+
 ## Painel
 
 `/observabilidade` no app (no navegador: `https://<app>/observabilidade`), só
 para quem está em `dev_badge_users` ([como conceder](HOSPEDAGEM.md#badge-fundador-devs)).
-Não tem link no app. Mostra, para 24 h, 3, 7 ou 14 dias:
+Não tem link no app. É dividido em abas; a aba e o período ficam na URL, para
+mandar o link de uma aba: `/observabilidade/<aba>?dias=7` (sem aba, abre a
+primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
 
-- **Servidor**: picos de saída, pessoas, CPU da VPS e perda média na descida;
-  gráficos de banda (entrada/saída) e de CPU (VPS e LiveKit).
-- **Lives recentes**: quem, quando, duração, codec, % na placa, % abaixo do
-  alvo (fps < 80% do escolhido ou degrau abaixo do escolhido), limitação por
-  CPU/banda, espectadores, congelamentos por minuto e % decodificando no
-  processador entre os espectadores.
-- **Piores sessões e por quê**: pontuação (abaixo do alvo, congelamentos,
-  pausa, perda, CPU/banda, processador; na voz: não conectou, reconexões, áudio
-  sintetizado, perda) e os motivos prováveis, com a linha de números da sessão
-  (captura × codificado, chegam × decodificados, ms por quadro; na voz, áudio
-  sintetizado, perda recebida, tempo para entrar).
-- **Distribuição** por sistema, placa de vídeo, codec e conexão.
-- **Eventos recentes.**
+- **Lives** (`lives`): lives recentes (quem, quando, duração, codec, % na placa,
+  % abaixo do alvo — fps < 80% do escolhido ou degrau abaixo do escolhido —,
+  limitação por CPU/banda, espectadores, congelamentos por minuto e %
+  decodificando no processador entre os espectadores) e as **piores lives e
+  por quê** (de quem transmite e de quem assiste).
+- **Chamadas** (`chamadas`): as **piores chamadas e por quê** (voz das calls).
+- **Servidor** (`servidor`): em blocos **VPS** (CPU com steal, RAM e swap, disco,
+  rede, backup, último boot, banco), **API** (pedidos por minuto, 5xx, latência,
+  rotas mais lentas e com erro, WebSockets, pool do banco, panics) e **LiveKit**
+  (picos de saída, pessoas, perda na descida; banda e CPU). Ver
+  [Servidor: API e VPS](#servidor-api-e-vps).
+  O bloco LiveKit mostra também **sem coleta e reinícios do LiveKit** (`collection_gaps`, `livekit_restarts`).
+  O coletor roda dentro do backend: quando o backend ou a VPS param não fica
+  linha nenhuma (`up = false` só aparece com o backend de pé e o LiveKit fora, e
+  não apareceu nenhuma vez de 11/11 a 25/11). Por isso 2 ou mais minutos
+  seguidos faltando na `livekit_metrics` aparecem como "sem coleta" (início, fim,
+  duração; o começo do período não conta). Buracos de 2–3 min logo depois de um
+  merge na `main` são o deploy do backend. Reinício do LiveKit = o
+  `livekit_started_at` (o `process_start_time_seconds` dele) mudou.
+- **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec,
+  conexão, fonte da live (monitor ou janela) e motor da live (nativo ou Chromium); e, com as calls, por plataforma (desktop, web, android), rede e
+  aparelho Android. Cada linha traz quantas pessoas e, ao lado de cada média, a
+  **mediana por pessoa** (`*_median`): de 11/11 a 25/11 uma pessoa só era 22% das
+  horas assistidas e 27% dos congelamentos, e a média por placa ou sistema era,
+  na prática, a dela.
+- **Eventos** (`eventos`): as **quedas e falhas da voz do período inteiro**
+  (`call_events`: `reconectou`, `conexao_falhou` e, quando o app passar a mandar,
+  `retomou`; até 300; a falha na etapa de acesso aparece como "Sem acesso à
+  chamada", não é queda) e os 100
+  eventos mais recentes das lives e calls (quase todos congelamentos longos, ~310
+  por dia: sem a lista à parte, as quedas da voz sumiam em poucas horas).
+- **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).
+- **Alertas** (`alertas`): quando saiu o último resumo diário, o que está
+  disparado agora, quantas vezes cada regra disparou no período (recorrência) e
+  o histórico (regra, canal, gravidade, de quando a quando). Pedido próprio: `GET /api/obs/alerts?days=N`. Ver [Alertas](#alertas).
+
+Piores sessões: pontuação e os motivos prováveis, com a linha de números da
+sessão (captura × codificado, chegam × decodificados, ms por quadro; na voz,
+áudio sintetizado, perda recebida, minutos de voz ruim, tempo para entrar), a
+linha da ADR 0074 (fonte, motor, QP, tempo até o ar ou o 1º quadro, congelamentos
+de tela parada descontados; na voz, microfone, saída de áudio e câmera) e de
+onde veio (plataforma, aparelho e rede). Motivos da ADR 0074: "Demorou para
+entrar no ar" (≥ 5 s), "Primeiro quadro demorou" (≥ 3 s), "Processamento do
+microfone engasga (PC de quem fala)" (≥ 1%), "Saída de áudio do PC falha (não é a
+rede)" (≥ 1%) e "Câmera travando ou lenta" (< 15 fps ou ≥ 1 congelamento/min das
+câmeras recebidas); os três da voz também somam na pontuação (1% ≈ um minuto
+ruim; cada congelamento/min de câmera, 5). No Android, dois motivos a mais: "Caiu
+com o app em segundo plano" e "Caiu ao trocar de rede" (só quando a voz
+reconectou ou não conectou). São
+**duas listas**, cada uma com o seu teto, porque as escalas não se comparam:
+`worst_lives` (15, quem transmite e quem assiste: abaixo do alvo, congelamentos,
+perda, CPU/banda, processador) e `worst_calls` (10, a voz). A voz pontua por
+**minutos ruins** (minuto medido com áudio sintetizado ≥ 3% ou perda recebida ≥
+5%) × 10, reconexões × 20 e falhas × 100, e não pela média da sessão (que dilui
+um episódio longo: a pior call de 13/11, 48 minutos robotizados, ficava em 63º).
+A `conexao_falhou` na etapa de **acesso** ("entrando (acesso)": chamada encerrada
+ou sem permissão) não é queda: vai à parte (`access_failures`) e não pesa. O
+campo antigo `worst` leva as duas listas juntas, para o app de antes.
+
+As abas Lives, Chamadas, Servidor, Distribuição e Eventos usam o mesmo pedido
+(`useSharedLiveReport`): trocar entre elas não busca de novo. A aba Servidor
+busca também os blocos VPS e API (`GET /api/obs/server`, hook `useServerReport`).
+
+**Aba nova** = uma entrada em
+`frontend/src/renderer/src/features/observability/lib/panelTabs.tsx`
+(`{ id, label, Component }`): `id` vira a URL, `Component` recebe `{ days }` e
+busca os próprios dados (hook próprio, com os estados de carregando, sem
+permissão e erro). Não precisa mexer no `router.tsx` nem na página.
 
 O mesmo JSON: `GET /api/obs/lives?days=7` (token de um dev).
+
+## Alertas
+
+Avisos no servidor dos devs ([ADR 0071](adr/0071-alertas-em-canais-do-servidor-dos-devs.md)).
+Com `ALERTS_SERVER_ID` (id do servidor "Devs Salinha"), o backend garante no
+boot a categoria **Monitoramento** com os canais de sistema `#alertas` (infra e
+serviços), `#erros` (erros do app), `#qualidade` (calls e lives) e
+`#resumo-diario` (o dia anterior em números), e escreve neles como **Salinha Bot**. Vazio = tudo
+desligado (o padrão). Como ligar: [HOSPEDAGEM.md](HOSPEDAGEM.md#alertas-no-servidor-dos-devs).
+
+**Como avisa**: uma mensagem ao disparar, uma se piorar (aviso → crítico), uma
+ao normalizar ("Normalizou: … Durou X"), um lembrete a cada 6 h se continuar e
+no máximo 10 mensagens por hora por canal (o resto só no log e no painel; o
+crítico sempre passa).
+**Aviso** é só a mensagem; **crítico** começa com `@all` e chega como push para
+todos do servidor (respeitando o silenciar de cada um). O estado (incidente
+aberto) fica em `alert_incidents`: reiniciar o backend não repete o aviso.
+
+| Regra (`id`) | Canal | Aviso | Crítico | Normaliza |
+|---|---|---|---|---|
+| Backend subiu / ficou fora (`backend_down`) | alertas | a cada boot: versão e, sem parada limpa, de quando a quando ficou fora (pelo último minuto do `livekit_metrics`) | — | (evento) |
+| Backend reiniciando sem parar (`restart_loop`) | alertas | — | 3 boots sem parada limpa em 10 min (os "backend no ar" de cada volta não saem) | menos de 3 em 10 min |
+| CPU da máquina (`host_cpu`) | alertas | ≥ 85% por 5 min | ≥ 95% por 10 min | abaixo por 3 min |
+| Memória da máquina (`host_mem`) | alertas | ≥ 90% por 5 min | ≥ 95% por 5 min | abaixo por 3 min |
+| LiveKit fora do ar (`livekit_down`) | alertas | `up = false` por 3 min | por 5 min | respondeu por 1 min |
+| CPU do LiveKit (`livekit_cpu`) | alertas | ≥ 150% de uma vCPU por 5 min | — | abaixo por 3 min |
+| Banco fora do ar (`database_down`) | alertas | quando volta: de quando a quando (3 pings de 15 s sem resposta) | — | (evento) |
+| Serviço do systemd falhou (`unit_failed`) | alertas | `OnFailure=` de `concord-*`/`salinha-*` (backup, yt-dlp, firewall); a mesma unidade de novo em 1 h só vai para o histórico | — | (evento) |
+| Voz sem conectar (`call_failures`) | qualidade | — | 3+ pessoas com `conexao_falhou` na etapa de mídia em 5 min | abaixo por 10 min |
+| Voz reconectando em massa (`call_reconnects`) | qualidade | 4+ pessoas com `reconectou` em 3 min | — | abaixo por 10 min |
+| Máquina congelada (`host_frozen`) | alertas | — | relógio de hardware mais de 1 min à frente do sistema (a VM foi pausada e voltou sem reiniciar), ou o relógio de parede saltou mais de 1 min sobre o monotônico; uma vez por congelamento, com início e fim estimados | (evento) |
+| Disco da máquina (`host_disk`) | alertas | ≥ 80% por 15 min | ≥ 90% por 10 min | abaixo por 30 min |
+| Inodes do disco (`host_inodes`) | alertas | ≥ 80% por 15 min | ≥ 90% por 10 min | abaixo por 30 min |
+| Backup do banco (`backup_late`) | alertas | arquivo mais novo com mais de 26 h, ou com menos da metade do anterior (anterior ≥ 1 MB), por 10 min | — | em dia por 10 min |
+| API com erro 5xx (`api_errors`) | alertas | ≥ 5% dos pedidos em 5 min (mín. 10 erros) por 8 min seguidos (erros se estendendo por 4 min ou mais), com a rota que mais errou | ≥ 25% (mín. 50 erros) por 10 min | abaixo por 10 min |
+| Panic no backend (`api_panics`) | alertas | 1+ panic em 15 min | — | 30 min sem |
+| API lenta (`api_slow`) | alertas | p95 do minuto ≥ 2 s (com 20+ pedidos; com menos, sem dado) por 5 min, com a rota mais lenta | ≥ 5 s por 10 min | abaixo por 5 min |
+| Pool do banco no limite (`db_pool`) | alertas | 30+ esperas por conexão ou 3 s esperando no minuto, ou o pool cheio com fila, por 5 min | — | abaixo por 5 min |
+| Swap crescendo (`host_swap`) | alertas | ≥ 512 MB e +256 MB em 30 min, por 10 min | — | parado por 30 min |
+| CPU roubada pelo provedor (`host_steal`) | alertas | `steal` ≥ 10% por 10 min | — | abaixo por 10 min |
+| Buffer de UDP estourando (`udp_buffer`) | alertas | 100+ `RcvbufErrors`+`SndbufErrors` em 5 min, por 8 min | — | abaixo por 15 min |
+| Coleta parada (`collector_stalled`) | alertas | `api_metrics`, `host_metrics` ou `livekit_metrics` sem linha há 5 min, por 10 min (com o backend no ar) | — | em dia por 2 min |
+| Capacidade das lives (`live_capacity`) | alertas | pico de saída do LiveKit nos últimos 7 dias ≥ 45 Mbps (teto de CPU perto de 60); lembra a cada 7 dias | — | pico da semana abaixo |
+| Erro novo (`error_new`) | erros | cada grupo visto pela primeira vez (tipo, origem, versão, link da aba Erros), até 5 por hora; o resto numa mensagem só por hora | — | (evento) |
+| Pico de erro (`error_spike`) | erros | um grupo atingindo 5+ pessoas em 15 min | 8+ pessoas | abaixo por 30 min |
+| Decodificador falhando em massa (`decoder_failing`) | qualidade | 4+ pessoas com `decoder_software` em 10 min | — | abaixo por 15 min |
+
+Os números estão em constantes no começo de cada `backend/internal/alert/rule_*.go`.
+O LiveKit fora só avisa se ele respondeu alguma vez na última hora (sem o
+Prometheus ligado ele estaria "fora" para sempre); fora há mais de 1 h, o
+incidente fica aberto sem lembrete até ele voltar. Todo membro do servidor de
+`ALERTS_SERVER_ID` vê os canais (canal de sistema não tem permissão própria):
+use um servidor só dos devs. O backup que roda e não gera
+arquivo cai em `backup_late` (idade do arquivo, coletada em `host_metrics`).
+
+**Máquina congelada.** O provedor pausa a VM e a retoma sem reiniciar
+(23/11/2026 por 8h21, 25/11 por 4h49): não há boot, e o relógio do sistema
+volta atrasado pelo tempo da pausa até o `systemd-timesyncd` corrigir (até
+34 min). A cada 30 s o backend compara `/sys/class/rtc/rtc0/since_epoch` (o
+relógio de hardware, que o hipervisor mantém) com o do sistema e avisa logo na
+volta; de reserva, o salto do relógio de parede sobre o monotônico (o que
+sobra quando o NTP corrige). Enquanto o relógio está atrasado, as mensagens e
+as linhas das tabelas saem com a hora errada; `systemctl restart
+systemd-timesyncd` força a correção. Sem o arquivo (dev, Windows, contêiner)
+ou com o relógio de hardware na hora local, só o salto vale. Consulta:
+`SELECT started_at, ended_at, ended_at - started_at FROM alert_incidents WHERE
+rule_id = 'host_frozen' ORDER BY started_at DESC;`
+
+**Resumo diário** (`#resumo-diario`): às 8h de Brasília (ou quando o backend
+voltar, se estava fora), uma mensagem com o dia anterior: pessoas e horas em
+call, falhas de conexão e reconexões, lives e quantas ficaram abaixo do alvo
+(metade das amostras com fps < 80% do escolhido ou degrau abaixo), pico de
+saída, os 3 erros com mais pessoas, pedidos, 5xx e p95 da API (típico = mediana
+dos minutos com 20+ pedidos), pico de CPU (e p95) e de memória, disco, se o
+backup rodou e os alertas que dispararam. Só contagens, sem nomes. A marca do
+dia fica em `alert_daily_summaries`; silenciar: `ALERTS_MUTED=daily_summary`.
+A aba Alertas mostra quando saiu o último.
+
+**Limite**: o alerta é postado pelo próprio backend, então **não avisa enquanto
+a VPS, o backend ou o banco estão fora**: só quando voltam ("ficou fora de X a
+Y"). Avisar na hora pede um monitor externo.
+
+**Silenciar**: cada dev silencia o canal ou o servidor no app (vale para o
+push do crítico também). Para desligar uma regra para todos, ponha o id em
+`ALERTS_MUTED` no `/opt/concord/.env` (ex.: `ALERTS_MUTED=livekit_cpu,host_cpu`)
+e reinicie o backend: a regra segue gravando no painel, só não posta.
+
+**Criar uma regra**: um arquivo `backend/internal/alert/rule_<nome>.go` com o
+construtor e uma linha na lista de `rules.go`:
+
+```go
+func diskRule(src diskSource) Rule {
+	return Rule{
+		ID: "host_disk", Title: "Disco da máquina", Channel: ChannelInfra, Tab: "servidor",
+		Hold: Hold{Warning: 10 * time.Minute, Critical: 10 * time.Minute, Clear: 10 * time.Minute},
+		Check: func(ctx context.Context, now time.Time) (Reading, error) {
+			pct, err := src.DiskUsedPercent(ctx) // só a última linha
+			if err != nil {
+				return Reading{Level: LevelUnknown}, err
+			}
+			return levelFor(pct, limits{warn: 85, crit: 95}, "disco em %.0f%% (limite %.0f%%)"), nil
+		},
+	}
+}
+```
+
+`Check` lê só as últimas linhas e diz o nível de agora (`LevelOK`, `LevelWarning`,
+`LevelCritical` ou `LevelUnknown` sem dado); `Hold` é a histerese (quanto cada
+nível precisa durar antes de valer) e o motor cuida do resto (estado, mensagens,
+teto). A fonte nova entra na interface `Sources` de `rules.go`, implementada pelo
+`Repository`. Acontecimento de uma vez (não uma condição) vai por
+`Engine.Notify(Event{...})`. Os textos ficam em `messages.go` (ou no `Text` da
+leitura) e precisam de aprovação. O teste da regra usa uma fonte falsa
+(`rules_test.go`).
+
+**Acontecimento ou tarefa com horário** (não uma condição): um vigia com
+`Tick(ctx)` em `Runner.Watches` (`freeze.go`, `errorwatch.go`, `summary.go`).
+
+**Consultas**: `SELECT rule_id, severity, started_at, ended_at, text FROM
+alert_incidents ORDER BY started_at DESC LIMIT 50;` e `SELECT * FROM
+backend_runs ORDER BY id DESC LIMIT 20;` (boots; `stopped_at` nulo = queda).
 
 ## Consultas prontas (psql)
 
@@ -204,16 +477,34 @@ WHERE s.kind = 'call' GROUP BY s.id, u.username
 ORDER BY sintetizado_pct DESC NULLS LAST LIMIT 30;
 ```
 
-**Voz que não conectou ou caiu** (muitas ao mesmo tempo = servidor):
+**Voz que não conectou, caiu, demorou ou foi refeita** (muitas ao mesmo tempo = servidor):
 ```sql
 SELECT date_trunc('minute', e.at) AS minuto, e.type, count(*) AS quantas,
        string_agg(DISTINCT u.username, ', ') AS quem, min(e.detail) AS exemplo
 FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u.id = s.user_id
-WHERE e.type IN ('conexao_falhou', 'reconectou')
+WHERE e.type IN ('conexao_falhou', 'reconectou', 'entrada_lenta', 'entrada_abandonada')
 GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 50;
+```
+
+**Quanto a retomada (atualização no meio da call, crash, recarga) tira da call:**
+```sql
+SELECT e.at, u.username, e.detail AS buraco_e_versao
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u.id = s.user_id
+WHERE e.type = 'retomou' ORDER BY e.at DESC LIMIT 30;
 ```
 Sessões de voz do app antigo que nunca conectaram aparecem sem transporte em
 nenhuma amostra (`bool_and(transport = '')`).
+
+**Buracos na coleta** (backend ou VPS fora) **e reinícios do LiveKit:**
+```sql
+SELECT prev + interval '1 minute' AS sem_coleta_desde, minute AS voltou, minute - prev - interval '1 minute' AS duracao
+FROM (SELECT minute, lag(minute) OVER (ORDER BY minute) AS prev FROM livekit_metrics) m
+WHERE minute - prev > interval '2 minutes' ORDER BY minute DESC;
+SELECT minute, livekit_started_at
+FROM (SELECT minute, livekit_started_at, lag(livekit_started_at) OVER (ORDER BY minute) AS antes
+      FROM livekit_metrics WHERE livekit_started_at IS NOT NULL) m
+WHERE livekit_started_at <> antes ORDER BY minute DESC;
+```
 
 **Eventos das últimas 24 h, por tipo:**
 ```sql
@@ -227,6 +518,134 @@ FROM live_samples WHERE session_id = '<id>' ORDER BY at;
 SELECT at, type, detail FROM live_events WHERE session_id = '<id>' ORDER BY at;
 ```
 
+**Android × desktop × web na voz** (ADR 0070):
+```sql
+SELECT s.target, s.network, count(DISTINCT s.id) AS sessoes,
+       round(avg(x.concealed_pct)::numeric, 2) AS sintetizado_pct,
+       round(avg(x.recv_loss_pct)::numeric, 2) AS perda_recebida_pct,
+       round(avg(x.rtt_ms)::numeric) AS rtt_ms,
+       count(*) FILTER (WHERE e.type = 'reconectou') AS reconexoes,
+       count(*) FILTER (WHERE e.type = 'conexao_falhou') AS falhas
+FROM live_sessions s
+LEFT JOIN live_samples x ON x.session_id = s.id AND x.seconds > 0
+LEFT JOIN live_events e ON e.session_id = s.id AND e.type IN ('reconectou', 'conexao_falhou')
+WHERE s.kind = 'call' GROUP BY 1, 2 ORDER BY 3 DESC;
+```
+
+**Call no Android: o que aconteceu, na ordem** (segundo plano, troca de rede,
+saída do áudio e quedas):
+```sql
+SELECT e.at, u.username, s.device, e.type, e.detail
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id JOIN users u ON u.id = s.user_id
+WHERE s.target = 'android' AND e.type IN ('segundo_plano', 'primeiro_plano', 'rede_trocou',
+      'rota_do_audio', 'reconectou', 'conexao_falhou')
+ORDER BY e.at DESC, e.id DESC LIMIT 100;
+```
+
+**Leitura que demorou em segundo plano** (o JavaScript foi pausado: o serviço em
+primeiro plano não segurou; a voz sai a cada 60 s):
+```sql
+SELECT u.username, s.device, x.at, x.seconds
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+WHERE s.target = 'android' AND s.kind = 'call' AND x.seconds > 120
+ORDER BY x.at DESC LIMIT 50;
+```
+
+### Sinais novos de mídia (ADR 0074)
+
+```sql
+-- Calibrar a "tela parada": congelamentos por faixa de bytes por quadro recebido
+-- (o painel desconta abaixo de 1 000).
+SELECT width_bucket(x.bitrate_kbps * 125.0 / x.recv_fps, ARRAY[250, 500, 1000, 2000, 4000, 8000, 16000]) AS faixa,
+       count(*) AS amostras, sum(x.freezes) AS congel,
+       round((60.0 * sum(x.freezes) / NULLIF(sum(x.seconds), 0))::numeric, 2) AS congel_min
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id
+WHERE s.kind = 'assiste' AND x.recv_fps > 0 AND x.at > now() - interval '7 days'
+GROUP BY 1 ORDER BY 1;
+
+-- Captura abaixo do alvo: a fonte, os bytes por quadro e a CPU do app no mesmo
+-- minuto (device_samples, ADR 0069). Bytes por quadro pequenos = tela parada.
+SELECT u.username, x.at, x.surface, x.source_height, x.capture_fps, x.target_fps,
+       round(x.bitrate_kbps * 125.0 / NULLIF(x.fps, 0)) AS bytes_quadro,
+       d.cpu_browser, d.cpu_renderer, d.cpu_gpu, d.sys_cpu_pct
+FROM live_samples x
+JOIN live_sessions s ON s.id = x.session_id
+LEFT JOIN users u ON u.id = s.user_id
+LEFT JOIN LATERAL (
+  SELECT ds.* FROM device_samples ds JOIN device_sessions dv ON dv.id = ds.session_id
+  WHERE dv.user_id = s.user_id AND ds.at BETWEEN x.at - interval '60 s' AND x.at + interval '60 s'
+  ORDER BY abs(extract(epoch FROM ds.at - x.at)) LIMIT 1) d ON true
+WHERE s.kind = 'transmite' AND x.capture_fps < 0.8 * x.target_fps AND x.at > now() - interval '1 day'
+ORDER BY x.at DESC LIMIT 100;
+
+-- Motor nativo × Chromium (pelo codec_escolhido), por sistema.
+WITH m AS (
+  SELECT e.session_id, CASE WHEN bool_or(e.detail LIKE 'nativo%') THEN 'nativo' ELSE 'chromium' END AS motor
+  FROM live_events e WHERE e.type = 'codec_escolhido' GROUP BY e.session_id)
+SELECT m.motor, s.os, count(DISTINCT s.id) AS lives, round(avg(x.fps)::numeric, 1) AS fps,
+       round(avg(x.capture_fps)::numeric, 1) AS captura, round(avg(x.codec_ms)::numeric, 1) AS ms_quadro,
+       round(avg(x.start_ms)) AS ms_ate_o_ar, round(avg(x.loss_pct)::numeric, 2) AS perda_subida
+FROM m JOIN live_sessions s ON s.id = m.session_id JOIN live_samples x ON x.session_id = s.id
+WHERE s.kind = 'transmite' GROUP BY 1, 2 ORDER BY 1, 2;
+
+-- Onde a live falha ao começar (etapa e erro).
+SELECT split_part(e.detail, ' · ', 1) AS etapa, split_part(e.detail, ' · ', 2) AS erro,
+       count(*), count(DISTINCT s.user_id) AS pessoas
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id
+WHERE e.type = 'live_falhou' AND e.at > now() - interval '7 days'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+-- QP por preset e codec (QP alto com o bitrate no teto = subir o teto).
+SELECT x.codec, x.target_height, x.target_fps,
+       width_bucket(x.qp, ARRAY[20, 25, 30, 35, 40, 50, 100]) AS faixa_qp,
+       count(*), round(avg(x.bitrate_kbps)) AS kbps
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id
+WHERE s.kind = 'transmite' AND x.qp IS NOT NULL AND x.at > now() - interval '7 days'
+GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3, 4;
+
+-- AV1: placas em que o L1T1 sai na placa e o L1T3 não.
+SELECT s.gpu, s.os, count(*) AS lives, min(e.detail) AS exemplo
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id
+WHERE e.type = 'codec_escolhido' AND e.detail LIKE '%(L1T1 placa)%'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+-- Quedas da voz: o PC tinha acabado de acordar? O app estava visível?
+SELECT e.at, u.username, e.type, e.detail,
+       (SELECT max(z.at) FROM live_events z
+         WHERE z.session_id = e.session_id AND z.type = 'pc_dormiu'
+           AND z.at BETWEEN e.at - interval '2 min' AND e.at + interval '1 min') AS acordou_em,
+       (SELECT ds.visible_pct FROM device_samples ds JOIN device_sessions dv ON dv.id = ds.session_id
+         WHERE dv.user_id = s.user_id AND ds.at BETWEEN e.at AND e.at + interval '90 s'
+         ORDER BY ds.at LIMIT 1) AS visivel_pct
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id LEFT JOIN users u ON u.id = s.user_id
+WHERE e.type IN ('reconectou', 'conexao_falhou') AND e.at > now() - interval '7 days'
+ORDER BY e.at DESC LIMIT 100;
+
+-- Processamento do microfone por combinação ligada e sistema.
+SELECT x.dsp, s.os, count(*) AS amostras, count(DISTINCT s.user_id) AS pessoas,
+       round(avg(x.dsp_underrun_pct)::numeric, 2) AS atraso_pct,
+       count(*) FILTER (WHERE x.dsp_underrun_pct >= 1) AS amostras_com_engasgo
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id
+WHERE s.kind = 'call' AND x.dsp IS NOT NULL AND x.at > now() - interval '7 days'
+GROUP BY 1, 2 ORDER BY 5 DESC NULLS LAST;
+
+-- Saída de áudio sintetizada com a rede limpa (o PC de quem ouve).
+SELECT u.username, s.os, count(*) AS amostras, round(avg(x.playout_synth_pct)::numeric, 2) AS saida_pct,
+       round(avg(x.recv_loss_pct)::numeric, 2) AS perda_recebida
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id LEFT JOIN users u ON u.id = s.user_id
+WHERE s.kind = 'call' AND x.playout_synth_pct >= 1 AND coalesce(x.recv_loss_pct, 0) < 0.5
+GROUP BY 1, 2 ORDER BY 4 DESC LIMIT 30;
+
+-- Câmeras: quem manda abaixo de 15 fps (e por quê) e congelamentos recebidos.
+SELECT u.username, s.os, round(avg(x.cam_fps)::numeric, 1) AS fps, max(x.cam_height) AS altura,
+       mode() WITHIN GROUP (ORDER BY x.cam_limitation) AS limitacao,
+       sum(x.cam_freezes) AS congel_recebidos
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id LEFT JOIN users u ON u.id = s.user_id
+WHERE s.kind = 'call' AND (x.cam_fps IS NOT NULL OR x.cam_freezes IS NOT NULL)
+  AND x.at > now() - interval '7 days'
+GROUP BY s.id, u.username, s.os ORDER BY 3 NULLS LAST LIMIT 30;
+```
+
 ## Onde agir (como ler)
 
 | Sinal | Provável causa | O que fazer |
@@ -234,24 +653,436 @@ SELECT at, type, detail FROM live_events WHERE session_id = '<id>' ORDER BY at;
 | `limitation = cpu` alto em quem transmite, `na_placa_pct` baixo | encoder por software | conferir placa/driver; codec que a placa codifica |
 | `limitation = bandwidth` alto | upload de quem transmite | preset menor ou camada de 720p |
 | perda na **subida** alta (`packets_lost_in`) | rede de quem transmite | idem; ver `transport` (TCP piora) |
-| perda na **descida** alta, `paused` em quem assiste | rede de quem assiste / banda da VPS | camada de 720p (simulcast); conferir `mbps_saida` perto do limite da VPS |
+| perda na **descida** alta em quem assiste | rede de quem assiste / banda da VPS | camada de 720p (simulcast); conferir `mbps_saida` perto do limite da VPS |
+| `paused` / "pausada pelo servidor" | **não acontece** com a configuração atual do LiveKit (`congestion_control` padrão, sem `allow_pause`: o SFU só baixa de camada, nunca pausa; `paused` falso em 43 222 amostras de 11/11 a 25/11) | nada; o sinal segue gravado, mas saiu da pontuação e dos motivos do painel. Se ligar o `allow_pause`, volte a olhar |
 | `decodificou_no_processador` em quem tem congelamentos | decodificador por software | driver (ex.: nvidia-vaapi-driver no Linux), codec mais leve |
 | `backup` alto | alguém sem o codec principal | ver quem (SO/placa) e a ordem de codecs |
 | muitas sessões `tcp`/`relay` | rede bloqueando UDP | TURN/TLS na 443 (relatório da investigação §3.8) |
 | CPU da VPS > 80% ou `mbps_saida` no teto do plano | VPS no limite | VPS maior, teto de bitrate, simulcast |
 | `capture_fps` < 80% do alvo, `limitation = none` | a captura do Chromium não entrega o fps | captura nativa (ADR 0031) ou outra fonte; codec/bitrate não resolvem |
-| `codec_ms` (transmite) perto de 1000/alvo | codificador não dá conta | preset menor ou outro codec para aquela placa |
+| `fps` (codificado) < 80% da `capture_fps` em quem transmite | codificador não dá conta | preset menor ou outro codec para aquela placa |
+| `codec_ms` (transmite) alto, mas `fps` ≈ `capture_fps` | **latência de fila** do codificador na placa, não gargalo (AMD entrega 49–55 fps com ~15 ms/quadro) | nada pelo codificador; se o fps está baixo, olhe a captura (`capture_fps` × alvo) |
 | quem assiste: `recv_fps` ≫ `fps`, congelamentos | decodificador | tirar o codec da ordem para aquela placa/SO; driver |
 | quem assiste: `recv_fps` baixo com perda 0 | não chega: quem transmite ou SFU | comparar com o `fps`/`capture_fps` de quem transmite e a pausa/camada |
 | todos os espectadores congelam juntos, perda 0, e a `capture_fps` de quem transmite oscila | a captura do Chromium no Windows (cópia do quadro para a CPU + teto de 50% de CPU do capturador) | não é rede nem codec: captura nativa no Windows (marco 2 da ADR 0031) |
-| `codec_escolhido` com "caiu no proc." ou "—" numa placa boa | marca permanente ou o Chromium sem encoder | limpar a marca; Linux/NVIDIA → motor nativo |
-| `concealed_pct` ≥ 3% com `recv_loss_pct` alto | rede de quem ouve | TCP/TURN? (o RED já está ligado) |
-| `concealed_pct` ≥ 3% sem perda | PC de quem ouve (CPU, DSP de áudio) | rever o custo do processamento local (ADR 0005) |
+| `codec_escolhido` com "caiu no proc." ou "—" numa placa boa | marca de 7 dias (da placa, contada da primeira queda; ADR 0073) ou o Chromium sem encoder | esperar a marca vencer ou limpá-la; Linux/NVIDIA → motor nativo |
+| `decoder_falhou` (quem assiste) | o H.265 chega e quase nada decodifica nesse aparelho | na próxima abertura ele não anuncia H.265 por 3 dias e recebe a reserva H.264 (ADR 0073); muitos de uma placa → rever a ordem de codecs |
+| `concealed_pct` ≥ 3% com `recv_loss_pct` alto (app com a emenda de 25/11 da ADR 0032: a **menor** perda entre as vozes) | rede de quem ouve (todas as vozes perdem) | TCP/TURN? (o RED já está ligado) |
+| `concealed_pct` ≥ 3% com `recv_loss_pct` baixo, e alguém da mesma call com `loss_pct` (subida) alto no mesmo minuto | subida de **quem fala**, não a rede de quem ouve | olhar a rede de quem fala (`loss_pct`, `transport`, web × desktop); versões anteriores à emenda somavam as vozes e culpavam o ouvinte |
+| `concealed_pct` ≥ 3% sem perda (nem a de quem ouve, nem a subida de quem fala) | PC de quem ouve (CPU, DSP de áudio) | rever o custo do processamento local (ADR 0005) |
 | vários `conexao_falhou` "entrando (mídia)" no mesmo minuto | servidor (IP anunciado, firewall, LiveKit) | conferir `LIVEKIT_NODE_IP`/portas; reverter a mudança |
 | `conexao_falhou` de uma pessoa só, etapa mídia | UDP bloqueado na rede dela | TURN/TLS na 443 |
 | `reconectou` em muitas sessões juntas | reinício/queda do LiveKit | não rodar `--infra` com gente na call |
+| Android: queda logo depois de `segundo_plano`, ou amostra de voz com `seconds` ≫ 60 | o serviço em primeiro plano não segurou (economia de bateria do fabricante) | ver o aparelho (`device`); instrução para liberar o app da otimização de bateria ou rever o serviço (ADR 0030) |
+| Android: queda junto de `rede_trocou` | troca de IP (Wi-Fi ↔ dados) | não é o servidor; ver se o LiveKit reconecta (`reconectou`) ou cai |
+| Android: `concealed_pct` alto só com `rota_do_audio = bluetooth` | perfil de voz do fone Bluetooth (HFP) | não é a rede; orientar fone com fio/alto-falante |
+| piora só numa `target` ou num `device` | o app/SDK daquela plataforma ou o aparelho | exceção de codec/qualidade para ele |
+| `entrada_lenta` com o tempo na etapa **acesso** | nosso backend (token) lento | ver CPU/Postgres da VPS e o log do backend naquela hora |
+| `entrada_lenta` com o tempo na etapa **sinal** | Caddy/WebSocket do LiveKit | conferir o proxy e o LiveKit; várias pessoas juntas = servidor |
+| `entrada_lenta` com o tempo na etapa **mídia** | UDP/ICE da rede da pessoa | uma pessoa só: TURN/TLS na 443; várias: `LIVEKIT_NODE_IP`/portas |
+| `entrada_abandonada` crescendo numa versão ou rede | entrada travando e a pessoa refazendo | ver a etapa no detalhe; reverter a versão ou investigar a rede |
+| `retomou` com "versão X → Y" frequente ou buraco grande | a atualização com retomada tira a pessoa da call | rever quando o app instala a atualização (ex.: só ao sair da call) |
+| `retomou` sem troca de versão | recarga ou crash do app no meio da call | cruzar com o relatório de erros do app naquela hora |
+| quem assiste congela com < 1 000 bytes por quadro recebido (`static_freezes`) | **tela parada** (o Chromium não captura sem mudança) | nada; o painel já desconta. Se a faixa de 1 000–2 000 bytes também congela muito sem ninguém reclamar, suba o limite (`staticFrameSQL`) |
+| `capture_fps` < 80% do alvo com bytes por quadro grandes e `source_height` ≥ 1440 | a captura de um monitor grande | preset por tamanho de monitor ou captura nativa (ADR 0031) |
+| `capture_fps` baixo só com `surface = window` | a captura de janela do Chromium | sugerir capturar o monitor; captura nativa |
+| `capture_fps` baixo com a CPU do app alta no mesmo minuto (`device_samples`) | CPU de quem transmite | captura nativa; preset menor |
+| `loss_pct` (subida) alto em `transmite` | a rede de quem transmite | não é o servidor nem quem assiste: banda menor, cabo, TURN se for TCP |
+| `qp` alto com `bitrate_kbps` no teto do preset | bitrate pouco para a imagem | subir o teto daquele preset (ou baixar resolução/fps) |
+| `start_ms` (transmite) alto ou `live_falhou` na etapa `publicação` para muitos | servidor/SFU | ver o LiveKit e a VPS naquela hora |
+| `live_falhou` `seletor · NotReadableError` | captura do sistema/driver | ver SO e placa da pessoa; motor nativo |
+| `live_falhou` `codec` | detecção de codec quebrou | `screenCodecSupport` / `encodingInfo` daquela placa |
+| `start_ms` (assiste) alto | quadro-chave demorando no começo | PLI ao assinar, quadro-chave mais frequente no começo da live |
+| `codec_escolhido` com `(L1T1 placa)` | o L1T3 barra o AV1 na placa | publicar AV1 sem camadas temporais nessas placas (ADR 0073, D4) |
+| `decoder_software` com o mesmo componente em várias pessoas | aquele decodificador cai no processador | lista de placas/decodificadores conhecidos |
+| queda da voz até 2 min depois de `pc_dormiu` | o PC dormiu | não é rede: não alarmar |
+| queda com `visible_pct` = 100 no mesmo minuto (`device_samples`) | rede ou servidor, não o app escondido | olhar a rede da pessoa e o servidor |
+| `dsp_underrun_pct` ≥ 1 concentrado num `dsp` (ex.: `voz:robo`) ou numa máquina | o processamento do microfone pesa no PC de quem fala | rever o custo (ADR 0005); sugerir desligar o supressor ou o modificador |
+| `playout_synth_pct` ≥ 1 com `recv_loss_pct` ≈ 0 | o dispositivo/driver de áudio de quem ouve | não é rede: trocar a saída de áudio, driver |
+| `cam_fps` < 15 com `cam_limitation = cpu` | a câmera pesa no PC de quem manda | preset menor de câmera |
+| `cam_freezes` alto com a rede limpa de quem recebe | quem manda a câmera (CPU, upload) | ver o `cam_fps`/`cam_limitation` de quem manda na mesma call |
 
 **Na VPS, se a perda na subida subir com lives pesadas:** o LiveKit avisa no
 boot que o buffer de UDP é pequeno (425 984 × 5 000 000 sugeridos); confira
 `grep -A1 '^Udp:' /proc/net/snmp` (coluna `RcvbufErrors`). Em 30/10/2026
 eram 10 em 5 dias (sem efeito).
+
+## Servidor: API e VPS
+
+Desde a [ADR 0067](adr/0067-metricas-da-api-e-da-vps.md) o backend guarda também a
+saúde da API e da máquina, para responder o que aconteceu numa queda ou lentidão
+(como os 16 minutos fora em 24/11/2026). Tudo lido pelo próprio backend (middleware
+do gin, `runtime`, `pgxpool.Stat`, `/proc` e `statfs`), 14 dias de retenção.
+
+| Tabela | De quanto em quanto | O quê |
+|---|---|---|
+| `api_metrics` | 1 min | pedidos, por classe (2xx, 3xx, 4xx, 5xx), latência p50/p95/p99/máx (ms, por baldes; o máx é exato), pedidos em andamento (agora e o máximo do minuto), **panics**, WebSockets abertos e quantos entraram/saíram, goroutines, heap e `Sys` do Go, ciclos e pausa de GC, pool do Postgres (em uso, ociosas, total, máximo, esperas por conexão e quanto tempo esperaram) |
+| `api_route_metrics` | 5 min, até 20 rotas | por rota (método + padrão do gin, ex. `GET /api/channels/:id/messages`, nunca a URL): pedidos, 4xx, 5xx, p50, p95, máx e tempo total; as com 5xx primeiro, depois as que mais gastaram tempo |
+| `host_metrics` | 1 min | CPU (uso, `iowait`, `steal`), carga 1/5/15, RAM usada (%) e disponível, swap, disco da pasta de dados (usado/livre, %, inodes, leitura/escrita por segundo, % ocupado), rede da interface principal (bytes e pacotes por segundo, erros, descartes), erros UDP do kernel (`InErrors`, `RcvbufErrors`, `SndbufErrors`), CPU e memória do backend e do Postgres, tamanho do banco e conexões, idade e tamanho do backup mais novo, hora do boot |
+| `db_table_sizes` | 1 h | as 10 maiores tabelas (com índices) |
+
+Fora da conta da API: `/healthz`, os downloads longos (`/updates/*`, mídia do chat) e
+o `/rtc` do LiveKit. O `/ws` conta como conexão, não como pedido. `minute` é o
+minuto da coleta (os números são do minuto anterior a ele); nas rotas, o fim da
+janela de 5 min. Nulo = não deu para ler (ex.: Windows em dev). CPU de processo
+em % da máquina inteira (100% = as 2 vCPUs). Um buraco nas duas tabelas = o
+backend estava fora; `boot_at` mudou = a máquina reiniciou.
+
+**Painel:** aba **Servidor** de `/observabilidade`, em blocos VPS, API e LiveKit.
+O mesmo JSON: `GET /api/obs/server?days=7` (token de um dev).
+
+### Consultas prontas (psql)
+
+**O que aconteceu na última hora** (um buraco de minutos = backend fora):
+```sql
+SELECT a.minute, a.requests, a.status_5xx, round(a.p95_ms::numeric) AS p95_ms, a.panics,
+       a.ws_open, a.db_in_use, a.db_waits, round(h.cpu_pct::numeric) AS cpu,
+       round(h.steal_pct::numeric, 1) AS steal, round(h.mem_used_pct::numeric) AS ram,
+       round(h.swap_used_mb::numeric) AS swap_mb, h.boot_at
+FROM api_metrics a LEFT JOIN host_metrics h USING (minute)
+WHERE a.minute > now() - interval '1 hour' ORDER BY a.minute;
+```
+
+**Buracos (backend fora) nos últimos 14 dias:**
+```sql
+SELECT minute AS voltou, minute - prev AS ficou_fora
+FROM (SELECT minute, lag(minute) OVER (ORDER BY minute) AS prev FROM api_metrics) x
+WHERE minute - prev > interval '2 minutes' ORDER BY minute DESC;
+```
+
+**Reinícios da máquina:**
+```sql
+SELECT DISTINCT boot_at FROM host_metrics WHERE boot_at IS NOT NULL ORDER BY 1 DESC;
+```
+
+**Rotas com mais 5xx e mais lentas (últimas 24 h):**
+```sql
+SELECT route, sum(requests) AS pedidos, sum(status_5xx) AS erros_5xx,
+       round((sum(total_ms) / nullif(sum(requests), 0))::numeric, 1) AS media_ms,
+       round(max(p95_ms)::numeric) AS p95_ms, round(max(max_ms)::numeric) AS max_ms
+FROM api_route_metrics WHERE minute > now() - interval '24 hours'
+GROUP BY 1 ORDER BY erros_5xx DESC, sum(total_ms) DESC LIMIT 20;
+```
+
+**API por hora (pedidos, 5xx, latência, pool):**
+```sql
+SELECT date_trunc('hour', minute) AS hora, sum(requests) AS pedidos, sum(status_5xx) AS erros_5xx,
+       round(max(p95_ms)::numeric) AS pior_p95_ms, sum(panics) AS panics,
+       max(ws_open) AS ws_max, max(db_in_use) AS banco_max, sum(db_waits) AS esperas_banco,
+       max(goroutines) AS goroutines_max, round(max(heap_mb)::numeric) AS heap_mb_max
+FROM api_metrics WHERE minute > now() - interval '24 hours' GROUP BY 1 ORDER BY 1;
+```
+
+**Quedas de WebSocket em massa** (todo mundo saindo no mesmo minuto):
+```sql
+SELECT minute, ws_open, ws_connects, ws_disconnects FROM api_metrics
+WHERE ws_disconnects > 5 ORDER BY minute DESC LIMIT 30;
+```
+
+**VPS por hora (CPU, steal, RAM, swap, disco, rede):**
+```sql
+SELECT date_trunc('hour', minute) AS hora, round(avg(cpu_pct)::numeric) AS cpu, round(max(cpu_pct)::numeric) AS cpu_max,
+       round(max(steal_pct)::numeric, 1) AS steal_max, round(max(iowait_pct)::numeric, 1) AS iowait_max,
+       round(max(mem_used_pct)::numeric) AS ram_max, round(max(swap_used_mb)::numeric) AS swap_mb,
+       round(max(disk_used_pct)::numeric) AS disco, round((max(net_tx_bps) * 8 / 1e6)::numeric, 1) AS mbps_saida_max,
+       sum(udp_rcvbuf_errors) AS udp_rcvbuf
+FROM host_metrics WHERE minute > now() - interval '24 hours' GROUP BY 1 ORDER BY 1;
+```
+
+**Quem come a máquina** (backend × Postgres; o LiveKit está em `livekit_metrics`):
+```sql
+SELECT date_trunc('hour', h.minute) AS hora, round(avg(h.cpu_pct)::numeric) AS vps,
+       round(avg(h.backend_cpu_pct)::numeric, 1) AS backend, round(avg(h.postgres_cpu_pct)::numeric, 1) AS postgres,
+       round(avg(l.livekit_cpu_pct / 2)::numeric, 1) AS livekit,  -- livekit_cpu_pct é % de 1 vCPU
+       round(max(h.backend_mem_mb)::numeric) AS backend_mb, round(max(h.postgres_mem_mb)::numeric) AS postgres_mb
+FROM host_metrics h LEFT JOIN livekit_metrics l USING (minute)
+WHERE h.minute > now() - interval '24 hours' GROUP BY 1 ORDER BY 1;
+```
+
+**Backup e banco agora:**
+```sql
+SELECT minute, backup_at, now() - backup_at AS idade, pg_size_pretty(backup_bytes) AS backup,
+       pg_size_pretty(db_size_bytes) AS banco, db_connections
+FROM host_metrics ORDER BY minute DESC LIMIT 1;
+SELECT table_name, pg_size_pretty(total_bytes) FROM db_table_sizes
+WHERE hour = (SELECT max(hour) FROM db_table_sizes) ORDER BY total_bytes DESC;
+```
+
+### Onde agir (API e VPS)
+
+| Sinal | Provável causa | O que fazer |
+|---|---|---|
+| buraco em `api_metrics` e `host_metrics`, `boot_at` igual | o backend caiu ou reiniciou | `journalctl -u concord-server` no horário; `panics` e `heap_mb`/`goroutines` subindo antes = vazamento ou panic |
+| buraco nas duas tabelas e `boot_at` novo | a VPS reiniciou | painel do provedor; ver `swap_used_mb`/`mem_used_pct` antes |
+| `steal_pct` > 10% por vários minutos | vizinho barulhento na VPS | abrir chamado no provedor ou trocar de plano/host |
+| `iowait_pct` alto, `disk_busy_pct` perto de 100% | disco lento (backup, `VACUUM`, uploads) | ver o horário do backup; disco melhor |
+| `mem_used_pct` > 90% e swap crescendo | RAM no limite | ver backend/Postgres/LiveKit/Maestro na consulta "quem come a máquina" |
+| `disk_used_pct` > 85% ou inodes > 85% | disco enchendo | `du -sh /opt/concord/*`; uploads e backups antigos |
+| backup com mais de 26 h | o timer do `pg_dump` não rodou | `systemctl list-timers`, `journalctl -u <backup>` |
+| `status_5xx` numa rota | erro do servidor nessa rota | consulta "rotas com mais 5xx"; log do backend no minuto |
+| `p95_ms` alto com `db_waits` > 0 | pool do Postgres esgotado | consultas lentas (`pg_stat_statements`), `db_max` |
+| `p95_ms` alto sem espera no banco, CPU alta | CPU da VPS | ver quem come a máquina |
+| `ws_disconnects` grande num minuto | reinício do backend/Caddy ou rede da VPS | conferir deploy no horário; `net_drops`/`net_errors` |
+| `goroutines` ou `heap_mb` só sobem | vazamento no backend | `pprof`; comparar com o último deploy |
+| `udp_rcvbuf_errors` subindo com lives pesadas | buffer de UDP do kernel pequeno (ver a nota do LiveKit acima) | `net.core.rmem_max` maior |
+
+## Erros do app
+
+Decisão, alternativas e tetos: [ADR 0068](adr/0068-relatorio-de-erros-do-app.md).
+Um erro que antes ficava só no `console.error` do aparelho (ou no journal, no
+caso de um panic do backend) vira uma linha agrupada no painel dos devs.
+
+### O que é coletado
+
+| Origem | De onde | O quê |
+|---|---|---|
+| `renderer` (desktop e web) | `window.onerror`, `unhandledrejection`, a tela "Algo deu errado" (`AppErrorBoundary`) e o erro de rota (`RouteErrorScreen`) | tipo, mensagem, pilha |
+| `main` (Electron) | `uncaughtException`, `unhandledRejection`, `render-process-gone`, `child-process-gone`, saída inesperada do `concord-live`, `concord-audio` e do overlay | tipo, mensagem (processo, motivo, código de saída ou sinal), pilha; o renderer manda pela conta dele |
+| `mobile` (Android) | `ErrorBoundary`, handler global do React Native (`ErrorUtils`), promessas rejeitadas | tipo, mensagem, pilha |
+| `backend` | panic recuperado (`internal/platform/recovery`) | rota (`FullPath`, sem ids), valor do panic, pilha do Go |
+
+Junto de cada erro: versão do app, SO (`Windows`, `Linux`, `Android <API>`…),
+desktop/web/android, a tela (o **padrão** da rota: `/servers/:id/channels/:id`),
+se estava em call ou em live, e quantas vezes repetiu desde o último envio. Ligado
+à conta (como a telemetria); visitante não manda.
+
+**Não vai**: erro de rede esperado (pedido que falhou, offline, `AbortError`,
+erro devolvido pela nossa API, arquivo do app que não baixou), o aviso
+`ResizeObserver loop` e erro cuja pilha começa numa extensão do navegador. Nunca
+vão props, estado nem a pilha de componentes do React.
+
+### O que é limpo (no aparelho e de novo no servidor)
+
+Query string e fragmento das URLs (inclusive relativas, `/api/x?token=…`); tokens (`Bearer …`, JWT, sequências longas de
+hex/base64) → `<token>`; e-mail → `<email>`; UUID → `<id>`; caminhos de usuário
+(`C:\Users\<nome>`, `/home/<nome>`, `/Users/<nome>`) → `<user>`; texto entre aspas
+com mais de 24 caracteres → `"…"`; a URL de cada quadro da pilha fica só com o
+caminho dentro do app (`assets/index-abc123.js:1:23456`). Mensagem até 300 bytes,
+pilha até 30 linhas e 4 KB.
+
+### Agrupamento, tetos e retenção
+
+- `app_error_groups`: um por erro distinto. A impressão digital (no servidor) é
+  `sha256(origem, tipo, mensagem com números → N, 3 primeiros quadros sem linha
+  e coluna e sem o hash do arquivo)`. Em JS o quadro é só o nome do arquivo (sem a
+  função: o web e o Hermes são minificados e o nome muda a cada build); no Go, a
+  função e o arquivo. Por isso erros diferentes no mesmo bundle, com o mesmo tipo e
+  a mesma mensagem, caem no mesmo grupo. Guarda a primeira pilha, a primeira e a
+  última vez e a primeira versão.
+- `app_error_occurrences`: uma linha por (grupo, pessoa, hora, versão), com a
+  contagem somada; tela, SO e call/live da última vez naquela hora.
+- Aparelho: no máximo 10 erros a cada 30 s, repetição vira contagem, 50 erros
+  distintos por sessão do app. Servidor: 6 pedidos/min e 120 erros/h por pessoa,
+  1200/h no total; panic do backend gravado a cada 10 s (até 50 distintos).
+- 14 dias, apagados pelo backend de hora em hora.
+
+### Pilha traduzida
+
+O build do renderer gera source maps **sem** o comentário `sourceMappingURL` e
+sem o código-fonte dentro (`sourcesContent`); os `.map` saem da pasta do app
+(não vão no instalador nem no app web) e o deploy os guarda em
+`/opt/concord/sourcemaps/` (fora do que o Caddy serve; os de mais de 90 dias são
+apagados). O backend traduz a pilha quando um dev abre o grupo
+(`SOURCEMAPS_DIR`, padrão `/opt/concord/sourcemaps`). Não é traduzido: o main do
+Electron (não é minificado, já se lê), o Android (Hermes; fica crua) e o backend
+(o Go já dá arquivo e linha).
+
+### Painel
+
+Aba **Erros** de `/observabilidade` (só `dev_badge_users`): grupos ordenados por
+pessoas afetadas e recência, com contagem, pessoas, primeira e última vez,
+versões, sistemas e origem; filtros por origem e versão; selo "novo nesta
+versão" (todas as ocorrências são da versão mais nova daquela origem). Abrir um
+grupo mostra a pilha (traduzida quando dá), as telas e as últimas ocorrências.
+O mesmo JSON: `GET /api/obs/errors?days=7&source=&version=` e
+`GET /api/obs/errors/<impressão digital>?days=7`.
+
+### Consultas prontas (psql)
+
+**Erros que mais afetam gente (7 dias):**
+```sql
+SELECT g.source, g.kind, left(g.message, 80) AS mensagem,
+       count(DISTINCT o.user_id) AS pessoas, sum(o.count) AS vezes,
+       min(o.hour) AS primeira, max(o.last_at) AS ultima,
+       string_agg(DISTINCT o.app_version, ', ') AS versoes
+FROM app_error_groups g JOIN app_error_occurrences o USING (fingerprint)
+WHERE o.hour > now() - interval '7 days'
+GROUP BY g.fingerprint ORDER BY pessoas DESC, ultima DESC LIMIT 30;
+```
+
+**Erros novos desde ontem:**
+```sql
+SELECT fingerprint, source, kind, left(message, 80), first_seen, first_version
+FROM app_error_groups WHERE first_seen > now() - interval '1 day' ORDER BY first_seen DESC;
+```
+
+**Erros por hora (para ver um pico ou um deploy ruim):**
+```sql
+SELECT o.hour, g.source, sum(o.count) AS vezes, count(DISTINCT o.user_id) AS pessoas
+FROM app_error_occurrences o JOIN app_error_groups g USING (fingerprint)
+WHERE o.hour > now() - interval '48 hours'
+GROUP BY 1, 2 ORDER BY 1, 2;
+```
+
+**Um grupo por dentro (telas e versões):**
+```sql
+SELECT screen, app_version, os, target, in_call, in_live, sum(count) AS vezes
+FROM app_error_occurrences WHERE fingerprint = '<impressão digital>'
+GROUP BY 1, 2, 3, 4, 5, 6 ORDER BY vezes DESC;
+SELECT stack FROM app_error_groups WHERE fingerprint = '<impressão digital>';
+```
+
+**Panics do backend por rota:**
+```sql
+SELECT o.screen AS rota, left(g.message, 80), sum(o.count) AS vezes, max(o.last_at) AS ultima
+FROM app_error_groups g JOIN app_error_occurrences o USING (fingerprint)
+WHERE g.source = 'backend' AND o.hour > now() - interval '14 days'
+GROUP BY 1, 2 ORDER BY vezes DESC;
+## O aparelho: o app está lento, travado ou pesado?
+
+Decisão, alternativas e o que ficou de fora: [ADR 0069](adr/0069-metricas-do-aparelho.md).
+Responde "o Salinha tá pesado/travou no meu PC" com números, sem olhar nada
+fora do app.
+
+### O que é coletado
+
+| Tabela | De quanto em quanto | O quê |
+|---|---|---|
+| `device_sessions` | uma por abertura do app (renovada a cada envio) | SO, versão, web/desktop, placa de vídeo (renderer do WebGL), núcleos, memória total, **tempo para abrir** (`startup_ms`: do início até a lista de servidores chegar; só quem abriu já logado) e **aceleração por hardware** (`gpu_status`: `enabled`, `software`, `disabled`) |
+| `device_samples` | **1 linha por minuto em call ou live, 1 a cada 5 min parado** (fecha antes quando o estado muda); enviadas em lote a cada ~5 min | estado (`parado`, `call`, `transmitindo`), assistindo live, jogo aberto (sim/não, só com a atividade ligada); % do tempo com a janela visível e com foco; **CPU do app** por processo (principal, renderer, GPU, outros; média, % da máquina) e o máximo do app; **memória** do app (média), do renderer e da GPU (máximo); helpers nativos (só Linux); **máquina**: CPU do sistema, memória livre (mínimo), carga (não existe no Windows), bateria, limite de velocidade da CPU do SO; **travadas**: atraso do laço de eventos (p95/máx), quadros longos (quantos, ms somados, o maior), interações lentas (≥ 200 ms) e a pior, memória do JS, janela que parou de responder (`hangs`), GPU que caiu; **rede do app**: RTT do batimento do WebSocket (mediana/máx) e latência da API (p50/p95, quantas) |
+
+Desktop manda tudo; o **app web** manda só o que o navegador dá (travadas,
+memória do JS, WebSocket, API, abertura, placa pelo WebGL): os campos do
+processo principal e da máquina ficam vazios. Android não manda (ainda).
+Visitante sem conta não manda. 14 dias (o backend apaga de hora em hora).
+
+Como ler os números:
+
+- `cpu_*` é **% da máquina inteira** (dividido pelos núcleos): numa máquina de 8
+  núcleos, 12,5% = um núcleo cheio.
+- O atraso do laço de eventos, os quadros longos e as interações **só contam
+  com a janela visível** (escondida, o Chromium espaça os timers e isso não é
+  travada); `visible_pct` diz quanto da linha foi medido. Travadas por minuto =
+  `long_ms` / minutos visíveis. Atraso acima de 30 s é o aparelho suspenso e é
+  descartado.
+- "Visível" e "com foco" vêm do estado da janela do app (no desktop o main
+  avisa; em call a Page Visibility diz sempre visível): minimizada ou na
+  bandeja = escondida; visível sem foco (atrás do jogo) = visível.
+- `heap_mb` é o maior heap do JS da linha (lido a cada 2 s com a janela
+  visível e no fechamento).
+- `seconds` é a duração da linha; `at` é quando ela fechou.
+
+### Painel
+
+Aba **Dispositivos** do `/observabilidade` (só `dev_badge_users`), para 24 h,
+3, 7 ou 14 dias. O mesmo JSON: `GET /api/obs/devices?days=7`. As médias são
+pesadas pelo tempo (uma linha de 5 min vale cinco de 1 min).
+
+- **Aparelhos mais pesados ou travados**: pessoa, sistema, placa, versão, os
+  motivos prováveis em palavras e a linha de números.
+- **Consumo típico por estado** (parado, em call, transmitindo): a linha de
+  base para saber se um número é alto.
+- **Por versão do app**: para ver se uma versão piorou.
+
+| Motivo | Regra (no período) | O que fazer |
+|---|---|---|
+| A janela parou de responder | `hangs` > 0 | travamento de verdade: ver versão e o que estava aberto; reproduzir com `--perf-log` |
+| Travadas longas | ≥ 1 s de quadros longos por minuto visível | perfilar a tela/versão (`--perf-log`); comparar com a linha de base |
+| Sem aceleração por hardware | `gpu_status` software/disabled | driver, lista de bloqueio do Chromium, ou a GPU caiu e voltou por software |
+| Placa de vídeo caiu | `gpu_crashes` > 0 | driver; cruzar com codec/placa nas lives |
+| CPU alta do renderer em call | renderer ≥ 20% da máquina em call/live | o que a tela da call faz (vídeos, animações, DSP de áudio) |
+| App pesado (CPU) | app ≥ 25% da máquina na média | ver por processo e por estado |
+| Interface atrasada | atraso p95 ≥ 100 ms | idem às travadas |
+| Cliques demorando | ≥ 5 interações ≥ 200 ms | qual tela; perfilar |
+| Memória do app alta | ≥ 1,5 GB na média | vazamento? `heap_mb` subindo ao longo da sessão |
+| Pouca memória livre | < 10% ou < 1 GB livre | a máquina está no limite: o app pesa mais; não é bug |
+| Máquina no limite (CPU) | CPU do sistema ≥ 85% | com o app baixo: outra coisa (jogo) ocupa a máquina |
+| Rede do app lenta | RTT do WS ≥ 300 ms | rede da pessoa ou VPS (comparar com as métricas do servidor) |
+| Abre devagar | abertura ≥ 15 s | regressão de abertura na versão? disco lento? |
+
+### Consultas prontas (psql)
+
+**Quem está mais pesado (média do período, por pessoa e estado):**
+```sql
+SELECT u.username, x.state, count(*) AS linhas, round(sum(x.seconds) / 60) AS minutos,
+       round(avg(x.cpu_browser + x.cpu_renderer + x.cpu_gpu + x.cpu_other)::numeric, 1) AS cpu_app,
+       round(avg(x.cpu_renderer)::numeric, 1) AS cpu_renderer, round(avg(x.mem_app_mb)) AS mem_app_mb,
+       round(min(x.sys_mem_free_mb)) AS livre_min_mb, s.os, s.gpu, s.app_version
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+WHERE x.at > now() - interval '7 days'
+GROUP BY u.username, x.state, s.os, s.gpu, s.app_version ORDER BY cpu_app DESC NULLS LAST LIMIT 30;
+```
+
+**Linha de base por estado (p50/p90 do app inteiro):**
+```sql
+SELECT state, count(*) AS linhas, count(DISTINCT s.user_id) AS pessoas,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY cpu_browser + cpu_renderer + cpu_gpu + cpu_other) AS cpu_p50,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY cpu_browser + cpu_renderer + cpu_gpu + cpu_other) AS cpu_p90,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY mem_app_mb) AS mem_p50,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY mem_app_mb) AS mem_p90
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id
+WHERE s.target = 'desktop' GROUP BY state ORDER BY state;
+```
+
+**Travadas por pessoa (só o tempo visível conta):**
+```sql
+SELECT u.username, s.app_version, s.gpu,
+       round((sum(x.long_ms) / nullif(sum(x.seconds * x.visible_pct / 100) / 60, 0))::numeric) AS travada_ms_por_min,
+       max(x.long_max_ms) AS maior_ms, percentile_cont(0.5) WITHIN GROUP (ORDER BY x.lag_p95_ms) AS atraso_p95,
+       sum(x.hangs) AS parou_de_responder, sum(x.slow_inputs) AS cliques_lentos
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+WHERE x.visible_pct > 0 GROUP BY u.username, s.app_version, s.gpu
+ORDER BY travada_ms_por_min DESC NULLS LAST LIMIT 30;
+```
+
+**Uma versão piorou?** (em call, desktop):
+```sql
+SELECT s.app_version, count(DISTINCT s.user_id) AS pessoas, count(*) AS linhas,
+       round(avg(x.cpu_browser + x.cpu_renderer + x.cpu_gpu + x.cpu_other)::numeric, 1) AS cpu_app,
+       round(avg(x.mem_app_mb)) AS mem_mb, percentile_cont(0.5) WITHIN GROUP (ORDER BY x.lag_p95_ms) AS atraso_p95,
+       sum(x.hangs) AS parou
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id
+WHERE x.state <> 'parado' AND s.target = 'desktop'
+GROUP BY s.app_version ORDER BY s.app_version DESC;
+```
+
+**Sem aceleração por hardware ou GPU que caiu:**
+```sql
+SELECT u.username, s.os, s.gpu, s.gpu_status, s.app_version, sum(x.gpu_crashes) AS gpu_caiu
+FROM device_sessions s JOIN users u ON u.id = s.user_id LEFT JOIN device_samples x ON x.session_id = s.id
+GROUP BY u.username, s.id HAVING s.gpu_status IN ('software', 'disabled') OR sum(x.gpu_crashes) > 0
+ORDER BY s.last_seen_at DESC;
+```
+
+**Máquina no limite × app pesado** (CPU do sistema alta com o app baixo = outra coisa):
+```sql
+SELECT u.username, x.state, x.game, round(avg(x.sys_cpu_pct)::numeric) AS cpu_sistema,
+       round(avg(x.cpu_browser + x.cpu_renderer + x.cpu_gpu + x.cpu_other)::numeric, 1) AS cpu_app,
+       round(min(x.sys_mem_free_mb)) AS livre_min_mb, bool_or(x.on_battery) AS bateria,
+       min(x.speed_limit_pct) AS limite_cpu
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+GROUP BY u.username, x.state, x.game HAVING avg(x.sys_cpu_pct) > 70 ORDER BY cpu_sistema DESC;
+```
+
+**Tempo para abrir, por versão:**
+```sql
+SELECT app_version, target, count(*) AS aberturas,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY startup_ms) AS p50_ms,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY startup_ms) AS p90_ms
+FROM device_sessions WHERE startup_ms IS NOT NULL GROUP BY 1, 2 ORDER BY 1 DESC;
+```
+
+**Rede do app (WS e API), por dia:**
+```sql
+SELECT date_trunc('day', at) AS dia, percentile_cont(0.5) WITHIN GROUP (ORDER BY ws_rtt_ms) AS ws_rtt,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY ws_rtt_ms) AS ws_rtt_p90,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY api_ms_p50) AS api_p50,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY api_ms_p95) AS api_p95
+FROM device_samples GROUP BY 1 ORDER BY 1;
+```
+
+**Volume (está dentro do previsto? ~170 linhas por pessoa por dia):**
+```sql
+SELECT date_trunc('day', at) AS dia, count(*) AS linhas, count(DISTINCT session_id) AS aberturas
+FROM device_samples GROUP BY 1 ORDER BY 1;
+```

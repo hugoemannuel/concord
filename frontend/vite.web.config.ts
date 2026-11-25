@@ -5,7 +5,7 @@ import {
   buildWebMediaSrc,
   WEB_EXTRA_CSP
 } from './src/renderer/src/shared/lib/serverUrl'
-import { cspPlugin, rendererShared } from './vite.renderer.shared'
+import { appVersionDefine, cspPlugin, rendererShared, SOURCEMAP_BUILD } from './vite.renderer.shared'
 
 // Salinha no navegador (yarn build:web → dist-web/). O mesmo renderer do app
 // desktop, sem o overlay de jogo, falando com o backend na mesma origem (o
@@ -56,13 +56,17 @@ export default defineConfig({
   base: '/',
   publicDir: resolve('web-public'),
   define: {
-    'import.meta.env.VITE_APP_TARGET': JSON.stringify('web')
+    'import.meta.env.VITE_APP_TARGET': JSON.stringify('web'),
+    ...appVersionDefine()
   },
   build: {
     outDir: resolve('dist-web'),
     emptyOutDir: true,
+    // Source maps "hidden", fora do dist-web (SOURCEMAP_BUILD, docs/adr/0068).
+    sourcemap: SOURCEMAP_BUILD.sourcemap,
     // Só o app: o overlay de jogo é uma janela do Electron.
     rollupOptions: {
+      ...SOURCEMAP_BUILD.rollupOptions,
       input: resolve('src/renderer/index.html')
     }
   },

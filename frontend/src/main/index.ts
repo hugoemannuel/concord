@@ -45,6 +45,7 @@ import { setupGlobalKeybinds } from './overlay/globalKeybinds'
 import { setupGames } from './activity/games'
 import { setupMusic } from './activity/music'
 import { setupAppMetrics } from './app/appMetrics'
+import { setupDeviceStats } from './deviceStats/setupDeviceStats'
 import { setupTTS } from './tts/ttsSetup'
 import { setupPerfLog } from './perf/setupPerfLog'
 import { handleInviteArgs, handleInviteUrl, setupInviteProtocol } from './app/inviteProtocol'
@@ -69,6 +70,7 @@ import { setupNativeLive } from './nativeLive/setupNativeLive'
 import { openSplash } from './splash/openSplash'
 import { createMainWindowStartup } from './splash/mainWindowStartup'
 import { takeHiddenRelaunch } from './splash/splashMarks'
+import { setupErrorReport } from './errorReport/setupErrorReport'
 
 let mainWindow: BrowserWindow | null = null
 /** Endereço do servidor que respondeu ao abrir (undefined no dev: o do build). */
@@ -295,6 +297,8 @@ function createWindow(): void {
   loadRenderer(mainWindow)
 }
 
+setupErrorReport(() => mainWindow) // relatório de erros (docs/adr/0068): antes de tudo
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -351,6 +355,7 @@ app.whenReady().then(() => {
   setupGames(() => mainWindow)
   setupMusic(() => mainWindow)
   setupAppMetrics(() => mainWindow)
+  setupDeviceStats(() => mainWindow)
   setupTTS(() => mainWindow)
 
   // Default open or close DevTools by F12 in development

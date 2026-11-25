@@ -3,7 +3,11 @@ import type { Message } from '../api/messages'
 import { splitMentions } from '../lib/mentions'
 import { useServerStore } from '../../servers/store/serverStore'
 import MentionChip from './MentionChip'
+import MessageText from './MessageText'
 import { MessageTime } from './MessageTime'
+
+/** system_kind dos alertas do servidor dos devs (ADR 0071): links clicáveis e o @all em chip. */
+const ALERT_KIND = 'alert'
 
 /**
  * Mensagem enviada pelo próprio servidor (ex.: feliz aniversário): aparece
@@ -18,11 +22,7 @@ function SystemMessage({ message }: { message: Message }): React.JSX.Element {
   const renderText = (text: string, offset: number): React.ReactNode[] =>
     splitMentions(text).map((part, i) =>
       part.mention ? (
-        <MentionChip
-          key={`${offset}-${i}`}
-          mention={part.mention}
-          displayText={part.text}
-        />
+        <MentionChip key={`${offset}-${i}`} mention={part.mention} displayText={part.text} />
       ) : (
         <span key={`${offset}-${i}`}>{part.text}</span>
       )
@@ -47,17 +47,21 @@ function SystemMessage({ message }: { message: Message }): React.JSX.Element {
           </span>
           <MessageTime iso={message.created_at} className="text-ds-xs font-medium text-faint" />
         </div>
-        <p className="whitespace-pre-wrap break-words text-ds-chat text-strong">
-          {at >= 0 ? (
-            <>
-              {renderText(message.content.slice(0, at), 0)}
-              <strong className="font-semibold text-warning">{marker}</strong>
-              {renderText(message.content.slice(at + marker.length), at + marker.length)}
-            </>
-          ) : (
-            renderText(message.content, 0)
-          )}
-        </p>
+        {message.system_kind === ALERT_KIND ? (
+          <MessageText content={message.content} everyone={message.mention_everyone ?? null} />
+        ) : (
+          <p className="whitespace-pre-wrap break-words text-ds-chat text-strong">
+            {at >= 0 ? (
+              <>
+                {renderText(message.content.slice(0, at), 0)}
+                <strong className="font-semibold text-warning">{marker}</strong>
+                {renderText(message.content.slice(at + marker.length), at + marker.length)}
+              </>
+            ) : (
+              renderText(message.content, 0)
+            )}
+          </p>
+        )}
       </div>
     </div>
   )

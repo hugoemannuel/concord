@@ -42,11 +42,41 @@ const EVENTS: Record<string, string> = {
   codec_trocou: 'Codec trocou',
   codec_escolhido: 'Codec escolhido',
   conexao_falhou: 'Voz não conectou',
-  reconectou: 'Voz reconectou'
+  reconectou: 'Voz reconectou',
+  retomou: 'Voltou à call (o app reiniciou)',
+  // docs/adr/0074.
+  live_falhou: 'Live não começou',
+  pc_dormiu: 'PC dormiu',
+  // Só do app Android (docs/adr/0070).
+  segundo_plano: 'Saiu do app',
+  primeiro_plano: 'Voltou ao app',
+  rede_trocou: 'Trocou de rede',
+  rota_do_audio: 'Saída do áudio'
 }
 
-export function eventLabel(type: string): string {
+// A falha na etapa de acesso (chamada encerrada, sem permissão) não é queda
+// (telemetryConnection.ts, wherePhase; o backend a separa do mesmo jeito).
+const ACCESS_FAILURE = 'entrando (acesso)'
+
+export function eventLabel(type: string, detail = ''): string {
+  if (type === 'conexao_falhou' && detail.startsWith(ACCESS_FAILURE)) return 'Sem acesso à chamada'
   return EVENTS[type] ?? type
+}
+
+const PLATFORMS: Record<string, string> = {
+  desktop: 'Desktop',
+  web: 'Navegador',
+  android: 'App Android'
+}
+
+/**
+ * "App Android · samsung SM-A515F · wifi": de onde veio a sessão (docs/adr/0070). A rede só no
+ * Android: no desktop/web é a estimativa de velocidade do navegador (4g mesmo no Wi-Fi).
+ */
+export function platformLabel(s: { target: string; device: string; network: string }): string {
+  const network = s.target === 'android' ? s.network : ''
+  const parts = [PLATFORMS[s.target] ?? 'plataforma desconhecida', s.device, network]
+  return parts.filter(Boolean).join(' · ')
 }
 
 /** Os sinais da ADR 0032 de uma sessão (o que qualityLine lê). */
@@ -61,6 +91,8 @@ export interface QualitySignals {
   connect_ms: number | null
   reconnects: number
   failures: number
+  bad_minutes?: number
+  access_failures?: number
 }
 
 type Part = [value: number | null, label: (v: string) => string, digits?: number]
@@ -72,9 +104,11 @@ function partsOf(s: QualitySignals): Part[] {
     return [
       [s.concealed_pct, (v) => `Áudio sintetizado ${v}%`],
       [s.recv_loss_pct, (v) => `perda recebida ${v}%`],
+      [positive(s.bad_minutes ?? 0), (v) => `${v} min de voz ruim`, 0],
       [s.connect_ms === null ? null : s.connect_ms / 1000, (v) => `entrou em ${v} s`],
       [positive(s.reconnects), (v) => `${v} ${s.reconnects === 1 ? 'reconexão' : 'reconexões'}`, 0],
-      [positive(s.failures), (v) => `${v} ${s.failures === 1 ? 'falha' : 'falhas'}`, 0]
+      [positive(s.failures), (v) => `${v} ${s.failures === 1 ? 'falha' : 'falhas'}`, 0],
+      [positive(s.access_failures ?? 0), (v) => `${v} sem acesso à chamada`, 0]
     ]
   }
   const [first, second] =

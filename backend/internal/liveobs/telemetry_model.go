@@ -29,6 +29,21 @@ const (
 	EventConnectFailed = "conexao_falhou"
 	// A voz caiu e voltou sozinha (quanto tempo ficou fora).
 	EventReconnected = "reconectou"
+	// Só do app Android (ADR 0070): saiu do app e voltou (quanto tempo fora),
+	// trocou de rede no meio da call e por onde sai o áudio.
+	EventBackground     = "segundo_plano"
+	EventForeground     = "primeiro_plano"
+	EventNetworkChanged = "rede_trocou"
+	EventAudioRoute     = "rota_do_audio"
+	// Entrar na call levou mais de 3 s (o tempo de cada etapa: acesso, sinal, mídia).
+	EventSlowJoin = "entrada_lenta"
+	// Nova tentativa ou saída durante a entrada (a etapa e o tempo).
+	EventJoinAbandoned = "entrada_abandonada"
+	// Do servidor: o app recomeçou no meio da call (buraco e troca de versão).
+	EventResumed = "retomou"
+	// O H.265 de uma live chegou e não decodificou (ADR 0073): o app desktop
+	// deixa de anunciá-lo para receber na próxima abertura (no navegador, só o evento).
+	EventDecoderFailed = "decoder_falhou"
 )
 
 // Batch: um pedido do app, com todas as sessões ativas dele.
@@ -49,12 +64,15 @@ type Report struct {
 	Events     []Event       `json:"events"`
 	// Ended: última amostra (parou de transmitir/assistir, saiu da call).
 	Ended bool `json:"ended"`
+	// AgoMs: há quanto tempo o app montou o relatório (reenvio depois de uma
+	// falha). O fim e o início ficam nessa hora; versões antigas não mandam (0).
+	AgoMs int `json:"ago_ms"`
 }
 
 type ClientContext struct {
 	OS         string `json:"os"`
 	AppVersion string `json:"app_version"`
-	// Target: desktop ou web.
+	// Target: desktop, web ou android.
 	Target string `json:"target"`
 	// GPU: o renderer do WebGL ("ANGLE (NVIDIA, GeForce RTX 3070 ...)").
 	GPU string `json:"gpu"`
@@ -62,6 +80,8 @@ type ClientContext struct {
 	Network string `json:"network"`
 	// Cores: núcleos lógicos do processador.
 	Cores int `json:"cores"`
+	// Device: fabricante e modelo do celular (só o app Android; ADR 0070).
+	Device string `json:"device"`
 }
 
 // Sample: uma leitura. Contadores = diferença no intervalo de Seconds.
@@ -102,9 +122,13 @@ type Sample struct {
 	ConcealedPct *float64 `json:"concealed_pct"`
 	RecvLossPct  *float64 `json:"recv_loss_pct"`
 	ConnectMs    *int     `json:"connect_ms"`
+	// Sinais da ADR 0074 (telemetry_media.go; migration 000221).
+	MediaSignals
 }
 
 type Event struct {
 	Type   string `json:"type"`
 	Detail string `json:"detail"`
+	// AgoMs: há quanto tempo aconteceu (0 = agora; teto de 15 min).
+	AgoMs int `json:"ago_ms"`
 }

@@ -20,7 +20,7 @@ export function ServerSection({ points }: { points: ServerPoint[] }): React.JSX.
   const live = (pick: (p: ServerPoint) => number | null): (number | null)[] =>
     points.map((p) => (p.up ? pick(p) : null))
   return (
-    <Panel title="Servidor (LiveKit e VPS)">
+    <Panel title="LiveKit">
       {!summary.liveKitUp && (
         <p className="text-ds-sm text-warning">
           O LiveKit não mandou métricas no período (falta o deploy com --infra?). A CPU da VPS

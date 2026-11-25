@@ -33,3 +33,29 @@ func TestRetentionApagaOQuePassouDe14Dias(t *testing.T) {
 		}
 	}
 }
+
+type fakeCloser struct {
+	fakePruner
+	closedBefore time.Time
+}
+
+func (f *fakeCloser) CloseStale(_ context.Context, before time.Time) error {
+	f.closedBefore = before
+	return nil
+}
+
+func TestRetentionFechaAsSessoesSemNoticiaHa10Minutos(t *testing.T) {
+	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+	c := &fakeCloser{}
+	r := NewRetention(&fakePruner{}, c)
+	r.now = func() time.Time { return now }
+	if err := r.Prune(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if want := now.Add(-10 * time.Minute); !c.closedBefore.Equal(want) {
+		t.Errorf("fechou antes de %v, quer %v", c.closedBefore, want)
+	}
+	if want := now.Add(-14 * 24 * time.Hour); !c.before.Equal(want) {
+		t.Errorf("apagou antes de %v, quer %v", c.before, want)
+	}
+}

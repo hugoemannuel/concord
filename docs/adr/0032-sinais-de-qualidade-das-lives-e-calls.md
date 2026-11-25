@@ -115,3 +115,77 @@ linha com os números. Os eventos novos aparecem em "Eventos recentes".
   comparar e cortar): https://observertc.org/docs/
 - Dados de produção de 30/10/2026 (`live_samples`, `live_events`,
   `livekit_metrics`), lidos só com SELECT.
+
+## Emenda (2026-11-25): a telemetria não perde nem distorce o que mede
+
+A análise dos dados de 11/11 a 25/11 (641 sessões de voz, 1 347 h) achou defeitos
+no próprio sinal. Mudanças, todas sem coluna nova (sem migration) e com o servidor
+aceitando o formato antigo:
+
+| Sinal | Antes | Agora (a partir desta versão do app) |
+|---|---|---|
+| `recv_loss_pct` | perda somando todas as vozes: a perda na **subida de quem fala** aparecia em todos os ouvintes (21 % dos ouvintes com ≥ 2 % quando alguém subia mal, contra 3,7 %) | a **menor** perda entre as vozes com ≥ 100 pacotes no intervalo (contadores por faixa, `stat.id`): só sobe quando todas as vozes perdem, ou seja, a rede de quem ouve. Nulo sem voz com tráfego suficiente |
+| `concealed_pct` | diferença da soma das vozes: uma voz que entrava ou saía zerava (ou inflava) a leitura | soma das diferenças por voz, só das vozes presentes nas duas leituras |
+| `loss_pct` (voz) | `fractionLost` do último RTCP (instante, p99 de 14 % com picos isolados de 59–95 %) | média do intervalo: diferença de `packetsLost` do `remote-inbound-rtp` sobre os pacotes do intervalo (`packetsReceived` dele; sem ele, `packetsSent` do `outbound-rtp`). Nulo sem pacotes (microfone mudo) |
+| `seconds` (voz) | `timestamp` do `remote-inbound-rtp` (hora do último RTCP): 55 amostras bateram no teto de 600 s | maior `timestamp` da leitura (a hora em que o app leu) |
+| `connect_ms` | apagado em 11 % das sessões: a sessão da call antiga, ao terminar, levava o tempo da call nova | a sessão que termina leva só os eventos; o tempo vai na 1ª amostra da nova |
+| hora dos eventos e do fim | hora em que o servidor gravou (até 60 s depois; nada se o envio falhasse) | o app guarda numa fila curta (20 rascunhos, 15 min) os que têm evento ou fim e reenvia no ciclo seguinte (sem as amostras); manda `ago_ms` em cada evento e no relatório, e o servidor grava `now() − ago_ms`, com teto de 15 min |
+| `degrau_caiu` | detalhe com o `qualityLimitationReason` (85 % `none`) | detalhe com o motivo do controlador (`bandwidth`, `cpu`); sem motivo, o de antes |
+| `app_version` (web) | vazia | versão do build (`VITE_APP_VERSION`, que o deploy passa; sem ela, a do `package.json`), usada quando o preload não responde |
+
+Eventos novos:
+
+| Pergunta | Sinal | Ação |
+|---|---|---|
+| Em que etapa a entrada demora? | `entrada_lenta` (entrada > 3 s): "acesso 0,2 s · sinal 0,4 s · mídia 4,1 s" | acesso → backend; sinal → Caddy/WebSocket; mídia → UDP/ICE (TURN) |
+| Quantas entradas a pessoa refaz ou desiste? | `entrada_abandonada`: "nova tentativa" ou "saiu", a etapa e o tempo | crescendo numa rede ou versão → investigar ou reverter |
+| Quanto a atualização com retomada (ou um crash) tira a pessoa da call? | `retomou` (servidor): sessão nova da mesma pessoa na mesma call com a antiga parada há 30 s–5 min; detalhe "73 s" ou "73 s · 0.6.97 → 0.6.98"; a antiga é fechada no último sinal dela | buraco grande ou frequente → rever a atualização no meio da call |
+
+Sessões sem fim: a retenção (de hora em hora) fecha as sessões abertas sem notícia
+há mais de 10 minutos (`ended_at = last_seen_at`, evento `fim` na mesma hora).
+
+**Opções consideradas** para não perder eventos: (1) descartar (como era); (2) fila
+em memória com teto e validade, reenviada no ciclo seguinte, com a idade do evento
+(escolhida: o padrão dos SDKs de telemetria e do OpenTelemetry Collector, que também
+desistem do dado mais velho depois de alguns minutos); (3) fila persistente
+(IndexedDB) ou `sendBeacon` ao fechar a janela: o beacon não manda o cabeçalho de
+autenticação e a fila em disco é peso para um sinal técnico. Para fechar sessões:
+(1) só o fim mandado pelo app (como era); (2) vigia por falta de notícia (escolhida,
+na retenção que já roda); (3) a sessão nova substitui a antiga da mesma pessoa e
+call (escolhida também, porque é o único jeito de medir o buraco da retomada).
+
+**Consequências**
+
+- Colunas iguais, significado novo em `recv_loss_pct`, `concealed_pct`, `loss_pct`
+  e `seconds` da voz: comparar períodos só filtrando por `app_version` (versões
+  anteriores à desta emenda continuam com o significado antigo).
+- Volume: até 20 rascunhos reenviados por pessoa depois de uma queda do servidor,
+  no máximo 8 (um pedido) a mais por ciclo de 20 s, para caber no limite de 6
+  pedidos por minuto; recusa definitiva (4xx que não é 429) não volta para a fila.
+  Poucos eventos novos por call
+  (`entrada_lenta` em ~2 % das entradas, `retomou` ~1 por dia). Sem linhas novas fora
+  de `live_events`.
+- Risco conhecido: duas sessões legítimas da mesma pessoa na mesma call em dois
+  aparelhos (4 casos em 14 dias) — a mais velha é fechada se ficar 30 s sem mandar.
+  Como a voz manda a cada 60 s, isso pode acontecer; a amostra seguinte dela continua
+  sendo gravada (só o `ended_at` fica).
+- Cada evento da conexão fica marcado com a call em que aconteceu: a sessão de uma
+  call não leva o que é de outra. Quem sai ou desiste durante a entrada antes do
+  primeiro ciclo (20 s) gera uma sessão de voz só com o evento e o fim.
+- O servidor grava o `fim` uma vez só (o reenvio de um fim, ou o fim que chega
+  depois de o servidor fechar a sessão, não duplica) e o início da sessão nunca
+  fica depois dos eventos dela. Os outros eventos podem duplicar se o servidor
+  gravar e a resposta se perder (o app reenvia): raro, só com o servidor lento;
+  tirar isso pediria um id por rascunho e uma migration.
+- O buraco do `retomou` é um **teto**: inclui até 60 s desde a última amostra da
+  voz da sessão antiga e até 20 s até o primeiro ciclo da nova. Retomada mais
+  rápida que 30 s não é reconhecida (a antiga fecha pela falta de notícia).
+- Privacidade: igual (números técnicos, etapa da entrada e a versão do app).
+
+Fontes: MDN — `RTCRemoteInboundRtpStreamStats` (`fractionLost` é do último intervalo
+de relatório; `packetsLost`/`packetsReceived` acumulados):
+https://developer.mozilla.org/en-US/docs/Web/API/RTCRemoteInboundRtpStreamStats;
+OpenTelemetry Collector — fila de envio e tempo máximo de reenvio:
+https://opentelemetry.io/docs/collector/resiliency/; LaunchDarkly — por que o SDK de
+observabilidade deixou o `sendBeacon`:
+https://launchdarkly.com/docs/sdk/features/observability-sdk-behavior.

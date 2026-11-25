@@ -14,6 +14,12 @@ export interface SessionStats {
   app_version: string
   target: string
   cores: number
+  // Do app Android (docs/adr/0070): a rede mais recente, o aparelho e quantas
+  // vezes saiu do app ou trocou de rede.
+  network: string
+  device: string
+  backgrounds: number
+  network_changes: number
   started_at: string
   ended_at: string
   seconds: number
@@ -43,6 +49,27 @@ export interface SessionStats {
   connect_ms: number | null
   reconnects: number
   failures: number
+  // Minutos com a voz ruim (sintetizado ≥ 3% ou perda recebida ≥ 5%) e as
+  // falhas de acesso (não são queda). Ausentes num backend de antes.
+  robotic_minutes?: number
+  loss_minutes?: number
+  bad_minutes?: number
+  access_failures?: number
+  // Sinais da ADR 0074 (ausentes num backend de antes): congelamentos de tela
+  // parada (já dentro de freezes), QP, tempo até o ar ou o 1º quadro, a fonte,
+  // o motor, o microfone, a saída de áudio e a câmera.
+  static_freezes?: number
+  qp?: number | null
+  start_ms?: number | null
+  source_height?: number | null
+  surface?: string
+  engine?: string
+  dsp_underrun_pct?: number | null
+  dsp?: string
+  playout_synth_pct?: number | null
+  cam_fps?: number | null
+  cam_freezes?: number
+  cam_seconds?: number
 }
 
 export interface LiveRow extends SessionStats {
@@ -65,6 +92,11 @@ export interface BreakdownRow {
   below_ratio: number | null
   freezes_per_min: number | null
   software_ratio: number | null
+  /** Pessoas no grupo e as medianas por pessoa (ausentes num backend de antes). */
+  people?: number
+  below_ratio_median?: number | null
+  freezes_per_min_median?: number | null
+  software_ratio_median?: number | null
 }
 
 export interface ServerPoint {
@@ -90,15 +122,44 @@ export interface EventRow {
   username: string
 }
 
+/** Minutos seguidos sem nenhuma linha do coletor (o backend ou a VPS fora). */
+export interface CollectionGap {
+  from: string
+  to: string
+  minutes: number
+  /** A coleta não voltou até agora (ausente num backend de antes). */
+  open?: boolean
+}
+
+/** O LiveKit começou de novo (at: o início do processo novo). */
+export interface LiveKitRestart {
+  at: string
+  seen_at: string
+}
+
 export interface LiveReport {
   from: string
   to: string
   bucket_minutes: number
   server: ServerPoint[]
   lives: LiveRow[]
+  /** As duas listas juntas (para o app de antes). */
   worst: WorstRow[]
-  breakdown: Record<'os' | 'gpu' | 'codec' | 'transport', BreakdownRow[]>
+  /** Piores lives e piores chamadas, cada uma com o seu teto (ausentes num backend de antes). */
+  worst_lives?: WorstRow[]
+  worst_calls?: WorstRow[]
+  breakdown: Record<
+    'os' | 'gpu' | 'codec' | 'transport' | 'target' | 'network' | 'device',
+    BreakdownRow[]
+  > &
+    /** Fonte e motor da live (docs/adr/0074; ausentes num backend de antes). */
+    Partial<Record<'surface' | 'engine', BreakdownRow[]>>
   events: EventRow[]
+  /** Quedas e falhas da voz do período inteiro (ausente num backend de antes). */
+  call_events?: EventRow[]
+  /** Buracos na coleta e reinícios do LiveKit, do mais recente (ausentes num backend de antes). */
+  collection_gaps?: CollectionGap[]
+  livekit_restarts?: LiveKitRestart[]
 }
 
 export function fetchLiveReport(days: number): Promise<LiveReport> {

@@ -8,19 +8,22 @@ import "time"
 
 // SessionStats: uma sessão com as amostras resumidas.
 type SessionStats struct {
-	ID         string    `json:"id"`
-	UserID     string    `json:"user_id"`
-	Username   string    `json:"username"`
-	Kind       string    `json:"kind"`
-	CallID     string    `json:"call_id"`
-	StreamerID string    `json:"streamer_id"`
-	OS         string    `json:"os"`
-	GPU        string    `json:"gpu"`
-	AppVersion string    `json:"app_version"`
-	Target     string    `json:"target"`
-	Cores      int       `json:"cores"`
-	StartedAt  time.Time `json:"started_at"`
-	EndedAt    time.Time `json:"ended_at"`
+	ID         string `json:"id"`
+	UserID     string `json:"user_id"`
+	Username   string `json:"username"`
+	Kind       string `json:"kind"`
+	CallID     string `json:"call_id"`
+	StreamerID string `json:"streamer_id"`
+	OS         string `json:"os"`
+	GPU        string `json:"gpu"`
+	AppVersion string `json:"app_version"`
+	Target     string `json:"target"`
+	Cores      int    `json:"cores"`
+	// Network e Device: a última rede vista e o celular (ADR 0070).
+	Network   string    `json:"network"`
+	Device    string    `json:"device"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
 	// Seconds: soma dos intervalos medidos (base dos "por minuto").
 	Seconds float64 `json:"seconds"`
 	Codec   string  `json:"codec"`
@@ -49,9 +52,21 @@ type SessionStats struct {
 	ConcealedPct *float64 `json:"concealed_pct"`
 	RecvLossPct  *float64 `json:"recv_loss_pct"`
 	ConnectMs    *float64 `json:"connect_ms"`
-	// Reconnects e Failures: eventos reconectou e conexao_falhou da sessão.
-	Reconnects int64 `json:"reconnects"`
-	Failures   int64 `json:"failures"`
+	// Minutos medidos com a voz ruim (a pontuação da voz conta estes, não a
+	// média da sessão): áudio sintetizado ≥ 3%, perda recebida ≥ 5% e um ou outro.
+	RoboticMinutes float64 `json:"robotic_minutes"`
+	LossMinutes    float64 `json:"loss_minutes"`
+	BadMinutes     float64 `json:"bad_minutes"`
+	// Reconnects e Failures: eventos reconectou e conexao_falhou da sessão
+	// (Failures sem as de acesso: AccessFailures, "não tem mais acesso").
+	Reconnects     int64 `json:"reconnects"`
+	Failures       int64 `json:"failures"`
+	AccessFailures int64 `json:"access_failures"`
+	// Backgrounds e NetworkChanges: eventos segundo_plano e rede_trocou (ADR 0070).
+	Backgrounds    int64 `json:"backgrounds"`
+	NetworkChanges int64 `json:"network_changes"`
+	// Sinais da ADR 0074 (report_media.go).
+	MediaStats
 }
 
 // LiveRow: uma live (sessão de quem transmite) com quem assistiu.
@@ -81,6 +96,12 @@ type BreakdownRow struct {
 	BelowRatio    *float64 `json:"below_ratio"`
 	FreezesPerMin *float64 `json:"freezes_per_min"`
 	SoftwareRatio *float64 `json:"software_ratio"`
+	// People: quantas pessoas; *Median: a mediana do valor por pessoa (cada
+	// pessoa pesa igual, quanto tempo for que ela tenha assistido).
+	People              int      `json:"people"`
+	BelowRatioMedian    *float64 `json:"below_ratio_median"`
+	FreezesPerMinMedian *float64 `json:"freezes_per_min_median"`
+	SoftwareRatioMedian *float64 `json:"software_ratio_median"`
 }
 
 // ServerPoint: um intervalo da série do LiveKit (médias no intervalo).
@@ -110,12 +131,21 @@ type EventRow struct {
 
 // LiveReport: a resposta do painel.
 type LiveReport struct {
-	From      time.Time                 `json:"from"`
-	To        time.Time                 `json:"to"`
-	BucketMin int                       `json:"bucket_minutes"`
-	Server    []ServerPoint             `json:"server"`
-	Lives     []LiveRow                 `json:"lives"`
-	Worst     []WorstRow                `json:"worst"`
-	Breakdown map[string][]BreakdownRow `json:"breakdown"`
-	Events    []EventRow                `json:"events"`
+	From      time.Time     `json:"from"`
+	To        time.Time     `json:"to"`
+	BucketMin int           `json:"bucket_minutes"`
+	Server    []ServerPoint `json:"server"`
+	Lives     []LiveRow     `json:"lives"`
+	// Worst: as duas listas juntas, para o app de antes (que separa por kind).
+	Worst      []WorstRow                `json:"worst"`
+	WorstLives []WorstRow                `json:"worst_lives"`
+	WorstCalls []WorstRow                `json:"worst_calls"`
+	Breakdown  map[string][]BreakdownRow `json:"breakdown"`
+	Events     []EventRow                `json:"events"`
+	// CallEvents: quedas e falhas da voz do período inteiro (Events são só
+	// os últimos, quase todos congelamentos).
+	CallEvents []EventRow `json:"call_events"`
+	// Buracos na coleta (o backend ou a VPS fora) e reinícios do LiveKit.
+	CollectionGaps  []CollectionGap  `json:"collection_gaps"`
+	LiveKitRestarts []LiveKitRestart `json:"livekit_restarts"`
 }

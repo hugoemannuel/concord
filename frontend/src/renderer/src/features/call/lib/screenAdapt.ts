@@ -13,7 +13,7 @@ export interface ScreenAdaptDeps {
   /** Aplica um degrau ao vivo (captura + encodings), sem despublicar. */
   apply(quality: ScreenShareQuality): Promise<void>
   report(view: ScreenAdaptView): void
-  /** Uma live saiu pelo processador: as próximas evitam o codec (AV1/H.265) ou a camada extra de 720p (H.264). */
+  /** Uma live saiu pelo processador (chamado uma vez por live): as próximas evitam o codec (AV1/H.265) ou a camada extra de 720p (H.264). */
   softwareCodec(codec: MarkedCodec): void
 }
 
@@ -22,6 +22,8 @@ export class ScreenAdapt {
   private ladder: ScreenShareQuality[]
   private timer: ReturnType<typeof setInterval> | null = null
   private busy = false
+  /** A queda para o processador já foi repassada nesta live (uma vez só, ADR 0073). */
+  private softwareSeen = false
 
   constructor(
     private readonly deps: ScreenAdaptDeps,
@@ -85,7 +87,10 @@ export class ScreenAdapt {
     const report = await this.deps.read()
     if (!report || !this.timer) return
     const sample = adaptSample(report, screenEncoding(this.effective(), this.source).maxBitrate)
-    if (sample?.softwareCodec) this.deps.softwareCodec(sample.softwareCodec)
+    if (sample?.softwareCodec && !this.softwareSeen) {
+      this.softwareSeen = true
+      this.deps.softwareCodec(sample.softwareCodec)
+    }
     const before = this.state
     this.state = adaptTick(before, sample, this.ladder.length)
     if (this.state.step !== before.step) {

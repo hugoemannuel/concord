@@ -1,8 +1,16 @@
 import type { ScreenStatsInput } from '../../call/lib/screenStats'
 import { sampleEvents } from './telemetryEvents'
 import { callSample } from './telemetryCall'
-import type { ConnectionTelemetry } from './telemetryConnection'
-import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
+import type { ConnectionSource, ConnectionTelemetry } from './telemetryConnection'
+import {
+  createOutbox,
+  isPermanentFailure,
+  toWire,
+  type Draft,
+  type TimedEvent
+} from './telemetryOutbox'
+import { watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
+import { shareSample } from './telemetryShare'
 import type {
   ClientContext,
   SessionKind,
@@ -10,11 +18,14 @@ import type {
   TelemetryReport,
   TelemetrySample
 } from './telemetryTypes'
+import type { DspReading } from '../../call/lib/micDspStats'
+import { mediaExtras, type MediaExtraSources } from './telemetryMediaExtras'
 
 // Telemetria das lives e calls (docs/adr/0029 e 0032): a cada leitura (20 s), uma
 // sessão por coisa ativa — a call, a minha live e cada live que assisto — e
 // um pedido só com todas. A voz sai a cada 3 leituras (1 min). Sessão que
-// some manda o fim. Falhas de envio são ignoradas (é só telemetria).
+// some manda o fim. O que não foi por falha no envio e tem evento ou fim
+// volta no ciclo seguinte (telemetryOutbox); as amostras, não.
 
 export const TELEMETRY_INTERVAL_MS = 20_000
 /** A voz é lida a cada CALL_EVERY leituras. */
@@ -38,9 +49,17 @@ export interface ReporterDeps {
   send(reports: TelemetryReport[]): Promise<void>
   newId(): string
   /** Conexão da voz desde a última vez (telemetryConnection); leva e limpa. */
-  connection?(): ConnectionTelemetry
+  connection?: ConnectionSource
   /** Por que a live saiu nesse codec (screenCodecChoice); leva e limpa. */
   codecChoice?(): string | null
+  /** Relógio (ms); o padrão é Date.now. */
+  now?(): number
+  /** O H.265 da live desse streamer chegou e não decodificou (screenHevcFailure); leva e limpa. */
+  decodeFailure?(streamerId: string): string | null
+  /** O processamento do microfone agora (micDspStats). */
+  micDsp?(): DspReading | null
+  /** Tempo até o ar, primeiro quadro, falhas ao começar e o PC que dormiu (ADR 0074). */
+  media?: MediaExtraSources
 }
 
 interface Wanted {
@@ -56,8 +75,6 @@ interface Session extends Wanted {
   last: TelemetrySample | null
   ticks: number
 }
-
-type Draft = Omit<TelemetryReport, 'context'>
 
 const NOTHING: ConnectionTelemetry = { connectMs: null, events: [] }
 
@@ -86,10 +103,11 @@ function wantedSessions(snap: CallSnapshot): Wanted[] {
 }
 
 function draft(
-  s: Session,
+  s: Pick<Session, 'id' | 'kind' | 'callId' | 'streamerId'>,
   sample: TelemetrySample | null,
-  events: TelemetryEvent[],
-  ended: boolean
+  events: TimedEvent[],
+  ended: boolean,
+  at: number
 ): Draft {
   return {
     session_id: s.id,
@@ -98,7 +116,8 @@ function draft(
     streamer_id: s.streamerId,
     sample,
     events,
-    ended
+    ended,
+    at
   }
 }
 
@@ -113,13 +132,15 @@ export function createTelemetryReporter(deps: ReporterDeps): {
   noteStepChange: () => void
 } {
   const sessions = new Map<string, Session>()
+  const outbox = createOutbox()
+  const now = (): number => deps.now?.() ?? Date.now()
   let stepChanges = 0
   let busy = false
 
   async function read(s: Session): Promise<SampleResult | null> {
     if (s.kind === 'call') {
       if (s.ticks % CALL_EVERY !== 0) return null
-      return callSample((await deps.readCall()) ?? new Map(), s.counters)
+      return callSample((await deps.readCall()) ?? new Map(), s.counters, deps.micDsp?.() ?? null)
     }
     const input = await deps.readScreen(s.streamerId, s.kind === 'transmite')
     if (!input) return null
@@ -129,25 +150,54 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     return result
   }
 
-  /** O que vai junto da amostra: a conexão (voz) ou o motivo do codec (minha live). */
-  function extras(kind: SessionKind): ConnectionTelemetry {
-    if (kind === 'call') return deps.connection?.() ?? NOTHING
-    const choice = kind === 'transmite' ? deps.codecChoice?.() : null
-    return choice
-      ? { connectMs: null, events: [{ type: 'codec_escolhido', detail: choice }] }
-      : NOTHING
+  /** O motivo do codec (minha live) ou a falha do decodificador (live assistida). */
+  function extraEvent(s: Wanted): TelemetryEvent | null {
+    if (s.kind === 'transmite') {
+      const choice = deps.codecChoice?.()
+      return choice ? { type: 'codec_escolhido', detail: choice } : null
+    }
+    const failure = deps.decodeFailure?.(s.streamerId)
+    return failure ? { type: 'decoder_falhou', detail: failure } : null
+  }
+
+  /** O que vai junto da amostra: a conexão da call (voz) ou um evento da live. */
+  function extras(s: Session): ConnectionTelemetry {
+    if (s.kind === 'call') return deps.connection?.take(s.callId) ?? NOTHING
+    const event = extraEvent(s)
+    return event ? { connectMs: null, events: [event] } : NOTHING
   }
 
   async function sampleOf(s: Session): Promise<Draft | null> {
     const result = await read(s)
     s.ticks++
     if (!result) return null
-    const extra = extras(s.kind)
-    const sample = { ...result.sample, connect_ms: extra.connectMs ?? result.sample.connect_ms }
-    const events = [...extra.events, ...sampleEvents(s.kind, s.last, sample)]
+    const extra = extras(s)
+    const media = mediaExtras(deps.media, s.kind, s.streamerId, s.last === null)
+    const sample = {
+      ...result.sample,
+      ...media.patch,
+      connect_ms: extra.connectMs ?? result.sample.connect_ms
+    }
+    const events = [
+      ...extra.events,
+      ...media.events,
+      ...sampleEvents(s.kind, s.last, sample, {
+        stepReason: result.stepReason,
+        implementation: result.implementation
+      })
+    ]
     s.counters = result.counters
     s.last = sample
-    return draft(s, sample, events, false)
+    return draft(s, sample, events, false, now())
+  }
+
+  /** Os eventos que vão no fim da sessão. */
+  function endEvents(s: Session): TelemetryEvent[] {
+    if (s.kind === 'call') {
+      const media = mediaExtras(deps.media, 'call', '').events
+      return [...(deps.connection?.takeEvents(s.callId) ?? []), ...media]
+    }
+    return s.kind === 'assiste' ? extras(s).events : []
   }
 
   function endGone(wanted: Wanted[]): Draft[] {
@@ -155,14 +205,28 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     const ended: Draft[] = []
     for (const [key, s] of sessions) {
       if (keys.has(key)) continue
-      ended.push(draft(s, null, s.kind === 'call' ? extras(s.kind).events : [], true))
+      // Voz: só os eventos desta call (o tempo para entrar e o que for da call nova ficam).
+      // Live assistida: a falha do decodificador. A minha live não leva o motivo do
+      // codec no fim (é da próxima live).
+      ended.push(draft(s, null, endEvents(s), true, now()))
       sessions.delete(key)
     }
     return ended
   }
 
+  /**
+   * Eventos de uma call sem sessão (saiu ou desistiu durante a entrada antes do
+   * primeiro ciclo): uma sessão de voz só com eles e o fim.
+   */
+  function strayDrafts(current: string | null): Draft[] {
+    return (deps.connection?.takeStray(current) ?? []).map(({ callId, events }) =>
+      draft({ id: deps.newId(), kind: 'call', callId, streamerId: '' }, null, events, true, now())
+    )
+  }
+
   async function collect(): Promise<Draft[]> {
-    const wanted = wantedSessions(deps.snapshot())
+    const snap = deps.snapshot()
+    const wanted = wantedSessions(snap)
     const drafts = endGone(wanted)
     for (const w of wanted) {
       let s = sessions.get(w.key)
@@ -173,15 +237,43 @@ export function createTelemetryReporter(deps: ReporterDeps): {
       const d = await sampleOf(s)
       if (d) drafts.push(d)
     }
-    return drafts
+    return [...drafts, ...strayDrafts(snap.callId)]
   }
 
-  async function send(drafts: Draft[]): Promise<void> {
-    if (drafts.length === 0) return
-    const context = await deps.context()
-    for (const batch of chunks(drafts, PER_REQUEST)) {
-      await deps.send(batch.map((d) => ({ ...d, context })))
+  /** Um pedido: false = vale tentar de novo; recusa definitiva (4xx) descarta. */
+  async function sendBatch(batch: Draft[], context: ClientContext): Promise<boolean> {
+    try {
+      const at = now()
+      await deps.send(batch.map((d) => toWire(d, context, at)))
+      return true
+    } catch (err) {
+      return isPermanentFailure(err)
     }
+  }
+
+  /** Manda em pedidos de até 8; devolve o que não foi. */
+  async function sendAll(pending: Draft[]): Promise<Draft[]> {
+    let context: ClientContext
+    try {
+      context = await deps.context()
+    } catch {
+      return pending
+    }
+    const batches = chunks(pending, PER_REQUEST)
+    for (const [i, batch] of batches.entries()) {
+      if (!(await sendBatch(batch, context))) return batches.slice(i).flat()
+    }
+    return []
+  }
+
+  /**
+   * O que ficou da vez anterior vai primeiro, no máximo um pedido a mais por
+   * ciclo (o servidor aceita 6 por minuto); o que não for espera a próxima.
+   */
+  async function send(drafts: Draft[]): Promise<void> {
+    const pending = [...outbox.take(now(), PER_REQUEST), ...drafts]
+    if (pending.length === 0) return
+    outbox.keep(await sendAll(pending))
   }
 
   return {

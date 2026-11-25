@@ -15,18 +15,22 @@ import {
 } from './screenShareQuality'
 import { loadScreenCodec, screenCodecOptions } from './screenCodec'
 import {
+  detectAv1WithoutLayers,
   detectHighH264,
   detectScreenCodecs,
   markSoftwareCodec,
   softwareMarkedCodecs,
+  type ScreenCodecSupport,
   type ScreenVideoCodec,
   type ScreenVideoShape
 } from './screenCodecSupport'
 import { syncScreenScales } from './screenScaleSync'
 import { describeCodecChoice, noteScreenCodecChoice } from './screenCodecChoice'
+import { failingAs, noteLiveStart } from './screenStartTelemetry'
 import { screenSound } from './screenSound'
 import { chooseScreenSimulcast, loadScreenSimulcast } from './screenSimulcast'
 import { ScreenAdapt } from './screenAdapt'
+import type { MarkedCodec } from './screenAdaptSample'
 import { senderReports } from './screenStatsSource'
 import { encoderInfoFromReport, type ScreenEncoderInfo } from './screenEncoderInfo'
 import { CodecGuard } from './screenCodecGuard'
@@ -49,11 +53,14 @@ function videoShape(quality: ScreenShareQuality, settings: MediaTrackSettings): 
   return { width, height, bitrate, framerate: quality.frameRate }
 }
 
+/** O plano e onde a detecção esperava cada codec (placa ou processador). */
+type ScreenPlan = ScreenPublishPlan & { support: ScreenCodecSupport }
+
 /** Codec e camadas da live (sem os codecs que já falharam nela) e anota o porquê. */
 async function screenPlan(
   stream: MediaStream,
   failed: readonly ScreenVideoCodec[]
-): Promise<ScreenPublishPlan> {
+): Promise<ScreenPlan> {
   const [video] = stream.getVideoTracks()
   const quality = streamQuality(stream)
   const settings = video?.getSettings() ?? {}
@@ -65,10 +72,12 @@ async function screenPlan(
   const codec = screenCodecOptions(preference, support, simulcast, failed)
   const marked = softwareMarkedCodecs()
   const sound = screenSound(stream)
+  // AV1 marcado como "caiu no processador" não foi perguntado: a resposta sem as camadas enganaria.
+  const av1Plain = marked.includes('av1') ? undefined : await detectAv1WithoutLayers(shape, support)
   noteScreenCodecChoice(
-    describeCodecChoice({ preference, support, simulcast, codec, marked, sound })
+    describeCodecChoice({ preference, support, simulcast, codec, marked, sound, av1Plain })
   )
-  return { codec, simulcast, h264High: await detectHighH264(shape) }
+  return { codec, simulcast, h264High: await detectHighH264(shape), support }
 }
 
 export class ScreenSender {
@@ -79,6 +88,8 @@ export class ScreenSender {
   private view: ScreenAdaptView | null = null
   /** Codec principal da live publicada ('h265'). */
   private codec: ScreenVideoCodec = 'vp8'
+  /** Onde a publicação atual esperava codificar cada codec. */
+  private support: ScreenCodecSupport | null = null
   /** Codecs que o navegador trocou sozinho nesta live (não voltam nela). */
   private failed: ScreenVideoCodec[] = []
   private guard: CodecGuard | null = null
@@ -94,13 +105,16 @@ export class ScreenSender {
       useScreenCodecFallbackStore.getState().setFallback(fallback)
   ) {}
 
+  /** Publica a live; o tempo até o ar e onde falhou vão para a telemetria (ADR 0074). */
   async publish(stream: MediaStream): Promise<void> {
+    const started = performance.now()
     const [video] = stream.getVideoTracks()
     this.failed = []
     this.onFallback(null)
-    const plan = await screenPlan(stream, this.failed)
+    const plan = await failingAs('codec', screenPlan(stream, this.failed))
     this.published(plan)
-    await publishScreenTracks(this.participant, stream, plan)
+    await failingAs('publicação', publishScreenTracks(this.participant, stream, plan))
+    noteLiveStart(performance.now() - started)
     if (video) this.watch(stream, streamQuality(stream), screenSource(video), plan.simulcast)
   }
 
@@ -139,9 +153,19 @@ export class ScreenSender {
     this.onFallback(null)
   }
 
-  private published(plan: ScreenPublishPlan): void {
+  private published(plan: ScreenPlan): void {
     this.codec = plan.codec.videoCodec
+    this.support = plan.support
     this.guard = new CodecGuard(this.codec)
+  }
+
+  /**
+   * O controlador viu a live no processador: só é queda se o plano contava com
+   * a placa. Se já esperava o processador (marca vigente, ou sem placa), marcar
+   * de novo só renovaria a marca para sempre (ADR 0073).
+   */
+  private softwareCodec(codec: MarkedCodec): void {
+    if (this.support?.[codec] === 'hardware') markSoftwareCodec(codec)
   }
 
   /**
@@ -213,7 +237,7 @@ export class ScreenSender {
             )
           ),
         report: (view) => this.report(view),
-        softwareCodec: markSoftwareCodec
+        softwareCodec: (codec) => this.softwareCodec(codec)
       },
       quality,
       source,

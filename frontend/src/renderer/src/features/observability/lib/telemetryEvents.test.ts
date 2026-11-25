@@ -13,6 +13,12 @@ describe('sampleEvents: quem transmite', () => {
       'degrau_subiu'
     ])
   })
+  it('degrau caiu: o motivo é o do controlador, não o qualityLimitationReason', () => {
+    const down = sampleEvents('transmite', s({ step: 0 }), s({ step: 1, limitation: 'none' }), {
+      stepReason: 'bandwidth'
+    })
+    expect(down).toEqual([{ type: 'degrau_caiu', detail: '0 → 1 (bandwidth)' }])
+  })
   it('reserva ligada, encoder caiu para o processador e codec trocou', () => {
     const got = sampleEvents(
       'transmite',
@@ -41,6 +47,12 @@ describe('sampleEvents: quem assiste', () => {
       { type: 'congelamento_longo', detail: '3 congelamentos, 2,5 s' },
       { type: 'pausada_pelo_servidor', detail: '' }
     ])
+  })
+  it('o evento do processador leva o nome do decodificador (ADR 0074)', () => {
+    const got = sampleEvents('assiste', null, s({ hardware: false, codec: 'H265' }), {
+      implementation: 'libavcodec'
+    })
+    expect(got).toEqual([{ type: 'decoder_software', detail: 'H265 · libavcodec' }])
   })
   it('congelamento curto e pausa contínua não viram evento', () => {
     expect(

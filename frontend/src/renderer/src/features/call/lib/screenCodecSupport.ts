@@ -4,6 +4,7 @@
 // na sessão. Ver docs/adr/0020-qualidade-das-lives.md.
 
 import { H264_HIGH_CONTENT_TYPE } from './screenH264Profile'
+import { isBasicRenderDriver, screenGpu } from './screenGpu'
 
 export type ScreenVideoCodec = 'av1' | 'h265' | 'h264' | 'vp8'
 export type CodecEncoder = 'hardware' | 'software' | null
@@ -52,11 +53,33 @@ const QUERIED: {
 
 /**
  * Uma live nesse codec caiu no processador (ou trocou sozinha de codec): as
- * próximas o tratam como software por 7 dias. Valor = quando (ms); o "1" das
- * versões antigas, que valia para sempre, não conta mais.
+ * próximas o tratam como software por 7 dias, contados da primeira queda, e só
+ * na mesma placa de vídeo. Valor = `{"at": ms, "gpu": "..."}`; as marcas antigas
+ * (só a data, ou o "1") não contam: a data se renovava a cada leitura (ADR 0073).
  */
 const softwareKey = (codec: ScreenVideoCodec): string => `salinha:screen-${codec}-software`
 export const MARK_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+interface SoftwareMark {
+  at: number
+  gpu: string
+}
+
+function readMark(codec: ScreenVideoCodec): SoftwareMark | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(softwareKey(codec)) ?? 'null') as unknown
+    if (typeof value !== 'object' || value === null) return null
+    const { at, gpu } = value as Partial<SoftwareMark>
+    return typeof at === 'number' && typeof gpu === 'string' ? { at, gpu } : null
+  } catch {
+    return null
+  }
+}
+
+function markedSoftware(codec: ScreenVideoCodec, gpu: string): boolean {
+  const mark = readMark(codec)
+  return mark !== null && mark.gpu === gpu && Date.now() - mark.at < MARK_TTL_MS
+}
 
 const senderCapabilities = (): SenderCapabilities =>
   globalThis.RTCRtpSender?.getCapabilities?.('video') ?? null
@@ -64,19 +87,9 @@ const senderCapabilities = (): SenderCapabilities =>
 const hasCodec = (capabilities: SenderCapabilities, mime: string): boolean =>
   !!capabilities?.codecs.some((codec) => codec.mimeType.toLowerCase() === mime.toLowerCase())
 
-function markedSoftware(codec: ScreenVideoCodec): boolean {
-  try {
-    const at = Number(localStorage.getItem(softwareKey(codec)))
-    // "1" (versões antigas) e lixo ficam abaixo de qualquer data recente.
-    return Date.now() - at < MARK_TTL_MS
-  } catch {
-    return false
-  }
-}
-
 /** Os codecs que já caíram no processador neste aparelho (telemetria: screenCodecChoice). */
-export function softwareMarkedCodecs(): ScreenVideoCodec[] {
-  return QUERIED.map((q) => q.codec).filter(markedSoftware)
+export function softwareMarkedCodecs(gpu = screenGpu()): ScreenVideoCodec[] {
+  return QUERIED.map((q) => q.codec).filter((codec) => markedSoftware(codec, gpu))
 }
 
 function ask(
@@ -93,9 +106,10 @@ function ask(
 async function encoderOf(
   query: (typeof QUERIED)[number],
   video: ScreenVideoShape,
-  api: EncodingInfoApi | undefined
+  api: EncodingInfoApi | undefined,
+  gpu: string
 ): Promise<CodecEncoder> {
-  if (!api || markedSoftware(query.codec)) return 'software'
+  if (!api || markedSoftware(query.codec, gpu)) return 'software'
   try {
     const info = await ask(api, query.contentType, video, query.mode)
     if (!info.supported) return null
@@ -108,12 +122,48 @@ async function encoderOf(
   }
 }
 
+/**
+ * O AV1 sem camadas temporais (L1T1) sai na placa quando o L1T3 do LiveKit
+ * não sai? Só pergunta nesse caso (telemetria, ADR 0074): undefined = não
+ * perguntou ou não deu para saber.
+ */
+export async function av1WithoutLayers(
+  video: ScreenVideoShape,
+  api: EncodingInfoApi | undefined,
+  support: ScreenCodecSupport
+): Promise<CodecEncoder | undefined> {
+  if (!api || support.av1 === null || support.av1 === 'hardware') return undefined
+  try {
+    return (await ask(api, 'video/AV1', video, 'L1T1')).powerEfficient ? 'hardware' : 'software'
+  } catch {
+    return undefined
+  }
+}
+
+const plainAv1Cache = new Map<string, Promise<CodecEncoder | undefined>>()
+
+/** Com cache por sessão, como a detecção (limpo junto com ela). */
+export function detectAv1WithoutLayers(
+  video: ScreenVideoShape,
+  support: ScreenCodecSupport
+): Promise<CodecEncoder | undefined> {
+  const key = `${video.width}x${video.height}@${video.framerate}:${video.bitrate}:${support.av1}`
+  let answer = plainAv1Cache.get(key)
+  if (!answer) {
+    const api = globalThis.navigator?.mediaCapabilities as EncodingInfoApi | undefined
+    answer = av1WithoutLayers(video, api, support)
+    plainAv1Cache.set(key, answer)
+  }
+  return answer
+}
+
 /** A placa só codifica o H.264 no High? Então a live precisa oferecer só ele. */
 export async function needsHighH264(
   video: ScreenVideoShape,
-  api: EncodingInfoApi | undefined
+  api: EncodingInfoApi | undefined,
+  gpu = screenGpu()
 ): Promise<boolean> {
-  if (!api || markedSoftware('h264')) return false
+  if (!api || markedSoftware('h264', gpu)) return false
   try {
     if ((await ask(api, H264_CONTENT_TYPE, video)).powerEfficient) return false
     return (await ask(api, H264_HIGH_CONTENT_TYPE, video)).powerEfficient
@@ -129,12 +179,13 @@ export function detectHighH264(video: ScreenVideoShape): Promise<boolean> {
 export async function screenCodecSupport(
   video: ScreenVideoShape,
   api: EncodingInfoApi | undefined,
-  capabilities: SenderCapabilities
+  capabilities: SenderCapabilities,
+  gpu = screenGpu()
 ): Promise<ScreenCodecSupport> {
   const support: ScreenCodecSupport = { av1: null, h265: null, h264: null, vp8: 'software' }
   for (const query of QUERIED) {
     if (hasCodec(capabilities, query.mime))
-      support[query.codec] = await encoderOf(query, video, api)
+      support[query.codec] = await encoderOf(query, video, api, gpu)
   }
   return support
 }
@@ -155,14 +206,21 @@ export function detectScreenCodecs(video: ScreenVideoShape): Promise<ScreenCodec
 
 export function clearScreenCodecCache(): void {
   cache.clear()
+  plainAv1Cache.clear()
 }
 
-/** Uma live nesse codec saiu pelo processador ou trocou sozinha: evitar por MARK_TTL_MS. */
-export function markSoftwareCodec(codec: ScreenVideoCodec): void {
+/**
+ * Uma live nesse codec saiu pelo processador ou trocou sozinha: evitar por
+ * MARK_TTL_MS. Marca vigente fica como está (a validade conta da primeira
+ * queda), e com o driver de vídeo fora do ar não marca: a placa não teve culpa.
+ */
+export function markSoftwareCodec(codec: ScreenVideoCodec, gpu = screenGpu()): void {
+  if (isBasicRenderDriver(gpu) || markedSoftware(codec, gpu)) return
   try {
-    localStorage.setItem(softwareKey(codec), String(Date.now()))
+    const mark: SoftwareMark = { at: Date.now(), gpu }
+    localStorage.setItem(softwareKey(codec), JSON.stringify(mark))
   } catch {
     /* Compartilhar continua funcionando sem armazenamento local. */
   }
-  cache.clear()
+  clearScreenCodecCache()
 }

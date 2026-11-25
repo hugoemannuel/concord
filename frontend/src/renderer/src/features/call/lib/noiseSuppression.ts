@@ -36,6 +36,7 @@ import { switchStage, type AudioStage } from './audioStageSwitch'
 import { loadVoiceMod, voiceModPath, type VoiceModNode, type VoiceModPath } from './voiceMod'
 import type { VoiceModSettings } from './voiceModPresets'
 import { useVoiceModStore } from '../store/voiceModStore'
+import { forgetMicDsp, watchMicDsp } from './micDspStats'
 
 /** O RNNoise trabalha em quadros de 10 ms a 48 kHz. */
 const SAMPLE_RATE = 48_000
@@ -195,6 +196,7 @@ export async function openMicrophone(deviceId = ''): Promise<MicHandle> {
     }
 
     const context = ctx
+    watchMicDsp(context)
     const source = ctx.createMediaStreamSource(raw)
     const wet = ctx.createGain()
     wet.gain.value = 0
@@ -300,6 +302,7 @@ export async function openMicrophone(deviceId = ''): Promise<MicHandle> {
         raw.getTracks().forEach((t) => t.stop())
         destination.stream.getTracks().forEach((t) => t.stop())
         rnnoise.destroy()
+        forgetMicDsp(context)
         void context.close()
       }
     }
@@ -307,6 +310,7 @@ export async function openMicrophone(deviceId = ''): Promise<MicHandle> {
     return handle
   } catch (err) {
     console.error('[RNNoise] não carregou — usando a supressão do Chromium:', err)
+    if (ctx) forgetMicDsp(ctx)
     void ctx?.close()
     raw.getTracks().forEach((t) => t.stop())
     useRnnoiseStatusStore.getState().setAvailable(false)

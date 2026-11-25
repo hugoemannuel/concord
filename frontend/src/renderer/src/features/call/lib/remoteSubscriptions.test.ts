@@ -140,5 +140,21 @@ describe('RemoteSubscriptions', () => {
     subs.apply(people)
     expect(screen.isDesired).toBe(false)
   })
+  it('regressão (UHD 730): decodificador não dá conta → a live dessa pessoa vem na camada baixa, e volta', () => {
+    const screen = { ...publication('screen_share', 'video'), setVideoQuality: vi.fn() }
+    const camera = { ...publication('camera', 'video'), setVideoQuality: vi.fn() }
+    const people = [participant('bia', [screen, camera])]
+    const subs = new RemoteSubscriptions()
+    subs.setWatched(['bia'])
+    subs.apply(people)
+    expect(screen.setVideoQuality).not.toHaveBeenCalled()
+    subs.setDecodeLimited('bia', true)
+    subs.apply(people)
+    expect(screen.setVideoQuality).toHaveBeenLastCalledWith(VideoQuality.LOW)
+    expect(camera.setVideoQuality).not.toHaveBeenCalled()
+    subs.setDecodeLimited('bia', false)
+    subs.apply(people)
+    expect(screen.setVideoQuality).toHaveBeenLastCalledWith(VideoQuality.HIGH)
+  })
 })
 

@@ -124,4 +124,27 @@ describe('ScreenAdapt', () => {
     await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 3)
     expect(read.mock.calls.length).toBe(calls)
   })
+  it('regressão: live inteira no processador repassa a queda uma vez só, não a cada leitura', async () => {
+    const soft = new Map([
+      ['c', { id: 'c', type: 'codec', mimeType: 'video/H264' }],
+      [
+        'o1',
+        {
+          id: 'o1',
+          type: 'outbound-rtp',
+          kind: 'video',
+          codecId: 'c',
+          bytesSent: 1,
+          powerEfficientEncoder: false
+        }
+      ]
+    ]) as unknown as RTCStatsReport
+    const d = deps(() => soft)
+    const adapt = new ScreenAdapt(d, chosen, fullHd, false)
+    adapt.start()
+    await vi.advanceTimersByTimeAsync(ADAPT.tickMs * 10)
+    expect(d.softwareCodec).toHaveBeenCalledTimes(1)
+    expect(d.softwareCodec).toHaveBeenCalledWith('h264')
+    adapt.stop()
+  })
 })

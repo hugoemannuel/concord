@@ -1,5 +1,4 @@
 import { videoRtp, type ScreenStatsInput } from '../../call/lib/screenStats'
-import { encoderInfoFromReport } from '../../call/lib/screenEncoderInfo'
 import {
   codecSubtype,
   implementationKind,
@@ -8,6 +7,7 @@ import {
   type Stat
 } from '../../call/lib/screenStatsFormat'
 import { emptySample, type TelemetrySample } from './telemetryTypes'
+import type { CallMediaCounters } from './telemetryCallMedia'
 
 // Telemetria das lives e calls: transforma o getStats() (o mesmo que o painel
 // da live lê) numa amostra pequena para o backend. Contadores vão como a
@@ -33,14 +33,31 @@ export interface SampleCounters {
   captured: number
   /** ms gastos no codec (totalEncodeTime/totalDecodeTime). */
   codecMs: number
-  /** Call: amostras de áudio sintetizadas (sem o silêncio) e recebidas. */
+  /** Soma dos QP (qpSum); -1 = o navegador não conta. */
+  qp: number
+  /** A camada (ssrc) lida: a perda na subida só conta entre leituras da mesma. */
+  ssrc: number
+  /** Call: os contadores de cada voz recebida, pelo id da faixa (stat.id). */
+  voices?: Record<string, VoiceCounters>
+  /** Call: saída de áudio, microfone e câmera (telemetryCallMedia). */
+  media?: CallMediaCounters
+}
+
+/** Uma voz recebida: amostras sintetizadas (sem o silêncio), recebidas e pacotes. */
+export interface VoiceCounters {
   concealed: number
   samples: number
+  lost: number
+  received: number
 }
 
 export interface SampleResult {
   sample: TelemetrySample
   counters: SampleCounters
+  /** Minha live: por que o controlador desceu (ScreenAdaptView.reason); não vai na amostra. */
+  stepReason?: string | null
+  /** O nome do codificador/decodificador (o evento de "no processador" leva). */
+  implementation?: string | null
 }
 
 export const n0 = (value: unknown): number => num(value) ?? 0
@@ -53,7 +70,7 @@ export interface CounterKeys {
   codecTime: string
 }
 
-const SEND: CounterKeys = {
+export const SEND: CounterKeys = {
   bytes: 'bytesSent',
   keyFrames: 'keyFramesEncoded',
   frames: 'framesEncoded',
@@ -84,17 +101,19 @@ export function countersOf(stat: Stat, keys: CounterKeys, source?: Stat): Sample
     framesReceived: n0(stat.framesReceived),
     captured: n0(source?.frames),
     codecMs: n0(stat[keys.codecTime]) * 1000,
-    concealed: 0,
-    samples: 0
+    qp: num(stat.qpSum) ?? -1,
+    ssrc: n0(stat.ssrc)
   }
 }
 
-export type Deltas = Record<keyof SampleCounters, number>
+type CounterKey = Exclude<keyof SampleCounters, 'voices' | 'media'>
+export type Deltas = Record<CounterKey, number>
 
 /** Diferenças no intervalo (zeros na primeira leitura; contador que voltou = 0). */
 export function deltas(now: SampleCounters, prev: SampleCounters | null): Deltas {
   const out = {} as Deltas
   for (const key of Object.keys(now) as (keyof SampleCounters)[]) {
+    if (key === 'voices' || key === 'media') continue
     out[key] = prev ? Math.max(0, now[key] - prev[key]) : 0
   }
   return out
@@ -103,7 +122,7 @@ export function deltas(now: SampleCounters, prev: SampleCounters | null): Deltas
 const round1 = (value: number): number => Math.round(value * 10) / 10
 
 /** Por segundo no intervalo (null sem intervalo). */
-function perSecond(count: number, d: Deltas): number | null {
+export function perSecond(count: number, d: Deltas): number | null {
   return d.timestamp > 0 ? round1((count * 1000) / d.timestamp) : null
 }
 
@@ -130,7 +149,7 @@ function bitrateKbps(d: Deltas): number | null {
   return d.timestamp > 0 ? Math.round((d.bytes * 8) / d.timestamp) : null
 }
 
-export function lossPct(d: Deltas): number | null {
+export function lossPct(d: { lost: number; received: number }): number | null {
   const total = d.lost + d.received
   return total > 0 ? Math.round((d.lost * 10000) / total) / 100 : null
 }
@@ -168,7 +187,7 @@ export function rttMs(report: RTCStatsReport): number | null {
   return ms(selectedPair(report)?.currentRoundTripTime)
 }
 
-function hardwareOf(stat: Stat, nameKey: string, efficientKey: string): boolean | null {
+export function hardwareOf(stat: Stat, nameKey: string, efficientKey: string): boolean | null {
   const kind = implementationKind(
     text(stat[nameKey]) ?? '',
     stat[efficientKey] as boolean | undefined
@@ -176,25 +195,7 @@ function hardwareOf(stat: Stat, nameKey: string, efficientKey: string): boolean 
   return kind === null ? null : kind === 'Hardware'
 }
 
-/** "1080p 60" → 1080 e 60 (o que a pessoa escolheu). */
-function chosenTarget(label: string | undefined): { height: number | null; fps: number | null } {
-  const match = /(\d+)p (\d+)/.exec(label ?? '')
-  return match ? { height: Number(match[1]), fps: Number(match[2]) } : { height: null, fps: null }
-}
-
-/** Camadas do principal saindo (com a extra de 720p, 2) e se a reserva está saindo. */
-function layersOf(report: RTCStatsReport, primary: string): { layers: number; backup: boolean } {
-  let layers = 0
-  report.forEach((stat: Stat) => {
-    if (stat.type === 'outbound-rtp' && stat.kind === 'video' && stat.active !== false) {
-      if (codecSubtype(report, stat) === primary) layers++
-    }
-  })
-  const backup = encoderInfoFromReport(report, null, primary).encoders.some((e) => e.backup)
-  return { layers, backup }
-}
-
-interface Reading {
+export interface Reading {
   stat: Stat
   report: RTCStatsReport
   now: SampleCounters
@@ -202,7 +203,7 @@ interface Reading {
   d: Deltas
 }
 
-function reading(
+export function reading(
   stat: Stat,
   report: RTCStatsReport,
   now: SampleCounters,
@@ -211,7 +212,7 @@ function reading(
   return { stat, report, now, prev, d: deltas(now, prev) }
 }
 
-function videoBase({ stat, report, now, prev, d }: Reading): TelemetrySample {
+export function videoBase({ stat, report, now, prev, d }: Reading): TelemetrySample {
   return {
     ...emptySample(),
     seconds: d.timestamp / 1000,
@@ -229,46 +230,6 @@ function videoBase({ stat, report, now, prev, d }: Reading): TelemetrySample {
   }
 }
 
-/** A media-source (captura) do envio: quadros que a tela entregou ao codificador. */
-function mediaSource(report: RTCStatsReport, stat: Stat): Stat | undefined {
-  return typeof stat.mediaSourceId === 'string'
-    ? (report.get(stat.mediaSourceId) as Stat | undefined)
-    : undefined
-}
-
-function captureFps({ prev, d }: Reading, source: Stat | undefined): number | null {
-  if (!source) return null
-  return (prev ? perSecond(d.captured, d) : null) ?? num(source.framesPerSecond)
-}
-
-/** A minha live. `stepChanges`: trocas de degrau desde a última amostra. */
-export function shareSample(
-  input: ScreenStatsInput,
-  prev: SampleCounters | null,
-  stepChanges: number
-): SampleResult | null {
-  const stat = videoRtp(input.report, 'outbound-rtp', 'bytesSent')
-  if (!stat) return null
-  const source = mediaSource(input.report, stat)
-  const read = reading(stat, input.report, countersOf(stat, SEND, source), prev)
-  const base = videoBase(read)
-  const target = chosenTarget(input.quality?.chosen)
-  return {
-    counters: read.now,
-    sample: {
-      ...base,
-      ...layersOf(input.report, base.codec),
-      hardware: hardwareOf(stat, 'encoderImplementation', 'powerEfficientEncoder'),
-      capture_fps: captureFps(read, source),
-      target_height: target.height,
-      target_fps: target.fps ?? input.requestedFps,
-      limitation: text(stat.qualityLimitationReason) ?? '',
-      step: input.quality?.step ?? null,
-      step_changes: stepChanges
-    }
-  }
-}
-
 /** A live de outra pessoa que estou assistindo. */
 export function watchSample(
   input: ScreenStatsInput,
@@ -280,6 +241,7 @@ export function watchSample(
   const { d } = read
   return {
     counters: read.now,
+    implementation: text(stat.decoderImplementation) ?? null,
     sample: {
       ...videoBase(read),
       hardware: hardwareOf(stat, 'decoderImplementation', 'powerEfficientDecoder'),
