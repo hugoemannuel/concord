@@ -20,6 +20,8 @@ var errReportDays = errors.New("days: de 1 a 14")
 
 type historySource interface {
 	History(ctx context.Context, from time.Time) ([]Incident, error)
+	// LastDailySummary: quando saiu o último resumo diário (nil = nenhum).
+	LastDailySummary(ctx context.Context) (*time.Time, error)
 }
 
 type devCheck interface {
@@ -37,6 +39,8 @@ type Report struct {
 	Enabled bool        `json:"enabled"`
 	Active  []ReportRow `json:"active"`
 	History []ReportRow `json:"history"`
+	// LastSummaryAt: quando saiu o último resumo diário (nil = nenhum).
+	LastSummaryAt *time.Time `json:"last_summary_at"`
 }
 
 type ReportHandler struct {
@@ -74,7 +78,18 @@ func (h *ReportHandler) Alerts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load"})
 		return
 	}
-	c.JSON(http.StatusOK, h.report(rows))
+	out := h.report(rows)
+	out.LastSummaryAt = h.lastSummary(ctx)
+	c.JSON(http.StatusOK, out)
+}
+
+// lastSummary: o último resumo diário; erro só vai para o log (o resto do painel vale).
+func (h *ReportHandler) lastSummary(ctx context.Context) *time.Time {
+	at, err := h.history.LastDailySummary(ctx)
+	if err != nil {
+		log.Printf("[alert] painel, último resumo: %v", err)
+	}
+	return at
 }
 
 func (h *ReportHandler) report(rows []Incident) Report {

@@ -70,9 +70,5 @@ func errorLine(kind, message string) string {
 
 // short: no máximo errorTextMax letras, com "…".
 func short(s string) string {
-	r := []rune(s)
-	if len(r) <= errorTextMax {
-		return s
-	}
-	return string(r[:errorTextMax-1]) + "…"
+	return shortN(s, errorTextMax)
 }

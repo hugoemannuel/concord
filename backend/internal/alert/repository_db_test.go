@@ -8,7 +8,7 @@ import (
 
 func newAlertDB(t *testing.T) *Repository {
 	t.Helper()
-	db := newTestDB(t, "000172_livekit_metrics.up.sql", "000173_live_telemetry.up.sql", "000216_alerts.up.sql")
+	db := newTestDB(t, "000172_livekit_metrics.up.sql", "000173_live_telemetry.up.sql", "000216_alerts.up.sql", "000220_alert_daily_summaries.up.sql")
 	return NewRepository(db)
 }
 

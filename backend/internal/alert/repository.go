@@ -80,7 +80,8 @@ func (r *Repository) CloseIncident(ctx context.Context, id int64, at time.Time) 
 func (r *Repository) Prune(ctx context.Context, before time.Time) error {
 	_, err1 := r.db.Exec(ctx, `DELETE FROM alert_incidents WHERE ended_at IS NOT NULL AND started_at < $1`, before)
 	_, err2 := r.db.Exec(ctx, `DELETE FROM backend_runs WHERE started_at < $1`, before)
-	if err := errors.Join(err1, err2); err != nil {
+	_, err3 := r.db.Exec(ctx, `DELETE FROM alert_daily_summaries WHERE sent_at < $1`, before)
+	if err := errors.Join(err1, err2, err3); err != nil {
 		return fmt.Errorf("apagar alertas antigos: %w", err)
 	}
 	return nil
