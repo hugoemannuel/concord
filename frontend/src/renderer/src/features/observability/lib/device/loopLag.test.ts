@@ -58,6 +58,17 @@ describe('LoopLag', () => {
     expect(loop.take().maxMs).toBeNull()
   })
 
+  it('atraso acima de 30 s é suspensão (não travada): descarta e segue medindo', () => {
+    const loop = lag()
+    loop.sync()
+    vi.advanceTimersByTime(LAG_TICK_MS - 1)
+    vi.setSystemTime(Date.now() + 30_001) // o aparelho dormiu
+    vi.advanceTimersByTime(1)
+    expect(vi.getTimerCount()).toBe(1)
+    vi.advanceTimersByTime(LAG_TICK_MS)
+    expect(loop.take()).toEqual({ p95Ms: 0, maxMs: 0 })
+  })
+
   it('stop desliga o timer', () => {
     const loop = lag()
     loop.sync()
