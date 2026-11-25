@@ -1,4 +1,5 @@
 import { useServerReport } from '../../hooks/useServerReport'
+import { CollectionGaps } from '../CollectionGaps'
 import { LiveReportGate } from '../LiveReportGate'
 import { ServerSection } from '../ServerSection'
 import { ServerMetrics } from '../server/ServerMetrics'
@@ -14,7 +15,12 @@ export default function ServerTab({ days }: { days: number }): React.JSX.Element
       <ServerMetrics state={state} now={Date.now()} onRetry={reload} />
       {state.status !== 'forbidden' && (
         <LiveReportGate days={days}>
-          {(report) => <ServerSection points={report.server} />}
+          {(report) => (
+            <>
+              <ServerSection points={report.server} />
+              <CollectionGaps gaps={report.collection_gaps} restarts={report.livekit_restarts} />
+            </>
+          )}
         </LiveReportGate>
       )}
     </div>

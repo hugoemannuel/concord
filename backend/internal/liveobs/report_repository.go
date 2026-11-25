@@ -23,6 +23,11 @@ func NewReportRepository(db *pgxpool.Pool) *ReportRepository {
 // protege o banco de um período cheio demais).
 const maxSessions = 3000
 
+// accessFailurePrefix: a falha na etapa de acesso (o token: chamada encerrada,
+// sem permissão) não é queda de rede (telemetryConnection.ts, wherePhase).
+const accessFailurePrefix = "entrando (acesso)"
+
+// Minuto ruim da voz: os limites robotPct e badLossPct (report_quality.go).
 // "Abaixo do alvo" (quem transmite): menos de 80% do fps escolhido ou o
 // controlador num degrau abaixo do escolhido.
 const sessionStatsSQL = `
@@ -44,8 +49,14 @@ SELECT s.id, s.user_id, COALESCE(u.username, ''), s.kind, COALESCE(s.call_id::te
 	AVG(x.bitrate_kbps), AVG(x.loss_pct), AVG(x.rtt_ms),
 	AVG(x.capture_fps), AVG(x.recv_fps), AVG(x.codec_ms), AVG(x.concealed_pct), AVG(x.recv_loss_pct),
 	AVG(x.connect_ms),
+	COALESCE(SUM(x.seconds) FILTER (WHERE x.concealed_pct >= 3), 0) / 60,
+	COALESCE(SUM(x.seconds) FILTER (WHERE x.recv_loss_pct >= 5), 0) / 60,
+	COALESCE(SUM(x.seconds) FILTER (WHERE x.concealed_pct >= 3 OR x.recv_loss_pct >= 5), 0) / 60,
 	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'reconectou'),
-	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'conexao_falhou'),
+	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'conexao_falhou'
+		AND e.detail NOT LIKE '` + accessFailurePrefix + `%'),
+	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'conexao_falhou'
+		AND e.detail LIKE '` + accessFailurePrefix + `%'),
 	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'segundo_plano'),
 	(SELECT count(*) FROM live_events e WHERE e.session_id = s.id AND e.type = 'rede_trocou')
 FROM live_sessions s
@@ -61,7 +72,8 @@ func (s *SessionStats) fields() []any {
 		&s.AppVersion, &s.Target, &s.Cores, &s.Network, &s.Device, &s.StartedAt, &s.EndedAt, &s.Seconds, &s.Codec, &s.Transport,
 		&s.FPS, &s.TargetFPS, &s.Height, &s.HardwareRatio, &s.BelowRatio, &s.CPURatio, &s.BandwidthRatio,
 		&s.BackupRatio, &s.PausedRatio, &s.Freezes, &s.FreezeMs, &s.StepChanges, &s.BitrateKbps, &s.LossPct, &s.RTTMs,
-		&s.CaptureFPS, &s.RecvFPS, &s.CodecMs, &s.ConcealedPct, &s.RecvLossPct, &s.ConnectMs, &s.Reconnects, &s.Failures,
+		&s.CaptureFPS, &s.RecvFPS, &s.CodecMs, &s.ConcealedPct, &s.RecvLossPct, &s.ConnectMs,
+		&s.RoboticMinutes, &s.LossMinutes, &s.BadMinutes, &s.Reconnects, &s.Failures, &s.AccessFailures,
 		&s.Backgrounds, &s.NetworkChanges}
 }
 
@@ -77,15 +89,31 @@ func (r *ReportRepository) Sessions(ctx context.Context, from time.Time) ([]Sess
 	})
 }
 
+const eventsSQL = `SELECT e.at, e.type, e.detail, s.kind, COALESCE(u.username, '')
+	FROM live_events e
+	JOIN live_sessions s ON s.id = e.session_id
+	LEFT JOIN users u ON u.id = s.user_id
+	WHERE e.at >= $1 AND ($3::text[] IS NULL OR e.type = ANY($3))
+	ORDER BY e.at DESC, e.id DESC
+	LIMIT $2`
+
+// callEventTypes: as quedas e falhas da voz (e "retomou", o app que reiniciou
+// no meio da call). São poucas (64 em 14 dias): vêm do período inteiro, para
+// não sumirem atrás dos ~310 congelamentos longos por dia.
+var callEventTypes = []string{EventReconnected, EventConnectFailed, "retomou"}
+
 // Events: os eventos mais recentes desde from.
 func (r *ReportRepository) Events(ctx context.Context, from time.Time, limit int) ([]EventRow, error) {
-	rows, err := r.db.Query(ctx, `SELECT e.at, e.type, e.detail, s.kind, COALESCE(u.username, '')
-		FROM live_events e
-		JOIN live_sessions s ON s.id = e.session_id
-		LEFT JOIN users u ON u.id = s.user_id
-		WHERE e.at >= $1
-		ORDER BY e.at DESC, e.id DESC
-		LIMIT $2`, from, limit)
+	return r.events(ctx, from, limit, nil)
+}
+
+// CallEvents: as quedas e falhas da voz desde from (do período inteiro, até limit).
+func (r *ReportRepository) CallEvents(ctx context.Context, from time.Time, limit int) ([]EventRow, error) {
+	return r.events(ctx, from, limit, callEventTypes)
+}
+
+func (r *ReportRepository) events(ctx context.Context, from time.Time, limit int, types []string) ([]EventRow, error) {
+	rows, err := r.db.Query(ctx, eventsSQL, from, limit, types)
 	if err != nil {
 		return nil, fmt.Errorf("ler eventos: %w", err)
 	}

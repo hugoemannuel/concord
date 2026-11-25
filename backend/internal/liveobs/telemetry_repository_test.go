@@ -23,7 +23,7 @@ const (
 )
 
 func newTelemetryDB(t *testing.T) *pgxpool.Pool {
-	db := newTestDB(t, serverMigration, telemetryMigration, qualityMigration, deviceMigration)
+	db := newTestDB(t, serverMigration, startedMigration, telemetryMigration, qualityMigration, deviceMigration)
 	if _, err := db.Exec(context.Background(), `INSERT INTO users (id) VALUES ($1), ($2)`, userAna, userBia); err != nil {
 		t.Fatal(err)
 	}

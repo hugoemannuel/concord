@@ -26,8 +26,10 @@ func TestBreakdownsSeparamPlataformaRedeEAparelho(t *testing.T) {
 	if k := keys("target"); k["android"] != 2 || k["desktop"] != 1 || k["web"] != 1 {
 		t.Errorf("plataforma (com as calls) = %v", k)
 	}
-	if k := keys("network"); k["wifi"] != 1 || k["cellular-4g"] != 1 || k["4g"] != 1 || k[unknownKey] != 1 {
-		t.Errorf("rede = %v", k)
+	// Rede só do Android: no desktop e na web o valor é o effectiveType do
+	// Chromium ("4g" em ~90% das sessões), não o tipo de rede.
+	if k := keys("network"); len(k) != 2 || k["wifi"] != 1 || k["cellular-4g"] != 1 {
+		t.Errorf("rede (só o Android) = %v", k)
 	}
 	if k := keys("device"); len(k) != 1 || k["samsung SM-A515F"] != 2 {
 		t.Errorf("aparelho (sem os vazios do desktop) = %v", k)

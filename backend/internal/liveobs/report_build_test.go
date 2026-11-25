@@ -1,6 +1,7 @@
 package liveobs
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -129,7 +130,8 @@ func TestReasonsDizPorQue(t *testing.T) {
 
 	w := session("y", KindWatch, "bia", 0, 10)
 	w.HardwareRatio, w.PausedRatio, w.Freezes, w.Transport = fp(0.2), 0.3, 20, "relay"
-	want = []string{"Decodificando no processador", "Pausada pelo servidor (conexão de quem assiste)", "Congelamentos", "Conexão por TURN"}
+	// paused fica fora: com o LiveKit de hoje (allow_pause desligado) não acontece.
+	want = []string{"Decodificando no processador", "Congelamentos", "Conexão por TURN"}
 	if got := reasons(w); !slices.Equal(got, want) {
 		t.Errorf("motivos = %q\nquer %q", got, want)
 	}
@@ -138,6 +140,14 @@ func TestReasonsDizPorQue(t *testing.T) {
 	ok.HardwareRatio, ok.Transport = fp(1), "udp"
 	if got := reasons(ok); len(got) != 0 {
 		t.Errorf("sessão boa com motivos: %q", got)
+	}
+}
+
+func TestScoreIgnoraPausaDoServidor(t *testing.T) {
+	paused := session("pausa", KindWatch, "a", 0, 10)
+	paused.PausedRatio = 1
+	if got := score(paused); got != 0 {
+		t.Errorf("pausa pontuou: %v", got)
 	}
 }
 
@@ -157,7 +167,8 @@ func TestWorstRowsOrdenaPelasPiores(t *testing.T) {
 	failed := session("falhou", KindCall, "f", 0, 0)
 	failed.Failures = 1
 
-	rows := worstRows([]SessionStats{good, frozen, slow, short, call, failed}, 3)
+	all := func(SessionStats) bool { return true }
+	rows := worstRows([]SessionStats{good, frozen, slow, short, call, failed}, 3, all)
 	ids := []string{}
 	for _, r := range rows {
 		ids = append(ids, r.ID)
@@ -213,7 +224,7 @@ func TestBuildReportJuntaTudo(t *testing.T) {
 	if r.BucketMin != 1 || len(r.Server) != 1 || len(r.Lives) != 1 || len(r.Events) != 1 || r.Breakdown["os"] == nil {
 		t.Errorf("relatório = %+v", r)
 	}
-	if r.Worst == nil {
+	if r.Worst == nil || r.WorstLives == nil || r.WorstCalls == nil {
 		t.Error("piores nil (o JSON precisa de [])")
 	}
 }
@@ -227,10 +238,17 @@ func TestReasonsDizOndeOsQuadrosSePerdem(t *testing.T) {
 	}
 
 	slowEncoder := session("enc", KindShare, "ana", 0, 10)
-	slowEncoder.TargetFPS, slowEncoder.CaptureFPS, slowEncoder.CodecMs = fp(60), fp(60), fp(15)
-	want = []string{"Codificador não dá conta do fps"}
+	slowEncoder.TargetFPS, slowEncoder.CaptureFPS, slowEncoder.FPS, slowEncoder.CodecMs = fp(60), fp(58), fp(40), fp(4)
+	want = []string{"Codificador não dá conta (codifica menos quadros que a captura)"}
 	if got := reasons(slowEncoder); !slices.Equal(got, want) {
 		t.Errorf("codificador: %q, quer %q", got, want)
+	}
+	// codec_ms alto na placa é latência de fila: entregando o que a captura
+	// manda (AMD a 49–55 fps com 15 ms/quadro), o codificador não é o gargalo.
+	latency := session("lat", KindShare, "ana", 0, 10)
+	latency.TargetFPS, latency.CaptureFPS, latency.FPS, latency.CodecMs = fp(60), fp(56), fp(55), fp(15)
+	if got := reasons(latency); len(got) != 0 {
+		t.Errorf("codec_ms alto com o fps da captura: %q", got)
 	}
 
 	decoder := session("dec", KindWatch, "bia", 0, 10)
@@ -261,5 +279,120 @@ func TestReasonsDaVoz(t *testing.T) {
 	}
 	if callScore(net) <= callScore(cpu) || callScore(session("ok", KindCall, "c", 0, 10)) != 0 {
 		t.Errorf("pontuação da voz: rede %v, cpu %v", callScore(net), callScore(cpu))
+	}
+
+	access := session("acesso", KindCall, "duda", 0, 10)
+	access.AccessFailures = 1
+	want = []string{"Sem acesso à chamada (não é queda)"}
+	if got := reasons(access); !slices.Equal(got, want) {
+		t.Errorf("acesso: %q, quer %q", got, want)
+	}
+
+	// Média de perda baixa, mas minutos com perda ≥ 5%: não é "sem perda".
+	mixed := session("mista", KindCall, "fe", 0, 60)
+	mixed.ConcealedPct, mixed.RecvLossPct, mixed.LossMinutes, mixed.RoboticMinutes = fp(4), fp(0.2), 3, 3
+	if got := reasons(mixed); slices.Contains(got, "Áudio sintetizado sem perda (PC de quem ouve)") {
+		t.Errorf("motivos contraditórios: %q", got)
+	}
+
+	// Média baixa, mas 5 minutos robotizados numa sessão longa: o motivo aparece.
+	long := session("longa", KindCall, "edu", 0, 120)
+	long.ConcealedPct, long.RoboticMinutes, long.BadMinutes = fp(0.4), 5, 5
+	if got := reasons(long); !slices.Contains(got, "Voz robotizada (áudio sintetizado)") {
+		t.Errorf("minutos robotizados sem motivo: %q", got)
+	}
+}
+
+func TestCallScoreContaMinutosRuins(t *testing.T) {
+	// A pior call real (13/11): 48 minutos ruins numa sessão de 3 h; a média
+	// da sessão fica baixa, mas ela tem de ficar acima de tudo isto.
+	worst := session("pior", KindCall, "ana", 0, 180)
+	worst.ConcealedPct, worst.RecvLossPct, worst.BadMinutes = fp(1.2), fp(8), 48
+	short := session("curta", KindCall, "bia", 0, 2)
+	short.ConcealedPct, short.RecvLossPct, short.LossPct = fp(9), fp(9), fp(20)
+	short.BadMinutes = 2
+	access := session("acesso", KindCall, "caio", 0, 5)
+	access.AccessFailures = 2
+	drop := session("caiu", KindCall, "duda", 0, 30)
+	drop.Reconnects, drop.Failures = 1, 1
+	if !(callScore(worst) > callScore(drop) && callScore(drop) > callScore(short)) {
+		t.Errorf("pior %v, caiu %v, curta %v", callScore(worst), callScore(drop), callScore(short))
+	}
+	if callScore(access) != 0 {
+		t.Errorf("falha de acesso pesou como queda: %v", callScore(access))
+	}
+	// Médias altas sem nenhum minuto ruim não pontuam (o ruído de 1 amostra).
+	noisy := session("ruido", KindCall, "edu", 0, 10)
+	noisy.ConcealedPct, noisy.RecvLossPct, noisy.LossPct = fp(2), fp(1), fp(3)
+	if callScore(noisy) != 0 {
+		t.Errorf("sem minuto ruim: %v", callScore(noisy))
+	}
+}
+
+func TestBuildReportSeparaPioresLivesEChamadas(t *testing.T) {
+	sessions := []SessionStats{}
+	// 20 lives muito ruins (pontuação de centenas) não escondem a call ruim.
+	for i := range 20 {
+		s := session(fmt.Sprintf("live%d", i), KindShare, "ana", 0, 30)
+		s.BelowRatio, s.CPURatio = fp(1), 1
+		sessions = append(sessions, s)
+	}
+	call := session("voz", KindCall, "bia", 0, 60)
+	call.BadMinutes = 3
+	sessions = append(sessions, call)
+	r := buildReport(t0.Add(-time.Hour), t0.Add(time.Hour), sessions, nil, nil)
+	if len(r.WorstLives) != maxWorst || len(r.WorstCalls) != 1 || r.WorstCalls[0].ID != "voz" {
+		t.Fatalf("piores lives = %d, chamadas = %+v", len(r.WorstLives), r.WorstCalls)
+	}
+	for _, w := range r.WorstLives {
+		if w.Kind == KindCall {
+			t.Errorf("call na lista das lives: %s", w.ID)
+		}
+	}
+	// O campo antigo (o app de antes separa por kind) leva as duas listas.
+	if len(r.Worst) != maxWorst+1 || r.Worst[maxWorst].ID != "voz" {
+		t.Errorf("worst = %d linhas", len(r.Worst))
+	}
+}
+
+func TestBreakdownsMedianaPorPessoa(t *testing.T) {
+	// Uma pessoa assiste muito e congela muito: puxa a média, não a mediana.
+	heavy1 := session("h1", KindWatch, "ana", 0, 100)
+	heavy1.OS, heavy1.Freezes, heavy1.HardwareRatio = "Windows", 900, fp(0)
+	heavy2 := session("h2", KindWatch, "ana", 0, 100)
+	heavy2.OS, heavy2.Freezes, heavy2.HardwareRatio = "Windows", 900, fp(0)
+	bia := session("b", KindWatch, "bia", 0, 10)
+	bia.OS, bia.Freezes, bia.HardwareRatio = "Windows", 0, fp(1)
+	caio := session("c", KindWatch, "caio", 0, 10)
+	caio.OS, caio.Freezes, caio.HardwareRatio = "Windows", 10, fp(1)
+	share := session("s", KindShare, "duda", 0, 10)
+	share.OS, share.BelowRatio = "Windows", fp(0.5)
+
+	win := breakdowns([]SessionStats{heavy1, heavy2, bia, caio, share})["os"][0]
+	if win.Sessions != 5 || win.People != 4 {
+		t.Fatalf("sessões %d, pessoas %d; quer 5 e 4", win.Sessions, win.People)
+	}
+	// Média ponderada: 1810 congelamentos em 220 min ≈ 8,2/min. Por pessoa:
+	// ana 9, bia 0, caio 1 → mediana 1.
+	if win.FreezesPerMin == nil || !near(*win.FreezesPerMin, 1810.0/220) {
+		t.Errorf("média = %v", win.FreezesPerMin)
+	}
+	if win.FreezesPerMinMedian == nil || !near(*win.FreezesPerMinMedian, 1) {
+		t.Errorf("mediana por pessoa = %v, quer 1", win.FreezesPerMinMedian)
+	}
+	// No processador por pessoa: ana 1, bia 0, caio 0 (duda sem dado) → 0.
+	if win.SoftwareRatioMedian == nil || *win.SoftwareRatioMedian != 0 {
+		t.Errorf("no processador, mediana = %v, quer 0", win.SoftwareRatioMedian)
+	}
+	// Abaixo do alvo: só duda tem → 0,5; com duas pessoas, a média das duas do meio.
+	if win.BelowRatioMedian == nil || !near(*win.BelowRatioMedian, 0.5) {
+		t.Errorf("abaixo do alvo, mediana = %v", win.BelowRatioMedian)
+	}
+	two := breakdowns([]SessionStats{bia, caio})["os"][0]
+	if two.FreezesPerMinMedian == nil || !near(*two.FreezesPerMinMedian, 0.5) {
+		t.Errorf("mediana de 2 pessoas (0 e 1) = %v, quer 0,5", two.FreezesPerMinMedian)
+	}
+	if two.BelowRatioMedian != nil {
+		t.Errorf("sem dado, mediana = %v, quer nil", *two.BelowRatioMedian)
 	}
 }

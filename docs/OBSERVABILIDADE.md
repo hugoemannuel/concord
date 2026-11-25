@@ -20,8 +20,12 @@ Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do 
 
 Contexto de cada sessão: SO, versão do app, plataforma (`target`: `desktop`,
 `web` ou `android`; o backend descarta outro valor), placa de vídeo (renderer
-do WebGL), núcleos do processador, tipo de rede (quando o navegador conta) e,
-no Android, o aparelho (`device`, fabricante e modelo).
+do WebGL), núcleos do processador, a coluna `network` e, no Android, o aparelho
+(`device`, fabricante e modelo). **No desktop e na web, `network` não é o tipo de
+rede** (wi-fi/cabo/4G): é o `navigator.connection.effectiveType` do Chromium, uma
+estimativa de velocidade, que dá "4g" em ~90% das sessões do desktop (1 362 de
+1 467, de 11/11 a 25/11). Não use para separar wi-fi de cabo; por isso a
+distribuição por rede só conta o Android, onde o valor é o tipo de rede de fato.
 Nada do que se fala, escreve ou mostra. Tudo fica 14 dias (o backend apaga de
 hora em hora). Visitante sem conta não manda.
 
@@ -83,23 +87,46 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   rotas mais lentas e com erro, WebSockets, pool do banco, panics) e **LiveKit**
   (picos de saída, pessoas, perda na descida; banda e CPU). Ver
   [Servidor: API e VPS](#servidor-api-e-vps).
+  O bloco LiveKit mostra também **sem coleta e reinícios do LiveKit** (`collection_gaps`, `livekit_restarts`).
+  O coletor roda dentro do backend: quando o backend ou a VPS param não fica
+  linha nenhuma (`up = false` só aparece com o backend de pé e o LiveKit fora, e
+  não apareceu nenhuma vez de 11/11 a 25/11). Por isso 2 ou mais minutos
+  seguidos faltando na `livekit_metrics` aparecem como "sem coleta" (início, fim,
+  duração; o começo do período não conta). Buracos de 2–3 min logo depois de um
+  merge na `main` são o deploy do backend. Reinício do LiveKit = o
+  `livekit_started_at` (o `process_start_time_seconds` dele) mudou.
 - **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e
   conexão; e, com as calls, por plataforma (desktop, web, android), rede e
-  aparelho Android.
-- **Eventos** (`eventos`): eventos recentes das lives e calls.
+  aparelho Android. Cada linha traz quantas pessoas e, ao lado de cada média, a
+  **mediana por pessoa** (`*_median`): de 11/11 a 25/11 uma pessoa só era 22% das
+  horas assistidas e 27% dos congelamentos, e a média por placa ou sistema era,
+  na prática, a dela.
+- **Eventos** (`eventos`): as **quedas e falhas da voz do período inteiro**
+  (`call_events`: `reconectou`, `conexao_falhou` e, quando o app passar a mandar,
+  `retomou`; até 300; a falha na etapa de acesso aparece como "Sem acesso à
+  chamada", não é queda) e os 100
+  eventos mais recentes das lives e calls (quase todos congelamentos longos, ~310
+  por dia: sem a lista à parte, as quedas da voz sumiam em poucas horas).
 - **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).
 - **Alertas** (`alertas`): o que está disparado agora, quantas vezes cada regra
   disparou no período (recorrência) e o histórico (regra, gravidade, de quando
   a quando). Pedido próprio: `GET /api/obs/alerts?days=N`. Ver [Alertas](#alertas).
 
-Piores sessões: pontuação (abaixo do alvo, congelamentos, pausa, perda,
-CPU/banda, processador; na voz: não conectou, reconexões, áudio sintetizado,
-perda) e os motivos prováveis, com a linha de números da sessão (captura ×
-codificado, chegam × decodificados, ms por quadro; na voz, áudio sintetizado,
-perda recebida, tempo para entrar) e de onde veio (plataforma, aparelho e
-rede). No Android, dois motivos a mais: "Caiu com o app em segundo plano" e
-"Caiu ao trocar de rede" (só quando a voz reconectou ou não conectou). O backend manda uma lista só; o app separa
-por tipo (`kind = call` na aba Chamadas, o resto na aba Lives).
+Piores sessões: pontuação e os motivos prováveis, com a linha de números da
+sessão (captura × codificado, chegam × decodificados, ms por quadro; na voz,
+áudio sintetizado, perda recebida, minutos de voz ruim, tempo para entrar) e de
+onde veio (plataforma, aparelho e rede). No Android, dois motivos a mais: "Caiu
+com o app em segundo plano" e "Caiu ao trocar de rede" (só quando a voz
+reconectou ou não conectou). São
+**duas listas**, cada uma com o seu teto, porque as escalas não se comparam:
+`worst_lives` (15, quem transmite e quem assiste: abaixo do alvo, congelamentos,
+perda, CPU/banda, processador) e `worst_calls` (10, a voz). A voz pontua por
+**minutos ruins** (minuto medido com áudio sintetizado ≥ 3% ou perda recebida ≥
+5%) × 10, reconexões × 20 e falhas × 100, e não pela média da sessão (que dilui
+um episódio longo: a pior call de 13/11, 48 minutos robotizados, ficava em 63º).
+A `conexao_falhou` na etapa de **acesso** ("entrando (acesso)": chamada encerrada
+ou sem permissão) não é queda: vai à parte (`access_failures`) e não pesa. O
+campo antigo `worst` leva as duas listas juntas, para o app de antes.
 
 As abas Lives, Chamadas, Servidor, Distribuição e Eventos usam o mesmo pedido
 (`useSharedLiveReport`): trocar entre elas não busca de novo. A aba Servidor
@@ -357,6 +384,17 @@ GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 50;
 Sessões de voz do app antigo que nunca conectaram aparecem sem transporte em
 nenhuma amostra (`bool_and(transport = '')`).
 
+**Buracos na coleta** (backend ou VPS fora) **e reinícios do LiveKit:**
+```sql
+SELECT prev + interval '1 minute' AS sem_coleta_desde, minute AS voltou, minute - prev - interval '1 minute' AS duracao
+FROM (SELECT minute, lag(minute) OVER (ORDER BY minute) AS prev FROM livekit_metrics) m
+WHERE minute - prev > interval '2 minutes' ORDER BY minute DESC;
+SELECT minute, livekit_started_at
+FROM (SELECT minute, livekit_started_at, lag(livekit_started_at) OVER (ORDER BY minute) AS antes
+      FROM livekit_metrics WHERE livekit_started_at IS NOT NULL) m
+WHERE livekit_started_at <> antes ORDER BY minute DESC;
+```
+
 **Eventos das últimas 24 h, por tipo:**
 ```sql
 SELECT type, count(*) FROM live_events WHERE at > now() - interval '24 hours' GROUP BY 1 ORDER BY 2 DESC;
@@ -409,13 +447,15 @@ ORDER BY x.at DESC LIMIT 50;
 | `limitation = cpu` alto em quem transmite, `na_placa_pct` baixo | encoder por software | conferir placa/driver; codec que a placa codifica |
 | `limitation = bandwidth` alto | upload de quem transmite | preset menor ou camada de 720p |
 | perda na **subida** alta (`packets_lost_in`) | rede de quem transmite | idem; ver `transport` (TCP piora) |
-| perda na **descida** alta, `paused` em quem assiste | rede de quem assiste / banda da VPS | camada de 720p (simulcast); conferir `mbps_saida` perto do limite da VPS |
+| perda na **descida** alta em quem assiste | rede de quem assiste / banda da VPS | camada de 720p (simulcast); conferir `mbps_saida` perto do limite da VPS |
+| `paused` / "pausada pelo servidor" | **não acontece** com a configuração atual do LiveKit (`congestion_control` padrão, sem `allow_pause`: o SFU só baixa de camada, nunca pausa; `paused` falso em 43 222 amostras de 11/11 a 25/11) | nada; o sinal segue gravado, mas saiu da pontuação e dos motivos do painel. Se ligar o `allow_pause`, volte a olhar |
 | `decodificou_no_processador` em quem tem congelamentos | decodificador por software | driver (ex.: nvidia-vaapi-driver no Linux), codec mais leve |
 | `backup` alto | alguém sem o codec principal | ver quem (SO/placa) e a ordem de codecs |
 | muitas sessões `tcp`/`relay` | rede bloqueando UDP | TURN/TLS na 443 (relatório da investigação §3.8) |
 | CPU da VPS > 80% ou `mbps_saida` no teto do plano | VPS no limite | VPS maior, teto de bitrate, simulcast |
 | `capture_fps` < 80% do alvo, `limitation = none` | a captura do Chromium não entrega o fps | captura nativa (ADR 0031) ou outra fonte; codec/bitrate não resolvem |
-| `codec_ms` (transmite) perto de 1000/alvo | codificador não dá conta | preset menor ou outro codec para aquela placa |
+| `fps` (codificado) < 80% da `capture_fps` em quem transmite | codificador não dá conta | preset menor ou outro codec para aquela placa |
+| `codec_ms` (transmite) alto, mas `fps` ≈ `capture_fps` | **latência de fila** do codificador na placa, não gargalo (AMD entrega 49–55 fps com ~15 ms/quadro) | nada pelo codificador; se o fps está baixo, olhe a captura (`capture_fps` × alvo) |
 | quem assiste: `recv_fps` ≫ `fps`, congelamentos | decodificador | tirar o codec da ordem para aquela placa/SO; driver |
 | quem assiste: `recv_fps` baixo com perda 0 | não chega: quem transmite ou SFU | comparar com o `fps`/`capture_fps` de quem transmite e a pausa/camada |
 | todos os espectadores congelam juntos, perda 0, e a `capture_fps` de quem transmite oscila | a captura do Chromium no Windows (cópia do quadro para a CPU + teto de 50% de CPU do capturador) | não é rede nem codec: captura nativa no Windows (marco 2 da ADR 0031) |

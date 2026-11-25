@@ -33,6 +33,12 @@ describe('rótulos', () => {
     expect(eventLabel('degrau_caiu')).toBe('Qualidade caiu')
     expect(eventLabel('novo')).toBe('novo')
     expect(eventLabel('conexao_falhou')).toBe('Voz não conectou')
+    expect(eventLabel('retomou')).toBe('Voltou à call (o app reiniciou)')
+    // Falha na etapa de acesso (chamada encerrada, sem permissão) não é queda.
+    expect(eventLabel('conexao_falhou', 'entrando (acesso): Você não tem mais acesso')).toBe(
+      'Sem acesso à chamada'
+    )
+    expect(eventLabel('conexao_falhou', 'reconectando: caiu e não voltou')).toBe('Voz não conectou')
   })
   it('eventos do app Android', () => {
     expect(eventLabel('segundo_plano')).toBe('Saiu do app')
@@ -85,6 +91,18 @@ describe('qualityLine', () => {
     ).toBe(
       'Áudio sintetizado 4,5% · perda recebida 0,1% · entrou em 1,9 s · 2 reconexões · 1 falha'
     )
+  })
+  it('voz: minutos de voz ruim e falhas de acesso (não são queda)', () => {
+    expect(
+      qualityLine({
+        ...none,
+        kind: 'call',
+        concealed_pct: 1.2,
+        bad_minutes: 48.4,
+        access_failures: 1
+      })
+    ).toBe('Áudio sintetizado 1,2% · 48 min de voz ruim · 1 sem acesso à chamada')
+    expect(qualityLine({ ...none, kind: 'call', bad_minutes: 0, access_failures: 0 })).toBeNull()
   })
   it('sem dado: null', () => {
     expect(qualityLine({ ...none, kind: 'call' })).toBeNull()

@@ -163,6 +163,26 @@ describe('abas do relatório das lives', () => {
     expect(html).not.toContain('bia')
     expect(html).not.toContain('Lives recentes')
   })
+  it('cada aba lê a sua lista do backend', () => {
+    const r = report(true)
+    const [live, call] = r.worst
+    const both: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        worst: [],
+        worst_lives: [{ ...live, username: 'lia' }],
+        worst_calls: [{ ...call, username: 'davi', bad_minutes: 48 }]
+      }
+    }
+    const calls = render(CallsTab, both)
+    expect(calls).toContain('davi')
+    expect(calls).toContain('48 min de voz ruim')
+    expect(calls).not.toContain('lia')
+    const lives = render(LivesTab, both)
+    expect(lives).toContain('lia')
+    expect(lives).not.toContain('davi')
+  })
   it('Chamadas sem sessão ruim', () => {
     const empty: ReportState = { status: 'ready', report: { ...report(true), worst: [] } }
     expect(render(CallsTab, empty)).toContain('Nenhuma chamada ruim no período.')
@@ -175,14 +195,101 @@ describe('abas do relatório das lives', () => {
     expect(html).not.toContain('não mandou métricas')
     expect(render(ServerTab, ready(false))).toContain('não mandou métricas')
   })
+  it('Servidor: buracos na coleta e reinícios do LiveKit', () => {
+    const r = report(true)
+    const withGaps: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        collection_gaps: [{ from: '2026-11-23T01:55:00', to: '2026-11-23T10:16:00', minutes: 501 }],
+        livekit_restarts: [{ at: '2026-11-24T21:17:00', seen_at: '2026-11-24T21:18:00' }]
+      }
+    }
+    const html = render(ServerTab, withGaps)
+    expect(html).toContain('Sem coleta e reinícios do LiveKit')
+    expect(html).toContain('23/11, 01:55 até 10:16 · 8 h 21 min')
+    expect(html).toContain('LiveKit reiniciou')
+    expect(html).toContain('24/11, 21:17')
+    const clean: ReportState = {
+      status: 'ready',
+      report: { ...r, collection_gaps: [], livekit_restarts: [] }
+    }
+    expect(render(ServerTab, clean)).toContain(
+      'Nenhum buraco na coleta e nenhum reinício do LiveKit no período.'
+    )
+    // Backend de antes: sem os campos, a seção não aparece.
+    expect(render(ServerTab, ready())).not.toContain('Sem coleta')
+  })
+  it('Distribuição: pessoas e a mediana por pessoa ao lado da média', () => {
+    const r = report(true)
+    const withMedian: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        breakdown: {
+          ...r.breakdown,
+          os: [
+            {
+              key: 'Windows',
+              sessions: 40,
+              people: 7,
+              below_ratio: 0.25,
+              below_ratio_median: 0.1,
+              freezes_per_min: 3.5,
+              freezes_per_min_median: 0.8,
+              software_ratio: 0,
+              software_ratio_median: 0
+            }
+          ]
+        }
+      }
+    }
+    const html = render(BreakdownTab, withMedian)
+    expect(html).toContain('Pessoas')
+    expect(html).toContain('>7<')
+    expect(html).toContain('3,5 · med. 0,8')
+    expect(html).toContain('25% · med. 10%')
+    expect(html).toContain('mediana por pessoa')
+    // Backend de antes: sem mediana, só a média.
+    const old = render(BreakdownTab, ready())
+    expect(old).toContain('0,4')
+    expect(old).not.toContain('med.')
+  })
   it('Distribuição e Eventos', () => {
     const breakdown = render(BreakdownTab, ready())
-    for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede (com as calls)', 'Aparelho Android (com as calls)']) {
+    for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede do Android (com as calls)', 'Aparelho Android (com as calls)']) {
       expect(breakdown).toContain(text)
     }
     const events = render(EventsTab, ready())
     expect(events).toContain('Qualidade caiu')
     expect(events).toContain('0 → 1 (cpu)')
+  })
+  it('Eventos: as quedas e falhas da voz do período inteiro, à parte', () => {
+    const r = report(true)
+    const withCalls: ReportState = {
+      status: 'ready',
+      report: {
+        ...r,
+        call_events: [
+          {
+            at: '2026-10-23T10:00:00Z',
+            type: 'reconectou',
+            detail: '16 s',
+            kind: 'call',
+            username: 'caio'
+          }
+        ]
+      }
+    }
+    const html = render(EventsTab, withCalls)
+    expect(html).toContain('Quedas e falhas da voz (período inteiro)')
+    expect(html).toContain('Voz reconectou')
+    expect(html).toContain('16 s')
+    expect(html).toContain('Eventos recentes')
+    const none: ReportState = { status: 'ready', report: { ...r, call_events: [] } }
+    expect(render(EventsTab, none)).toContain('Nenhuma queda ou falha de voz no período.')
+    // Backend de antes, sem o campo: o painel não aparece.
+    expect(render(EventsTab, ready())).not.toContain('Quedas e falhas da voz')
   })
   it('relatório de outro período: carregando, não os dados antigos', () => {
     const html = renderToStaticMarkup(
