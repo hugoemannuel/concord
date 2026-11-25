@@ -45,6 +45,7 @@ import { setupGlobalKeybinds } from './overlay/globalKeybinds'
 import { setupGames } from './activity/games'
 import { setupMusic } from './activity/music'
 import { setupAppMetrics } from './app/appMetrics'
+import { setupDeviceStats } from './deviceStats/setupDeviceStats'
 import { setupTTS } from './tts/ttsSetup'
 import { setupPerfLog } from './perf/setupPerfLog'
 import { handleInviteArgs, handleInviteUrl, setupInviteProtocol } from './app/inviteProtocol'
@@ -354,6 +355,7 @@ app.whenReady().then(() => {
   setupGames(() => mainWindow)
   setupMusic(() => mainWindow)
   setupAppMetrics(() => mainWindow)
+  setupDeviceStats(() => mainWindow)
   setupTTS(() => mainWindow)
 
   // Default open or close DevTools by F12 in development

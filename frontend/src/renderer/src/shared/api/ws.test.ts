@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WsClient, onWsEvent } from './ws'
 import { HEARTBEAT_EVERY_MS } from '../lib/wsHeartbeat'
+import { takeWsRtt } from '../lib/perf/wsRtt'
 
 /** WebSocket de mentira: o teste abre e fecha à mão. */
 class FakeSocket {
@@ -387,6 +388,15 @@ describe('WsClient — batimento (ping/pong)', () => {
     const { onEvent, socket } = await connected()
     pong(socket)
     expect(onEvent).not.toHaveBeenCalled()
+  })
+
+  it('o pong anota a ida e volta do ping (telemetria do aparelho)', async () => {
+    const { socket } = await connected()
+    takeWsRtt()
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_EVERY_MS)
+    await vi.advanceTimersByTimeAsync(80)
+    pong(socket)
+    expect(takeWsRtt()).toEqual({ medianMs: 80, maxMs: 80 })
   })
 
   it('disconnect() para o batimento', async () => {

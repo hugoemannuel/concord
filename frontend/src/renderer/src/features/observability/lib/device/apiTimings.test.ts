@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest'
+import { absoluteApiBase, ApiTimings } from './apiTimings'
+
+const entry = (name: string, duration: number, initiatorType = 'fetch') => ({
+  name,
+  duration,
+  initiatorType
+})
+
+describe('ApiTimings', () => {
+  it('só fetch/XHR para /api/ do servidor do app: p50, p95 e quantas', () => {
+    const api = new ApiTimings('https://srv.example/api')
+    api.add(entry('https://srv.example/api/servers', 80))
+    api.add(entry('https://srv.example/api/messages?x=1', 300, 'xmlhttprequest'))
+    api.add(entry('https://srv.example/api/me', 100))
+    api.add(entry('https://srv.example/uploads/a.png', 900))
+    api.add(entry('https://srv.example/api/x', 900, 'img'))
+    api.add(entry('https://outro.example/api/x', 900))
+    api.add(entry('https://srv.example/apifake', 900))
+    expect(api.take()).toEqual({ p50Ms: 100, p95Ms: 300, count: 3 })
+  })
+
+  it('não conta a própria telemetria (/api/obs/)', () => {
+    const api = new ApiTimings('https://srv.example/api')
+    api.add(entry('https://srv.example/api/obs/device', 900))
+    api.add(entry('https://srv.example/api/me', 50))
+    expect(api.take()).toEqual({ p50Ms: 50, p95Ms: 50, count: 1 })
+  })
+
+  it('web: API_BASE_URL relativo (/api) vira absoluto pela página', () => {
+    const api = new ApiTimings('/api', 'https://salinha.example/canal/1')
+    api.add(entry('https://salinha.example/api/me', 70))
+    api.add(entry('https://salinha.example/api/obs/device', 900))
+    api.add(entry('https://salinha.example/apifake', 900))
+    api.add(entry('https://outro.example/api/me', 900))
+    expect(api.take()).toEqual({ p50Ms: 70, p95Ms: 70, count: 1 })
+  })
+
+  it('take zera', () => {
+    const api = new ApiTimings('https://srv.example/api')
+    api.add(entry('https://srv.example/api/me', 10.6))
+    expect(api.take()).toEqual({ p50Ms: 11, p95Ms: 11, count: 1 })
+    expect(api.take()).toEqual({ p50Ms: null, p95Ms: null, count: 0 })
+  })
+})
+
+describe('absoluteApiBase', () => {
+  it('resolve pela página, sem a barra do fim; sem página, fica como veio', () => {
+    expect(absoluteApiBase('/api', 'https://app.example/x')).toBe('https://app.example/api')
+    expect(absoluteApiBase('https://srv.example/api/', undefined)).toBe('https://srv.example/api')
+    expect(absoluteApiBase('/api', undefined)).toBe('/api')
+  })
+})

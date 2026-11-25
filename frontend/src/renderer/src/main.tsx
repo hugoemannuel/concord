@@ -26,6 +26,7 @@ import { startSessionRevoked } from './features/auth/lib/sessionRevokedStart'
 import { startPluginsEvents } from './features/plugins/lib/pluginsEventsStart'
 import { startServerLevels } from './features/serverlevel/lib/serverLevelStart'
 import { startErrorReports } from './features/errorReports/lib/errorReportStart'
+import { startDeviceTelemetry } from './features/observability/lib/device/deviceTelemetryStart'
 
 // Relatório de erros (docs/adr/0068): primeiro, para pegar os erros dos outros start*.
 startErrorReports()
@@ -77,6 +78,7 @@ startSessionRevoked()
 
 // Plugins instalados/ligados mudaram (plugins:changed).
 startPluginsEvents()
+startDeviceTelemetry() // CPU, memória e travadas do aparelho, só com login de conta (docs/adr/0069)
 
 // Soltar um arquivo fora do chat não pode fazer o Electron abrir o arquivo no
 // lugar do app (o chat trata o próprio drop).

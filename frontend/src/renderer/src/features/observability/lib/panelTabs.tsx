@@ -1,5 +1,6 @@
 import BreakdownTab from '../components/tabs/BreakdownTab'
 import CallsTab from '../components/tabs/CallsTab'
+import DevicesTab from '../components/device/DevicesTab'
 import EventsTab from '../components/tabs/EventsTab'
 import LivesTab from '../components/tabs/LivesTab'
 import ServerTab from '../components/tabs/ServerTab'
@@ -22,5 +23,6 @@ export const PANEL_TABS: PanelTab[] = [
   { id: 'servidor', label: 'Servidor', Component: ServerTab },
   { id: 'distribuicao', label: 'Distribuição', Component: BreakdownTab },
   { id: 'eventos', label: 'Eventos', Component: EventsTab },
-  { id: 'erros', label: 'Erros', Component: ErrorsTab }
+  { id: 'erros', label: 'Erros', Component: ErrorsTab },
+  { id: 'dispositivos', label: 'Dispositivos', Component: DevicesTab }
 ]

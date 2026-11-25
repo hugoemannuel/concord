@@ -1,6 +1,7 @@
 import { wsConnectUrl } from './wsTicket'
 import { isPlannedRestart, isSessionRevoked, reconnectDelay } from '../lib/wsReconnect'
 import { HEARTBEAT_EVERY_MS, heartbeatStep, type HeartbeatState } from '../lib/wsHeartbeat'
+import { noteWsPong } from '../lib/perf/wsRtt'
 
 export type WsEventType =
   | 'message:create'
@@ -262,6 +263,7 @@ export class WsClient {
     this.heartbeat.lastMessageAt = Date.now()
     if ((data.type as string) !== 'pong') return false
     this.heartbeat.pongSeen = true
+    noteWsPong(this.heartbeat.pingSentAt, Date.now())
     return true
   }
 
