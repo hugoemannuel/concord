@@ -109,16 +109,20 @@ export class LiveProcess {
     this.onEvent(event)
   }
 
-  /** O processo acabou: se não disse por quê, foi falha. */
+  /**
+   * O processo acabou: se não disse por quê, foi falha. Depois de um `stop` (o
+   * kill de quem não parou a tempo) a saída foi pedida: não vai para o relatório.
+   */
   private finish(child: LiveChild, code: number | null, signal: NodeJS.Signals | null = null): void {
     if (this.child !== child) return
     this.child = null
+    const stopping = this.killTimer !== null
     if (this.killTimer) clearTimeout(this.killTimer)
     this.killTimer = null
     if (this.ended) return
     this.ended = true
     this.log(`helper saiu sem avisar (código ${code})`)
-    reportHelperExit('concord-live', code, signal)
+    if (!stopping) reportHelperExit('concord-live', code, signal)
     this.onEvent({ event: 'error', code: 'helper_failed', message: `saiu com código ${code}` })
     this.onEvent({ event: 'ended', reason: 'helper_exit' })
   }

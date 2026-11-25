@@ -141,6 +141,16 @@ describe('LiveProcess', () => {
     expect(mainErrors.take()).toMatchObject([{ message: 'concord-live saiu sem avisar (código 134)', count: 1 }])
   })
 
+  it('morto por não parar a tempo depois do stop: não vai para o relatório de erros', () => {
+    const { child, live } = setup()
+    live.start('/helper', START)
+    live.stop()
+    vi.advanceTimersByTime(STOP_GRACE_MS)
+    child.emit('exit', null, 'SIGTERM')
+    expect(live.running).toBe(false)
+    expect(mainErrors.take()).toEqual([])
+  })
+
   it('depois de acabar, abre outra live', () => {
     const { child, live } = setup()
     live.start('/helper', START)

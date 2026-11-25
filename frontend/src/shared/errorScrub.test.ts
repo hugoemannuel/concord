@@ -51,7 +51,19 @@ describe('scrubText (regras 1 a 5)', () => {
       "Cannot read properties of undefined (reading 'id')",
       "Cannot read properties of undefined (reading 'id')"
     ],
-    ['24 caracteres entre aspas ficam', `"${'a'.repeat(24)}"`, `"${'a'.repeat(24)}"`]
+    ['24 caracteres entre aspas ficam', `"${'a'.repeat(24)}"`, `"${'a'.repeat(24)}"`],
+    // Mesmos casos da tabela do servidor (backend/internal/apperrors/scrub_test.go) e do mobile.
+    ['bearer minúsculo', 'bearer abc', 'Bearer <token>'],
+    ['bearer maiúsculo', 'BEARER abc', 'Bearer <token>'],
+    ['Windows minúsculo', 'c:\\users\\ana\\x', 'c:\\users\\<user>\\x'],
+    ['Windows com barras escapadas', 'C:\\\\Users\\\\Ana Silva\\\\x', 'C:\\\\Users\\\\<user>\\\\x'],
+    ['esquema do app perde a query', 'salinha://x?y=1', 'salinha://x'],
+    ['URL relativa perde a query', 'GET /api/media/x?token=abc', 'GET /api/media/x'],
+    ['URL relativa no quadro mantém linha e coluna', 'at f (/a/b.js?v=1:3:4)', 'at f (/a/b.js:3:4)'],
+    ['interrogação de texto fica', 'o que é /isto? nada', 'o que é /isto? nada'],
+    ['caminho sem query fica', 'at f (/data/app/x.js:1:2)', 'at f (/data/app/x.js:1:2)'],
+    ['quadro do Hermes não é e-mail', 'render@index.android.bundle:1:234', 'render@index.android.bundle:1:234'],
+    ['hex só de dígitos de 32+', `n ${'1'.repeat(40)}`, 'n <token>']
   ])('%s', (_name, input, want) => {
     expect(scrubText(input)).toBe(want)
   })
@@ -141,6 +153,28 @@ describe('scrubStack (regra 6)', () => {
 
   it('linhas vazias saem', () => {
     expect(scrubStack('Error: x\n\n    at a (a.js:1:2)\n')).toBe('Error: x\n    at a (a.js:1:2)')
+  })
+})
+
+describe('entrada enorme (a limpeza roda no app: não pode travar)', () => {
+  const huge = 200 * 1024
+  it.each([
+    ['letras', 'a'.repeat(huge)],
+    ['parece e-mail', 'a.'.repeat(huge / 2)],
+    ['palavras', 'palavra '.repeat(huge / 8)],
+    ['parece esquema de URL', 'a+'.repeat(huge / 2)],
+    ['aspas abertas', `"${'a'.repeat(huge)}`]
+  ])('%s: 200 KB em menos de 100 ms', (_name, input) => {
+    const start = performance.now()
+    scrubMessage(input)
+    scrubStack(input)
+    scrubStack(`${input}\n`.repeat(40))
+    expect(performance.now() - start).toBeLessThan(100)
+  })
+
+  it('o corte antes da limpeza não deixa pedaço de e-mail no fim', () => {
+    const out = scrubStack(`${'x '.repeat(511)}ana.silva@exemplo.com.br`)
+    expect(out).not.toContain('ana')
   })
 })
 

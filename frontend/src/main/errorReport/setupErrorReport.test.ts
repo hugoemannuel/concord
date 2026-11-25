@@ -39,6 +39,24 @@ describe('setupErrorReport', () => {
     expect(mainErrors.take().map((e) => e.message)).toEqual(['x', 'y'])
   })
 
+  it('EPIPE (o console sem destino) é ignorado: não vira laço nem erro', () => {
+    const epipe = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' })
+    processListeners.get('uncaughtException')?.(epipe)
+    expect(console.error).not.toHaveBeenCalled()
+    expect(mainErrors.take()).toEqual([])
+  })
+
+  it('o console que lança ou chama o handler de novo não entra em laço', () => {
+    const onError = processListeners.get('uncaughtException')
+    vi.mocked(console.error).mockImplementation(() => {
+      onError?.(new Error('de novo'))
+      throw new Error('console quebrado')
+    })
+    expect(() => onError?.(new TypeError('x'))).not.toThrow()
+    expect(console.error).toHaveBeenCalledTimes(1)
+    expect(mainErrors.take().map((e) => e.message)).toEqual(['x'])
+  })
+
   it('renderer e processo filho que caíram vão; clean-exit não', () => {
     appListeners.get('render-process-gone')?.({}, {}, { reason: 'crashed', exitCode: 1 })
     appListeners.get('child-process-gone')?.({}, { reason: 'clean-exit', exitCode: 0, type: 'GPU' })
