@@ -34,12 +34,20 @@ function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
   )
 }
 
-/** As piores sessões (lives e voz das calls) e o motivo provável. */
-export function WorstSessions({ rows }: { rows: WorstRow[] }): React.JSX.Element {
+/** As piores sessões (de live ou de voz das calls) e o motivo provável. */
+export function WorstSessions({
+  title,
+  empty,
+  rows
+}: {
+  title: string
+  empty: string
+  rows: WorstRow[]
+}): React.JSX.Element {
   return (
-    <Panel title="Piores sessões e por quê">
+    <Panel title={title}>
       {rows.length === 0 ? (
-        <Empty>Nenhuma sessão ruim no período.</Empty>
+        <Empty>{empty}</Empty>
       ) : (
         <ul className="grid gap-2 lg:grid-cols-2">
           {rows.map((row) => (

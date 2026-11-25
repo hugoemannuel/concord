@@ -15,11 +15,12 @@ export function failedState(err: unknown): ReportState {
     : { status: 'error' }
 }
 
-/** O painel dos últimos `days` dias; 403 = não é dev. */
-export function useLiveReport(days: number): { state: ReportState; reload: () => void } {
+/** O painel dos últimos `days` dias (null = ainda não buscar); 403 = não é dev. */
+export function useLiveReport(days: number | null): { state: ReportState; reload: () => void } {
   const [state, setState] = useState<ReportState>({ status: 'loading' })
   const [version, setVersion] = useState(0)
   useEffect(() => {
+    if (days === null) return
     let cancelled = false
     setState({ status: 'loading' })
     fetchLiveReport(days)

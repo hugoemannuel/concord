@@ -1,0 +1,180 @@
+import { describe, expect, it } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+import type { LiveReport, SessionStats } from '../../api/observability'
+import type { ReportState } from '../../hooks/useLiveReport'
+import { LiveReportContext } from '../../hooks/useSharedLiveReport'
+import BreakdownTab from './BreakdownTab'
+import CallsTab from './CallsTab'
+import EventsTab from './EventsTab'
+import LivesTab from './LivesTab'
+import ServerTab from './ServerTab'
+
+const base: SessionStats = {
+  id: 's1',
+  user_id: 'u1',
+  username: 'ana',
+  kind: 'transmite',
+  call_id: 'c1',
+  streamer_id: '',
+  os: 'Windows',
+  gpu: 'ANGLE (NVIDIA)',
+  app_version: '1.0.0',
+  target: 'desktop',
+  cores: 8,
+  started_at: '2026-10-29T20:00:00Z',
+  ended_at: '2026-10-29T20:30:00Z',
+  seconds: 1800,
+  codec: 'H265',
+  transport: 'udp',
+  fps: 55,
+  target_fps: 60,
+  height: 1080,
+  hardware_ratio: 1,
+  below_ratio: 0.25,
+  cpu_ratio: 0.4,
+  bandwidth_ratio: 0,
+  backup_ratio: 0,
+  paused_ratio: 0,
+  freezes: 0,
+  freeze_ms: 0,
+  step_changes: 2,
+  bitrate_kbps: 6000,
+  loss_pct: 0.1,
+  rtt_ms: 30,
+  capture_fps: 58,
+  recv_fps: null,
+  codec_ms: 4,
+  concealed_pct: null,
+  recv_loss_pct: null,
+  connect_ms: null,
+  reconnects: 0,
+  failures: 0
+}
+
+const report = (up: boolean): LiveReport => ({
+  from: '2026-10-22T20:00:00Z',
+  to: '2026-10-29T20:00:00Z',
+  bucket_minutes: 60,
+  server: [
+    {
+      at: '2026-10-29T20:00:00Z',
+      up,
+      mbps_in: 6,
+      mbps_out: 24,
+      loss_in_pct: 0,
+      loss_out_pct: 0.5,
+      rtt_ms: 30,
+      livekit_cpu_pct: 20,
+      host_cpu_pct: 35,
+      host_mem_pct: 60,
+      participants: 5,
+      video_tracks_out: 4
+    }
+  ],
+  lives: [
+    {
+      ...base,
+      duration_seconds: 1800,
+      viewers: 3,
+      viewer_freezes_per_min: 0.4,
+      viewer_software_ratio: 0.33
+    }
+  ],
+  worst: [
+    {
+      ...base,
+      id: 'w1',
+      kind: 'assiste',
+      username: 'bia',
+      duration_seconds: 600,
+      freezes_per_min: 2,
+      score: 80,
+      reasons: ['Decodificando no processador']
+    },
+    {
+      ...base,
+      id: 'w2',
+      kind: 'call',
+      username: 'caio',
+      duration_seconds: 900,
+      freezes_per_min: 0,
+      score: 130,
+      concealed_pct: 6,
+      recv_loss_pct: 0.2,
+      failures: 1,
+      reasons: ['Voz não conectou']
+    }
+  ],
+  breakdown: {
+    os: [
+      { key: 'Windows', sessions: 2, below_ratio: 0.25, freezes_per_min: 0.4, software_ratio: 0 }
+    ],
+    gpu: [],
+    codec: [],
+    transport: []
+  },
+  events: [
+    {
+      at: '2026-10-29T20:10:00Z',
+      type: 'degrau_caiu',
+      detail: '0 → 1 (cpu)',
+      kind: 'transmite',
+      username: 'ana'
+    }
+  ]
+})
+
+const render = (Tab: React.ComponentType<{ days: number }>, state: ReportState): string =>
+  renderToStaticMarkup(
+    <LiveReportContext.Provider value={{ state, reload: () => {}, request: () => {} }}>
+      <Tab days={7} />
+    </LiveReportContext.Provider>
+  )
+const ready = (up = true): ReportState => ({ status: 'ready', report: report(up) })
+
+describe('abas do relatório das lives', () => {
+  it('Lives: lives recentes e só as piores sessões de live', () => {
+    const html = render(LivesTab, ready())
+    for (const text of ['Lives recentes', 'ana', 'CPU 40%', 'Piores lives e por quê', 'bia']) {
+      expect(html).toContain(text)
+    }
+    expect(html).toContain('Decodificando no processador')
+    expect(html).not.toContain('caio')
+    expect(html).not.toContain('Pico de saída')
+  })
+  it('Chamadas: só as piores sessões de voz', () => {
+    const html = render(CallsTab, ready())
+    expect(html).toContain('Piores chamadas e por quê')
+    expect(html).toContain('caio')
+    expect(html).toContain('Áudio sintetizado 6% · perda recebida 0,2% · 1 falha')
+    expect(html).not.toContain('bia')
+    expect(html).not.toContain('Lives recentes')
+  })
+  it('Chamadas sem sessão ruim', () => {
+    const empty: ReportState = { status: 'ready', report: { ...report(true), worst: [] } }
+    expect(render(CallsTab, empty)).toContain('Nenhuma chamada ruim no período.')
+    expect(render(LivesTab, empty)).toContain('Nenhuma live ruim no período.')
+  })
+  it('Servidor: picos e o aviso quando o LiveKit não mandou métricas', () => {
+    const html = render(ServerTab, ready())
+    expect(html).toContain('Pico de saída')
+    expect(html).toContain('24 Mbps')
+    expect(html).not.toContain('não mandou métricas')
+    expect(render(ServerTab, ready(false))).toContain('não mandou métricas')
+  })
+  it('Distribuição e Eventos', () => {
+    expect(render(BreakdownTab, ready())).toContain('Distribuição')
+    const events = render(EventsTab, ready())
+    expect(events).toContain('Qualidade caiu')
+    expect(events).toContain('0 → 1 (cpu)')
+  })
+  it('estados: carregando, sem permissão e erro (em qualquer aba)', () => {
+    for (const Tab of [LivesTab, CallsTab, ServerTab, BreakdownTab, EventsTab]) {
+      expect(render(Tab, { status: 'loading' })).toContain('Carregando')
+      expect(render(Tab, { status: 'forbidden' })).toContain(
+        'Só os devs do Salinha veem esta página.'
+      )
+      expect(render(Tab, { status: 'error' })).toContain('Tentar de novo')
+    }
+  })
+})
