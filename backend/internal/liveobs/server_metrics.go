@@ -148,13 +148,34 @@ func (now counters) delta(prev counters, c counter) float64 {
 	return now.c[c] - prev.c[c]
 }
 
-// average de um histograma (soma/contagem) no intervalo; nil sem amostras.
-func (now counters) average(prev counters, sum, count counter, scale float64) *float64 {
-	n := now.delta(prev, count)
-	if n <= 0 {
+// histogram: soma e contagem de um histograma do LiveKit, a escala para a
+// unidade gravada e o maior valor possível nela.
+type histogram struct {
+	sum, count counter
+	scale, max float64
+}
+
+// minHistogramSamples: com menos amostras no intervalo, a média não vale (o
+// RTT de minuto ocioso, com 1 ou 2 amostras, chega a centenas de ms).
+const minHistogramSamples = 3
+
+var (
+	rttHist    = histogram{cRTTSum, cRTTCount, 1, 10_000}           // ms; 10 s
+	jitterHist = histogram{cJitterSum, cJitterCount, 0.001, 10_000} // µs → ms; 10 s
+	scoreHist  = histogram{cScoreSum, cScoreCount, 1, 5}            // nota de 0 a 5
+)
+
+// average de um histograma no intervalo; nil com poucas amostras ou valor
+// impossível (23/11: RTT de 3 855 065 ms num minuto).
+func (now counters) average(prev counters, h histogram) *float64 {
+	n := now.delta(prev, h.count)
+	if n < minHistogramSamples {
 		return nil
 	}
-	v := now.delta(prev, sum) / n * scale
+	v := now.delta(prev, h.sum) / n * h.scale
+	if v < 0 || v > h.max {
+		return nil
+	}
 	return &v
 }
 
@@ -175,9 +196,9 @@ func serverMinute(prev, now counters, seconds float64) ServerMinute {
 		PacketsLostOut:     d(cLostOut),
 		Nack:               d(cNack),
 		Pli:                d(cPli),
-		RTTMs:              now.average(prev, cRTTSum, cRTTCount, 1),
-		JitterMs:           now.average(prev, cJitterSum, cJitterCount, 0.001),
-		QualityScore:       now.average(prev, cScoreSum, cScoreCount, 1),
+		RTTMs:              now.average(prev, rttHist),
+		JitterMs:           now.average(prev, jitterHist),
+		QualityScore:       now.average(prev, scoreHist),
 		Rooms:              g(gRooms),
 		Participants:       g(gParticipants),
 		TracksIn:           g(gTracksIn),

@@ -29,8 +29,8 @@ livekit_packet_loss_total{direction="outgoing",source="SCREEN_SHARE",type="VIDEO
 livekit_nack_total{direction="incoming",country=""} 5
 livekit_nack_total{direction="outgoing",country=""} 5
 livekit_pli_total{direction="incoming",country=""} 1
-livekit_rtt_ms_sum{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 100
-livekit_rtt_ms_count{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 2
+livekit_rtt_ms_sum{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 150
+livekit_rtt_ms_count{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 3
 livekit_jitter_us_sum{direction="incoming",source="SCREEN_SHARE",type="VIDEO",country=""} 10000
 livekit_jitter_us_count{direction="incoming",source="SCREEN_SHARE",type="VIDEO",country=""} 1
 livekit_quality_score_sum 40
@@ -56,10 +56,10 @@ livekit_packet_loss_total{direction="outgoing",source="SCREEN_SHARE",type="VIDEO
 livekit_nack_total{direction="incoming",country=""} 15
 livekit_nack_total{direction="outgoing",country=""} 25
 livekit_pli_total{direction="incoming",country=""} 4
-livekit_rtt_ms_sum{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 400
-livekit_rtt_ms_count{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 8
-livekit_jitter_us_sum{direction="incoming",source="SCREEN_SHARE",type="VIDEO",country=""} 30000
-livekit_jitter_us_count{direction="incoming",source="SCREEN_SHARE",type="VIDEO",country=""} 3
+livekit_rtt_ms_sum{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 450
+livekit_rtt_ms_count{direction="outgoing",source="SCREEN_SHARE",type="VIDEO",country=""} 9
+livekit_jitter_us_sum{direction="incoming",source="SCREEN_SHARE",type="VIDEO",country=""} 40000
+livekit_jitter_us_count{direction="incoming",source="SCREEN_SHARE",type="VIDEO",country=""} 4
 livekit_quality_score_sum 85
 livekit_quality_score_count 20
 livekit_room_total 2
@@ -152,5 +152,30 @@ func TestServerMinuteSemIntervalo(t *testing.T) {
 	c := countersOf(parse(t, scrapeA))
 	if m := serverMinute(c, c, 0); m.LiveKitCPUPercent != nil {
 		t.Errorf("cpu sem intervalo = %v, quer nil", *m.LiveKitCPUPercent)
+	}
+}
+
+func TestServerMinuteDescartaMediaImpossivelOuComPoucasAmostras(t *testing.T) {
+	var prev, now counters
+	// 23/11 04:33: RTT de 3 855 065 ms num minuto com 1 participante.
+	now.c[cRTTSum], now.c[cRTTCount] = 3_855_065*10, 10
+	// Jitter com 2 amostras no minuto: pouco demais para uma média.
+	now.c[cJitterSum], now.c[cJitterCount] = 2_000_000, 2
+	// Nota com amostras suficientes e valor possível: fica.
+	now.c[cScoreSum], now.c[cScoreCount] = 12, 3
+	m := serverMinute(prev, now, 60)
+	if m.RTTMs != nil {
+		t.Errorf("RTT impossível gravado: %v", *m.RTTMs)
+	}
+	if m.JitterMs != nil {
+		t.Errorf("jitter com 2 amostras gravado: %v", *m.JitterMs)
+	}
+	if m.QualityScore == nil || !near(*m.QualityScore, 4) {
+		t.Errorf("nota = %v, quer 4", m.QualityScore)
+	}
+	// No limite: 10 s de RTT com 3 amostras ainda é um valor possível.
+	now.c[cRTTSum], now.c[cRTTCount] = 30_000, 3
+	if m := serverMinute(prev, now, 60); m.RTTMs == nil || !near(*m.RTTMs, 10_000) {
+		t.Errorf("RTT de 10 s = %v", m.RTTMs)
 	}
 }
