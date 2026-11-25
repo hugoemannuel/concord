@@ -13,10 +13,10 @@ Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do 
 | Fonte | Tabela | De quanto em quanto | O quê |
 |---|---|---|---|
 | LiveKit (`/metrics`, Prometheus em 127.0.0.1) + `/proc` da VPS | `livekit_metrics` | 1 min | banda entrando/saindo, retransmissões, perda na subida (quem publica → SFU) e na descida (SFU → quem assiste), NACK, PLI, RTT, jitter, nota de qualidade, salas, participantes, tracks, CPU e memória do LiveKit e da VPS |
-| App (quem transmite) | `live_sessions` (`transmite`) + `live_samples` | 20 s | codec, placa ou processador, resolução e fps codificados × escolhidos, **fps da captura** (`capture_fps`), **ms por quadro no codificador** (`codec_ms`), Mbps, `qualityLimitationReason`, degrau do controlador e trocas, camadas, reserva, quadros-chave, PLI, NACK, UDP/TCP/TURN |
-| App (quem assiste) | `live_sessions` (`assiste`) + `live_samples` | 20 s | codec, decodificador na placa ou no processador, resolução, **quadros/s que chegaram** (`recv_fps`) × decodificados (`fps`), **ms por quadro no decodificador** (`codec_ms`), perda, jitter, congelamentos, quadros descartados, pausa do servidor, UDP/TCP/TURN |
-| App (voz) | `live_sessions` (`call`) + `live_samples` | 60 s | RTT, perda (média do intervalo) e jitter vistos pelo servidor, UDP/TCP/TURN; **o que eu ouço**: % de áudio sintetizado (`concealed_pct`, voz a voz) e perda no áudio recebido (`recv_loss_pct`, a **menor** entre as vozes); **tempo para conectar** (`connect_ms`) |
-| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)**, **entrada lenta (tempo por etapa)**, **entrada abandonada (nova tentativa ou saiu)**, **retomou** (o app recomeçou no meio da call: buraco e versão; do servidor); do Android: **saiu do app** (`segundo_plano`), **voltou ao app** (`primeiro_plano`, tempo fora), **trocou de rede** (`rede_trocou`, `wifi → cellular-4g`), **saída do áudio** (`rota_do_audio`: `bluetooth`, `headset`, `speaker`, `earpiece`) |
+| App (quem transmite) | `live_sessions` (`transmite`) + `live_samples` | 20 s | codec, placa ou processador, resolução e fps codificados × escolhidos, **fps da captura** (`capture_fps`), **ms por quadro no codificador** (`codec_ms`), Mbps, `qualityLimitationReason`, degrau do controlador e trocas, camadas, reserva, quadros-chave, PLI, NACK, UDP/TCP/TURN; **perda e jitter na subida** (`loss_pct`, `jitter_ms`, do `remote-inbound-rtp`), **QP médio** (`qp`), **fonte** (`source_width`/`source_height` e `surface`: `monitor`, `window`, `browser`) e, na 1ª amostra, **tempo até a live no ar** (`start_ms`) |
+| App (quem assiste) | `live_sessions` (`assiste`) + `live_samples` | 20 s | codec, decodificador na placa ou no processador, resolução, **quadros/s que chegaram** (`recv_fps`) × decodificados (`fps`), **ms por quadro no decodificador** (`codec_ms`), perda, jitter, congelamentos, quadros descartados, pausa do servidor, UDP/TCP/TURN; na 1ª amostra, **tempo até o primeiro quadro** (`start_ms`) |
+| App (voz) | `live_sessions` (`call`) + `live_samples` | 60 s | RTT, perda (média do intervalo) e jitter vistos pelo servidor, UDP/TCP/TURN; **o que eu ouço**: % de áudio sintetizado (`concealed_pct`, voz a voz) e perda no áudio recebido (`recv_loss_pct`, a **menor** entre as vozes); **tempo para conectar** (`connect_ms`); **processamento do microfone** (`dsp_underrun_pct`: % do tempo atrasado; `dsp`: o que estava ligado), **saída de áudio** (`playout_synth_pct`: % sintetizado pela saída do PC) e **câmera** (`cam_fps`, `cam_height`, `cam_limitation` da minha câmera; `cam_freezes` das que recebo) |
+| App e servidor | `live_events` | quando acontece | início, fim, qualidade caiu/voltou, reserva ligada, codificador/decodificador no processador, codec trocou, **codec escolhido (e por quê)**, congelamento longo (≥ 2 s em 20 s), pausada pelo servidor, **voz não conectou (etapa e motivo)**, **voz reconectou (tempo fora)**, **entrada lenta (tempo por etapa)**, **entrada abandonada (nova tentativa ou saiu)**, **retomou** (o app recomeçou no meio da call: buraco e versão; do servidor), **live não começou** (`live_falhou`: `seletor`, `codec`, `publicação` ou `nativo`, e o nome do erro; na sessão da voz), **PC dormiu** (`pc_dormiu`: quanto tempo, na hora em que acordou; na sessão da voz); do Android: **saiu do app** (`segundo_plano`), **voltou ao app** (`primeiro_plano`, tempo fora), **trocou de rede** (`rede_trocou`, `wifi → cellular-4g`), **saída do áudio** (`rota_do_audio`: `bluetooth`, `headset`, `speaker`, `earpiece`) |
 
 Contexto de cada sessão: SO, versão do app, plataforma (`target`: `desktop`,
 `web` ou `android`; o backend descarta outro valor), placa de vídeo (renderer
@@ -59,6 +59,35 @@ app Android tem a cópia própria e segue com o significado antigo até ser port
   call, parada há 30 s–5 min) e a sessão sem notícia há mais de 10 min são fechadas
   pelo servidor no último sinal delas (`ended_at = last_seen_at`).
 
+### Sinais novos de mídia (ADR 0074)
+
+[ADR 0074](adr/0074-sinais-novos-de-midia.md): o que as análises de 11/11 a 25/11
+não conseguiram responder. Tudo nulo em versões anteriores do app.
+
+- **Tela parada não é congelamento.** O Chromium para de capturar quando a tela não
+  muda; quem assiste recebe só quadros de repetição e o `freezeCount` conta intervalos
+  que ninguém vê. O painel separa os congelamentos das amostras de `assiste` com
+  menos de **1 000 bytes por quadro recebido** (`bitrate_kbps × 125 / recv_fps`) em
+  `static_freezes` e os desconta dos "congelamentos por minuto" (piores sessões,
+  lives recentes e distribuição). Vale também para os dados antigos. A regra é
+  provisória: calibre com a consulta "bytes por quadro" abaixo. A amostra de 20 s
+  que mistura tela parada e movimento não é descontada.
+- `start_ms`: quem transmite = do stream do seletor (Chromium) ou do `capturing` do
+  helper (nativa) até a publicação; quem assiste = do "assistir" ao primeiro quadro
+  no `<video>` (`loadeddata`; se a live só aparece na tela depois, conta essa espera).
+  Acima de 60 s é descartado.
+- `codec_escolhido` da live nativa: `nativo: h264 placa` (ou `proc.`). Sem `nativo:` é
+  o Chromium. No Chromium, `av1 proc. (L1T1 placa)` = o AV1 sem camadas temporais
+  sairia na placa (é o L1T3 que barra).
+- `encoder_software`/`decoder_software`: o detalhe leva o componente (`H265 ·
+  libavcodec`).
+- `dsp_underrun_pct` vem do `AudioContext.playbackStats` do microfone (Chromium do
+  Electron 44); onde não existe, fica nulo e o `dsp` vai sozinho. `playout_synth_pct`
+  vem do `media-playout` do `getStats()`; nulo se o relatório não trouxer.
+- **Não repetidos aqui** (cruze com `device_samples`, ADR 0069, por pessoa e
+  horário): CPU do app por processo e a janela visível (`visible_pct`). Consultas
+  abaixo.
+
 ### O que o app Android manda (e o que não manda)
 
 A mesma rota e o mesmo formato do desktop (`mobile/src/features/observability/`,
@@ -82,6 +111,9 @@ manda o fim. Fora de call não lê, não ouve e não manda nada.
 | `streamer_id` (live do helper nativo, `<id>:screen`) | o dono da live (sem o sufixo) |
 | `target_fps` (minha tela) | o fps pedido na publicação; null se for o padrão do SDK |
 | degrau, trocas de degrau, reserva, `codec_escolhido`, `target_height` | não manda (o app não tem controlador, reserva nem escolha de codec) |
+| ADR 0074: `qp`, perda e jitter na subida, `playout_synth_pct`, nome do componente em `encoder_software`/`decoder_software` | iguais ao desktop (`playout_synth_pct` nulo se o WebRTC do Android não trouxer o `media-playout`) |
+| ADR 0074: `source_width`/`source_height` | da `media-source` (o tamanho que a captura entrega) |
+| ADR 0074: `surface`, `start_ms`, `dsp*`, `cam_*`, `live_falhou`, `pc_dormiu` | nulos/não manda: o Android não informa a superfície, o app não processa o microfone e ler a câmera e medir o início pediria código novo em `call/` |
 
 A saída do áudio é **inferida**: das saídas disponíveis, a que o AudioSwitch do
 LiveKit escolhe (Bluetooth > fone com fio > alto-falante > auricular; o app não
@@ -118,8 +150,8 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   duração; o começo do período não conta). Buracos de 2–3 min logo depois de um
   merge na `main` são o deploy do backend. Reinício do LiveKit = o
   `livekit_started_at` (o `process_start_time_seconds` dele) mudou.
-- **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e
-  conexão; e, com as calls, por plataforma (desktop, web, android), rede e
+- **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec,
+  conexão, fonte da live (monitor ou janela) e motor da live (nativo ou Chromium); e, com as calls, por plataforma (desktop, web, android), rede e
   aparelho Android. Cada linha traz quantas pessoas e, ao lado de cada média, a
   **mediana por pessoa** (`*_median`): de 11/11 a 25/11 uma pessoa só era 22% das
   horas assistidas e 27% dos congelamentos, e a média por placa ou sistema era,
@@ -137,8 +169,15 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
 
 Piores sessões: pontuação e os motivos prováveis, com a linha de números da
 sessão (captura × codificado, chegam × decodificados, ms por quadro; na voz,
-áudio sintetizado, perda recebida, minutos de voz ruim, tempo para entrar) e de
-onde veio (plataforma, aparelho e rede). No Android, dois motivos a mais: "Caiu
+áudio sintetizado, perda recebida, minutos de voz ruim, tempo para entrar), a
+linha da ADR 0074 (fonte, motor, QP, tempo até o ar ou o 1º quadro, congelamentos
+de tela parada descontados; na voz, microfone, saída de áudio e câmera) e de
+onde veio (plataforma, aparelho e rede). Motivos da ADR 0074: "Demorou para
+entrar no ar" (≥ 5 s), "Primeiro quadro demorou" (≥ 3 s), "Processamento do
+microfone engasga (PC de quem fala)" (≥ 1%), "Saída de áudio do PC falha (não é a
+rede)" (≥ 1%) e "Câmera travando ou lenta" (< 15 fps ou ≥ 1 congelamento/min das
+câmeras recebidas); os três da voz também somam na pontuação (1% ≈ um minuto
+ruim; cada congelamento/min de câmera, 5). No Android, dois motivos a mais: "Caiu
 com o app em segundo plano" e "Caiu ao trocar de rede" (só quando a voz
 reconectou ou não conectou). São
 **duas listas**, cada uma com o seu teto, porque as escalas não se comparam:
@@ -512,6 +551,101 @@ WHERE s.target = 'android' AND s.kind = 'call' AND x.seconds > 120
 ORDER BY x.at DESC LIMIT 50;
 ```
 
+### Sinais novos de mídia (ADR 0074)
+
+```sql
+-- Calibrar a "tela parada": congelamentos por faixa de bytes por quadro recebido
+-- (o painel desconta abaixo de 1 000).
+SELECT width_bucket(x.bitrate_kbps * 125.0 / x.recv_fps, ARRAY[250, 500, 1000, 2000, 4000, 8000, 16000]) AS faixa,
+       count(*) AS amostras, sum(x.freezes) AS congel,
+       round((60.0 * sum(x.freezes) / NULLIF(sum(x.seconds), 0))::numeric, 2) AS congel_min
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id
+WHERE s.kind = 'assiste' AND x.recv_fps > 0 AND x.at > now() - interval '7 days'
+GROUP BY 1 ORDER BY 1;
+
+-- Captura abaixo do alvo: a fonte, os bytes por quadro e a CPU do app no mesmo
+-- minuto (device_samples, ADR 0069). Bytes por quadro pequenos = tela parada.
+SELECT u.username, x.at, x.surface, x.source_height, x.capture_fps, x.target_fps,
+       round(x.bitrate_kbps * 125.0 / NULLIF(x.fps, 0)) AS bytes_quadro,
+       d.cpu_browser, d.cpu_renderer, d.cpu_gpu, d.sys_cpu_pct
+FROM live_samples x
+JOIN live_sessions s ON s.id = x.session_id
+LEFT JOIN users u ON u.id = s.user_id
+LEFT JOIN LATERAL (
+  SELECT ds.* FROM device_samples ds JOIN device_sessions dv ON dv.id = ds.session_id
+  WHERE dv.user_id = s.user_id AND ds.at BETWEEN x.at - interval '60 s' AND x.at + interval '60 s'
+  ORDER BY abs(extract(epoch FROM ds.at - x.at)) LIMIT 1) d ON true
+WHERE s.kind = 'transmite' AND x.capture_fps < 0.8 * x.target_fps AND x.at > now() - interval '1 day'
+ORDER BY x.at DESC LIMIT 100;
+
+-- Motor nativo × Chromium (pelo codec_escolhido), por sistema.
+WITH m AS (
+  SELECT e.session_id, CASE WHEN bool_or(e.detail LIKE 'nativo%') THEN 'nativo' ELSE 'chromium' END AS motor
+  FROM live_events e WHERE e.type = 'codec_escolhido' GROUP BY e.session_id)
+SELECT m.motor, s.os, count(DISTINCT s.id) AS lives, round(avg(x.fps)::numeric, 1) AS fps,
+       round(avg(x.capture_fps)::numeric, 1) AS captura, round(avg(x.codec_ms)::numeric, 1) AS ms_quadro,
+       round(avg(x.start_ms)) AS ms_ate_o_ar, round(avg(x.loss_pct)::numeric, 2) AS perda_subida
+FROM m JOIN live_sessions s ON s.id = m.session_id JOIN live_samples x ON x.session_id = s.id
+WHERE s.kind = 'transmite' GROUP BY 1, 2 ORDER BY 1, 2;
+
+-- Onde a live falha ao começar (etapa e erro).
+SELECT split_part(e.detail, ' · ', 1) AS etapa, split_part(e.detail, ' · ', 2) AS erro,
+       count(*), count(DISTINCT s.user_id) AS pessoas
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id
+WHERE e.type = 'live_falhou' AND e.at > now() - interval '7 days'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+-- QP por preset e codec (QP alto com o bitrate no teto = subir o teto).
+SELECT x.codec, x.target_height, x.target_fps,
+       width_bucket(x.qp, ARRAY[20, 25, 30, 35, 40, 50, 100]) AS faixa_qp,
+       count(*), round(avg(x.bitrate_kbps)) AS kbps
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id
+WHERE s.kind = 'transmite' AND x.qp IS NOT NULL AND x.at > now() - interval '7 days'
+GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3, 4;
+
+-- AV1: placas em que o L1T1 sai na placa e o L1T3 não.
+SELECT s.gpu, s.os, count(*) AS lives, min(e.detail) AS exemplo
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id
+WHERE e.type = 'codec_escolhido' AND e.detail LIKE '%(L1T1 placa)%'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+-- Quedas da voz: o PC tinha acabado de acordar? O app estava visível?
+SELECT e.at, u.username, e.type, e.detail,
+       (SELECT max(z.at) FROM live_events z
+         WHERE z.session_id = e.session_id AND z.type = 'pc_dormiu'
+           AND z.at BETWEEN e.at - interval '2 min' AND e.at + interval '1 min') AS acordou_em,
+       (SELECT ds.visible_pct FROM device_samples ds JOIN device_sessions dv ON dv.id = ds.session_id
+         WHERE dv.user_id = s.user_id AND ds.at BETWEEN e.at AND e.at + interval '90 s'
+         ORDER BY ds.at LIMIT 1) AS visivel_pct
+FROM live_events e JOIN live_sessions s ON s.id = e.session_id LEFT JOIN users u ON u.id = s.user_id
+WHERE e.type IN ('reconectou', 'conexao_falhou') AND e.at > now() - interval '7 days'
+ORDER BY e.at DESC LIMIT 100;
+
+-- Processamento do microfone por combinação ligada e sistema.
+SELECT x.dsp, s.os, count(*) AS amostras, count(DISTINCT s.user_id) AS pessoas,
+       round(avg(x.dsp_underrun_pct)::numeric, 2) AS atraso_pct,
+       count(*) FILTER (WHERE x.dsp_underrun_pct >= 1) AS amostras_com_engasgo
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id
+WHERE s.kind = 'call' AND x.dsp IS NOT NULL AND x.at > now() - interval '7 days'
+GROUP BY 1, 2 ORDER BY 5 DESC NULLS LAST;
+
+-- Saída de áudio sintetizada com a rede limpa (o PC de quem ouve).
+SELECT u.username, s.os, count(*) AS amostras, round(avg(x.playout_synth_pct)::numeric, 2) AS saida_pct,
+       round(avg(x.recv_loss_pct)::numeric, 2) AS perda_recebida
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id LEFT JOIN users u ON u.id = s.user_id
+WHERE s.kind = 'call' AND x.playout_synth_pct >= 1 AND coalesce(x.recv_loss_pct, 0) < 0.5
+GROUP BY 1, 2 ORDER BY 4 DESC LIMIT 30;
+
+-- Câmeras: quem manda abaixo de 15 fps (e por quê) e congelamentos recebidos.
+SELECT u.username, s.os, round(avg(x.cam_fps)::numeric, 1) AS fps, max(x.cam_height) AS altura,
+       mode() WITHIN GROUP (ORDER BY x.cam_limitation) AS limitacao,
+       sum(x.cam_freezes) AS congel_recebidos
+FROM live_samples x JOIN live_sessions s ON s.id = x.session_id LEFT JOIN users u ON u.id = s.user_id
+WHERE s.kind = 'call' AND (x.cam_fps IS NOT NULL OR x.cam_freezes IS NOT NULL)
+  AND x.at > now() - interval '7 days'
+GROUP BY s.id, u.username, s.os ORDER BY 3 NULLS LAST LIMIT 30;
+```
+
 ## Onde agir (como ler)
 
 | Sinal | Provável causa | O que fazer |
@@ -549,6 +683,24 @@ ORDER BY x.at DESC LIMIT 50;
 | `entrada_abandonada` crescendo numa versão ou rede | entrada travando e a pessoa refazendo | ver a etapa no detalhe; reverter a versão ou investigar a rede |
 | `retomou` com "versão X → Y" frequente ou buraco grande | a atualização com retomada tira a pessoa da call | rever quando o app instala a atualização (ex.: só ao sair da call) |
 | `retomou` sem troca de versão | recarga ou crash do app no meio da call | cruzar com o relatório de erros do app naquela hora |
+| quem assiste congela com < 1 000 bytes por quadro recebido (`static_freezes`) | **tela parada** (o Chromium não captura sem mudança) | nada; o painel já desconta. Se a faixa de 1 000–2 000 bytes também congela muito sem ninguém reclamar, suba o limite (`staticFrameSQL`) |
+| `capture_fps` < 80% do alvo com bytes por quadro grandes e `source_height` ≥ 1440 | a captura de um monitor grande | preset por tamanho de monitor ou captura nativa (ADR 0031) |
+| `capture_fps` baixo só com `surface = window` | a captura de janela do Chromium | sugerir capturar o monitor; captura nativa |
+| `capture_fps` baixo com a CPU do app alta no mesmo minuto (`device_samples`) | CPU de quem transmite | captura nativa; preset menor |
+| `loss_pct` (subida) alto em `transmite` | a rede de quem transmite | não é o servidor nem quem assiste: banda menor, cabo, TURN se for TCP |
+| `qp` alto com `bitrate_kbps` no teto do preset | bitrate pouco para a imagem | subir o teto daquele preset (ou baixar resolução/fps) |
+| `start_ms` (transmite) alto ou `live_falhou` na etapa `publicação` para muitos | servidor/SFU | ver o LiveKit e a VPS naquela hora |
+| `live_falhou` `seletor · NotReadableError` | captura do sistema/driver | ver SO e placa da pessoa; motor nativo |
+| `live_falhou` `codec` | detecção de codec quebrou | `screenCodecSupport` / `encodingInfo` daquela placa |
+| `start_ms` (assiste) alto | quadro-chave demorando no começo | PLI ao assinar, quadro-chave mais frequente no começo da live |
+| `codec_escolhido` com `(L1T1 placa)` | o L1T3 barra o AV1 na placa | publicar AV1 sem camadas temporais nessas placas (ADR 0073, D4) |
+| `decoder_software` com o mesmo componente em várias pessoas | aquele decodificador cai no processador | lista de placas/decodificadores conhecidos |
+| queda da voz até 2 min depois de `pc_dormiu` | o PC dormiu | não é rede: não alarmar |
+| queda com `visible_pct` = 100 no mesmo minuto (`device_samples`) | rede ou servidor, não o app escondido | olhar a rede da pessoa e o servidor |
+| `dsp_underrun_pct` ≥ 1 concentrado num `dsp` (ex.: `voz:robo`) ou numa máquina | o processamento do microfone pesa no PC de quem fala | rever o custo (ADR 0005); sugerir desligar o supressor ou o modificador |
+| `playout_synth_pct` ≥ 1 com `recv_loss_pct` ≈ 0 | o dispositivo/driver de áudio de quem ouve | não é rede: trocar a saída de áudio, driver |
+| `cam_fps` < 15 com `cam_limitation = cpu` | a câmera pesa no PC de quem manda | preset menor de câmera |
+| `cam_freezes` alto com a rede limpa de quem recebe | quem manda a câmera (CPU, upload) | ver o `cam_fps`/`cam_limitation` de quem manda na mesma call |
 
 **Na VPS, se a perda na subida subir com lives pesadas:** o LiveKit avisa no
 boot que o buffer de UDP é pequeno (425 984 × 5 000 000 sugeridos); confira

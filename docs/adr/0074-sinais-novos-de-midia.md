@@ -61,7 +61,7 @@ que pesam mais:
 | 7 | O congelamento em bitrate baixo é **tela parada**? | **Nenhuma coluna nova.** O painel conta à parte os congelamentos das amostras de `assiste` com menos de 1 000 bytes por quadro recebido (`bitrate_kbps × 125 / recv_fps`): a tela parada só manda quadros de repetição, de poucas centenas de bytes. Vale também para os dados já gravados | "Congelamentos por minuto" do painel desconta a tela parada; o número que sobra é o que se vê |
 | 8 | Quanto tempo quem assiste espera pelo primeiro quadro? | `start_ms` na 1ª amostra de `assiste`: do "assistir" (pedido de assinatura) ao `loadeddata` do `<video>` (primeiro quadro pronto) | Espera longa → quadro-chave no começo da live (PLI ao assinar) |
 | 9 | Qual decodificador (ou codificador) caiu no processador? | `decoder_software` e `encoder_software` levam o nome: `h265 · libavcodec` (o `decoderImplementation`/`encoderImplementation`, nome técnico do componente) | Lista de placas/decodificadores conhecidos em vez de detecção |
-| 10 | A queda da voz coincidiu com o PC dormindo ou o app escondido? | Evento `pc_dormiu` na sessão da voz ("312 s", na hora em que dormiu), do `powerMonitor` (`suspend`/`resume`) que o main da ADR 0069 já escuta. A janela escondida **não** ganha coluna: `device_samples.visible_pct` (ADR 0069) já tem, por minuto, e cruza por pessoa e horário | Queda logo depois de `pc_dormiu` não é rede: não alarmar. Queda com o app visível é rede ou servidor |
+| 10 | A queda da voz coincidiu com o PC dormindo ou o app escondido? | Evento `pc_dormiu` na sessão da voz ("312 s", na hora em que acordou), do `powerMonitor` (`suspend`/`resume`) que o main da ADR 0069 já escuta. A janela escondida **não** ganha coluna: `device_samples.visible_pct` (ADR 0069) já tem, por minuto, e cruza por pessoa e horário | Queda logo depois de `pc_dormiu` não é rede: não alarmar. Queda com o app visível é rede ou servidor |
 | 11 | O processamento do microfone engasga no PC de quem fala? | `dsp_underrun_pct` (call): % do tempo em que o `AudioContext` do microfone não entregou o áudio a tempo (`AudioContext.playbackStats`, `underrunDuration/totalDuration` no intervalo; nulo onde não existe) e `dsp` (call): o que estava ligado (`rnnoise`, `voz:<preset>`, `portão`) | Engasgo concentrado num preset ou numa máquina fraca → rever o custo (ADR 0005), oferecer desligar o supressor |
 | 12 | A saída de áudio do PC de quem ouve falha? | `playout_synth_pct` (call): % do áudio tocado que o Chromium teve de sintetizar por falta de amostra no dispositivo de saída (`media-playout`, `synthesizedSamplesDuration/totalSamplesDuration` no intervalo; nulo se o relatório não trouxer) | Síntese na saída com a rede limpa → o dispositivo/driver de áudio de quem ouve, não a rede |
 | 13 | A câmera de alguém trava ou sai ruim? | Na amostra da voz (60 s): `cam_fps`, `cam_height` e `cam_limitation` da minha câmera enviada e `cam_freezes` das câmeras que recebo (somadas) | Câmera abaixo de 15 fps com limitação `cpu` → preset menor de câmera; congelamento recebido com rede limpa → quem manda |
@@ -99,7 +99,11 @@ que pesam mais:
   `screenCodecChoice` da 0032.
 - O servidor aceita o formato antigo (colunas ausentes ficam nulas) e corta os
   textos novos (`surface`, `dsp`, `cam_limitation`) em listas fixas ou no tamanho.
-- App Android: manda o que é barato lá (ver OBSERVABILIDADE.md); o resto fica nulo.
+- App Android: manda `qp`, a perda e o jitter da subida, o tamanho da fonte (da
+  `media-source`), `playout_synth_pct` e o nome do componente nos eventos do
+  processador; `surface`, `start_ms`, o microfone, a câmera e os dois eventos novos
+  ficam nulos lá (o Android não informa a superfície, o app não processa o
+  microfone, e o resto pediria código novo em `call/` do app). Ver OBSERVABILIDADE.md.
 
 **Painel**: "Congelamentos" e congelamentos por minuto descontam a tela parada (a
 sessão mostra quantos foram descontados); motivos novos nas piores sessões ("Perda
