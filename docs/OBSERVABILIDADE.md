@@ -32,21 +32,36 @@ base (contadores zerados, `seconds = 0`).
 
 `/observabilidade` no app (no navegador: `https://<app>/observabilidade`), só
 para quem está em `dev_badge_users` ([como conceder](HOSPEDAGEM.md#badge-fundador-devs)).
-Não tem link no app. Mostra, para 24 h, 3, 7 ou 14 dias:
+Não tem link no app. É dividido em abas; a aba e o período ficam na URL, para
+mandar o link de uma aba: `/observabilidade/<aba>?dias=7` (sem aba, abre a
+primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
 
-- **Servidor**: picos de saída, pessoas, CPU da VPS e perda média na descida;
-  gráficos de banda (entrada/saída) e de CPU (VPS e LiveKit).
-- **Lives recentes**: quem, quando, duração, codec, % na placa, % abaixo do
-  alvo (fps < 80% do escolhido ou degrau abaixo do escolhido), limitação por
-  CPU/banda, espectadores, congelamentos por minuto e % decodificando no
-  processador entre os espectadores.
-- **Piores sessões e por quê**: pontuação (abaixo do alvo, congelamentos,
-  pausa, perda, CPU/banda, processador; na voz: não conectou, reconexões, áudio
-  sintetizado, perda) e os motivos prováveis, com a linha de números da sessão
-  (captura × codificado, chegam × decodificados, ms por quadro; na voz, áudio
-  sintetizado, perda recebida, tempo para entrar).
-- **Distribuição** por sistema, placa de vídeo, codec e conexão.
-- **Eventos recentes.**
+- **Lives** (`lives`): lives recentes (quem, quando, duração, codec, % na placa,
+  % abaixo do alvo — fps < 80% do escolhido ou degrau abaixo do escolhido —,
+  limitação por CPU/banda, espectadores, congelamentos por minuto e %
+  decodificando no processador entre os espectadores) e as **piores lives e
+  por quê** (de quem transmite e de quem assiste).
+- **Chamadas** (`chamadas`): as **piores chamadas e por quê** (voz das calls).
+- **Servidor** (`servidor`): picos de saída, pessoas, CPU da VPS e perda média
+  na descida; gráficos de banda (entrada/saída) e de CPU (VPS e LiveKit).
+- **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e conexão.
+- **Eventos** (`eventos`): eventos recentes das lives e calls.
+
+Piores sessões: pontuação (abaixo do alvo, congelamentos, pausa, perda,
+CPU/banda, processador; na voz: não conectou, reconexões, áudio sintetizado,
+perda) e os motivos prováveis, com a linha de números da sessão (captura ×
+codificado, chegam × decodificados, ms por quadro; na voz, áudio sintetizado,
+perda recebida, tempo para entrar). O backend manda uma lista só; o app separa
+por tipo (`kind = call` na aba Chamadas, o resto na aba Lives).
+
+As abas Lives, Chamadas, Servidor, Distribuição e Eventos usam o mesmo pedido
+(`useSharedLiveReport`): trocar entre elas não busca de novo.
+
+**Aba nova** = uma entrada em
+`frontend/src/renderer/src/features/observability/lib/panelTabs.tsx`
+(`{ id, label, Component }`): `id` vira a URL, `Component` recebe `{ days }` e
+busca os próprios dados (hook próprio, com os estados de carregando, sem
+permissão e erro). Não precisa mexer no `router.tsx` nem na página.
 
 O mesmo JSON: `GET /api/obs/lives?days=7` (token de um dev).
 
