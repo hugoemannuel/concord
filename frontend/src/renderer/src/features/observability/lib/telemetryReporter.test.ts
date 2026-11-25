@@ -37,7 +37,13 @@ const sending = (t: number, step = 0): ScreenStatsInput => ({
   enabled: true,
   streamState: 'active',
   requestedFps: 30,
-  quality: { chosen: '1080p 30', effective: '1080p 30', reduced: step > 0, reason: null, step },
+  quality: {
+    chosen: '1080p 30',
+    effective: '1080p 30',
+    reduced: step > 0,
+    reason: step > 0 ? 'bandwidth' : null,
+    step
+  },
   report: report({
     c: { type: 'codec', mimeType: 'video/H264' },
     o: {
@@ -176,7 +182,9 @@ describe('createTelemetryReporter', () => {
     await t.tick()
     const share = t.sent[1].find((r) => r.kind === 'transmite')!
     expect(share.sample?.step_changes).toBe(2)
-    expect(share.events.map((e) => e.type)).toContain('degrau_caiu')
+    expect(share.events).toContainEqual(
+      expect.objectContaining({ type: 'degrau_caiu', detail: '0 → 1 (bandwidth)' })
+    )
     await t.tick()
     expect(t.sent[2].find((r) => r.kind === 'transmite')!.sample?.step_changes).toBe(0)
   })

@@ -133,6 +133,14 @@ describe('shareSample', () => {
     expect(next.sample.fps).toBe(44.6)
   })
 
+  it('leva o motivo do controlador para o evento de degrau (fora da amostra)', () => {
+    const bandwidth = { ...adapt, reason: 'bandwidth' as const }
+    const result = shareSample(shareInput({ qualityLimitationReason: 'none' }, bandwidth), null, 0)!
+    expect(result.stepReason).toBe('bandwidth')
+    expect(result.sample).not.toHaveProperty('stepReason')
+    expect(shareSample(shareInput({}), null, 0)!.stepReason).toBeNull()
+  })
+
   it('sem o controlador: alvo pelo fps pedido, degrau vazio', () => {
     const { sample } = shareSample(
       shareInput({ powerEfficientEncoder: false, encoderImplementation: 'OpenH264' }),

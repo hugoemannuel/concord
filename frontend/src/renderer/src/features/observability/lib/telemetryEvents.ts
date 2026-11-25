@@ -6,15 +6,27 @@ import type { SessionKind, TelemetryEvent, TelemetrySample } from './telemetryTy
 /** Congelamentos somando isso no intervalo viram "congelamento longo". */
 export const LONG_FREEZE_MS = 2000
 
-type Rule = (prev: TelemetrySample | null, now: TelemetrySample) => TelemetryEvent | null
+/** O que a amostra não leva e os eventos precisam. */
+export interface EventHints {
+  /** Por que o controlador da minha live desceu (bandwidth, cpu). */
+  stepReason?: string | null
+}
+
+type Rule = (
+  prev: TelemetrySample | null,
+  now: TelemetrySample,
+  hints: EventHints
+) => TelemetryEvent | null
 
 const event = (type: string, detail = ''): TelemetryEvent => ({ type, detail })
 
-const step: Rule = (prev, now) => {
+// O motivo é o do controlador; sem ele, o qualityLimitationReason (quase sempre none).
+const step: Rule = (prev, now, hints) => {
   if (prev?.step == null || now.step == null || prev.step === now.step) return null
   const detail = `${prev.step} → ${now.step}`
+  const reason = hints.stepReason || now.limitation || '—'
   return now.step > prev.step
-    ? event('degrau_caiu', `${detail} (${now.limitation || '—'})`)
+    ? event('degrau_caiu', `${detail} (${reason})`)
     : event('degrau_subiu', detail)
 }
 
@@ -49,7 +61,8 @@ const RULES: Record<SessionKind, Rule[]> = {
 export function sampleEvents(
   kind: SessionKind,
   prev: TelemetrySample | null,
-  now: TelemetrySample
+  now: TelemetrySample,
+  hints: EventHints = {}
 ): TelemetryEvent[] {
-  return RULES[kind].flatMap((rule) => rule(prev, now) ?? [])
+  return RULES[kind].flatMap((rule) => rule(prev, now, hints) ?? [])
 }

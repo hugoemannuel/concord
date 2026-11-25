@@ -149,7 +149,10 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     if (!result) return null
     const extra = extras(s.kind)
     const sample = { ...result.sample, connect_ms: extra.connectMs ?? result.sample.connect_ms }
-    const events = [...extra.events, ...sampleEvents(s.kind, s.last, sample)]
+    const events = [
+      ...extra.events,
+      ...sampleEvents(s.kind, s.last, sample, { stepReason: result.stepReason })
+    ]
     s.counters = result.counters
     s.last = sample
     return draft(s, sample, events, false, now())

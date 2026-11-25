@@ -48,6 +48,8 @@ export interface VoiceCounters {
 export interface SampleResult {
   sample: TelemetrySample
   counters: SampleCounters
+  /** Minha live: por que o controlador desceu (ScreenAdaptView.reason); não vai na amostra. */
+  stepReason?: string | null
 }
 
 export const n0 = (value: unknown): number => num(value) ?? 0
@@ -262,6 +264,7 @@ export function shareSample(
   const target = chosenTarget(input.quality?.chosen)
   return {
     counters: read.now,
+    stepReason: input.quality?.reason ?? null,
     sample: {
       ...base,
       ...layersOf(input.report, base.codec),
