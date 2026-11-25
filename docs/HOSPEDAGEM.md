@@ -1035,9 +1035,11 @@ build em `/opt/concord/sourcemaps/` (fora do que o Caddy serve; os de mais de
 
 ### Alertas no servidor dos devs
 
-O backend avisa falhas e limites (backend fora, CPU/memória, LiveKit, banco,
-backup e outros serviços do systemd, voz sem conectar) em canais de texto de um
-servidor da própria Salinha. Regras, limiares e como silenciar:
+O backend avisa falhas e limites (backend fora, máquina congelada pelo
+provedor, CPU/memória/disco/swap, LiveKit, banco e pool, API com erro ou lenta,
+backup atrasado e outros serviços do systemd, coleta parada, voz sem conectar,
+erros novos do app) em canais de texto de um servidor da própria Salinha, e
+manda um resumo do dia anterior às 8h em `#resumo-diario`. Regras, limiares e como silenciar:
 [OBSERVABILIDADE.md](OBSERVABILIDADE.md#alertas) ([ADR 0071](adr/0071-alertas-em-canais-do-servidor-dos-devs.md)).
 
 | Variável (`/opt/concord/.env`) | Padrão | O quê |
@@ -1045,6 +1047,15 @@ servidor da própria Salinha. Regras, limiares e como silenciar:
 | `ALERTS_SERVER_ID` | vazio (desligado) | id do servidor que recebe os alertas (o "Devs Salinha") |
 | `ALERTS_MUTED` | vazio | ids de regras que não postam (ex.: `livekit_cpu,host_cpu`) |
 | `APP_URL` | `http://localhost:5173` | base dos links do painel nas mensagens (`<APP_URL>/observabilidade/<aba>`) |
+| `OBS_DISK_PATH` | `.` (a pasta do serviço, `/opt/concord`) | o disco que as regras `host_disk`/`host_inodes` olham (da coleta da VPS, ADR 0067) |
+| `OBS_BACKUP_DIR` | `backups` | a pasta dos `concord-*.sql.gz` que a regra `backup_late` olha |
+
+As regras da parte 2 (ADR 0071, emenda) não pedem variável nova: leem as
+tabelas da coleta da VPS e da API (`host_metrics`, `api_metrics`) e dos erros
+do app. A máquina congelada lê `/sys/class/rtc/rtc0/since_epoch` (legível por
+qualquer usuário; o `concord-server.service` não esconde o `/sys`); com o
+backend dentro de um contêiner sem esse arquivo, só o salto do relógio vale.
+O deploy aplica a migration 000220 (`alert_daily_summaries`).
 
 Ligado, o boot garante a categoria **Monitoramento** com `#alertas`, `#erros`,
 `#qualidade` e `#resumo-diario` (canais de sistema: não dá para apagar pelo
@@ -1073,7 +1084,7 @@ voltar), sem tocar nos arquivos delas; o `concord-ytdlp-update.service` que ele 
    `ALERTS_SERVER_ID=<id>` (e `APP_URL=https://app-salinha.bhrx.com.br`, se
    ainda não estiver lá).
 3. Faça o deploy desta versão (`scripts/deploy-vps.sh root@IP` ou o merge na
-   `main`): ele aplica as migrations 000215/000216, instala o
+   `main`): ele aplica as migrations 000215/000216 (e a 000220, do resumo diário), instala o
    `concord-alerta@.service` e os complementos `alerta.conf`, e reinicia o
    backend, que cria os canais e posta "Backend no ar, versão …" em `#alertas`.
 4. Caddy, quando ninguém estiver em chamada:
