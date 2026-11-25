@@ -120,7 +120,7 @@ func TestSessionEventsPoeInicioEFim(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := sessionEvents(Report{Events: app, Ended: tt.ended}, tt.inserted)
+			got := sessionEvents(ownedReport{rep: Report{Events: app, Ended: tt.ended}, inserted: tt.inserted, endedNow: tt.ended})
 			if len(got) != len(tt.want) {
 				t.Fatalf("eventos = %v, quer %v", got, tt.want)
 			}
@@ -181,8 +181,10 @@ func TestValidateReportLimitaAIdadeDosEventos(t *testing.T) {
 }
 
 func TestSessionEventsInicioEFimNaHoraDoRelatorio(t *testing.T) {
-	got := sessionEvents(Report{AgoMs: 30_000, Events: []Event{{Type: EventReconnected, AgoMs: 50_000}}, Ended: true}, true)
-	want := []int{30_000, 50_000, 30_000}
+	rep := Report{AgoMs: 30_000, Events: []Event{{Type: EventReconnected, AgoMs: 50_000}}, Ended: true}
+	got := sessionEvents(ownedReport{rep: rep, inserted: true, endedNow: true})
+	// O início vai para o evento mais velho; o fim fica na hora do relatório.
+	want := []int{50_000, 50_000, 30_000}
 	for i, e := range got {
 		if e.AgoMs != want[i] {
 			t.Errorf("%s: idade = %d, quer %d", e.Type, e.AgoMs, want[i])

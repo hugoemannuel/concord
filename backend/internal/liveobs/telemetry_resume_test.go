@@ -189,3 +189,50 @@ func TestResumedDetail(t *testing.T) {
 		}
 	}
 }
+
+// O fim vem uma vez só: a sessão que o servidor já fechou (sem notícia ou
+// retomada) e o fim reenviado depois de uma resposta perdida não ganham outro.
+func TestTelemetryRepositoryFimUmaVezSo(t *testing.T) {
+	db := newTelemetryDB(t)
+	repo := NewTelemetryRepository(db)
+	ctx := context.Background()
+	for _, id := range []string{sessionOld, sessionNew} {
+		if err := repo.Save(ctx, userAna, Report{SessionID: id, Kind: KindCall, CallID: callA}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(ctx, `UPDATE live_sessions SET last_seen_at = now() - interval '11 minutes' WHERE id = $1`, sessionOld); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CloseStale(ctx, mustNow(t, db).Add(-staleAfter)); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{sessionOld, sessionNew, sessionNew} {
+		if err := repo.Save(ctx, userAna, Report{SessionID: id, Kind: KindCall, CallID: callA, Ended: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []string{sessionOld, sessionNew} {
+		if _, n := eventDetail(t, db, id, EventEnd); n != 1 {
+			t.Errorf("%s: %d fins, quer 1", id, n)
+		}
+	}
+}
+
+// Evento que aconteceu antes do primeiro relatório da sessão (entrada lenta,
+// reenvio) não fica antes do início dela.
+func TestTelemetryRepositoryInicioAntesDosEventos(t *testing.T) {
+	db := newTelemetryDB(t)
+	repo := NewTelemetryRepository(db)
+	r := Report{SessionID: sessionNew, Kind: KindCall, CallID: callA, AgoMs: 10_000,
+		Events: []Event{{Type: EventSlowJoin, AgoMs: 90_000}}}
+	if err := repo.Save(context.Background(), userAna, r); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, db, `SELECT count(*) FROM live_sessions s WHERE id = $1
+		AND started_at <= (SELECT min(at) FROM live_events WHERE session_id = $1 AND type = 'entrada_lenta')
+		AND started_at = (SELECT at FROM live_events WHERE session_id = $1 AND type = 'inicio')
+		AND last_seen_at > started_at`, sessionNew); n != 1 {
+		t.Error("início depois do evento, ou o último sinal foi junto")
+	}
+}

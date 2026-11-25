@@ -57,23 +57,35 @@ func (r *TelemetryRepository) saveAll(ctx context.Context, userID string, reps [
 	return owned, err
 }
 
-// ownedReport: relatório de uma sessão da pessoa e se a sessão é nova.
+// ownedReport: relatório de uma sessão da pessoa, se a sessão é nova e se
+// este relatório a fechou (o fim vem uma vez só, mesmo reenviado ou depois de
+// o servidor fechá-la).
 type ownedReport struct {
 	rep      Report
 	inserted bool
+	endedNow bool
 }
 
-// sessionEvents: os do app, com o início (sessão nova) e o fim do servidor,
-// esses dois na hora em que o app montou o relatório.
-func sessionEvents(rep Report, inserted bool) []Event {
-	events := rep.Events
-	if inserted {
-		events = append([]Event{{Type: EventStart, AgoMs: rep.AgoMs}}, events...)
+// sessionEvents: os do app, com o início (sessão nova, antes de qualquer
+// evento) e o fim (na hora em que o app montou o relatório).
+func sessionEvents(o ownedReport) []Event {
+	events := o.rep.Events
+	if o.inserted {
+		events = append([]Event{{Type: EventStart, AgoMs: startAgo(o.rep)}}, events...)
 	}
-	if rep.Ended {
-		events = append(events, Event{Type: EventEnd, AgoMs: rep.AgoMs})
+	if o.endedNow {
+		events = append(events, Event{Type: EventEnd, AgoMs: o.rep.AgoMs})
 	}
 	return events
+}
+
+// startAgo: a sessão começa no mais velho entre o relatório e os eventos dele.
+func startAgo(rep Report) int {
+	ago := rep.AgoMs
+	for _, e := range rep.Events {
+		ago = max(ago, e.AgoMs)
+	}
+	return ago
 }
 
 func nullable(s string) any {
@@ -94,38 +106,42 @@ func upsertSessions(ctx context.Context, tx pgx.Tx, userID string, reps []Report
 	defer results.Close()
 	owned := make([]ownedReport, 0, len(reps))
 	for _, rep := range reps {
-		var inserted bool
-		err := results.QueryRow().Scan(&inserted)
+		var inserted, endedNow bool
+		err := results.QueryRow().Scan(&inserted, &endedNow)
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
 		if err != nil {
 			return nil, fmt.Errorf("gravar live_sessions: %w", err)
 		}
-		owned = append(owned, ownedReport{rep: rep, inserted: inserted})
+		owned = append(owned, ownedReport{rep: rep, inserted: inserted, endedNow: endedNow})
 	}
 	return owned, results.Close()
 }
 
 // queueUpsertSession: sem linha de volta = a sessão é de outra pessoa. As
-// horas são as de quando o app montou o relatório (AgoMs); o último sinal não
-// volta no tempo com um reenvio atrasado.
+// horas são as de quando o app montou o relatório (AgoMs; o início, no evento
+// mais velho); o último sinal não volta no tempo com um reenvio atrasado.
+// Devolve se a sessão é nova e se este relatório a fechou agora.
 func queueUpsertSession(batch *pgx.Batch, userID string, rep Report) {
 	c := rep.Context
-	batch.Queue(`INSERT INTO live_sessions
+	batch.Queue(`WITH before AS (SELECT ended_at FROM live_sessions WHERE id = $1)
+		INSERT INTO live_sessions
 			(id, user_id, kind, call_id, streamer_id, os, app_version, target, gpu, network, cores, device,
 			 started_at, last_seen_at, ended_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-			NOW() - $14 * interval '1 millisecond', NOW() - $14 * interval '1 millisecond',
+			NOW() - $15 * interval '1 millisecond', NOW() - $14 * interval '1 millisecond',
 			CASE WHEN $13 THEN NOW() - $14 * interval '1 millisecond' END)
 		ON CONFLICT (id) DO UPDATE SET
 			last_seen_at = GREATEST(live_sessions.last_seen_at, EXCLUDED.last_seen_at),
 			network = EXCLUDED.network,
 			ended_at = COALESCE(live_sessions.ended_at, EXCLUDED.ended_at)
 		WHERE live_sessions.user_id = EXCLUDED.user_id
-		RETURNING (xmax = 0)`,
+		RETURNING (xmax = 0),
+			$13 AND NOT EXISTS (SELECT 1 FROM before WHERE before.ended_at IS NOT NULL)`,
 		rep.SessionID, userID, rep.Kind, nullable(rep.CallID), nullable(rep.StreamerID),
 		c.OS, c.AppVersion, c.Target, c.GPU, c.Network, c.Cores, c.Device, rep.Ended, rep.AgoMs,
+		startAgo(rep),
 	)
 }
 
@@ -161,7 +177,7 @@ type eventCols struct {
 func eventColumns(owned []ownedReport) eventCols {
 	var c eventCols
 	for _, o := range owned {
-		for _, e := range sessionEvents(o.rep, o.inserted) {
+		for _, e := range sessionEvents(o) {
 			c.sessions = append(c.sessions, o.rep.SessionID)
 			c.types = append(c.types, e.Type)
 			c.details = append(c.details, e.Detail)
