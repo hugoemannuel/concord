@@ -211,6 +211,9 @@ func (e *Engine) Notify(ctx context.Context, ev Event) error {
 	if err := e.store.InsertIncident(ctx, inc); err != nil {
 		return fmt.Errorf("gravar %s: %w", ev.RuleID, err)
 	}
+	if ev.Quiet {
+		return nil
+	}
 	return e.send(ctx, ev.RuleID, ev.Channel, ev.Level, ev.Text)
 }
 

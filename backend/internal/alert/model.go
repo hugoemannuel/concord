@@ -104,4 +104,6 @@ type Event struct {
 	Text      string
 	StartedAt time.Time
 	EndedAt   time.Time
+	// Quiet: só vai para o histórico (a mesma falha repetida logo depois).
+	Quiet bool
 }

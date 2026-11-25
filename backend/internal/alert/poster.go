@@ -34,8 +34,22 @@ func NewPoster(channels map[ChannelKind]string, write WriteFunc) *Poster {
 	return &Poster{channels: channels, write: write, now: time.Now, sent: map[ChannelKind][]time.Time{}}
 }
 
-func (p *Poster) Send(ctx context.Context, ch ChannelKind, level Level, text string) error {
+// SetChannels: os ids dos canais, depois de EnsureChannels.
+func (p *Poster) SetChannels(channels map[ChannelKind]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.channels = channels
+}
+
+func (p *Poster) channel(ch ChannelKind) (string, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	id, ok := p.channels[ch]
+	return id, ok
+}
+
+func (p *Poster) Send(ctx context.Context, ch ChannelKind, level Level, text string) error {
+	id, ok := p.channel(ch)
 	if !ok {
 		return fmt.Errorf("%w: %s", errNoChannel, ch)
 	}
