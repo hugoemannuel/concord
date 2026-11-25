@@ -33,7 +33,7 @@ describe('callSample', () => {
     expect(first.sample).toMatchObject({ transport: '', rtt_ms: null, loss_pct: null })
   })
 
-  it('o que eu ouço: áudio sintetizado (sem o silêncio) e perda, somando as vozes', () => {
+  it('o que eu ouço: áudio sintetizado (sem o silêncio) somando as vozes; perda, a menor', () => {
     const at = (t: number, a: Record<string, number>, b: Record<string, number>): RTCStatsReport =>
       report({
         r1: { type: 'remote-inbound-rtp', kind: 'audio', timestamp: t },
@@ -64,7 +64,57 @@ describe('callSample', () => {
       ),
       first.counters
     )
-    expect(next.sample).toMatchObject({ seconds: 60, concealed_pct: 1.46, recv_loss_pct: 1 })
+    expect(next.sample).toMatchObject({ seconds: 60, concealed_pct: 1.46, recv_loss_pct: 0 })
+  })
+
+  const voices = (t: number, byId: Record<string, Record<string, number>>): RTCStatsReport =>
+    report(
+      Object.fromEntries(
+        Object.entries(byId).map(([id, v]) => [id, { type: 'inbound-rtp', kind: 'audio', timestamp: t, ...v }])
+      )
+    )
+
+  it('perda recebida: a menor entre as vozes com tráfego (a subida ruim de quem fala não é a minha rede)', () => {
+    const first = callSample(
+      voices(0, {
+        a: { packetsLost: 0, packetsReceived: 0 },
+        b: { packetsLost: 0, packetsReceived: 0 },
+        c: { packetsLost: 0, packetsReceived: 0 }
+      }),
+      null
+    )
+    const next = callSample(
+      voices(60_000, {
+        a: { packetsLost: 100, packetsReceived: 900 },
+        b: { packetsLost: 10, packetsReceived: 990 },
+        c: { packetsLost: 0, packetsReceived: 50 }
+      }),
+      first.counters
+    )
+    expect(next.sample.recv_loss_pct).toBe(1)
+    const quiet = callSample(
+      voices(120_000, { a: { packetsLost: 100, packetsReceived: 950 } }),
+      next.counters
+    )
+    expect(quiet.sample.recv_loss_pct).toBeNull()
+  })
+
+  it('voz que sai ou entra no intervalo não zera nem infla o áudio sintetizado', () => {
+    const first = callSample(
+      voices(0, {
+        a: { concealedSamples: 0, totalSamplesReceived: 48_000 },
+        b: { concealedSamples: 5000, totalSamplesReceived: 1_000_000 }
+      }),
+      null
+    )
+    const next = callSample(
+      voices(60_000, {
+        a: { concealedSamples: 9600, totalSamplesReceived: 1_008_000 },
+        n: { concealedSamples: 40_000, totalSamplesReceived: 50_000 }
+      }),
+      first.counters
+    )
+    expect(next.sample.concealed_pct).toBe(1)
   })
 
   it('só ouvindo (sem o meu microfone): o intervalo vem da voz recebida', () => {
