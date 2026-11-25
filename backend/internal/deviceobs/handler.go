@@ -19,6 +19,7 @@ const (
 	perWindow    = 3
 	rateWindow   = 5 * time.Minute
 	limiterKeys  = 10_000
+	uuidLen      = 36
 )
 
 // batchSaver grava um pedido de uma vez; sessão de outra pessoa é pulada.
@@ -37,19 +38,25 @@ func NewHandler(store batchSaver) *Handler {
 }
 
 // Ingest: POST /obs/device. 204 = gravado (sessão de outra pessoa é pulada).
+// O lote é lido antes do limite porque a cota é por abertura do app (pessoa
+// + sessão), não por pessoa: duas abas ou dois aparelhos não dividem a cota.
 func (h *Handler) Ingest(c *gin.Context) {
 	userID := c.GetString("userID")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	if retry, ok := h.limiter.Allow(userID); !ok {
+	batch, err := decodeBatch(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if retry, ok := h.limiter.Allow(limitKey(userID, batch.Session.ID)); !ok {
 		c.Header("Retry-After", ratelimit.RetryAfterSeconds(retry))
 		c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many reports"})
 		return
 	}
-	batch, err := decodeBatch(c)
-	if err != nil {
+	if err := batch.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -61,11 +68,19 @@ func (h *Handler) Ingest(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// limitKey: pessoa + abertura. A sessão é cortada no tamanho de um UUID para
+// a chave não crescer com o que o corpo mandar (sessão inválida é recusada
+// logo depois, no Validate).
+func limitKey(userID, sessionID string) string {
+	return userID + ":" + cut(sessionID, uuidLen)
+}
+
+// decodeBatch: só o JSON, até 16 KiB (a validação vem depois do limite).
 func decodeBatch(c *gin.Context) (Batch, error) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
 	var b Batch
 	if err := c.ShouldBindJSON(&b); err != nil {
 		return b, errors.New("invalid body")
 	}
-	return b, b.Validate()
+	return b, nil
 }

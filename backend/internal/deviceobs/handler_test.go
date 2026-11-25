@@ -85,18 +85,37 @@ func TestHandlerGravaOLoteLimpo(t *testing.T) {
 	}
 }
 
-func TestHandlerLimitaPorPessoa(t *testing.T) {
+func bodyOf(session string) string {
+	return `{"session":{"id":"` + session + `"},"samples":[{"seconds":60,"state":"parado"}]}`
+}
+
+// O limite é por abertura do app (pessoa + sessão): duas abas ou dois
+// aparelhos da mesma pessoa não dividem a cota.
+func TestHandlerLimitaPorAbertura(t *testing.T) {
 	h := NewHandler(&fakeSaver{})
 	for i := range perWindow {
-		if w := postDevice(t, h, userAna, goodBody); w.Code != http.StatusNoContent {
+		if w := postDevice(t, h, userAna, bodyOf(sessionA)); w.Code != http.StatusNoContent {
 			t.Fatalf("pedido %d: %d", i, w.Code)
 		}
 	}
-	w := postDevice(t, h, userAna, goodBody)
+	w := postDevice(t, h, userAna, bodyOf(sessionA))
 	if w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
 		t.Fatalf("acima do limite: %d, Retry-After %q", w.Code, w.Header().Get("Retry-After"))
 	}
-	if w := postDevice(t, h, userBia, goodBody); w.Code != http.StatusNoContent {
+	if w := postDevice(t, h, userAna, bodyOf(sessionB)); w.Code != http.StatusNoContent {
+		t.Errorf("outra abertura da mesma pessoa bloqueada: %d", w.Code)
+	}
+	if w := postDevice(t, h, userBia, bodyOf(sessionA)); w.Code != http.StatusNoContent {
 		t.Errorf("outra pessoa bloqueada: %d", w.Code)
+	}
+}
+
+func TestHandlerCorpoQuebradoNaoGastaACota(t *testing.T) {
+	h := NewHandler(&fakeSaver{})
+	for range perWindow + 1 {
+		postDevice(t, h, userAna, `{"session":`)
+	}
+	if w := postDevice(t, h, userAna, bodyOf(sessionA)); w.Code != http.StatusNoContent {
+		t.Errorf("cota gasta por corpo quebrado: %d", w.Code)
 	}
 }
