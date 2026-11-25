@@ -13,6 +13,17 @@ export interface ConnectionTelemetry {
   events: TelemetryEvent[]
 }
 
+/** De onde a telemetria da voz tira a conexão (createConnectionLog). */
+export interface ConnectionSource {
+  /** Tudo desde a última vez (tempo para entrar e eventos); leva e limpa. */
+  take(): ConnectionTelemetry
+  /**
+   * Só os eventos (a sessão da call que termina): o tempo para entrar é da
+   * call nova e fica para a primeira amostra dela.
+   */
+  takeEvents(): TelemetryEvent[]
+}
+
 /** Evento guardado há mais que isso é de outra call: descarta. */
 const MAX_AGE_MS = 5 * 60_000
 const MAX_EVENTS = 5
@@ -47,23 +58,26 @@ export function connectionChange(
 }
 
 /** Junta as mudanças até a telemetria da voz levar (take). */
-export function createConnectionLog(now: () => number = Date.now): {
+export function createConnectionLog(now: () => number = Date.now): ConnectionSource & {
   observe: (prev: CallConnection, next: CallConnection) => void
-  take: () => ConnectionTelemetry
 } {
   let connectMs: number | null = null
   let events: { at: number; event: TelemetryEvent }[] = []
+  function takeEvents(): TelemetryEvent[] {
+    const fresh = events.filter((e) => now() - e.at <= MAX_AGE_MS).map((e) => e.event)
+    events = []
+    return fresh
+  }
   return {
     observe(prev, next) {
       const change = connectionChange(prev, next)
       if (change.connectMs !== undefined) connectMs = change.connectMs
       if (change.event) events = [...events, { at: now(), event: change.event }].slice(-MAX_EVENTS)
     },
+    takeEvents,
     take() {
-      const fresh = events.filter((e) => now() - e.at <= MAX_AGE_MS).map((e) => e.event)
-      const out = { connectMs, events: fresh }
+      const out = { connectMs, events: takeEvents() }
       connectMs = null
-      events = []
       return out
     }
   }

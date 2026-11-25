@@ -6,7 +6,28 @@ import {
   type CallSnapshot,
   type ReporterDeps
 } from './telemetryReporter'
+import type { ConnectionSource, ConnectionTelemetry } from './telemetryConnection'
 import type { TelemetryEvent, TelemetryReport } from './telemetryTypes'
+
+/** Conexão de mentira: devolve o pendente e limpa, como o createConnectionLog. */
+function fakeConnection(initial: ConnectionTelemetry): ConnectionSource & {
+  pending: ConnectionTelemetry
+} {
+  const source = {
+    pending: initial,
+    take(): ConnectionTelemetry {
+      const out = source.pending
+      source.pending = { connectMs: null, events: [] }
+      return out
+    },
+    takeEvents(): TelemetryEvent[] {
+      const { events } = source.pending
+      source.pending = { ...source.pending, events: [] }
+      return events
+    }
+  }
+  return source
+}
 
 const report = (stats: Record<string, Record<string, unknown>>): RTCStatsReport =>
   new Map(Object.entries(stats).map(([id, s]) => [id, { id, ...s }])) as unknown as RTCStatsReport
@@ -194,14 +215,10 @@ describe('createTelemetryReporter', () => {
 describe('createTelemetryReporter: conexão e codec', () => {
   it('a conexão vai na próxima amostra da voz: tempo para conectar e eventos', async () => {
     const t = setup({ callId: 'c1', sharing: false, watching: [] })
-    let pending = { connectMs: null as number | null, events: [] as TelemetryEvent[] }
-    t.deps.connection = () => {
-      const out = pending
-      pending = { connectMs: null, events: [] }
-      return out
-    }
+    const connection = fakeConnection({ connectMs: null, events: [] })
+    t.deps.connection = connection
     await t.tick()
-    pending = { connectMs: 1850, events: [{ type: 'reconectou', detail: '3 s' }] }
+    connection.pending = { connectMs: 1850, events: [{ type: 'reconectou', detail: '3 s' }] }
     await t.tick()
     await t.tick()
     expect(t.sent.flat()).toHaveLength(1)
@@ -214,7 +231,7 @@ describe('createTelemetryReporter: conexão e codec', () => {
   it('saiu da call: os eventos de conexão vão com o fim', async () => {
     const t = setup({ callId: 'c1', sharing: false, watching: [] })
     await t.tick()
-    t.deps.connection = () => ({
+    t.deps.connection = fakeConnection({
       connectMs: null,
       events: [{ type: 'conexao_falhou', detail: 'entrando (mídia): x' }]
     })
@@ -222,6 +239,24 @@ describe('createTelemetryReporter: conexão e codec', () => {
     await t.tick()
     expect(t.sent[1][0]).toMatchObject({ ended: true, kind: 'call' })
     expect(t.sent[1][0].events.map((e) => e.type)).toEqual(['conexao_falhou'])
+  })
+
+  it('trocou de call: a sessão que termina leva os eventos e a nova, o tempo para entrar', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: [] })
+    const connection = fakeConnection({ connectMs: null, events: [] })
+    t.deps.connection = connection
+    await t.tick()
+    connection.pending = {
+      connectMs: 900,
+      events: [{ type: 'conexao_falhou', detail: 'reconectando: x' }]
+    }
+    t.set({ callId: 'c2', sharing: false, watching: [] })
+    await t.tick()
+    const [ended, fresh] = t.sent[1]
+    expect(ended).toMatchObject({ call_id: 'c1', ended: true })
+    expect(ended.events.map((e) => e.type)).toEqual(['conexao_falhou'])
+    expect(fresh).toMatchObject({ call_id: 'c2', ended: false })
+    expect(fresh.sample?.connect_ms).toBe(900)
   })
 
   it('a live leva o motivo do codec na amostra seguinte à escolha', async () => {

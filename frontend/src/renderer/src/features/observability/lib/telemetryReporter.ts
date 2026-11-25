@@ -1,7 +1,7 @@
 import type { ScreenStatsInput } from '../../call/lib/screenStats'
 import { sampleEvents } from './telemetryEvents'
 import { callSample } from './telemetryCall'
-import type { ConnectionTelemetry } from './telemetryConnection'
+import type { ConnectionSource, ConnectionTelemetry } from './telemetryConnection'
 import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
 import type {
   ClientContext,
@@ -38,7 +38,7 @@ export interface ReporterDeps {
   send(reports: TelemetryReport[]): Promise<void>
   newId(): string
   /** Conexão da voz desde a última vez (telemetryConnection); leva e limpa. */
-  connection?(): ConnectionTelemetry
+  connection?: ConnectionSource
   /** Por que a live saiu nesse codec (screenCodecChoice); leva e limpa. */
   codecChoice?(): string | null
 }
@@ -131,7 +131,7 @@ export function createTelemetryReporter(deps: ReporterDeps): {
 
   /** O que vai junto da amostra: a conexão (voz) ou o motivo do codec (minha live). */
   function extras(kind: SessionKind): ConnectionTelemetry {
-    if (kind === 'call') return deps.connection?.() ?? NOTHING
+    if (kind === 'call') return deps.connection?.take() ?? NOTHING
     const choice = kind === 'transmite' ? deps.codecChoice?.() : null
     return choice
       ? { connectMs: null, events: [{ type: 'codec_escolhido', detail: choice }] }
@@ -155,7 +155,9 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     const ended: Draft[] = []
     for (const [key, s] of sessions) {
       if (keys.has(key)) continue
-      ended.push(draft(s, null, s.kind === 'call' ? extras(s.kind).events : [], true))
+            // Só os eventos: o tempo para entrar, se houver, é da call nova.
+      const events = s.kind === 'call' ? (deps.connection?.takeEvents() ?? []) : []
+      ended.push(draft(s, null, events, true))
       sessions.delete(key)
     }
     return ended

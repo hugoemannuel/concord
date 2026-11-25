@@ -63,4 +63,12 @@ describe('createConnectionLog', () => {
     expect(events).toHaveLength(5)
     expect(events[0].detail).toBe('entrando (acesso): x')
   })
+
+  it('takeEvents leva só os eventos: o tempo para entrar fica para a amostra', () => {
+    const log = createConnectionLog(() => 0)
+    log.observe(at('reconnecting', 0), at('failed', 1, { error: 'x' }))
+    log.observe(at('connecting', 2), at('connected', 902))
+    expect(log.takeEvents().map((e) => e.type)).toEqual(['conexao_falhou'])
+    expect(log.take()).toEqual({ connectMs: 900, events: [] })
+  })
 })

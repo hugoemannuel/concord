@@ -41,7 +41,7 @@ function LiveTelemetryBridge(): null {
       context: loadClientContext,
       send: postTelemetry,
       newId: () => crypto.randomUUID(),
-      connection: connection.take,
+      connection,
       codecChoice: takeScreenCodecChoice
     })
     const timer = setInterval(() => void reporter.tick(), TELEMETRY_INTERVAL_MS)
