@@ -86,6 +86,7 @@ func TestUnitHandlerNomeEDeduplicacao(t *testing.T) {
 	if alerts.events[0].Text != "Aviso: o serviço concord-backup.service falhou. Veja no servidor: journalctl -u concord-backup.service -n 50" {
 		t.Errorf("texto = %q", alerts.events[0].Text)
 	}
+	// A primeira tentativa de outra unidade falha: a seguinte ainda posta.
 	alerts.err = errors.New("sem banco")
 	if got := unitRequest(h, "127.0.0.1:1", nil, "salinha-firewall.service"); got != http.StatusInternalServerError {
 		t.Errorf("falha ao avisar = %d", got)

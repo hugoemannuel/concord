@@ -69,3 +69,17 @@ func TestPosterCanalQueNaoExiste(t *testing.T) {
 		t.Fatalf("erro = %v", err)
 	}
 }
+
+// Crítico passa mesmo com o teto cheio: o teto é contra spam de avisos, e o
+// crítico já sai uma vez só por incidente.
+func TestPosterCriticoPassaDoTeto(t *testing.T) {
+	clock := at(14, 0)
+	p, out := newTestPoster(&clock)
+	for i := 0; i < maxPerHour; i++ {
+		_ = p.Send(context.Background(), ChannelInfra, LevelWarning, "x")
+	}
+	_ = p.Send(context.Background(), ChannelInfra, LevelCritical, "grave")
+	if got := (*out)[len(*out)-1]; got.text != "grave" || !got.mentionAll {
+		t.Fatalf("crítico barrado pelo teto: %+v", got)
+	}
+}

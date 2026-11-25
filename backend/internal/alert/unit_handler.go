@@ -66,34 +66,30 @@ func (h *UnitHandler) Failed(c *gin.Context) {
 	}
 	now := h.now()
 	ev := Event{RuleID: unitFailedRuleID, Channel: ChannelInfra, Level: LevelWarning, Text: unitFailedText(unit),
-		StartedAt: now, EndedAt: now, Quiet: !h.firstInAWhile(unit, now)}
+		StartedAt: now, EndedAt: now, Quiet: h.recent(unit, now)}
 	if err := h.alerts.Notify(c.Request.Context(), ev); err != nil {
-		if !ev.Quiet {
-			h.forget(unit) // o curl tenta de novo, e a nova tentativa precisa postar
-		}
 		log.Printf("[alert] %s falhou, mas o aviso não saiu: %v", unit, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to notify"})
 		return
 	}
+	if !ev.Quiet {
+		h.mark(unit, now) // só depois de postar: a nova tentativa do curl ainda posta
+	}
 	c.Status(http.StatusNoContent)
 }
 
-// firstInAWhile: a unidade não falhou na última hora (e marca esta falha).
-func (h *UnitHandler) firstInAWhile(unit string, now time.Time) bool {
+// recent: a unidade já foi avisada na última hora.
+func (h *UnitHandler) recent(unit string, now time.Time) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	last, seen := h.last[unit]
-	if seen && now.Sub(last) < unitRepeatAfter {
-		return false
-	}
-	h.last[unit] = now
-	return true
+	return seen && now.Sub(last) < unitRepeatAfter
 }
 
-func (h *UnitHandler) forget(unit string) {
+func (h *UnitHandler) mark(unit string, now time.Time) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	delete(h.last, unit)
+	h.last[unit] = now
 }
 
 // fromThisMachine: veio de 127.0.0.1/::1 e não passou por proxy.

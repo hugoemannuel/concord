@@ -18,6 +18,8 @@ type Runner struct {
 	Engine    *Engine
 	Lifecycle *Lifecycle
 	Database  *DatabaseWatch
+	// RetryEvery: espera entre as tentativas de ler o estado no boot.
+	RetryEvery time.Duration
 }
 
 func (r Runner) Run(ctx context.Context) {
@@ -27,8 +29,8 @@ func (r Runner) Run(ctx context.Context) {
 		return
 	}
 	r.Poster.SetChannels(channels)
-	if err := r.Engine.Load(ctx); err != nil {
-		log.Printf("[alert] estado: %v", err)
+	if !r.loadState(ctx) {
+		return
 	}
 	if err := r.Lifecycle.Boot(ctx); err != nil {
 		log.Printf("[alert] boot: %v", err)
@@ -39,5 +41,23 @@ func (r Runner) Run(ctx context.Context) {
 	defer cancel()
 	if err := r.Lifecycle.Stop(stopCtx); err != nil {
 		log.Printf("[alert] parada limpa: %v", err)
+	}
+}
+
+// loadState lê o estado (incidentes abertos) até conseguir: sem ele, uma
+// regra disparada bateria no índice único do incidente aberto a cada minuto.
+// false = o desligamento chegou antes.
+func (r Runner) loadState(ctx context.Context) bool {
+	for {
+		err := r.Engine.Load(ctx)
+		if err == nil {
+			return true
+		}
+		log.Printf("[alert] estado: %v (tento de novo)", err)
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(r.RetryEvery):
+		}
 	}
 }

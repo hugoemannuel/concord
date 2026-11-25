@@ -8,12 +8,15 @@ import (
 // LiveKit fora (up = false no livekit_metrics: o /metrics dele não respondeu)
 // e CPU do LiveKit (livekit_cpu_pct, em % de UMA vCPU: 200 = as duas).
 const (
-	// Aviso com 2 min fora; crítico com 5 (ninguém consegue falar nem ver live).
-	liveKitDownWarnFor = 2 * time.Minute
+	// Aviso com 3 min fora; crítico com 5 (ninguém consegue falar nem ver
+	// live). 3 e não 2: depois de uma falha a primeira coleta boa não grava
+	// linha (liveobs.ServerCollector), e a linha up = false vale mais um minuto.
+	liveKitDownWarnFor = 3 * time.Minute
 	liveKitDownCritFor = 5 * time.Minute
 	// liveKitSeenWithin: só avisa se o LiveKit respondeu alguma vez nessa
 	// janela. Sem isso, uma instalação sem o Prometheus do LiveKit ligado
-	// ficaria "fora" para sempre.
+	// ficaria "fora" para sempre. Fora há mais que isso: sem dado (o incidente
+	// fica aberto, sem lembrete, até o LiveKit voltar).
 	liveKitSeenWithin = time.Hour
 
 	// 150% = três quartos da máquina só para o SFU, por 5 min.

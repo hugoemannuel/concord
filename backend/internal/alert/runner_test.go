@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func newTestRunner(ensureErr error) (Runner, *fakeRuns, *fakeSender) {
@@ -42,5 +43,43 @@ func TestRunnerSemCanaisDesliga(t *testing.T) {
 	r.Run(context.Background())
 	if len(out.msgs) != 0 || runs.stopped != nil {
 		t.Fatalf("seguiu sem canais: %+v", out.msgs)
+	}
+}
+
+// Load que falha no boot (banco instável) é tentado de novo: sem o estado, a
+// regra bateria no índice único do incidente aberto a cada minuto.
+func TestRunnerTentaOLoadDeNovo(t *testing.T) {
+	r, _, _ := newTestRunner(nil)
+	store := &flakyStore{fakeStore: &fakeStore{}, failures: 2}
+	r.Engine.store = store
+	if !r.loadState(context.Background()) {
+		t.Fatal("desistiu do Load")
+	}
+	if store.calls != 3 {
+		t.Fatalf("Load tentou %d vezes, quer 3", store.calls)
+	}
+}
+
+type flakyStore struct {
+	*fakeStore
+	failures, calls int
+}
+
+func (f *flakyStore) OpenIncidents(ctx context.Context) ([]Incident, error) {
+	f.calls++
+	if f.calls <= f.failures {
+		return nil, errors.New("banco instável")
+	}
+	return f.fakeStore.OpenIncidents(ctx)
+}
+
+func TestRunnerLoadDesisteNoDesligamento(t *testing.T) {
+	r, _, _ := newTestRunner(nil)
+	r.Engine.store = &flakyStore{fakeStore: &fakeStore{}, failures: 100}
+	r.RetryEvery = time.Hour
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if r.loadState(ctx) {
+		t.Fatal("seguiu sem estado")
 	}
 }

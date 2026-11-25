@@ -119,7 +119,7 @@ func TestCallRules(t *testing.T) {
 		t.Errorf("2 reconexões = %+v", got)
 	}
 	src.people["reconectou|"] = 5
-	if got := check(t, callReconnectsRule(src), now); got.Level != LevelCritical ||
+	if got := check(t, callReconnectsRule(src), now); got.Level != LevelWarning ||
 		got.Text != "5 pessoas com a voz caindo e voltando em 3 min (limite 4); costuma ser o LiveKit reiniciando ou a rede da VPS" {
 		t.Errorf("5 reconexões = %+v", got)
 	}

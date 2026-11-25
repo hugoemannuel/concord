@@ -159,3 +159,33 @@ func TestEngineIsOpen(t *testing.T) {
 		t.Fatal("fechado depois de disparar")
 	}
 }
+
+type failingSender struct{}
+
+func (failingSender) Send(context.Context, ChannelKind, Level, string) error { return errNoChannel }
+
+// Notify posta antes de gravar: se o post falha (ex.: canais ainda não
+// garantidos), nada vai para o histórico e a nova tentativa não duplica.
+func TestEngineNotifyQuePostaFalhaNaoGrava(t *testing.T) {
+	store := &fakeStore{}
+	e := NewEngine(nil, store, failingSender{}, "", nil)
+	if err := e.Notify(context.Background(), Event{RuleID: "unit_failed", Channel: ChannelInfra, Text: "x"}); err == nil {
+		t.Fatal("erro do post sumiu")
+	}
+	if len(store.rows) != 0 {
+		t.Fatalf("gravou sem postar: %+v", store.rows)
+	}
+}
+
+// Postou e o banco falhou ao gravar: não devolve erro (a nova tentativa
+// postaria de novo).
+func TestEngineNotifyPostouMasNaoGravou(t *testing.T) {
+	f := newEngineFixture(t, Hold{})
+	f.store.fail = errors.New("banco")
+	if err := f.engine.Notify(context.Background(), Event{RuleID: "unit_failed", Channel: ChannelInfra, Text: "x"}); err != nil {
+		t.Fatalf("erro = %v", err)
+	}
+	if len(f.sender.msgs) != 1 {
+		t.Fatalf("mensagens = %+v", f.sender.msgs)
+	}
+}

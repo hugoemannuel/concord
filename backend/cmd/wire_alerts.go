@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"time"
 
 	"gin-quickstart/backend/internal/alert"
 	"gin-quickstart/backend/internal/bot"
@@ -48,6 +49,8 @@ func (a *app) wireAlerts() {
 		Engine:    engine,
 		Lifecycle: alert.NewLifecycle(repo, engine, alert.BuildVersion()),
 		Database:  alert.NewDatabaseWatch(a.db.Ping, engine.Notify),
+		// Banco instável no boot: lê o estado de novo a cada 15 s.
+		RetryEvery: 15 * time.Second,
 	}
 	go liveobs.NewRetention(repo).Run(a.ctx)
 	a.badgeDone = runUntilShutdown(a.badgeDone, func() { runner.Run(a.ctx) })

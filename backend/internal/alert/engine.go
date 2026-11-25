@@ -13,6 +13,10 @@ import (
 // livekit_metrics, também é por minuto).
 const evaluateEvery = time.Minute
 
+// evaluateTimeout: teto de uma rodada (Notify espera por ela; o curl do
+// systemd espera 40 s).
+const evaluateTimeout = 20 * time.Second
+
 // incidentStore: os incidentes no banco (Repository).
 type incidentStore interface {
 	OpenIncidents(ctx context.Context) ([]Incident, error)
@@ -100,6 +104,8 @@ func (e *Engine) Run(ctx context.Context) {
 func (e *Engine) Evaluate(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, evaluateTimeout)
+	defer cancel()
 	var errs []error
 	for _, rule := range e.rules {
 		if err := e.evaluate(ctx, rule); err != nil {
@@ -201,20 +207,25 @@ func (e *Engine) refreshText(ctx context.Context, rule Rule) error {
 }
 
 // Notify: um acontecimento de uma vez (backend voltou, banco voltou, unidade
-// falhou) vira um incidente já fechado e uma mensagem.
+// falhou) vira uma mensagem e um incidente já fechado. Posta antes de gravar:
+// post que falha (canais ainda não garantidos) devolve erro sem deixar linha,
+// e a nova tentativa não duplica o histórico; gravar que falha depois do post
+// só vai para o log (devolver erro faria postar de novo).
 func (e *Engine) Notify(ctx context.Context, ev Event) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if !ev.Quiet {
+		if err := e.send(ctx, ev.RuleID, ev.Channel, ev.Level, ev.Text); err != nil {
+			return err
+		}
+	}
 	now := e.now()
 	ended := ev.EndedAt
 	inc := &Incident{RuleID: ev.RuleID, Channel: string(ev.Channel), Severity: ev.Level.Severity(), StartedAt: ev.StartedAt, EndedAt: &ended, LastMessageAt: &now, Text: ev.Text}
 	if err := e.store.InsertIncident(ctx, inc); err != nil {
-		return fmt.Errorf("gravar %s: %w", ev.RuleID, err)
+		log.Printf("[alert] gravar %s: %v", ev.RuleID, err)
 	}
-	if ev.Quiet {
-		return nil
-	}
-	return e.send(ctx, ev.RuleID, ev.Channel, ev.Level, ev.Text)
+	return nil
 }
 
 // Announce posta sem gravar incidente (o "backend no ar" de um reinício limpo).

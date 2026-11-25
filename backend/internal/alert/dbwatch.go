@@ -10,9 +10,11 @@ import (
 // a cada 15 s e, quando ele volta, avisa de quando a quando ficou sem.
 const (
 	dbPingEvery   = 15 * time.Second
-	dbPingTimeout = 3 * time.Second
-	// dbDownAfter: pings seguidos sem resposta para contar como queda (~30 s).
-	dbDownAfter = 2
+	dbPingTimeout = 5 * time.Second
+	// dbDownAfter: pings seguidos sem resposta para contar como queda (~45 s).
+	// O ping usa o pool: com o pool esgotado ele também falha, e 3 seguidos
+	// evitam o "banco fora" de um pico de uso.
+	dbDownAfter = 3
 )
 
 // DatabaseWatch: o vigia do banco.

@@ -10,7 +10,8 @@ import (
 )
 
 // maxPerHour: teto de mensagens por canal numa hora. O que passar vai só para
-// o log (o incidente é gravado do mesmo jeito e aparece no painel).
+// o log (o incidente é gravado do mesmo jeito e aparece no painel). O crítico
+// nunca é barrado.
 const maxPerHour = 10
 
 var errNoChannel = errors.New("canal de alerta não existe")
@@ -53,7 +54,8 @@ func (p *Poster) Send(ctx context.Context, ch ChannelKind, level Level, text str
 	if !ok {
 		return fmt.Errorf("%w: %s", errNoChannel, ch)
 	}
-	if !p.allow(ch) {
+	// O crítico passa do teto (conta nele): sai uma vez só por incidente.
+	if !p.allow(ch) && level != LevelCritical {
 		log.Printf("[alert] teto de %d mensagens por hora em %s; não postei: %s", maxPerHour, ch, text)
 		return nil
 	}
