@@ -9,7 +9,9 @@ const GROUPS: { key: keyof LiveReport['breakdown']; title: string }[] = [
   { key: 'transport', title: 'Conexão (com as calls)' },
   { key: 'target', title: 'Plataforma (com as calls)' },
   { key: 'network', title: 'Rede do Android (com as calls)' },
-  { key: 'device', title: 'Aparelho Android (com as calls)' }
+  { key: 'device', title: 'Aparelho Android (com as calls)' },
+  { key: 'surface', title: 'Fonte da live (monitor ou janela)' },
+  { key: 'engine', title: 'Motor da live (nativo ou Chromium)' }
 ]
 
 /** A média e, quando o backend manda, a mediana por pessoa ao lado. */

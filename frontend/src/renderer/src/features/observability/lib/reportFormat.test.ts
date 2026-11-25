@@ -34,6 +34,8 @@ describe('rótulos', () => {
     expect(eventLabel('novo')).toBe('novo')
     expect(eventLabel('conexao_falhou')).toBe('Voz não conectou')
     expect(eventLabel('retomou')).toBe('Voltou à call (o app reiniciou)')
+    expect(eventLabel('live_falhou')).toBe('Live não começou')
+    expect(eventLabel('pc_dormiu')).toBe('PC dormiu')
     // Falha na etapa de acesso (chamada encerrada, sem permissão) não é queda.
     expect(eventLabel('conexao_falhou', 'entrando (acesso): Você não tem mais acesso')).toBe(
       'Sem acesso à chamada'

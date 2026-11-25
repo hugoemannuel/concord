@@ -7,10 +7,12 @@ import {
   platformLabel,
   qualityLine
 } from '../lib/reportFormat'
+import { mediaLine } from '../lib/mediaFormat'
 import { Empty, Panel } from './Panel'
 
 function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
   const quality = qualityLine(row)
+  const media = mediaLine(row)
   return (
     <li className="flex flex-col gap-2 rounded-lg bg-surface p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -29,6 +31,7 @@ function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
         </p>
       )}
       {quality && <p className="text-ds-sm text-secondary">{quality}</p>}
+      {media && <p className="text-ds-sm text-secondary">{media}</p>}
       {row.reasons.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
           {row.reasons.map((reason) => (

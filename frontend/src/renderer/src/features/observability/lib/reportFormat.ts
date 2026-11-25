@@ -44,6 +44,9 @@ const EVENTS: Record<string, string> = {
   conexao_falhou: 'Voz não conectou',
   reconectou: 'Voz reconectou',
   retomou: 'Voltou à call (o app reiniciou)',
+  // docs/adr/0074.
+  live_falhou: 'Live não começou',
+  pc_dormiu: 'PC dormiu',
   // Só do app Android (docs/adr/0070).
   segundo_plano: 'Saiu do app',
   primeiro_plano: 'Voltou ao app',
