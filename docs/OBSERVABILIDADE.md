@@ -530,16 +530,23 @@ Como ler os números:
 
 - `cpu_*` é **% da máquina inteira** (dividido pelos núcleos): numa máquina de 8
   núcleos, 12,5% = um núcleo cheio.
-- O atraso do laço de eventos e os quadros longos **só contam com a janela
-  visível** (escondida, o Chromium espaça os timers e isso não é travada);
-  `visible_pct` diz quanto da linha foi medido. Travadas por minuto =
-  `long_ms` / minutos visíveis.
+- O atraso do laço de eventos, os quadros longos e as interações **só contam
+  com a janela visível** (escondida, o Chromium espaça os timers e isso não é
+  travada); `visible_pct` diz quanto da linha foi medido. Travadas por minuto =
+  `long_ms` / minutos visíveis. Atraso acima de 30 s é o aparelho suspenso e é
+  descartado.
+- "Visível" e "com foco" vêm do estado da janela do app (no desktop o main
+  avisa; em call a Page Visibility diz sempre visível): minimizada ou na
+  bandeja = escondida; visível sem foco (atrás do jogo) = visível.
+- `heap_mb` é o maior heap do JS da linha (lido a cada 2 s com a janela
+  visível e no fechamento).
 - `seconds` é a duração da linha; `at` é quando ela fechou.
 
 ### Painel
 
 Aba **Dispositivos** do `/observabilidade` (só `dev_badge_users`), para 24 h,
-3, 7 ou 14 dias. O mesmo JSON: `GET /api/obs/devices?days=7`.
+3, 7 ou 14 dias. O mesmo JSON: `GET /api/obs/devices?days=7`. As médias são
+pesadas pelo tempo (uma linha de 5 min vale cinco de 1 min).
 
 - **Aparelhos mais pesados ou travados**: pessoa, sistema, placa, versão, os
   motivos prováveis em palavras e a linha de números.

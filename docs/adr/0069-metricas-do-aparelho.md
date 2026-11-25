@@ -52,8 +52,8 @@ Forças:
 | **O app está consumindo muito?** De qual processo é? | CPU média (% da máquina) do principal, do renderer, da GPU e dos utilitários (`app.getAppMetrics()`, CPU cumulativa a cada 15 s); máximo do app inteiro; memória do app (média), do renderer e da GPU (máximo); `cpu_helpers`/`mem_helpers_mb`: os filhos nativos (`concord-live` e afins) **só no Linux**, por `/proc` | Renderer alto em call → olhar o que a tela da call faz (vídeos, animações, DSP no AudioWorklet); GPU alta assistindo → decodificador; principal alto → trabalho no main (detector de jogo, overlay). Comparar com a linha de base do estado. |
 | …parado, em call ou transmitindo? Com jogo aberto? | `state` (`parado`, `call`, `transmitindo`), `watching` (assistindo alguma live), `game` (sim/não, **só** com a atividade ligada; senão vazio) | Linha de base por estado: uma versão que sobe a CPU "parado" é regressão; "pesado só com jogo aberto" é disputa de máquina, não bug do app. |
 | **A máquina está no limite?** | CPU do sistema inteiro (média), memória livre (mínimo) e total, carga (1 min; não existe no Windows), na bateria, limite de velocidade da CPU anunciado pelo SO (`powerMonitor` `speed-limit-change`, Windows/macOS) | Memória livre < 10% → "pouca memória livre": o app não é o culpado, mas pesa mais (rever a memória do renderer). CPU do sistema alta com o app baixo → outra coisa ocupando a máquina. Limite < 100% → o SO está freando a CPU (calor/bateria). |
-| **A interface está travando?** | Atraso do laço de eventos do renderer (timer de 2 s, **só com a janela visível**: p95 e máximo); quadros longos (`long-animation-frame`, ou `longtask` onde não houver; contados só com a janela visível: quantos, ms somados, o maior); interações lentas (`event` timing com `interactionId`, ≥ 200 ms: quantas e a pior); memória do JS (`performance.memory`, máximo); a janela parou de responder (`BrowserWindow` `unresponsive`) | Travadas longas recorrentes numa versão → regressão (perfil com o `--perf-log`); memória do JS que só cresce → vazamento; `unresponsive` → travamento de verdade (o que estava aberto). |
-| …ou só estava escondida? | `visible_pct`, `focused_pct`: % do tempo da linha com a janela visível e com foco | O atraso e os quadros longos só contam visível; a % diz quanto da linha foi medido. Janela escondida nunca vira "travada". |
+| **A interface está travando?** | Atraso do laço de eventos do renderer (timer de 2 s, **só com a janela visível**: p95 e máximo; atraso acima de 30 s é o aparelho suspenso e é descartado); quadros longos (`long-animation-frame`, ou `longtask` onde não houver; contados só com a janela visível: quantos, ms somados, o maior); interações lentas (`event` timing com `interactionId`, ≥ 200 ms, só com a janela visível: quantas e a pior); memória do JS (`performance.memory`: o máximo das leituras a cada 2 s com a janela visível e no fechamento da linha); a janela parou de responder (`BrowserWindow` `unresponsive`) | Travadas longas recorrentes numa versão → regressão (perfil com o `--perf-log`); memória do JS que só cresce → vazamento; `unresponsive` → travamento de verdade (o que estava aberto). |
+| …ou só estava escondida? | `visible_pct`, `focused_pct`: % do tempo da linha com a janela visível e com foco, pelo estado da janela do app (no desktop o main avisa: em call a Page Visibility diz sempre visível); minimizada ou na bandeja = escondida, visível sem foco = visível | O atraso e os quadros longos só contam visível; a % diz quanto da linha foi medido. Janela escondida nunca vira "travada". |
 | **Demora para abrir?** | `startup_ms` por abertura: do início do processo (desktop) ou da navegação (web) até a lista de servidores chegar (só se a pessoa já abriu logada) | Regressão de abertura numa versão → reverter/perfilar. |
 | **A aceleração por hardware está ligada?** | `gpu_status` por abertura e renovado a cada envio: `enabled`, `software` (composição por software) ou `disabled` (`app.getGPUFeatureStatus().gpu_compositing`, `isHardwareAccelerationEnabled`; no web, pelo renderer do WebGL: SwiftShader/llvmpipe); `gpu_crashes`: o processo da GPU caiu (`child-process-gone`, `type = GPU`) | Sem GPU explica muita lentidão: driver, lista de bloqueio do Chromium, GPU que caiu e voltou por software. |
 | **A rede do app (não a da mídia) está lenta?** | RTT do batimento do WebSocket (ADR 0037): mediana e máximo; latência das chamadas à API vista pelo app (Resource Timing das `fetch` para `/api/`: p50, p95, quantas) | WS/API lentos com mídia boa → servidor (CPU da VPS) ou rede de quem usa; comparar com as métricas do servidor. |
@@ -78,7 +78,8 @@ Forças:
 ### Como coleta
 
 - **Processo principal** (`frontend/src/main/deviceStats/`): só liga quando o
-  renderer pede a primeira vez (pessoa logada). A cada 15 s lê
+  renderer pede a primeira vez (pessoa logada) e para depois de 10 min sem
+  pedido (o próximo religa). A cada 15 s lê
   `app.getAppMetrics()` (reaproveita o `ProcessBreakdown` do `--perf-log`),
   `os.cpus()`/`freemem()`/`loadavg()` e a bateria; eventos (`unresponsive`,
   GPU que caiu, limite de velocidade) só contam. O renderer leva o agregado
@@ -92,10 +93,11 @@ Forças:
   sai a cada 5 linhas, 5 minutos, ou quando a call acaba. Falha de envio é
   ignorada (é só telemetria). Visitante sem conta não manda.
 - **Backend** (`internal/deviceobs/`): `POST /api/obs/device` (login de conta,
-  3 pedidos a cada 5 min por pessoa, até 10 linhas por pedido, 16 KiB, cada
+  3 pedidos a cada 5 min por abertura do app (pessoa + sessão), até 10 linhas
+  por pedido, 16 KiB, cada
   número com teto) grava `device_sessions` (uma por abertura do app) e
-  `device_samples`; `GET /api/obs/devices?days=N` monta o painel (só
-  `dev_badge_users`); apaga de hora em hora o que passou de 14 dias.
+  `device_samples`; `GET /api/obs/devices?days=N` monta o painel (médias
+  pesadas pelos segundos de cada linha; só `dev_badge_users`); apaga de hora em hora o que passou de 14 dias.
 
 ### Volume
 
@@ -103,7 +105,8 @@ Uma linha ≈ 200 bytes (35 números). Uso típico de uma pessoa: 4 h com o app
 aberto parado (48 linhas) + 2 h em call (120) ≈ **170 linhas/dia**. Para ~100
 pessoas: **~17 mil linhas/dia, ~240 mil em 14 dias (~50 MB com o índice)**.
 Teto por pessoa: 1 440 linhas/dia (24 h em call); o limite do servidor (3
-pedidos × 10 linhas a cada 5 min) segura um app adulterado em ≤ 8 640/dia.
+pedidos × 10 linhas a cada 5 min por abertura) segura cada abertura de um app
+adulterado em ≤ 8 640/dia.
 Pedidos: 1 a cada 5 min por pessoa (≈ 0,3 pedido/s para 100 pessoas).
 
 ## Consequências
