@@ -159,14 +159,27 @@ call (escolhida também, porque é o único jeito de medir o buraco da retomada)
 - Colunas iguais, significado novo em `recv_loss_pct`, `concealed_pct`, `loss_pct`
   e `seconds` da voz: comparar períodos só filtrando por `app_version` (versões
   anteriores à desta emenda continuam com o significado antigo).
-- Volume: até 20 rascunhos reenviados por pessoa depois de uma queda do servidor
-  (dentro do limite de 6 pedidos por minuto) e poucos eventos novos por call
+- Volume: até 20 rascunhos reenviados por pessoa depois de uma queda do servidor,
+  no máximo 8 (um pedido) a mais por ciclo de 20 s, para caber no limite de 6
+  pedidos por minuto; recusa definitiva (4xx que não é 429) não volta para a fila.
+  Poucos eventos novos por call
   (`entrada_lenta` em ~2 % das entradas, `retomou` ~1 por dia). Sem linhas novas fora
   de `live_events`.
 - Risco conhecido: duas sessões legítimas da mesma pessoa na mesma call em dois
   aparelhos (4 casos em 14 dias) — a mais velha é fechada se ficar 30 s sem mandar.
   Como a voz manda a cada 60 s, isso pode acontecer; a amostra seguinte dela continua
   sendo gravada (só o `ended_at` fica).
+- Cada evento da conexão fica marcado com a call em que aconteceu: a sessão de uma
+  call não leva o que é de outra. Quem sai ou desiste durante a entrada antes do
+  primeiro ciclo (20 s) gera uma sessão de voz só com o evento e o fim.
+- O servidor grava o `fim` uma vez só (o reenvio de um fim, ou o fim que chega
+  depois de o servidor fechar a sessão, não duplica) e o início da sessão nunca
+  fica depois dos eventos dela. Os outros eventos podem duplicar se o servidor
+  gravar e a resposta se perder (o app reenvia): raro, só com o servidor lento;
+  tirar isso pediria um id por rascunho e uma migration.
+- O buraco do `retomou` é um **teto**: inclui até 60 s desde a última amostra da
+  voz da sessão antiga e até 20 s até o primeiro ciclo da nova. Retomada mais
+  rápida que 30 s não é reconhecida (a antiga fecha pela falta de notícia).
 - Privacidade: igual (números técnicos, etapa da entrada e a versão do app).
 
 Fontes: MDN — `RTCRemoteInboundRtpStreamStats` (`fractionLost` é do último intervalo
