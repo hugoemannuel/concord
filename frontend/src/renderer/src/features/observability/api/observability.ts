@@ -112,6 +112,8 @@ export interface CollectionGap {
   from: string
   to: string
   minutes: number
+  /** A coleta não voltou até agora (ausente num backend de antes). */
+  open?: boolean
 }
 
 /** O LiveKit começou de novo (at: o início do processo novo). */

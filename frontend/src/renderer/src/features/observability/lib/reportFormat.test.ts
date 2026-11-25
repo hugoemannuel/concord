@@ -34,6 +34,11 @@ describe('rótulos', () => {
     expect(eventLabel('novo')).toBe('novo')
     expect(eventLabel('conexao_falhou')).toBe('Voz não conectou')
     expect(eventLabel('retomou')).toBe('Voltou à call (o app reiniciou)')
+    // Falha na etapa de acesso (chamada encerrada, sem permissão) não é queda.
+    expect(eventLabel('conexao_falhou', 'entrando (acesso): Você não tem mais acesso')).toBe(
+      'Sem acesso à chamada'
+    )
+    expect(eventLabel('conexao_falhou', 'reconectando: caiu e não voltou')).toBe('Voz não conectou')
   })
   it('eventos do app Android', () => {
     expect(eventLabel('segundo_plano')).toBe('Saiu do app')

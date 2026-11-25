@@ -102,7 +102,9 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   horas assistidas e 27% dos congelamentos, e a média por placa ou sistema era,
   na prática, a dela.
 - **Eventos** (`eventos`): as **quedas e falhas da voz do período inteiro**
-  (`call_events`: `reconectou`, `conexao_falhou`, `retomou`; até 300) e os 100
+  (`call_events`: `reconectou`, `conexao_falhou` e, quando o app passar a mandar,
+  `retomou`; até 300; a falha na etapa de acesso aparece como "Sem acesso à
+  chamada", não é queda) e os 100
   eventos mais recentes das lives e calls (quase todos congelamentos longos, ~310
   por dia: sem a lista à parte, as quedas da voz sumiam em poucas horas).
 - **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).

@@ -51,7 +51,12 @@ const EVENTS: Record<string, string> = {
   rota_do_audio: 'Saída do áudio'
 }
 
-export function eventLabel(type: string): string {
+// A falha na etapa de acesso (chamada encerrada, sem permissão) não é queda
+// (telemetryConnection.ts, wherePhase; o backend a separa do mesmo jeito).
+const ACCESS_FAILURE = 'entrando (acesso)'
+
+export function eventLabel(type: string, detail = ''): string {
+  if (type === 'conexao_falhou' && detail.startsWith(ACCESS_FAILURE)) return 'Sem acesso à chamada'
   return EVENTS[type] ?? type
 }
 

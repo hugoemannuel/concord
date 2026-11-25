@@ -10,10 +10,10 @@ const sameDay = (a: Date, b: Date): boolean =>
 const hourLabel = (d: Date): string =>
   d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
-/** Um buraco na coleta: início → fim (o dia só uma vez, se não virou) · duração. */
+/** Um buraco na coleta: início até o fim (o dia só uma vez, se não virou; "agora" se não voltou) · duração. */
 export function gapLine(gap: CollectionGap): string {
   const from = new Date(gap.from)
   const to = new Date(gap.to)
-  const end = sameDay(from, to) ? hourLabel(to) : timeLabel(gap.to)
-  return `${timeLabel(gap.from)} → ${end} · ${durationLabel(gap.minutes * 60)}`
+  const end = gap.open ? 'agora' : sameDay(from, to) ? hourLabel(to) : timeLabel(gap.to)
+  return `${timeLabel(gap.from)} até ${end} · ${durationLabel(gap.minutes * 60)}`
 }

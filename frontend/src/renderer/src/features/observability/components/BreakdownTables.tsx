@@ -55,7 +55,7 @@ export function BreakdownTables({
 }): React.JSX.Element {
   return (
     <Panel title="Distribuição">
-      <p className="text-ds-sm text-gray-400">
+      <p className="text-ds-sm text-muted">
         Ao lado da média, a mediana por pessoa (cada pessoa pesa igual: quem assiste muito não puxa
         o número).
       </p>

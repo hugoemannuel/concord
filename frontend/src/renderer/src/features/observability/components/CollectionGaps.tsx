@@ -30,7 +30,7 @@ export function CollectionGaps({
       {items.length === 0 ? (
         <Empty>Nenhum buraco na coleta e nenhum reinício do LiveKit no período.</Empty>
       ) : (
-        <ul className="flex flex-col rounded-lg bg-surface text-ds-sm text-gray-200">
+        <ul className="flex flex-col rounded-lg bg-surface text-ds-sm text-normal">
           {items.map((item) => (
             <li key={item.key} className={ROW}>
               {item.text}

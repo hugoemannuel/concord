@@ -28,6 +28,8 @@ type CollectionGap struct {
 	From    time.Time `json:"from"`
 	To      time.Time `json:"to"`
 	Minutes int       `json:"minutes"`
+	// Open: a coleta não voltou até agora (To é o minuto atual).
+	Open bool `json:"open"`
 }
 
 // LiveKitRestart: o LiveKit começou de novo (o process_start_time_seconds mudou).
@@ -54,6 +56,7 @@ func collectionGaps(minutes []ServerMinute, now time.Time) []CollectionGap {
 	edges := append(slices.Clone(minutes), ServerMinute{Minute: now.Truncate(time.Minute)})
 	for i := 1; i < len(edges); i++ {
 		if gap, ok := gapBetween(edges[i-1].Minute, edges[i].Minute); ok {
+			gap.Open = i == len(edges)-1
 			gaps = append(gaps, gap)
 		}
 	}

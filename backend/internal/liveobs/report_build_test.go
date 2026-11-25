@@ -288,6 +288,13 @@ func TestReasonsDaVoz(t *testing.T) {
 		t.Errorf("acesso: %q, quer %q", got, want)
 	}
 
+	// Média de perda baixa, mas minutos com perda ≥ 5%: não é "sem perda".
+	mixed := session("mista", KindCall, "fe", 0, 60)
+	mixed.ConcealedPct, mixed.RecvLossPct, mixed.LossMinutes, mixed.RoboticMinutes = fp(4), fp(0.2), 3, 3
+	if got := reasons(mixed); slices.Contains(got, "Áudio sintetizado sem perda (PC de quem ouve)") {
+		t.Errorf("motivos contraditórios: %q", got)
+	}
+
 	// Média baixa, mas 5 minutos robotizados numa sessão longa: o motivo aparece.
 	long := session("longa", KindCall, "edu", 0, 120)
 	long.ConcealedPct, long.RoboticMinutes, long.BadMinutes = fp(0.4), 5, 5

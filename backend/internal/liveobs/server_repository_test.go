@@ -33,7 +33,8 @@ func TestServerRepositoryGravaLeEApaga(t *testing.T) {
 	}
 	// Mesmo minuto de novo (coleta dupla): fica a última, sem erro.
 	again := rows[1]
-	again.Participants = 6
+	restarted := base.Add(-time.Minute)
+	again.Participants, again.LiveKitStartedAt = 6, &restarted
 	if err := repo.InsertServerMinute(ctx, again); err != nil {
 		t.Fatal(err)
 	}
@@ -49,8 +50,8 @@ func TestServerRepositoryGravaLeEApaga(t *testing.T) {
 	if m.Participants != 6 || m.BytesOut != 15_000_000 || *m.RTTMs != 50 || *m.HostMemPercent != 60 || *m.LiveKitCPUPercent != 12.5 {
 		t.Errorf("linha lida = %+v", m)
 	}
-	if m.LiveKitStartedAt == nil || !m.LiveKitStartedAt.Equal(started) {
-		t.Errorf("início do LiveKit = %v, quer %v", m.LiveKitStartedAt, started)
+	if m.LiveKitStartedAt == nil || !m.LiveKitStartedAt.Equal(restarted) {
+		t.Errorf("início do LiveKit = %v, quer o da última gravação (%v)", m.LiveKitStartedAt, restarted)
 	}
 	if got[1].Up || got[1].RTTMs != nil || got[1].LiveKitStartedAt != nil {
 		t.Errorf("minuto sem LiveKit = %+v", got[1])

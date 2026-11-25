@@ -22,10 +22,10 @@ func TestCollectionGapsAcharOsMinutosSemColeta(t *testing.T) {
 	}
 	// Do mais recente: do minuto 9 até agora (o coletor parou), depois o de 3 a 6.
 	last, first := got[0], got[1]
-	if !last.From.Equal(t0.Add(9*time.Minute)) || !last.To.Equal(t0.Add(20*time.Minute)) || last.Minutes != 11 {
+	if !last.From.Equal(t0.Add(9*time.Minute)) || !last.To.Equal(t0.Add(20*time.Minute)) || last.Minutes != 11 || !last.Open {
 		t.Errorf("buraco até agora = %+v", last)
 	}
-	if !first.From.Equal(t0.Add(3*time.Minute)) || !first.To.Equal(t0.Add(6*time.Minute)) || first.Minutes != 3 {
+	if !first.From.Equal(t0.Add(3*time.Minute)) || !first.To.Equal(t0.Add(6*time.Minute)) || first.Minutes != 3 || first.Open {
 		t.Errorf("buraco do meio = %+v", first)
 	}
 }

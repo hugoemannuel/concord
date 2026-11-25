@@ -207,7 +207,7 @@ describe('abas do relatório das lives', () => {
     }
     const html = render(ServerTab, withGaps)
     expect(html).toContain('Sem coleta e reinícios do LiveKit')
-    expect(html).toContain('23/11, 01:55 → 10:16 · 8 h 21 min')
+    expect(html).toContain('23/11, 01:55 até 10:16 · 8 h 21 min')
     expect(html).toContain('LiveKit reiniciou')
     expect(html).toContain('24/11, 21:17')
     const clean: ReportState = {

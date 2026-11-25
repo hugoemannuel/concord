@@ -57,7 +57,7 @@ var qualityRules = []reasonRule{
 	{"Voz robotizada (áudio sintetizado)", kindIs(KindCall, robotic)},
 	{"Perda no áudio recebido", kindIs(KindCall, lossy)},
 	{"Áudio sintetizado sem perda (PC de quem ouve)", kindIs(KindCall, func(s SessionStats) bool {
-		return robotic(s) && s.RecvLossPct != nil && *s.RecvLossPct < noLossPct
+		return robotic(s) && s.RecvLossPct != nil && *s.RecvLossPct < noLossPct && s.LossMinutes == 0
 	})},
 	{"Voz reconectou", func(s SessionStats) bool { return s.Reconnects > 0 }},
 	{"Voz não conectou", func(s SessionStats) bool { return s.Failures > 0 }},

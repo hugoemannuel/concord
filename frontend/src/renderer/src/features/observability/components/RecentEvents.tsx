@@ -35,7 +35,7 @@ export function RecentEvents({
               <span className="tabular-nums text-gray-400">{time(e.at)}</span>
               <span className="text-strong">{e.username || '—'}</span>
               <span className="text-gray-400">{kindLabel(e.kind)}</span>
-              <span className="text-gray-200">{eventLabel(e.type)}</span>
+              <span className="text-gray-200">{eventLabel(e.type, e.detail)}</span>
               {e.detail && <span className="text-gray-400">{e.detail}</span>}
             </li>
           ))}
