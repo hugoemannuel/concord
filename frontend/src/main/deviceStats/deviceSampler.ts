@@ -8,9 +8,11 @@ import { SystemCpu } from './systemCpu'
 
 // Amostrador das métricas do aparelho (docs/adr/0069): lê a cada 15 s, mas só
 // depois da primeira take (o renderer pede só com alguém logado). Antes disso
-// nada roda; os eventos (travada, GPU que caiu) só somam contadores.
+// nada roda; os eventos (travada, GPU que caiu) só somam contadores. 10 min
+// sem take (logout, renderer parado) desliga o timer; a próxima take religa.
 
 export const SAMPLE_MS = 15_000
+export const IDLE_STOP_MS = 10 * 60_000
 const MB = 1024 * 1024
 
 type Metric = Pick<ProcessMetric, 'pid' | 'creationTime' | 'memory' | 'cpu' | 'type'>
@@ -30,7 +32,8 @@ export interface SamplerDeps {
   gpuStatus(): GpuStatus
   /** ms monotônico. */
   now(): number
-  every(ms: number, fn: () => void): void
+  /** Liga um timer; devolve o "desligar". */
+  every(ms: number, fn: () => void): () => void
   cores: number
 }
 
@@ -61,6 +64,7 @@ export class DeviceSampler {
   private readonly systemCpu = new SystemCpu()
   private aggregate = new DeviceAggregate()
   private lastTake: number | null = null
+  private stopTimer: (() => void) | null = null
   private hangs = 0
   private gpuCrashes = 0
   private speedLimit: number | null = null
@@ -84,7 +88,7 @@ export class DeviceSampler {
     this.startupMs ??= Math.round(ms)
   }
 
-  /** O agregado desde a última take, e zera. A primeira liga o timer. */
+  /** O agregado desde a última take, e zera. A primeira (ou a depois de parado) liga o timer. */
   take(): DeviceTake {
     const now = this.deps.now()
     if (this.lastTake === null) this.start()
@@ -96,7 +100,18 @@ export class DeviceSampler {
   private start(): void {
     this.read() // aquece a CPU cumulativa: a próxima leitura já tem diferença
     this.aggregate = new DeviceAggregate()
-    this.deps.every(SAMPLE_MS, () => this.read())
+    this.stopTimer = this.deps.every(SAMPLE_MS, () => this.tick())
+  }
+
+  /** Sem take há 10 min: ninguém está levando o agregado, desliga até a próxima. */
+  private tick(): void {
+    if (this.lastTake !== null && this.deps.now() - this.lastTake >= IDLE_STOP_MS) {
+      this.stopTimer?.()
+      this.stopTimer = null
+      this.lastTake = null
+      return
+    }
+    this.read()
   }
 
   private events(): Pick<DeviceTake, 'hangs' | 'gpuCrashes' | 'gpuStatus' | 'startupMs'> {

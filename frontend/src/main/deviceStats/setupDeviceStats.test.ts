@@ -34,6 +34,7 @@ import { fromMainFrame, isGpuCrash, setupDeviceStats } from './setupDeviceStats'
 beforeEach(() => {
   // O timer de 15 s liga na primeira take: relógio falso para não vazar.
   vi.useFakeTimers()
+  vi.clearAllTimers() // o timer ligado pela take de um teste não passa para o próximo
   vi.clearAllMocks()
   electron.appListeners.clear()
   electron.powerListeners.clear()
@@ -87,6 +88,15 @@ describe('setupDeviceStats', () => {
     expect(take({ sender: {}, senderFrame: webContents.mainFrame })).toBeNull()
     const result = take({ sender: webContents, senderFrame: webContents.mainFrame })
     expect(result).toMatchObject({ seconds: 0, hangs: 0, gpuStatus: 'enabled' })
+  })
+
+  it('o timer de 15 s para depois de 10 min sem take', () => {
+    const { win, webContents } = fakeWindow()
+    setupDeviceStats(() => win as unknown as BrowserWindow)
+    handler('device-stats:take')({ sender: webContents, senderFrame: webContents.mainFrame })
+    expect(vi.getTimerCount()).toBe(1)
+    vi.advanceTimersByTime(10 * 60_000 + 15_000)
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('conta só a travada da janela principal e a GPU que caiu', () => {

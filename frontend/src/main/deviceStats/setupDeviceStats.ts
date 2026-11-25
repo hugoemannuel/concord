@@ -52,7 +52,10 @@ function samplerDeps(platform: NodeJS.Platform): SamplerDeps {
     gpuStatus: () =>
       gpuStatusOf(app.getGPUFeatureStatus().gpu_compositing, app.isHardwareAccelerationEnabled()),
     now: () => performance.now(),
-    every: (ms, fn) => void setInterval(fn, ms),
+    every: (ms, fn) => {
+      const timer = setInterval(fn, ms)
+      return () => clearInterval(timer)
+    },
     cores: cpus().length
   }
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ProcessMetric } from 'electron'
-import { DeviceSampler, processReading, SAMPLE_MS, type SamplerDeps } from './deviceSampler'
+import {
+  DeviceSampler,
+  IDLE_STOP_MS,
+  processReading,
+  SAMPLE_MS,
+  type SamplerDeps
+} from './deviceSampler'
 
 function metric(pid: number, type: string, cpu: number, memKB: number): ProcessMetric {
   return {
@@ -21,8 +27,12 @@ function fakeDeps(over: Partial<SamplerDeps> = {}) {
   let tick: (() => void) | null = null
   let cpuSeconds = 0
   let busy = 0
+  const stop = vi.fn(() => {
+    tick = null
+  })
   const every = vi.fn((_ms: number, fn: () => void) => {
     tick = fn
+    return stop
   })
   const deps: SamplerDeps = {
     appMetrics: () => [
@@ -46,6 +56,7 @@ function fakeDeps(over: Partial<SamplerDeps> = {}) {
   return {
     deps,
     every,
+    stop,
     advance(ms: number, cpu = 0, sysBusy = 0) {
       now += ms
       cpuSeconds += cpu
@@ -168,5 +179,39 @@ describe('DeviceSampler', () => {
     sampler.take()
     expect(() => advance(15_000)).not.toThrow()
     expect(sampler.take().mem.appMB).toBeNull()
+  })
+})
+
+describe('DeviceSampler parado sem take', () => {
+  const minutes = (sampler: { advance(ms: number): void }, n: number) => {
+    for (let i = 0; i < (n * 60_000) / SAMPLE_MS; i++) sampler.advance(SAMPLE_MS)
+  }
+
+  it('10 min sem take desliga o timer; a próxima take religa e volta vazia', () => {
+    const fake = fakeDeps()
+    const sampler = new DeviceSampler(fake.deps)
+    sampler.take()
+    minutes(fake, 9)
+    expect(fake.stop).not.toHaveBeenCalled()
+    minutes(fake, 1)
+    expect(fake.stop).toHaveBeenCalledTimes(1)
+    const back = sampler.take()
+    expect(back.seconds).toBe(0)
+    expect(back.cpu.renderer).toBeNull()
+    expect(fake.every).toHaveBeenCalledTimes(2)
+    fake.advance(SAMPLE_MS, 1.5)
+    fake.advance(SAMPLE_MS, 1.5)
+    expect(sampler.take().seconds).toBe(30)
+  })
+
+  it('take antes dos 10 min mantém o timer ligado', () => {
+    const fake = fakeDeps()
+    const sampler = new DeviceSampler(fake.deps)
+    sampler.take()
+    minutes(fake, 6)
+    sampler.take()
+    minutes(fake, 6)
+    expect(fake.stop).not.toHaveBeenCalled()
+    expect(IDLE_STOP_MS).toBe(10 * 60_000)
   })
 })
