@@ -50,6 +50,8 @@ export interface ReporterDeps {
   codecChoice?(): string | null
   /** Relógio (ms); o padrão é Date.now. */
   now?(): number
+  /** O H.265 da live desse streamer chegou e não decodificou (screenHevcFailure); leva e limpa. */
+  decodeFailure?(streamerId: string): string | null
 }
 
 interface Wanted {
@@ -140,13 +142,21 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     return result
   }
 
-  /** O que vai junto da amostra: a conexão da call (voz) ou o motivo do codec (minha live). */
+  /** O motivo do codec (minha live) ou a falha do decodificador (live assistida). */
+  function extraEvent(s: Wanted): TelemetryEvent | null {
+    if (s.kind === 'transmite') {
+      const choice = deps.codecChoice?.()
+      return choice ? { type: 'codec_escolhido', detail: choice } : null
+    }
+    const failure = deps.decodeFailure?.(s.streamerId)
+    return failure ? { type: 'decoder_falhou', detail: failure } : null
+  }
+
+  /** O que vai junto da amostra: a conexão da call (voz) ou um evento da live. */
   function extras(s: Session): ConnectionTelemetry {
     if (s.kind === 'call') return deps.connection?.take(s.callId) ?? NOTHING
-    const choice = s.kind === 'transmite' ? deps.codecChoice?.() : null
-    return choice
-      ? { connectMs: null, events: [{ type: 'codec_escolhido', detail: choice }] }
-      : NOTHING
+    const event = extraEvent(s)
+    return event ? { connectMs: null, events: [event] } : NOTHING
   }
 
   async function sampleOf(s: Session): Promise<Draft | null> {
@@ -164,14 +174,21 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     return draft(s, sample, events, false, now())
   }
 
+  /** Os eventos que vão no fim da sessão. */
+  function endEvents(s: Session): TelemetryEvent[] {
+    if (s.kind === 'call') return deps.connection?.takeEvents(s.callId) ?? []
+    return s.kind === 'assiste' ? extras(s).events : []
+  }
+
   function endGone(wanted: Wanted[]): Draft[] {
     const keys = new Set(wanted.map((w) => w.key))
     const ended: Draft[] = []
     for (const [key, s] of sessions) {
       if (keys.has(key)) continue
-      // Só os eventos desta call (o tempo para entrar e o que for da call nova ficam).
-      const events = s.kind === 'call' ? (deps.connection?.takeEvents(s.callId) ?? []) : []
-      ended.push(draft(s, null, events, true, now()))
+      // Voz: só os eventos desta call (o tempo para entrar e o que for da call nova ficam).
+      // Live assistida: a falha do decodificador. A minha live não leva o motivo do
+      // codec no fim (é da próxima live).
+      ended.push(draft(s, null, endEvents(s), true, now()))
       sessions.delete(key)
     }
     return ended

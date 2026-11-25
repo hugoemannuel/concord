@@ -489,7 +489,8 @@ ORDER BY x.at DESC LIMIT 50;
 | quem assiste: `recv_fps` ≫ `fps`, congelamentos | decodificador | tirar o codec da ordem para aquela placa/SO; driver |
 | quem assiste: `recv_fps` baixo com perda 0 | não chega: quem transmite ou SFU | comparar com o `fps`/`capture_fps` de quem transmite e a pausa/camada |
 | todos os espectadores congelam juntos, perda 0, e a `capture_fps` de quem transmite oscila | a captura do Chromium no Windows (cópia do quadro para a CPU + teto de 50% de CPU do capturador) | não é rede nem codec: captura nativa no Windows (marco 2 da ADR 0031) |
-| `codec_escolhido` com "caiu no proc." ou "—" numa placa boa | marca permanente ou o Chromium sem encoder | limpar a marca; Linux/NVIDIA → motor nativo |
+| `codec_escolhido` com "caiu no proc." ou "—" numa placa boa | marca de 7 dias (da placa, contada da primeira queda; ADR 0073) ou o Chromium sem encoder | esperar a marca vencer ou limpá-la; Linux/NVIDIA → motor nativo |
+| `decoder_falhou` (quem assiste) | o H.265 chega e quase nada decodifica nesse aparelho | na próxima abertura ele não anuncia H.265 por 3 dias e recebe a reserva H.264 (ADR 0073); muitos de uma placa → rever a ordem de codecs |
 | `concealed_pct` ≥ 3% com `recv_loss_pct` alto (app com a emenda de 25/11 da ADR 0032: a **menor** perda entre as vozes) | rede de quem ouve (todas as vozes perdem) | TCP/TURN? (o RED já está ligado) |
 | `concealed_pct` ≥ 3% com `recv_loss_pct` baixo, e alguém da mesma call com `loss_pct` (subida) alto no mesmo minuto | subida de **quem fala**, não a rede de quem ouve | olhar a rede de quem fala (`loss_pct`, `transport`, web × desktop); versões anteriores à emenda somavam as vozes e culpavam o ouvinte |
 | `concealed_pct` ≥ 3% sem perda (nem a de quem ouve, nem a subida de quem fala) | PC de quem ouve (CPU, DSP de áudio) | rever o custo do processamento local (ADR 0005) |

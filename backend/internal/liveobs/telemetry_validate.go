@@ -39,6 +39,7 @@ var (
 		EventCodecChosen: true, EventConnectFailed: true, EventReconnected: true,
 		EventBackground: true, EventForeground: true, EventNetworkChanged: true, EventAudioRoute: true,
 		EventSlowJoin: true, EventJoinAbandoned: true,
+		EventDecoderFailed: true,
 	}
 )
 

@@ -1,6 +1,8 @@
 //! getStats() do envio com os nomes do WebRTC do navegador: o Electron monta
 //! um RTCStatsReport com isto e usa o mesmo controlador de degraus
 //! (screenAdaptSample.ts) e o mesmo painel "Sua transmissão" da live do Chromium.
+//! O `timestamp` sai como o libwebrtc dá (`RTCStats::ToJson`: microssegundos); o
+//! app troca pela hora de chegada em ms (`stampNativeStats`, ADR 0073).
 
 use livekit::webrtc::stats::{
     CodecStats, MediaSourceStats, OutboundRtpStats, QualityLimitationReason, RemoteInboundRtpStats,

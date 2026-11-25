@@ -7,6 +7,7 @@ import { postTelemetry } from '../api/telemetry'
 import { loadClientContext } from '../lib/telemetryContext'
 import { changeCallId, createConnectionLog } from '../lib/telemetryConnection'
 import { takeScreenCodecChoice } from '../../call/lib/screenCodecChoice'
+import { takeHevcDecodeFailure } from '../../call/lib/screenHevcFailure'
 import {
   createTelemetryReporter,
   stepChanged,
@@ -43,7 +44,8 @@ function LiveTelemetryBridge(): null {
       send: postTelemetry,
       newId: () => crypto.randomUUID(),
       connection,
-      codecChoice: takeScreenCodecChoice
+      codecChoice: takeScreenCodecChoice,
+      decodeFailure: takeHevcDecodeFailure
     })
     const timer = setInterval(() => void reporter.tick(), TELEMETRY_INTERVAL_MS)
     const offAdapt = useScreenAdaptStore.subscribe((state, previous) => {

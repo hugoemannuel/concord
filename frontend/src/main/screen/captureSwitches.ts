@@ -4,6 +4,7 @@ import { app, ipcMain } from 'electron'
 import { appendLog } from '../app/appLog'
 import { keepCaptureTimer } from './captureTimer'
 import { chromiumFeatures } from './chromiumFeatures'
+import { readHevcReceiveOff, saveHevcDecodeMark } from './hevcDecodeMark'
 import { detectLinuxGpu, linuxGpuLog, nvidiaVideoEnv, videoDriverHint } from './linuxGpu'
 import { helperPath } from './screenAudio'
 
@@ -15,8 +16,10 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
 const gpu = process.platform === 'linux' ? detectLinuxGpu() : null
 // Antes do processo da GPU nascer: ele herda o ambiente.
 Object.assign(process.env, nvidiaVideoEnv(gpu, process.env))
+// O H.265 recebido não decodificou aqui (ADR 0073): não anunciar para receber.
+const hevcOff = readHevcReceiveOff()
 // Captura WGC + vídeo na placa de vídeo, numa chamada por switch (ver chromiumFeatures).
-const features = chromiumFeatures(process.platform, gpu)
+const features = chromiumFeatures(process.platform, gpu, !hevcOff)
 app.commandLine.appendSwitch('enable-features', features.enable)
 app.commandLine.appendSwitch('disable-features', features.disable)
 
@@ -26,7 +29,8 @@ void app.whenReady().then(() => {
   const status = app.getGPUFeatureStatus()
   appendLog(
     'gpu.log',
-    `video_decode=${status.video_decode} video_encode=${status.video_encode}${linuxGpuLog(gpu)}`
+    `video_decode=${status.video_decode} video_encode=${status.video_encode}${linuxGpuLog(gpu)}` +
+      (hevcOff ? ' hevc_receive=off' : '')
   )
   keepCaptureTimer({
     platform: process.platform,
@@ -40,3 +44,5 @@ void app.whenReady().then(() => {
 
 // Painel da live: o que falta para a placa de vídeo decodificar (null = nada).
 ipcMain.handle('screen-share:video-hint', () => videoDriverHint(gpu))
+// O H.265 de uma live chegou e não decodificou: vale na próxima abertura.
+ipcMain.on('screen-share:hevc-decode-failed', () => saveHevcDecodeMark())

@@ -103,6 +103,10 @@ const api = {
     /** O que falta para a placa de vídeo decodificar (Linux/NVIDIA sem driver); null = nada. */
     videoHint(): Promise<string | null> {
       return ipcRenderer.invoke('screen-share:video-hint')
+    },
+    /** O H.265 de uma live chegou e não decodificou: a próxima abertura não o anuncia. */
+    hevcDecodeFailed(): void {
+      ipcRenderer.send('screen-share:hevc-decode-failed')
     }
   },
   screenAudio: {

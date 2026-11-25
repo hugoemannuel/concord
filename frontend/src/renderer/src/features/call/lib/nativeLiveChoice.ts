@@ -63,3 +63,17 @@ export function nativeQuality(
 export function nativeStatsReport(stats: Record<string, unknown>[]): RTCStatsReport {
   return new Map(stats.map((stat, index) => [String(stat.id ?? index), stat])) as unknown as RTCStatsReport
 }
+
+/**
+ * O tempo de cada estatística é a hora em que chegaram (ms, como o getStats()
+ * do navegador). O helper manda o `timestamp` do libwebrtc em µs
+ * (`RTCStats::ToJson`), e o app lia como ms: fps, captura, kbps e duração da
+ * live nativa saíam 1000 vezes menores (ADR 0073). Com a hora de chegada não
+ * importa a unidade nem o relógio do helper, inclusive se ele mudar.
+ */
+export function stampNativeStats(
+  stats: Record<string, unknown>[],
+  receivedAt: number
+): Record<string, unknown>[] {
+  return stats.map((stat) => ({ ...stat, timestamp: receivedAt }))
+}

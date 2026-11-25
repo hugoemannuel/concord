@@ -41,6 +41,9 @@ const (
 	EventJoinAbandoned = "entrada_abandonada"
 	// Do servidor: o app recomeçou no meio da call (buraco e troca de versão).
 	EventResumed = "retomou"
+	// O H.265 de uma live chegou e não decodificou (ADR 0073): o app desktop
+	// deixa de anunciá-lo para receber na próxima abertura (no navegador, só o evento).
+	EventDecoderFailed = "decoder_falhou"
 )
 
 // Batch: um pedido do app, com todas as sessões ativas dele.
