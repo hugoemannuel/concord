@@ -14,6 +14,8 @@ interface MeterEnv {
   now(): number
   visible(): boolean
   focused(): boolean
+  /** performance.memory.usedJSHeapSize (null onde não existe). */
+  readHeap(): number | null
   apiBaseUrl: string
   takeWsRtt(): { medianMs: number | null; maxMs: number | null }
 }
@@ -30,9 +32,10 @@ export class RendererMeter {
   private readonly inputs = new InteractionStats()
   private readonly clock: VisibilityClock
   private readonly api: ApiTimings
+  private heapMax: number | null = null
 
   constructor(private readonly env: MeterEnv) {
-    this.lag = new LoopLag(env)
+    this.lag = new LoopLag({ now: env.now, visible: env.visible, onTick: () => this.sampleHeap() })
     this.clock = new VisibilityClock(env.now(), env.visible(), env.focused())
     this.api = new ApiTimings(env.apiBaseUrl)
   }
@@ -64,8 +67,17 @@ export class RendererMeter {
     this.lag.sync()
   }
 
-  /** Fecha a linha: `heapBytes` é o performance.memory.usedJSHeapSize de agora. */
-  take(heapBytes: number | null): RendererMeasures {
+  /** Heap do JS: lida a cada volta de 2 s (janela visível) e no fechamento; fica o maior. */
+  private sampleHeap(): void {
+    const bytes = this.env.readHeap()
+    if (bytes !== null) this.heapMax = Math.max(this.heapMax ?? 0, bytes)
+  }
+
+  /** Fecha a linha e abre a próxima. */
+  take(): RendererMeasures {
+    this.sampleHeap()
+    const heapBytes = this.heapMax
+    this.heapMax = null
     const { visiblePct, focusedPct } = this.clock.take(this.env.now())
     const lag = this.lag.take()
     const frames = this.frames.take()

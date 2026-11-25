@@ -24,6 +24,7 @@ export interface RendererMeasures {
   long_max_ms: number | null
   slow_inputs: number
   input_max_ms: number | null
+  /** Maior heap do JS da linha: leituras a cada 2 s com a janela visível e no fechamento. */
   heap_mb: number | null
   ws_rtt_ms: number | null
   ws_rtt_max_ms: number | null

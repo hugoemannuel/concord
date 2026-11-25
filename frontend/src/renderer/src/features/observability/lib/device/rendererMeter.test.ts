@@ -4,6 +4,8 @@ import { RendererMeter } from './rendererMeter'
 
 let visible = true
 let focused = true
+let heap: number | null = null
+const MB = 1024 * 1024
 const takeWsRtt = vi.fn(() => ({ medianMs: 45, maxMs: 90 }))
 
 function meter(): RendererMeter {
@@ -11,6 +13,7 @@ function meter(): RendererMeter {
     now: () => Date.now(),
     visible: () => visible,
     focused: () => focused,
+    readHeap: () => heap,
     apiBaseUrl: 'https://srv/api',
     takeWsRtt
   })
@@ -21,6 +24,7 @@ beforeEach(() => {
   vi.setSystemTime(0)
   visible = true
   focused = true
+  heap = null
 })
 afterEach(() => vi.useRealTimers())
 
@@ -35,7 +39,8 @@ describe('RendererMeter', () => {
     focused = false
     m.windowChanged()
     vi.advanceTimersByTime(LAG_TICK_MS * 15)
-    expect(m.take(180 * 1024 * 1024)).toEqual({
+    heap = 180 * MB
+    expect(m.take()).toEqual({
       visible_pct: 100,
       focused_pct: 50,
       lag_p95_ms: 0,
@@ -62,7 +67,7 @@ describe('RendererMeter', () => {
     m.longFrame(500)
     expect(vi.getTimerCount()).toBe(0)
     vi.advanceTimersByTime(60_000)
-    const row = m.take(null)
+    const row = m.take()
     expect([row.long_count, row.visible_pct, row.lag_p95_ms, row.heap_mb]).toEqual([
       0,
       0,
@@ -76,8 +81,22 @@ describe('RendererMeter', () => {
     visible = false
     m.windowChanged()
     m.interaction(7, 400)
-    const row = m.take(null)
+    const row = m.take()
     expect([row.slow_inputs, row.input_max_ms]).toEqual([0, null])
+  })
+
+  it('heap: o maior entre as leituras de 2 s e a do fechamento; zera por linha', () => {
+    const m = meter()
+    m.start()
+    heap = 300 * MB
+    vi.advanceTimersByTime(LAG_TICK_MS)
+    heap = 150 * MB
+    vi.advanceTimersByTime(LAG_TICK_MS)
+    expect(m.take().heap_mb).toBe(300)
+    heap = 120 * MB
+    expect(m.take().heap_mb).toBe(120)
+    heap = null
+    expect(m.take().heap_mb).toBeNull()
   })
 
   it('stop desliga o timer do laço', () => {

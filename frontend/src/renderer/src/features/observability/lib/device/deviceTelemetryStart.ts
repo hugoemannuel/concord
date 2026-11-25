@@ -55,13 +55,14 @@ function startCollecting(webStartupMs: () => number | null): () => void {
     now,
     visible: windowVisible,
     focused: windowFocused,
+    readHeap,
     apiBaseUrl: API_BASE_URL,
     takeWsRtt
   })
   const reporter = new DeviceReporter({
     now,
     label: currentLabel,
-    measures: () => meter.take(readHeap()),
+    measures: () => meter.take(),
     takeMain,
     context: loadClientContext,
     send: postDeviceTelemetry,

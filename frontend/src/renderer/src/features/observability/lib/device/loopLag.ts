@@ -14,6 +14,8 @@ const SUSPEND_MS = 30_000
 interface LagEnv {
   now(): number
   visible(): boolean
+  /** A cada disparo com a janela visível (carona para leituras baratas). */
+  onTick?(): void
 }
 
 export class LoopLag {
@@ -54,6 +56,7 @@ export class LoopLag {
     if (!this.env.visible()) return
     const delay = Math.max(0, Math.round(this.env.now() - this.expected))
     if (delay <= SUSPEND_MS) this.record(delay)
+    this.env.onTick?.()
     this.schedule()
   }
 
