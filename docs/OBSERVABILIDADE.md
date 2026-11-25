@@ -50,6 +50,7 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   [Servidor: API e VPS](#servidor-api-e-vps).
 - **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e conexão.
 - **Eventos** (`eventos`): eventos recentes das lives e calls.
+- **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).
 
 Piores sessões: pontuação (abaixo do alvo, congelamentos, pausa, perda,
 CPU/banda, processador; na voz: não conectou, reconexões, áudio sintetizado,
