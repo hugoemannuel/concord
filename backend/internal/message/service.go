@@ -9,8 +9,6 @@ import (
 	"log"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 var (
@@ -309,33 +307,7 @@ func (s *Service) deleteWithFiles(ctx context.Context, messageID string) error {
 // aviso de aniversário) no canal e avisa quem está nele. authorID é quem
 // responde pelo servidor (o dono); o app mostra a mensagem como do servidor.
 func (s *Service) CreateSystemChannelMessage(ctx context.Context, channelID string, authorID string, content string, kind string) (*Message, error) {
-	msg := &Message{
-		ID:         uuid.New().String(),
-		AuthorID:   authorID,
-		ChannelID:  &channelID,
-		Content:    content,
-		SystemKind: &kind,
-	}
-	if err := s.repository.Create(ctx, msg); err != nil {
-		return nil, err
-	}
-
-	full, err := s.repository.FindByID(ctx, msg.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	serverID := ""
-	if s.channelResolver != nil {
-		serverID, _ = s.channelResolver.ChannelServerID(ctx, channelID)
-	}
-	s.publisher.PublishMessageCreate(CreateEvent{
-		ChannelID: full.ChannelID,
-		ServerID:  serverID,
-		Message:   *full,
-	})
-
-	return full, nil
+	return s.PostSystemNotice(ctx, SystemNotice{ChannelID: channelID, AuthorID: authorID, Content: content, Kind: kind})
 }
 
 // canManageChannelMessages verifica se o usuário pode gerenciar mensagens no canal (permissão MANAGE_MESSAGES ou dono).

@@ -1,0 +1,18 @@
+# /etc/systemd/system/concord-alerta@.service — avisa o backend da Salinha que
+# a unidade %i falhou; ele posta em #alertas do servidor dos devs
+# (ALERTS_SERVER_ID, docs/adr/0071-alertas-em-canais-do-servidor-dos-devs.md).
+# As unidades chamam com OnFailure=concord-alerta@%n.service (o
+# scripts/deploy-vps.sh instala este arquivo e o OnFailure nas concord-* e
+# salinha-* da VPS). A rota só atende 127.0.0.1; o Caddy não a repassa.
+# Testar: systemctl start concord-alerta@teste.service
+[Unit]
+Description=Avisa o backend da Salinha que %i falhou
+After=network.target
+
+[Service]
+Type=oneshot
+# A porta do backend (ListenStream do concord-server.socket). Outra porta:
+# um complemento concord-alerta@.service.d/porta.conf com outro Environment=.
+Environment=ALERT_URL=http://127.0.0.1:8090/internal/alerts/unit-failed
+# Tenta por ~5–9 min (o backend pode estar numa avaliação lenta): a falha pode ser num boot, antes de o backend subir.
+ExecStart=/usr/bin/curl -fsS -m 40 --retry 10 --retry-delay 15 --retry-all-errors --data-urlencode unit=%i ${ALERT_URL}

@@ -373,6 +373,22 @@ func TestMencaoEmCanal(t *testing.T) {
 		expectTokens(t, r, "tok-ana", "tok-bia", "tok-caio")
 	})
 
+	t.Run("mensagem de sistema com @all (alerta crítico) avisa todos", func(t *testing.T) {
+		r := newRig()
+		ev := channelEvent("@all Crítico: LiveKit não responde", ptr("all"))
+		ev.Message.SystemKind = ptr("alert")
+		r.n.OnMessage(ev)
+		expectTokens(t, r, "tok-ana", "tok-bia", "tok-caio")
+	})
+
+	t.Run("mensagem de sistema sem @all não notifica nem quem ela cita", func(t *testing.T) {
+		r := newRig()
+		ev := channelEvent("Aviso: CPU em 88%, @ana_mobile", nil)
+		ev.Message.SystemKind = ptr("alert")
+		r.n.OnMessage(ev)
+		expectTokens(t, r)
+	})
+
 	t.Run("@here não gera push (quem recebe está online, por definição)", func(t *testing.T) {
 		r := newRig()
 		r.n.OnMessage(channelEvent("@here", ptr("here")))

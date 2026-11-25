@@ -88,6 +88,9 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   aparelho Android.
 - **Eventos** (`eventos`): eventos recentes das lives e calls.
 - **Erros** (`erros`): os erros do app agrupados (ver [Erros do app](#erros-do-app)).
+- **Alertas** (`alertas`): o que está disparado agora, quantas vezes cada regra
+  disparou no período (recorrência) e o histórico (regra, gravidade, de quando
+  a quando). Pedido próprio: `GET /api/obs/alerts?days=N`. Ver [Alertas](#alertas).
 
 Piores sessões: pontuação (abaixo do alvo, congelamentos, pausa, perda,
 CPU/banda, processador; na voz: não conectou, reconexões, áudio sintetizado,
@@ -109,6 +112,85 @@ busca os próprios dados (hook próprio, com os estados de carregando, sem
 permissão e erro). Não precisa mexer no `router.tsx` nem na página.
 
 O mesmo JSON: `GET /api/obs/lives?days=7` (token de um dev).
+
+## Alertas
+
+Avisos no servidor dos devs ([ADR 0071](adr/0071-alertas-em-canais-do-servidor-dos-devs.md)).
+Com `ALERTS_SERVER_ID` (id do servidor "Devs Salinha"), o backend garante no
+boot a categoria **Monitoramento** com os canais de sistema `#alertas` (infra e
+serviços), `#erros` (erros do app, parte 2), `#qualidade` (calls e lives) e
+`#resumo-diario` (parte 2), e escreve neles como **Salinha Bot**. Vazio = tudo
+desligado (o padrão). Como ligar: [HOSPEDAGEM.md](HOSPEDAGEM.md#alertas-no-servidor-dos-devs).
+
+**Como avisa**: uma mensagem ao disparar, uma se piorar (aviso → crítico), uma
+ao normalizar ("Normalizou: … Durou X"), um lembrete a cada 6 h se continuar e
+no máximo 10 mensagens por hora por canal (o resto só no log e no painel; o
+crítico sempre passa).
+**Aviso** é só a mensagem; **crítico** começa com `@all` e chega como push para
+todos do servidor (respeitando o silenciar de cada um). O estado (incidente
+aberto) fica em `alert_incidents`: reiniciar o backend não repete o aviso.
+
+| Regra (`id`) | Canal | Aviso | Crítico | Normaliza |
+|---|---|---|---|---|
+| Backend subiu / ficou fora (`backend_down`) | alertas | a cada boot: versão e, sem parada limpa, de quando a quando ficou fora (pelo último minuto do `livekit_metrics`) | — | (evento) |
+| Backend reiniciando sem parar (`restart_loop`) | alertas | — | 3 boots sem parada limpa em 10 min (os "backend no ar" de cada volta não saem) | menos de 3 em 10 min |
+| CPU da máquina (`host_cpu`) | alertas | ≥ 85% por 5 min | ≥ 95% por 10 min | abaixo por 3 min |
+| Memória da máquina (`host_mem`) | alertas | ≥ 90% por 5 min | ≥ 95% por 5 min | abaixo por 3 min |
+| LiveKit fora do ar (`livekit_down`) | alertas | `up = false` por 3 min | por 5 min | respondeu por 1 min |
+| CPU do LiveKit (`livekit_cpu`) | alertas | ≥ 150% de uma vCPU por 5 min | — | abaixo por 3 min |
+| Banco fora do ar (`database_down`) | alertas | quando volta: de quando a quando (3 pings de 15 s sem resposta) | — | (evento) |
+| Serviço do systemd falhou (`unit_failed`) | alertas | `OnFailure=` de `concord-*`/`salinha-*` (backup, yt-dlp, firewall); a mesma unidade de novo em 1 h só vai para o histórico | — | (evento) |
+| Voz sem conectar (`call_failures`) | qualidade | — | 3+ pessoas com `conexao_falhou` na etapa de mídia em 5 min | abaixo por 10 min |
+| Voz reconectando em massa (`call_reconnects`) | qualidade | 4+ pessoas com `reconectou` em 3 min | — | abaixo por 10 min |
+
+Os números estão em constantes no começo de cada `backend/internal/alert/rule_*.go`.
+O LiveKit fora só avisa se ele respondeu alguma vez na última hora (sem o
+Prometheus ligado ele estaria "fora" para sempre); fora há mais de 1 h, o
+incidente fica aberto sem lembrete até ele voltar. Todo membro do servidor de
+`ALERTS_SERVER_ID` vê os canais (canal de sistema não tem permissão própria):
+use um servidor só dos devs. O backup que roda e não gera
+arquivo fica para a parte 2 (idade do arquivo, coletada pela tarefa obs-servidor).
+
+**Limite**: o alerta é postado pelo próprio backend, então **não avisa enquanto
+a VPS, o backend ou o banco estão fora**: só quando voltam ("ficou fora de X a
+Y"). Avisar na hora pede um monitor externo.
+
+**Silenciar**: cada dev silencia o canal ou o servidor no app (vale para o
+push do crítico também). Para desligar uma regra para todos, ponha o id em
+`ALERTS_MUTED` no `/opt/concord/.env` (ex.: `ALERTS_MUTED=livekit_cpu,host_cpu`)
+e reinicie o backend: a regra segue gravando no painel, só não posta.
+
+**Criar uma regra**: um arquivo `backend/internal/alert/rule_<nome>.go` com o
+construtor e uma linha na lista de `rules.go`:
+
+```go
+func diskRule(src diskSource) Rule {
+	return Rule{
+		ID: "host_disk", Title: "Disco da máquina", Channel: ChannelInfra, Tab: "servidor",
+		Hold: Hold{Warning: 10 * time.Minute, Critical: 10 * time.Minute, Clear: 10 * time.Minute},
+		Check: func(ctx context.Context, now time.Time) (Reading, error) {
+			pct, err := src.DiskUsedPercent(ctx) // só a última linha
+			if err != nil {
+				return Reading{Level: LevelUnknown}, err
+			}
+			return levelFor(pct, limits{warn: 85, crit: 95}, "disco em %.0f%% (limite %.0f%%)"), nil
+		},
+	}
+}
+```
+
+`Check` lê só as últimas linhas e diz o nível de agora (`LevelOK`, `LevelWarning`,
+`LevelCritical` ou `LevelUnknown` sem dado); `Hold` é a histerese (quanto cada
+nível precisa durar antes de valer) e o motor cuida do resto (estado, mensagens,
+teto). A fonte nova entra na interface `Sources` de `rules.go`, implementada pelo
+`Repository`. Acontecimento de uma vez (não uma condição) vai por
+`Engine.Notify(Event{...})`. Os textos ficam em `messages.go` (ou no `Text` da
+leitura) e precisam de aprovação. O teste da regra usa uma fonte falsa
+(`rules_test.go`).
+
+**Consultas**: `SELECT rule_id, severity, started_at, ended_at, text FROM
+alert_incidents ORDER BY started_at DESC LIMIT 50;` e `SELECT * FROM
+backend_runs ORDER BY id DESC LIMIT 20;` (boots; `stopped_at` nulo = queda).
 
 ## Consultas prontas (psql)
 

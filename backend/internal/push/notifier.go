@@ -81,7 +81,7 @@ func NewNotifier(d Deps) *Notifier {
 
 // OnMessage trata uma mensagem nova: DM/grupo para os outros participantes, canal só para menções.
 func (n *Notifier) OnMessage(ev message.CreateEvent) {
-	if !n.Sender.Enabled() || ev.Message.SystemKind != nil {
+	if !n.Sender.Enabled() || !pushesMessage(ev.Message) {
 		return
 	}
 	n.Run(func() {
@@ -94,6 +94,13 @@ func (n *Notifier) OnMessage(ev message.CreateEvent) {
 			n.channelMention(ctx, ev)
 		}
 	})
+}
+
+// pushesMessage: mensagem de sistema (aniversário, Maestro, avisos) não gera
+// push, a não ser a que pinga todo mundo: o alerta crítico do servidor dos
+// devs (internal/alert, ADR 0071).
+func pushesMessage(m message.Message) bool {
+	return m.SystemKind == nil || m.MentionEveryone != nil
 }
 
 // OnFriendRequest avisa quem recebeu um pedido de amizade.
