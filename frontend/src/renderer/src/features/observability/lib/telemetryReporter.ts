@@ -2,7 +2,13 @@ import type { ScreenStatsInput } from '../../call/lib/screenStats'
 import { sampleEvents } from './telemetryEvents'
 import { callSample } from './telemetryCall'
 import type { ConnectionSource, ConnectionTelemetry } from './telemetryConnection'
-import { createOutbox, toWire, type Draft, type TimedEvent } from './telemetryOutbox'
+import {
+  createOutbox,
+  isPermanentFailure,
+  toWire,
+  type Draft,
+  type TimedEvent
+} from './telemetryOutbox'
 import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
 import type {
   ClientContext,
@@ -87,7 +93,7 @@ function wantedSessions(snap: CallSnapshot): Wanted[] {
 }
 
 function draft(
-  s: Session,
+  s: Pick<Session, 'id' | 'kind' | 'callId' | 'streamerId'>,
   sample: TelemetrySample | null,
   events: TimedEvent[],
   ended: boolean,
@@ -134,10 +140,10 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     return result
   }
 
-  /** O que vai junto da amostra: a conexão (voz) ou o motivo do codec (minha live). */
-  function extras(kind: SessionKind): ConnectionTelemetry {
-    if (kind === 'call') return deps.connection?.take() ?? NOTHING
-    const choice = kind === 'transmite' ? deps.codecChoice?.() : null
+  /** O que vai junto da amostra: a conexão da call (voz) ou o motivo do codec (minha live). */
+  function extras(s: Session): ConnectionTelemetry {
+    if (s.kind === 'call') return deps.connection?.take(s.callId) ?? NOTHING
+    const choice = s.kind === 'transmite' ? deps.codecChoice?.() : null
     return choice
       ? { connectMs: null, events: [{ type: 'codec_escolhido', detail: choice }] }
       : NOTHING
@@ -147,7 +153,7 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     const result = await read(s)
     s.ticks++
     if (!result) return null
-    const extra = extras(s.kind)
+    const extra = extras(s)
     const sample = { ...result.sample, connect_ms: extra.connectMs ?? result.sample.connect_ms }
     const events = [
       ...extra.events,
@@ -163,16 +169,27 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     const ended: Draft[] = []
     for (const [key, s] of sessions) {
       if (keys.has(key)) continue
-            // Só os eventos: o tempo para entrar, se houver, é da call nova.
-      const events = s.kind === 'call' ? (deps.connection?.takeEvents() ?? []) : []
+      // Só os eventos desta call (o tempo para entrar e o que for da call nova ficam).
+      const events = s.kind === 'call' ? (deps.connection?.takeEvents(s.callId) ?? []) : []
       ended.push(draft(s, null, events, true, now()))
       sessions.delete(key)
     }
     return ended
   }
 
+  /**
+   * Eventos de uma call sem sessão (saiu ou desistiu durante a entrada antes do
+   * primeiro ciclo): uma sessão de voz só com eles e o fim.
+   */
+  function strayDrafts(current: string | null): Draft[] {
+    return (deps.connection?.takeStray(current) ?? []).map(({ callId, events }) =>
+      draft({ id: deps.newId(), kind: 'call', callId, streamerId: '' }, null, events, true, now())
+    )
+  }
+
   async function collect(): Promise<Draft[]> {
-    const wanted = wantedSessions(deps.snapshot())
+    const snap = deps.snapshot()
+    const wanted = wantedSessions(snap)
     const drafts = endGone(wanted)
     for (const w of wanted) {
       let s = sessions.get(w.key)
@@ -183,31 +200,41 @@ export function createTelemetryReporter(deps: ReporterDeps): {
       const d = await sampleOf(s)
       if (d) drafts.push(d)
     }
-    return drafts
+    return [...drafts, ...strayDrafts(snap.callId)]
+  }
+
+  /** Um pedido: false = vale tentar de novo; recusa definitiva (4xx) descarta. */
+  async function sendBatch(batch: Draft[], context: ClientContext): Promise<boolean> {
+    try {
+      const at = now()
+      await deps.send(batch.map((d) => toWire(d, context, at)))
+      return true
+    } catch (err) {
+      return isPermanentFailure(err)
+    }
   }
 
   /** Manda em pedidos de até 8; devolve o que não foi. */
   async function sendAll(pending: Draft[]): Promise<Draft[]> {
-    const batches = chunks(pending, PER_REQUEST)
+    let context: ClientContext
     try {
-      const context = await deps.context()
-      for (const [i, batch] of batches.entries()) {
-        try {
-          const at = now()
-          await deps.send(batch.map((d) => toWire(d, context, at)))
-        } catch {
-          return batches.slice(i).flat()
-        }
-      }
-      return []
+      context = await deps.context()
     } catch {
       return pending
     }
+    const batches = chunks(pending, PER_REQUEST)
+    for (const [i, batch] of batches.entries()) {
+      if (!(await sendBatch(batch, context))) return batches.slice(i).flat()
+    }
+    return []
   }
 
-  /** O que ficou da vez anterior vai primeiro; o que não for, espera a próxima. */
+  /**
+   * O que ficou da vez anterior vai primeiro, no máximo um pedido a mais por
+   * ciclo (o servidor aceita 6 por minuto); o que não for espera a próxima.
+   */
   async function send(drafts: Draft[]): Promise<void> {
-    const pending = [...outbox.take(now()), ...drafts]
+    const pending = [...outbox.take(now(), PER_REQUEST), ...drafts]
     if (pending.length === 0) return
     outbox.keep(await sendAll(pending))
   }

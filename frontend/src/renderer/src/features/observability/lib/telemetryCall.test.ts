@@ -76,7 +76,7 @@ describe('callSample', () => {
 
   it('perda recebida: a menor entre as vozes com tráfego (a subida ruim de quem fala não é a minha rede)', () => {
     const first = callSample(
-      voices(0, {
+      voices(1, {
         a: { packetsLost: 0, packetsReceived: 0 },
         b: { packetsLost: 0, packetsReceived: 0 },
         c: { packetsLost: 0, packetsReceived: 0 }
@@ -101,7 +101,7 @@ describe('callSample', () => {
 
   it('voz que sai ou entra no intervalo não zera nem infla o áudio sintetizado', () => {
     const first = callSample(
-      voices(0, {
+      voices(1, {
         a: { concealedSamples: 0, totalSamplesReceived: 48_000 },
         b: { concealedSamples: 5000, totalSamplesReceived: 1_000_000 }
       }),
@@ -146,7 +146,7 @@ describe('callSample', () => {
           packetsReceived: received
         }
       })
-    const first = callSample(at(0, 10, 1000), null)
+    const first = callSample(at(1, 10, 1000), null)
     expect(callSample(at(60_000, 40, 3970), first.counters).sample.loss_pct).toBe(1)
   })
 
@@ -156,9 +156,17 @@ describe('callSample', () => {
         o1: { type: 'outbound-rtp', kind: 'audio', timestamp: t, packetsSent: sent },
         r1: { type: 'remote-inbound-rtp', kind: 'audio', localId: 'o1', timestamp: t, packetsLost: lost }
       })
-    const first = callSample(at(0, 10, 1000), null)
+    const first = callSample(at(1, 10, 1000), null)
     const next = callSample(at(60_000, 70, 4000), first.counters)
     expect(next.sample.loss_pct).toBe(2)
     expect(callSample(at(120_000, 70, 4000), next.counters).sample.loss_pct).toBeNull()
+  })
+
+  it('leitura anterior vazia: esta é a base, sem perda acumulada nem intervalo inflado', () => {
+    const empty = callSample(report({}), null)
+    const r = report({
+      r1: { type: 'remote-inbound-rtp', kind: 'audio', timestamp: 600_000, packetsLost: 500, packetsReceived: 500 }
+    })
+    expect(callSample(r, empty.counters).sample).toMatchObject({ seconds: 0, loss_pct: null })
   })
 })

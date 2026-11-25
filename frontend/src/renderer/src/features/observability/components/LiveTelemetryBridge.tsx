@@ -15,11 +15,12 @@ import {
 } from '../lib/telemetryReporter'
 
 /** Visitante sem conta não manda (o servidor recusaria o token e derrubaria a visita). */
+const isGuest = (): boolean => anonymousGuestLink(useGuestSessionStore.getState()) !== null
+
 function snapshot(): CallSnapshot {
   const call = useCallStore.getState()
-  const guest = anonymousGuestLink(useGuestSessionStore.getState()) !== null
   return {
-    callId: call.status === 'active' && !guest ? call.callId : null,
+    callId: call.status === 'active' && !isGuest() ? call.callId : null,
     sharing: call.isScreenSharing,
     watching: call.watchedScreenIds
   }
@@ -49,8 +50,10 @@ function LiveTelemetryBridge(): null {
       if (stepChanged(previous.view, state.view)) reporter.noteStepChange()
     })
     const offConnection = useCallStore.subscribe((state, previous) => {
-      if (state.connection !== previous.connection)
-        connection.observe(previous.connection, state.connection)
+      if (state.connection === previous.connection || isGuest()) return
+      // Cada mudança fica marcada com a call (ao sair, o callId já pode ser null).
+      const callId = state.callId ?? previous.callId ?? ''
+      connection.observe(previous.connection, state.connection, callId)
     })
     return () => {
       clearInterval(timer)

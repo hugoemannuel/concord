@@ -40,18 +40,24 @@ export function toWire(d: Draft, context: ClientContext, now: number): Telemetry
   }
 }
 
+/** O servidor recusou de vez (4xx que não é 429): reenviar não adianta. */
+export function isPermanentFailure(err: unknown): boolean {
+  const status = (err as { status?: unknown } | null)?.status
+  return typeof status === 'number' && status >= 400 && status < 500 && status !== 429
+}
+
 export function createOutbox(): {
-  /** Leva tudo o que ainda vale (e limpa). */
-  take: (now: number) => Draft[]
+  /** Leva até `max` dos que ainda valem, os mais velhos primeiro (o resto fica). */
+  take: (now: number, max?: number) => Draft[]
   /** Guarda o que não foi (só o que vale reenviar). */
   keep: (drafts: Draft[]) => void
 } {
   let kept: Draft[] = []
   return {
-    take(now) {
-      const out = kept.filter((d) => now - d.at <= OUTBOX_MAX_AGE_MS)
-      kept = []
-      return out
+    take(now, max = OUTBOX_MAX) {
+      const valid = kept.filter((d) => now - d.at <= OUTBOX_MAX_AGE_MS)
+      kept = valid.slice(max)
+      return valid.slice(0, max)
     },
     keep(drafts) {
       kept = [...kept, ...drafts.flatMap((d) => retryable(d) ?? [])].slice(-OUTBOX_MAX)

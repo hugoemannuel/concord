@@ -16,18 +16,27 @@ export interface ConnectionTelemetry {
   events: TimedEvent[]
 }
 
-/** De onde a telemetria da voz tira a conexão (createConnectionLog). */
-export interface ConnectionSource {
-  /** Tudo desde a última vez (tempo para entrar e eventos); leva e limpa. */
-  take(): ConnectionTelemetry
-  /**
-   * Só os eventos (a sessão da call que termina): o tempo para entrar é da
-   * call nova e fica para a primeira amostra dela.
-   */
-  takeEvents(): TimedEvent[]
+/** Eventos de uma call que não tem sessão (saiu durante a entrada, antes do primeiro ciclo). */
+export interface StrayEvents {
+  callId: string
+  events: TimedEvent[]
 }
 
-/** Evento guardado há mais que isso é de outra call: descarta. */
+/**
+ * De onde a telemetria da voz tira a conexão (createConnectionLog). Cada
+ * evento e o tempo para entrar são da call em que aconteceram: a sessão de
+ * uma call nunca leva o que é de outra.
+ */
+export interface ConnectionSource {
+  /** O tempo para entrar e os eventos da call; leva e limpa. */
+  take(callId: string): ConnectionTelemetry
+  /** Só os eventos da call (a sessão que termina); o tempo para entrar fica. */
+  takeEvents(callId: string): TimedEvent[]
+  /** Os eventos das outras calls, que não têm sessão; leva e limpa. */
+  takeStray(current: string | null): StrayEvents[]
+}
+
+/** Evento guardado há mais que isso já não vale: descarta. */
 const MAX_AGE_MS = 5 * 60_000
 const MAX_EVENTS = 5
 
@@ -55,36 +64,52 @@ export function connectionChange(
   return {}
 }
 
-/** Junta as mudanças até a telemetria da voz levar (take). */
+interface Logged {
+  at: number
+  callId: string
+  event: TelemetryEvent
+}
+
+const timed = (list: Logged[]): TimedEvent[] => list.map((e) => ({ ...e.event, at: e.at }))
+
+/** Agrupa por call, na ordem. */
+function byCall(list: Logged[]): StrayEvents[] {
+  const groups = new Map<string, Logged[]>()
+  for (const e of list) groups.set(e.callId, [...(groups.get(e.callId) ?? []), e])
+  return [...groups].map(([callId, events]) => ({ callId, events: timed(events) }))
+}
+
+/** Junta as mudanças, marcadas com a call, até a telemetria da voz levar (take). */
 export function createConnectionLog(now: () => number = Date.now): ConnectionSource & {
-  observe: (prev: CallConnection, next: CallConnection) => void
+  observe: (prev: CallConnection, next: CallConnection, callId?: string) => void
 } {
-  let connectMs: number | null = null
-  let events: { at: number; event: TelemetryEvent }[] = []
+  let connect: { ms: number; callId: string } | null = null
+  let events: Logged[] = []
   const join = createJoinTracker()
-  const push = (event: TelemetryEvent): void => {
-    events = [...events, { at: now(), event }].slice(-MAX_EVENTS)
+  const push = (event: TelemetryEvent, callId: string): void => {
+    events = [...events, { at: now(), callId, event }].slice(-MAX_EVENTS)
   }
-  function takeEvents(): TimedEvent[] {
-    const fresh = events
-      .filter((e) => now() - e.at <= MAX_AGE_MS)
-      .map((e) => ({ ...e.event, at: e.at }))
-    events = []
-    return fresh
+  /** Leva os eventos das calls que `pick` escolhe; os velhos demais somem. */
+  function takeWhere(pick: (callId: string) => boolean): Logged[] {
+    const fresh = events.filter((e) => now() - e.at <= MAX_AGE_MS)
+    events = fresh.filter((e) => !pick(e.callId))
+    return fresh.filter((e) => pick(e.callId))
   }
+  const takeEvents = (callId: string): TimedEvent[] => timed(takeWhere((id) => id === callId))
   return {
-    observe(prev, next) {
+    observe(prev, next, callId = '') {
       const change = connectionChange(prev, next)
-      if (change.connectMs !== undefined) connectMs = change.connectMs
-      if (change.event) push(change.event)
+      if (change.connectMs !== undefined) connect = { ms: change.connectMs, callId }
+      if (change.event) push(change.event, callId)
       const joinEvent = join(prev, next, now())
-      if (joinEvent) push(joinEvent)
+      if (joinEvent) push(joinEvent, callId)
     },
     takeEvents,
-    take() {
-      const out = { connectMs, events: takeEvents() }
-      connectMs = null
-      return out
-    }
+    take(callId) {
+      const mine = connect?.callId === callId ? connect : null
+      if (mine) connect = null
+      return { connectMs: mine?.ms ?? null, events: takeEvents(callId) }
+    },
+    takeStray: (current) => byCall(takeWhere((id) => id !== current))
   }
 }

@@ -108,7 +108,9 @@ function heardLossPct(voices: VoiceCounters[]): number | null {
  * RTT e o que eu ouço das outras pessoas (áudio sintetizado, perda até mim),
  * voz a voz (ADR 0032, emenda de 2026-11-25).
  */
-export function callSample(report: RTCStatsReport, prev: SampleCounters | null): SampleResult {
+export function callSample(report: RTCStatsReport, last: SampleCounters | null): SampleResult {
+  // Leitura anterior vazia (sem relatório): esta é a base, não um intervalo.
+  const prev = last && last.timestamp > 0 ? last : null
   const remote = remoteInbound(report)
   const counters = {
     ...countersOf({}, NO_KEYS),
