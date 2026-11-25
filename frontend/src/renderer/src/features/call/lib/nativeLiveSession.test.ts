@@ -138,8 +138,21 @@ describe('NativeLiveSession', () => {
     bridge.emit({ event: 'stats', stats: [OUTBOUND, CODEC] })
     const input = session.statsInput()
     expect(input).toMatchObject({ local: true, enabled: true, requestedFps: 30 })
-    expect(input?.report.get('OT1')).toEqual(OUTBOUND)
+    expect(input?.report.get('OT1')).toMatchObject(OUTBOUND)
     expect(session.encoderInfo()).not.toBeNull()
+  })
+
+  it('regressão: o tempo das estatísticas é o da chegada em ms (o helper manda µs)', async () => {
+    const { bridge, session } = await startLive()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_764_000_000_000)
+    bridge.emit({ event: 'stats', stats: [{ ...OUTBOUND, timestamp: 1_764_000_000_000_000 }, CODEC] })
+    const first = session.statsInput()?.report.get('OT1') as { timestamp: number }
+    now.mockReturnValue(1_764_000_002_000)
+    bridge.emit({ event: 'stats', stats: [{ ...OUTBOUND, timestamp: 1_764_000_002_000_000 }, CODEC] })
+    const second = session.statsInput()?.report.get('OT1') as { timestamp: number }
+    now.mockRestore()
+    expect(first.timestamp).toBe(1_764_000_000_000)
+    expect(second.timestamp - first.timestamp).toBe(2000)
   })
 
   it('o controlador de degraus lê o helper e manda o degrau de baixo', async () => {

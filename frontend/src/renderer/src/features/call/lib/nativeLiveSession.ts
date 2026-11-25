@@ -1,7 +1,7 @@
 import type { NativeLiveEvent, NativeLiveStart } from '../../../../../shared/nativeLive'
 import type { ScreenAdaptView } from '../store/screenAdaptStore'
 import type { NativeScreen } from './livekit'
-import { nativeQuality, nativeStatsReport } from './nativeLiveChoice'
+import { nativeQuality, nativeStatsReport, stampNativeStats } from './nativeLiveChoice'
 import { ScreenAdapt } from './screenAdapt'
 import { encoderInfoFromReport, type ScreenEncoderInfo } from './screenEncoderInfo'
 import type { ScreenShareQuality } from './screenShareQuality'
@@ -115,7 +115,7 @@ export class NativeLiveSession implements NativeScreen {
 
   private handle(event: NativeLiveEvent): void {
     if (event.event === 'capturing') this.source = { width: event.width, height: event.height }
-    else if (event.event === 'stats') this.stats = event.stats
+    else if (event.event === 'stats') this.stats = stampNativeStats(event.stats, Date.now())
     else if (event.event === 'published') this.onPublished()
     else if (event.event === 'error' && this.phase === 'starting')
       this.startError = event.code === 'capture_denied' ? 'cancelled' : 'failed'
