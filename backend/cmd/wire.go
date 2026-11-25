@@ -151,5 +151,6 @@ func wire(ctx context.Context, db *pgxpool.Pool) *app {
 	a.wireLiveObs()
 	a.wireServerObs()
 	a.wireAppErrors()
+	a.wireDeviceObs()
 	return a
 }
