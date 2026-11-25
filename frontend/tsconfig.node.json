@@ -7,6 +7,7 @@
     "src/main/**/*",
     "src/preload/**/*",
     "src/renderer/src/shared/lib/serverUrl.ts",
+    "src/renderer/src/shared/lib/appVersion.ts",
     "src/renderer/src/features/overlay/lib/overlayState.ts",
     "src/renderer/src/features/overlay/lib/overlayLayout.ts",
     "src/renderer/src/features/overlay/lib/overlayShortcut.ts",

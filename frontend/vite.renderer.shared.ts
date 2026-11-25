@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import type { Plugin, UserConfig } from 'vite'
 import { fillCsp } from './src/renderer/src/shared/lib/serverUrl'
+import { buildVersion } from './src/renderer/src/shared/lib/appVersion'
 
 // O que o renderer tem igual no app desktop (electron.vite.config.ts) e no
 // navegador (vite.web.config.ts): aliases, plugins e assets. Mexeu aqui, os
@@ -122,5 +123,19 @@ export function rendererShared(
     plugins: [react(), tailwindcss(), fontLicensePlugin, sourceMapsOutPlugin(), ...extraPlugins],
     // O WASM do RNNoise entra inline (lib/noiseSuppression.ts).
     assetsInclude: ['**/*.wasm', '**/*.tflite']
+  }
+}
+
+/**
+ * A versão do app no renderer (import.meta.env.VITE_APP_VERSION): o app web
+ * não tem preload para perguntar. O deploy passa VITE_APP_VERSION (a versão
+ * calculada antes de subir o package.json); sem ela, a do package.json.
+ */
+export function appVersionDefine(): Record<string, string> {
+  const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
+  return {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(
+      buildVersion(process.env.VITE_APP_VERSION, pkg.version)
+    )
   }
 }

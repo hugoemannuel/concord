@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildClientContext, gpuName, networkOf, osName } from './telemetryContext'
+import { buildClientContext, gpuName, networkOf, osName, appVersionOf } from './telemetryContext'
 
 describe('osName', () => {
   it.each([
@@ -109,5 +109,14 @@ describe('loadClientContext', () => {
     const { loadClientContext } = await import('./telemetryContext')
     expect((await loadClientContext()).gpu).toBe('')
     vi.unstubAllGlobals()
+  })
+})
+
+describe('appVersionOf', () => {
+  it('a do preload (desktop); sem resposta (web), a do build', () => {
+    expect(appVersionOf('0.6.102', '0.6.103')).toBe('0.6.102')
+    expect(appVersionOf('', '0.6.103')).toBe('0.6.103')
+    expect(appVersionOf(undefined, '0.6.103')).toBe('0.6.103')
+    expect(appVersionOf(undefined, undefined)).toBe('')
   })
 })
