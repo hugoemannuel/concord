@@ -25,11 +25,11 @@ function ActiveAlerts({ rows }: { rows: AlertRow[] }): React.JSX.Element {
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <SeverityBadge severity={r.severity} />
                 <span className="font-medium text-strong">{r.title || r.rule_id}</span>
-                <span className="text-gray-400">
+                <span className="text-muted">
                   desde {timeLabel(r.started_at)} ({alertDuration(r)})
                 </span>
               </div>
-              {r.text && <p className="break-words text-gray-200">{r.text}</p>}
+              {r.text && <p className="break-words text-normal">{r.text}</p>}
             </li>
           ))}
         </ul>
@@ -46,7 +46,7 @@ function Recurrence({ rows }: { rows: AlertRow[] }): React.JSX.Element | null {
     <Panel title="Recorrência">
       <ul className="flex flex-wrap gap-2 text-ds-sm">
         {counts.map((c) => (
-          <li key={c.title} className="rounded-lg bg-surface px-3 py-1.5 text-gray-200">
+          <li key={c.title} className="rounded-lg bg-surface px-3 py-1.5 text-normal">
             {c.title}: <span className="tabular-nums text-strong">{c.count}</span>
           </li>
         ))}
