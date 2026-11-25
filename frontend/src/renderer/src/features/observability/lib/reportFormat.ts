@@ -42,11 +42,28 @@ const EVENTS: Record<string, string> = {
   codec_trocou: 'Codec trocou',
   codec_escolhido: 'Codec escolhido',
   conexao_falhou: 'Voz não conectou',
-  reconectou: 'Voz reconectou'
+  reconectou: 'Voz reconectou',
+  // Só do app Android (docs/adr/0070).
+  segundo_plano: 'Saiu do app',
+  primeiro_plano: 'Voltou ao app',
+  rede_trocou: 'Trocou de rede',
+  rota_do_audio: 'Saída do áudio'
 }
 
 export function eventLabel(type: string): string {
   return EVENTS[type] ?? type
+}
+
+const PLATFORMS: Record<string, string> = {
+  desktop: 'Desktop',
+  web: 'Navegador',
+  android: 'App Android'
+}
+
+/** "App Android · samsung SM-A515F · wifi": de onde veio a sessão (docs/adr/0070). */
+export function platformLabel(s: { target: string; device: string; network: string }): string {
+  const parts = [PLATFORMS[s.target] ?? 'plataforma desconhecida', s.device, s.network]
+  return parts.filter(Boolean).join(' · ')
 }
 
 /** Os sinais da ADR 0032 de uma sessão (o que qualityLine lê). */

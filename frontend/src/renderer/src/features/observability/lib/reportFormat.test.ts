@@ -8,6 +8,7 @@ import {
   niceMax,
   numberLabel,
   pctLabel,
+  platformLabel,
   qualityLine
 } from './reportFormat'
 
@@ -32,6 +33,20 @@ describe('rótulos', () => {
     expect(eventLabel('degrau_caiu')).toBe('Qualidade caiu')
     expect(eventLabel('novo')).toBe('novo')
     expect(eventLabel('conexao_falhou')).toBe('Voz não conectou')
+  })
+  it('eventos do app Android', () => {
+    expect(eventLabel('segundo_plano')).toBe('Saiu do app')
+    expect(eventLabel('primeiro_plano')).toBe('Voltou ao app')
+    expect(eventLabel('rede_trocou')).toBe('Trocou de rede')
+    expect(eventLabel('rota_do_audio')).toBe('Saída do áudio')
+  })
+  it('plataforma, com o aparelho e a rede quando houver', () => {
+    expect(platformLabel({ target: 'desktop', device: '', network: '' })).toBe('Desktop')
+    expect(platformLabel({ target: 'web', device: '', network: '4g' })).toBe('Navegador · 4g')
+    expect(
+      platformLabel({ target: 'android', device: 'samsung SM-A515F', network: 'cellular-4g' })
+    ).toBe('App Android · samsung SM-A515F · cellular-4g')
+    expect(platformLabel({ target: '', device: '', network: '' })).toBe('plataforma desconhecida')
   })
 })
 

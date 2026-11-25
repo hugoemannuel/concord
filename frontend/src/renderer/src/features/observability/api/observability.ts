@@ -14,6 +14,12 @@ export interface SessionStats {
   app_version: string
   target: string
   cores: number
+  // Do app Android (docs/adr/0070): a rede mais recente, o aparelho e quantas
+  // vezes saiu do app ou trocou de rede.
+  network: string
+  device: string
+  backgrounds: number
+  network_changes: number
   started_at: string
   ended_at: string
   seconds: number
@@ -97,7 +103,10 @@ export interface LiveReport {
   server: ServerPoint[]
   lives: LiveRow[]
   worst: WorstRow[]
-  breakdown: Record<'os' | 'gpu' | 'codec' | 'transport', BreakdownRow[]>
+  breakdown: Record<
+    'os' | 'gpu' | 'codec' | 'transport' | 'target' | 'network' | 'device',
+    BreakdownRow[]
+  >
   events: EventRow[]
 }
 

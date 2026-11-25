@@ -6,7 +6,10 @@ const GROUPS: { key: keyof LiveReport['breakdown']; title: string }[] = [
   { key: 'os', title: 'Sistema' },
   { key: 'gpu', title: 'Placa de vídeo' },
   { key: 'codec', title: 'Codec' },
-  { key: 'transport', title: 'Conexão (com as calls)' }
+  { key: 'transport', title: 'Conexão (com as calls)' },
+  { key: 'target', title: 'Plataforma (com as calls)' },
+  { key: 'network', title: 'Rede (com as calls)' },
+  { key: 'device', title: 'Aparelho Android (com as calls)' }
 ]
 
 function Group({ title, rows }: { title: string; rows: BreakdownRow[] }): React.JSX.Element {
@@ -30,7 +33,7 @@ function Group({ title, rows }: { title: string; rows: BreakdownRow[] }): React.
   )
 }
 
-/** Distribuição das lives por sistema, placa, codec e conexão. */
+/** Distribuição das sessões por sistema, placa, codec, conexão, plataforma, rede e aparelho. */
 export function BreakdownTables({
   breakdown
 }: {

@@ -1,5 +1,12 @@
 import type { WorstRow } from '../api/observability'
-import { durationLabel, kindLabel, numberLabel, pctLabel, qualityLine } from '../lib/reportFormat'
+import {
+  durationLabel,
+  kindLabel,
+  numberLabel,
+  pctLabel,
+  platformLabel,
+  qualityLine
+} from '../lib/reportFormat'
 import { Empty, Panel } from './Panel'
 
 function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
@@ -11,7 +18,8 @@ function WorstItem({ row }: { row: WorstRow }): React.JSX.Element {
           {row.username || '—'} · {kindLabel(row.kind)}
         </span>
         <span className="text-ds-sm text-gray-400">
-          {durationLabel(row.duration_seconds)} · {row.codec || '—'} · {row.os || '—'}
+          {durationLabel(row.duration_seconds)} · {row.codec || '—'} · {row.os || '—'} ·{' '}
+          {platformLabel(row)}
         </span>
       </div>
       {row.kind !== 'call' && (

@@ -21,6 +21,10 @@ const base: SessionStats = {
   app_version: '1.0.0',
   target: 'desktop',
   cores: 8,
+  network: '',
+  device: '',
+  backgrounds: 0,
+  network_changes: 0,
   started_at: '2026-10-29T20:00:00Z',
   ended_at: '2026-10-29T20:30:00Z',
   seconds: 1800,
@@ -102,6 +106,9 @@ const report = (up: boolean): LiveReport => ({
       concealed_pct: 6,
       recv_loss_pct: 0.2,
       failures: 1,
+      target: 'android',
+      device: 'motorola moto g54',
+      network: 'cellular-5g',
       reasons: ['Voz não conectou']
     }
   ],
@@ -111,7 +118,12 @@ const report = (up: boolean): LiveReport => ({
     ],
     gpu: [],
     codec: [],
-    transport: []
+    transport: [],
+    target: [
+      { key: 'android', sessions: 1, below_ratio: null, freezes_per_min: null, software_ratio: null }
+    ],
+    network: [],
+    device: []
   },
   events: [
     {
@@ -147,6 +159,7 @@ describe('abas do relatório das lives', () => {
     expect(html).toContain('Piores chamadas e por quê')
     expect(html).toContain('caio')
     expect(html).toContain('Áudio sintetizado 6% · perda recebida 0,2% · 1 falha')
+    expect(html).toContain('App Android · motorola moto g54 · cellular-5g')
     expect(html).not.toContain('bia')
     expect(html).not.toContain('Lives recentes')
   })
@@ -163,7 +176,10 @@ describe('abas do relatório das lives', () => {
     expect(render(ServerTab, ready(false))).toContain('não mandou métricas')
   })
   it('Distribuição e Eventos', () => {
-    expect(render(BreakdownTab, ready())).toContain('Distribuição')
+    const breakdown = render(BreakdownTab, ready())
+    for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede (com as calls)', 'Aparelho Android (com as calls)']) {
+      expect(breakdown).toContain(text)
+    }
     const events = render(EventsTab, ready())
     expect(events).toContain('Qualidade caiu')
     expect(events).toContain('0 → 1 (cpu)')
