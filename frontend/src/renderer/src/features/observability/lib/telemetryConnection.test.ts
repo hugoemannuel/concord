@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CallConnection } from '../../call/lib/callConnection'
-import { connectionChange, createConnectionLog } from './telemetryConnection'
+import { changeCallId, connectionChange, createConnectionLog } from './telemetryConnection'
 
 const at = (
   phase: CallConnection['phase'],
@@ -101,5 +101,13 @@ describe('createConnectionLog: entrada', () => {
     const { connectMs, events } = log.take('')
     expect(connectMs).toBe(4000)
     expect(events.map((e) => e.type)).toEqual(['entrada_lenta'])
+  })
+})
+
+describe('changeCallId', () => {
+  it('a call atual; ao sair, a anterior; sem nenhuma, vazio', () => {
+    expect(changeCallId('c2', 'c1')).toBe('c2')
+    expect(changeCallId(null, 'c1')).toBe('c1')
+    expect(changeCallId(null, null)).toBe('')
   })
 })

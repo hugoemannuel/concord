@@ -5,7 +5,7 @@ import { readActiveCallStats, readActiveScreenStats } from '../../call/lib/scree
 import { anonymousGuestLink, useGuestSessionStore } from '../../guests/store/guestSessionStore'
 import { postTelemetry } from '../api/telemetry'
 import { loadClientContext } from '../lib/telemetryContext'
-import { createConnectionLog } from '../lib/telemetryConnection'
+import { changeCallId, createConnectionLog } from '../lib/telemetryConnection'
 import { takeScreenCodecChoice } from '../../call/lib/screenCodecChoice'
 import {
   createTelemetryReporter,
@@ -51,8 +51,8 @@ function LiveTelemetryBridge(): null {
     })
     const offConnection = useCallStore.subscribe((state, previous) => {
       if (state.connection === previous.connection || isGuest()) return
-      // Cada mudança fica marcada com a call (ao sair, o callId já pode ser null).
-      const callId = state.callId ?? previous.callId ?? ''
+      // Cada mudança fica marcada com a call em que aconteceu.
+      const callId = changeCallId(state.callId, previous.callId)
       connection.observe(previous.connection, state.connection, callId)
     })
     return () => {

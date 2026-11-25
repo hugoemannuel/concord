@@ -64,6 +64,11 @@ export function connectionChange(
   return {}
 }
 
+/** A call de uma mudança de fase: ao sair, o callId novo já é null e vale o anterior. */
+export function changeCallId(callId: string | null, previousCallId: string | null): string {
+  return callId ?? previousCallId ?? ''
+}
+
 interface Logged {
   at: number
   callId: string
