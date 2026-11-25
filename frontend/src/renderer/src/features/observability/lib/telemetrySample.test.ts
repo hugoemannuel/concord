@@ -5,58 +5,6 @@ import { transportOf, watchSample } from './telemetrySample'
 const report = (stats: Record<string, Record<string, unknown>>): RTCStatsReport =>
   new Map(Object.entries(stats).map(([id, s]) => [id, { id, ...s }])) as unknown as RTCStatsReport
 
-const iceUdp = {
-  t1: { type: 'transport', selectedCandidatePairId: 'p1' },
-  p1: { type: 'candidate-pair', localCandidateId: 'l1', currentRoundTripTime: 0.04 },
-  l1: { type: 'local-candidate', protocol: 'udp', candidateType: 'host' }
-}
-
-function shareInput(
-  extra: Record<string, unknown>,
-  quality?: ScreenStatsInput['quality']
-): ScreenStatsInput {
-  return {
-    local: true,
-    enabled: true,
-    streamState: 'active',
-    requestedFps: 60,
-    quality,
-    report: report({
-      ...iceUdp,
-      c1: { type: 'codec', mimeType: 'video/H265' },
-      c2: { type: 'codec', mimeType: 'video/H264' },
-      o1: {
-        type: 'outbound-rtp',
-        kind: 'video',
-        codecId: 'c1',
-        timestamp: 20_000,
-        bytesSent: 10_000_000,
-        framesPerSecond: 44.6,
-        frameWidth: 1280,
-        frameHeight: 720,
-        encoderImplementation: 'MediaFoundationVideoEncodeAccelerator',
-        powerEfficientEncoder: true,
-        qualityLimitationReason: 'cpu',
-        keyFramesEncoded: 12,
-        pliCount: 5,
-        firCount: 1,
-        nackCount: 40,
-        ...extra
-      },
-      o2: { type: 'outbound-rtp', kind: 'video', codecId: 'c1', bytesSent: 100, frameHeight: 360 },
-      o3: { type: 'outbound-rtp', kind: 'video', codecId: 'c2', bytesSent: 50, frameHeight: 720 }
-    })
-  }
-}
-
-const adapt = {
-  chosen: '1080p 60',
-  effective: '720p 60',
-  reduced: true,
-  reason: 'cpu' as const,
-  step: 1
-}
-
 function watchInput(extra: Record<string, unknown>, streamState = 'active'): ScreenStatsInput {
   return {
     local: false,
