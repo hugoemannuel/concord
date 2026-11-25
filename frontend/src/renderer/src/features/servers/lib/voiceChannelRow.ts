@@ -48,7 +48,7 @@ export function voiceRowTitle(connectedHere: boolean, canConnect: boolean): stri
 
 export interface VoiceRowLook {
   canConnect: boolean
-  /** Tem o "•••" (moderadores). */
+  /** Tem o "•••" (quem gerencia o canal ou pode convidar). */
   hasMenu: boolean
   hasPeople: boolean
   /** Alguém está sendo arrastado sobre o canal. */
@@ -61,7 +61,7 @@ export interface VoiceRowLook {
 /** Classes do botão do canal de voz. */
 export function voiceRowClass(look: VoiceRowLook): string {
   const dim = look.canConnect ? '' : 'opacity-60'
-  // À direita ficam o balão "Abrir chat" e o "•••" (moderadores). Na tela
+  // À direita ficam o balão "Abrir chat" e o "•••" (quem gerencia ou convida). Na tela
   // estreita (toque) eles estão sempre lá; do sm em diante só no hover, e com
   // gente no canal tomam o lugar da contagem, que some.
   // "Convidar amigos" (quem está conectado) ganha mais um botão à esquerda do balão.

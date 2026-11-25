@@ -40,9 +40,10 @@ export function sidebarSections(
 export function canOpenChannelMenu(
   channel: Pick<Channel, 'type'>,
   canManageChannels: boolean,
-  canManageRolesHere: boolean
+  canManageRolesHere: boolean,
+  canInvite: boolean
 ): boolean {
-  return (channel.type ?? 'text') === 'text' || canManageChannels || canManageRolesHere
+  return (channel.type ?? 'text') === 'text' || canManageChannels || canManageRolesHere || canInvite
 }
 
 /** Clique fora do menu do canal (e fora do "•••", que alterna sozinho) fecha. */

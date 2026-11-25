@@ -53,7 +53,8 @@ function useChannelMenuProps(
   const canOpen = canOpenChannelMenu(
     ch,
     access.can(Perm.MANAGE_CHANNELS),
-    access.canInChannel(ch.id, Perm.MANAGE_ROLES)
+    access.canInChannel(ch.id, Perm.MANAGE_ROLES),
+    access.can(Perm.CREATE_INVITE)
   )
   return {
     canOpen,

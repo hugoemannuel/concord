@@ -201,6 +201,29 @@ describe('ServerSidebar', () => {
     expect(html).not.toContain('Notificações do canal')
   })
 
+  it('membro que pode convidar: "Convidar pessoas" no menu do canal de texto e no de voz', () => {
+    setup()
+    useChannelSidebarStore.setState({ menuFor: 'geral' })
+    expect(render()).toContain('Convidar pessoas')
+    useChannelSidebarStore.setState({ menuFor: 'resenha' })
+    const voice = render()
+    expect(voice).toContain('Convidar pessoas')
+    // O "•••" aparece também no canal de voz (antes só para quem gerenciava).
+    expect(voice.match(/aria-label="Opções do canal"/g)).toHaveLength(3)
+  })
+
+  it('sem a permissão de convidar: nada de convite, e o canal de voz fica sem menu', () => {
+    setup()
+    const roles = useServerStore.getState().roles
+    useServerStore.setState({ roles: [{ ...roles[0], permissions: DEFAULT_EVERYONE & ~Perm.CREATE_INVITE }] })
+    useChannelSidebarStore.setState({ menuFor: 'geral' })
+    expect(render()).not.toContain('Convidar pessoas')
+    useChannelSidebarStore.setState({ menuFor: 'resenha' })
+    const voice = render()
+    expect(voice).not.toContain('Convidar pessoas')
+    expect(voice.match(/aria-label="Opções do canal"/g)).toHaveLength(2)
+  })
+
   it('lista ainda do servidor anterior: skeleton', () => {
     setup({ ready: false })
     useServerStore.setState({ channels: [] })

@@ -5,6 +5,7 @@ import { useServerStore } from '../store/serverStore'
 import { useChannelSidebarStore } from '../store/channelSidebarStore'
 import { useNotifySettingsStore } from '../../notifications/store/notifySettingsStore'
 import { showToast } from '../../../shared/store/toastStore'
+import { useUIStore } from '../../../shared/store/uiStore'
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -12,7 +13,8 @@ import {
   LockIcon,
   PencilIcon,
   StarIcon,
-  TrashIcon
+  TrashIcon,
+  UserPlusIcon
 } from '../../../shared/ui/icons'
 import { errorText } from '../lib/channelSidebar'
 import { channelMenuItems, type ChannelMenuItem } from '../lib/sidebarMenus'
@@ -53,6 +55,7 @@ const LOOK: Record<
   ChannelMenuItem,
   { label: string; icon?: React.ReactNode; tone?: SidebarMenuTone }
 > = {
+  invite: { label: 'Convidar pessoas', icon: <UserPlusIcon className={ICON} /> },
   notifications: { label: 'Notificações do canal' },
   'move-up': { label: 'Mover para cima', icon: <ChevronUpIcon className={ICON} /> },
   'move-down': { label: 'Mover para baixo', icon: <ChevronDownIcon className={ICON} /> },
@@ -94,6 +97,7 @@ const ChannelMenu = forwardRef<HTMLDivElement, ChannelMenuProps>(function Channe
   const sidebar = useChannelSidebarStore()
   const openNotifyModal = useNotifySettingsStore((s) => s.openModal)
   const actions: Record<ChannelMenuItem, () => void> = {
+    invite: () => useUIStore.getState().openServerInviteModal(),
     notifications: () => openNotifyModal({ serverId, channelId: channel.id, name: channel.name }),
     'move-up': () => move(index, index - 1),
     'move-down': () => move(index, index + 1),
@@ -160,7 +164,8 @@ export function ChannelMenuHost({
     sectionLength: section.length,
     canManageChannels: access.can(Perm.MANAGE_CHANNELS),
     canManageServer: access.can(Perm.MANAGE_SERVER),
-    canManageRolesHere: access.canInChannel(channel.id, Perm.MANAGE_ROLES)
+    canManageRolesHere: access.canInChannel(channel.id, Perm.MANAGE_ROLES),
+    canInvite: access.can(Perm.CREATE_INVITE)
   })
   return (
     <ChannelMenu
