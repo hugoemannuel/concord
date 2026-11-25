@@ -67,7 +67,9 @@ export interface HostMinute {
 
 export interface HostPoint {
   at: string
+  /** Média do balde; cpu_max_pct e steal_pct: o pior minuto do balde. */
   cpu_pct: number | null
+  cpu_max_pct: number | null
   iowait_pct: number | null
   steal_pct: number | null
   load1: number | null

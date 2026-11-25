@@ -77,7 +77,7 @@ func (r *HostRepository) RecentHost(ctx context.Context, minutes int) ([]HostMin
 
 const hostSeriesSQL = `
 SELECT date_bin(make_interval(secs => $3), minute, $1) AS at,
-	avg(cpu_pct)::real, avg(iowait_pct)::real, avg(steal_pct)::real, max(load1),
+	avg(cpu_pct)::real, max(cpu_pct), avg(iowait_pct)::real, max(steal_pct), max(load1),
 	max(mem_used_pct), max(swap_used_mb), max(disk_used_pct),
 	avg(disk_read_bps)::real, avg(disk_write_bps)::real, avg(net_rx_bps)::real, avg(net_tx_bps)::real,
 	sum(net_errors)::bigint, sum(udp_rcvbuf_errors)::bigint,
@@ -90,7 +90,7 @@ func (r *HostRepository) HostSeries(ctx context.Context, from, to time.Time, buc
 	rows, _ := r.db.Query(ctx, hostSeriesSQL, from, to, bucket.Seconds())
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (HostPoint, error) {
 		var p HostPoint
-		return p, row.Scan(&p.At, &p.CPUPct, &p.IOWaitPct, &p.StealPct, &p.Load1, &p.MemUsedPct, &p.SwapUsedMB,
+		return p, row.Scan(&p.At, &p.CPUPct, &p.CPUMaxPct, &p.IOWaitPct, &p.StealPct, &p.Load1, &p.MemUsedPct, &p.SwapUsedMB,
 			&p.DiskUsedPct, &p.DiskReadBps, &p.DiskWriteBps, &p.NetRxBps, &p.NetTxBps, &p.NetErrors,
 			&p.UDPRcvbufErrors, &p.BackendCPUPct, &p.BackendMemMB, &p.PostgresCPUPct, &p.PostgresMemMB)
 	})

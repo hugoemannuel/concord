@@ -76,8 +76,8 @@ function backupLate(backupAt: string | null | undefined, now: number): boolean {
 
 export function hostSummary(host: ServerReport['host'], now: number): HostSummary {
   const latest = host.latest
-  const cpuPeak = peak(host.series.map((p) => p.cpu_pct))
-  const stealPeak = peak(host.series.map((p) => p.steal_pct))
+  const cpuPeak = peak([...host.series.map((p) => p.cpu_max_pct), latest?.cpu_pct ?? null])
+  const stealPeak = peak([...host.series.map((p) => p.steal_pct), latest?.steal_pct ?? null])
   return {
     cpuPeak,
     stealPeak,

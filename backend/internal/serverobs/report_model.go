@@ -45,11 +45,12 @@ type APIPoint struct {
 	DBWaits       int       `json:"db_waits"`
 }
 
-// HostPoint: um balde. Média para CPU, rede e disco; pior valor para
-// memória, swap, disco usado e carga; soma para os erros.
+// HostPoint: um balde. Média para CPU, rede e disco; pior minuto para a
+// CPU (CPUMaxPct), steal, memória, swap, disco usado e carga; soma para os erros.
 type HostPoint struct {
 	At              time.Time `json:"at"`
 	CPUPct          *float64  `json:"cpu_pct"`
+	CPUMaxPct       *float64  `json:"cpu_max_pct"`
 	IOWaitPct       *float64  `json:"iowait_pct"`
 	StealPct        *float64  `json:"steal_pct"`
 	Load1           *float64  `json:"load1"`

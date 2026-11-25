@@ -72,7 +72,7 @@ function VpsCharts({ series }: { series: ServerReport['host']['series'] }): Reac
         times={times}
         series={[
           { label: 'Uso', values: series.map((p) => p.cpu_pct), slot: 1 },
-          { label: 'Steal', values: series.map((p) => p.steal_pct), slot: 2 }
+          { label: 'Steal (pior minuto)', values: series.map((p) => p.steal_pct), slot: 2 }
         ]}
       />
       <LineChart

@@ -37,8 +37,8 @@ func TestHostRepositoryGravaLeEApaga(t *testing.T) {
 		t.Fatalf("série = %+v, %v", series, err)
 	}
 	p := series[len(series)-1]
-	if len(series) == 1 && (*p.CPUPct != 50 || *p.StealPct != 10 || *p.MemUsedPct != 80 || *p.NetRxBps != 2000 || *p.UDPRcvbufErrors != 5) {
-		t.Errorf("balde = %+v, quer média de CPU/rede, pior memória, soma dos erros", p)
+	if len(series) == 1 && (*p.CPUPct != 50 || *p.CPUMaxPct != 60 || *p.StealPct != 15 || *p.MemUsedPct != 80 || *p.NetRxBps != 2000 || *p.UDPRcvbufErrors != 5) {
+		t.Errorf("balde = %+v, quer média de CPU/rede, pior minuto de CPU/steal/memória, soma dos erros", p)
 	}
 	if err := repo.Prune(ctx, now.Add(-14*24*time.Hour)); err != nil {
 		t.Fatal(err)

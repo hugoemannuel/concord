@@ -24,6 +24,7 @@ const apiPoint = (p: Partial<ApiPoint>): ApiPoint => ({
 const hostPoint = (p: Partial<HostPoint>): HostPoint => ({
   at: '2026-11-25T12:00:00Z',
   cpu_pct: null,
+  cpu_max_pct: null,
   iowait_pct: null,
   steal_pct: null,
   load1: null,
@@ -112,8 +113,8 @@ describe('hostSummary', () => {
         latest: latestHost,
         tables: [],
         series: [
-          hostPoint({ cpu_pct: 50, steal_pct: 12 }),
-          hostPoint({ cpu_pct: 95, steal_pct: 2 })
+          hostPoint({ cpu_pct: 50, cpu_max_pct: 70, steal_pct: 12 }),
+          hostPoint({ cpu_pct: 60, cpu_max_pct: 95, steal_pct: 2 })
         ]
       },
       Date.parse('2026-11-25T12:00:00Z')
@@ -121,6 +122,17 @@ describe('hostSummary', () => {
     expect(s.cpuPeak).toBe(95)
     expect(s.stealPeak).toBe(12)
     expect(s.warn).toEqual({ cpu: true, steal: true, memory: true, disk: false, backup: true })
+  })
+  it('o pico nunca fica abaixo do agora', () => {
+    const s = hostSummary(
+      {
+        latest: { ...latestHost, cpu_pct: 97 },
+        tables: [],
+        series: [hostPoint({ cpu_max_pct: 60 })]
+      },
+      0
+    )
+    expect(s.cpuPeak).toBe(97)
   })
   it('sem nada, sem aviso', () => {
     const s = hostSummary({ latest: null, tables: [], series: [] }, 0)
