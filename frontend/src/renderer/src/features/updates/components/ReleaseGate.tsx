@@ -8,6 +8,10 @@ import { readSeenVersion, writeSeenVersion } from '../lib/seenVersion'
 import RequiredUpdateModal from './RequiredUpdateModal'
 import WhatsNewModal from './WhatsNewModal'
 
+// Em desenvolvimento a versão é a do package.json, não a publicada: sem isso,
+// o app de dev ligado a um servidor com versão obrigatória ficaria bloqueado.
+const ENFORCE_MIN_VERSION = !import.meta.env.DEV
+
 function GateModal({
   view,
   onSeen
@@ -37,7 +41,8 @@ function GateModal({
  */
 function ReleaseGate(): React.JSX.Element | null {
   const logged = useAuthStore((s) => Boolean(s.accessToken))
-  const gate = useReleaseGateStore()
+  const store = useReleaseGateStore()
+  const gate = ENFORCE_MIN_VERSION ? store : { ...store, minVersion: null }
   const [seen, setSeen] = useState(readSeenVersion)
   const view = logged ? gateView(gate, seen) : ({ kind: 'none', current: null } as const)
 
