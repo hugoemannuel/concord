@@ -278,7 +278,8 @@ test('valor com quebra de linha ou espaço é recusado antes de qualquer troca',
 const ALERT_UNIT = readFileSync(new URL('../deploy/concord-alerta@.service', import.meta.url), 'utf8')
 const DROPIN = '# Gerado pelo scripts/deploy-vps.sh: falhou, avisa em #alertas (docs/adr/0071).\n[Unit]\nOnFailure=concord-alerta@%n.service\n'
 
-function withUnits(ctx, units) {
+function withUnits(ctx, units, env = 'ALERTS_SERVER_ID=8afacbca-308c-4f59-9bc2-6f082cafdadd\n') {
+  writeFileSync(join(ctx.server, '.env'), env)
   const dir = join(ctx.base, 'systemd')
   mkdirSync(dir, { recursive: true })
   for (const [name, body] of Object.entries(units)) writeFileSync(join(dir, name), body)
@@ -304,8 +305,9 @@ test('instala o concord-alerta@.service e o OnFailure nas unidades concord-* e s
   for (const unit of ['concord-server.service', 'concord-ja-tem.service', 'outra.service', 'concord-alerta@.service']) {
     assert.ok(!existsSync(join(dir, `${unit}.d`, 'alerta.conf')), `${unit} ganhou o complemento`)
   }
-  // O que o deploy gera já nasce com o OnFailure.
+  // O que o deploy gera já nasce com o OnFailure (e não ganha o complemento).
   assert.match(readFileSync(join(dir, 'concord-ytdlp-update.service'), 'utf8'), /^OnFailure=concord-alerta@%n\.service$/m)
+  assert.ok(!existsSync(join(dir, 'concord-ytdlp-update.service.d', 'alerta.conf')), 'OnFailure duplicado no yt-dlp')
   assert.match(r.log, /systemctl daemon-reload/)
 })
 
@@ -317,4 +319,24 @@ test('deploy de novo sem mudança não recarrega o systemd', () => {
   const r = deploy(ctx)
   assert.equal(r.status, 0, r.stderr)
   assert.doesNotMatch(r.log, /daemon-reload/)
+})
+
+test('sem ALERTS_SERVER_ID no .env não instala nada dos alertas', () => {
+  const ctx = setup({ current: fakeBinary('good') })
+  const dir = withUnits(ctx, { 'concord-backup.service': '[Unit]\n' }, '# ALERTS_SERVER_ID=comentado\nPORT=8090\n')
+  const r = deploy(ctx)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(r.stdout, /ALERTS_SERVER_ID não está no \.env/)
+  assert.ok(!existsSync(join(dir, 'concord-alerta@.service')))
+  assert.ok(!existsSync(join(dir, 'concord-backup.service.d', 'alerta.conf')))
+})
+
+test('falha ao gravar uma unidade avisa em vez de dizer que está em dia', () => {
+  const ctx = setup({ current: fakeBinary('good') })
+  const dir = withUnits(ctx, { 'concord-backup.service': '[Unit]\n' })
+  writeFileSync(join(dir, 'concord-backup.service.d'), 'um arquivo no lugar da pasta')
+  const r = deploy(ctx)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(r.stderr, /não consegui instalar os alertas/)
+  assert.doesNotMatch(r.stdout, /OnFailure das unidades do systemd em dia/)
 })

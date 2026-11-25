@@ -138,42 +138,6 @@ fi
 docker compose up -d --no-recreate
 REMOTE
 
-# Alertas das unidades do systemd (docs/adr/0071): instala o modelo
-# concord-alerta@.service e, em cada concord-*/salinha-*.service da VPS (menos
-# o próprio concord-server, que avisa quando volta), um complemento
-# <unidade>.d/alerta.conf com OnFailure=concord-alerta@%n.service. Não toca no
-# arquivo das unidades; o que já tem o OnFailure no próprio arquivo fica como
-# está. Idempotente: só grava e recarrega o systemd se algo mudou. Falha aqui
-# só avisa (o deploy segue). SYSTEMD_DIR existe para testes.
-remote SYSTEMD_DIR="${CONCORD_SYSTEMD_DIR:-/etc/systemd/system}" ALERT_UNIT="$(cat "$ROOT/deploy/concord-alerta@.service")" <<'REMOTE'
-set -euo pipefail
-setup_alerts() {
-  local changed=0 f unit dropin want
-  mkdir -p "$SYSTEMD_DIR"
-  f="$SYSTEMD_DIR/concord-alerta@.service"
-  if [[ "$(cat "$f" 2>/dev/null || true)" != "$ALERT_UNIT" ]]; then printf '%s\n' "$ALERT_UNIT" >"$f"; changed=1; fi
-  want=$'# Gerado pelo scripts/deploy-vps.sh: falhou, avisa em #alertas (docs/adr/0071).\n[Unit]\nOnFailure=concord-alerta@%n.service'
-  for f in "$SYSTEMD_DIR"/concord-*.service "$SYSTEMD_DIR"/salinha-*.service; do
-    [[ -f "$f" ]] || continue
-    unit="${f##*/}"
-    [[ "$unit" == concord-server.service || "$unit" == concord-alerta@.service ]] && continue
-    grep -q '^OnFailure=concord-alerta@' "$f" && continue
-    dropin="$f.d/alerta.conf"
-    if [[ "$(cat "$dropin" 2>/dev/null || true)" != "$want" ]]; then
-      mkdir -p "$f.d"
-      printf '%s\n' "$want" >"$dropin"
-      changed=1
-    fi
-  done
-  if ((changed)); then systemctl daemon-reload; fi
-}
-if (setup_alerts); then
-  echo "Alertas: OnFailure das unidades do systemd em dia"
-else
-  echo "AVISO: não consegui instalar os alertas das unidades do systemd (o deploy segue)" >&2
-fi
-REMOTE
-
 # Dependências do Maestro (bot de música): ffmpeg e yt-dlp no PATH do servidor.
 # O backend só os procura ao subir (exec.LookPath); sem eles ele funciona
 # normalmente e o Maestro responde "fora do ar". Por isso isto roda ANTES de
@@ -234,6 +198,46 @@ if (setup_timer); then
   echo "Maestro: timer diário de atualização do yt-dlp ativo"
 else
   echo "AVISO: não consegui configurar o timer de atualização do yt-dlp (o deploy segue)" >&2
+fi
+REMOTE
+
+# Alertas das unidades do systemd (docs/adr/0071), só com ALERTS_SERVER_ID no
+# .env da VPS (sem ele a rota não existe e o aviso só tentaria à toa): instala
+# o modelo concord-alerta@.service e, em cada concord-*/salinha-*.service da
+# VPS (menos o próprio concord-server, que avisa quando volta), um complemento
+# <unidade>.d/alerta.conf com OnFailure=concord-alerta@%n.service. Não toca no
+# arquivo das unidades; a que já tem o OnFailure no próprio arquivo (o
+# concord-ytdlp-update.service gerado acima) fica como está. Idempotente: só
+# grava e recarrega o systemd se algo mudou. Falha aqui só avisa (o deploy
+# segue). SYSTEMD_DIR existe para testes.
+remote DIR="$DIR" SYSTEMD_DIR="${CONCORD_SYSTEMD_DIR:-/etc/systemd/system}" ALERT_UNIT="$(cat "$ROOT/deploy/concord-alerta@.service")" <<'REMOTE'
+set -euo pipefail
+if ! grep -Eq '^(export[[:space:]]+)?ALERTS_SERVER_ID=[^[:space:]#]' "$DIR/.env" 2>/dev/null; then
+  echo "Alertas: ALERTS_SERVER_ID não está no .env; unidades do systemd sem OnFailure"
+  exit 0
+fi
+# Grava o arquivo se o conteúdo mudou (devolve 0 = mudou, 1 = igual, 2 = erro).
+write_if_changed() {
+  [[ "$(cat "$1" 2>/dev/null || true)" == "$2" ]] && return 1
+  mkdir -p "$(dirname "$1")" && printf '%s\n' "$2" >"$1" || return 2
+}
+setup_alerts() {
+  local changed=0 f unit rc want
+  want=$'# Gerado pelo scripts/deploy-vps.sh: falhou, avisa em #alertas (docs/adr/0071).\n[Unit]\nOnFailure=concord-alerta@%n.service'
+  write_if_changed "$SYSTEMD_DIR/concord-alerta@.service" "$ALERT_UNIT" && changed=1 || { rc=$?; ((rc == 1)) || return 1; }
+  for f in "$SYSTEMD_DIR"/concord-*.service "$SYSTEMD_DIR"/salinha-*.service; do
+    [[ -f "$f" ]] || continue
+    unit="${f##*/}"
+    [[ "$unit" == concord-server.service || "$unit" == concord-alerta@.service ]] && continue
+    grep -q '^OnFailure=concord-alerta@' "$f" && continue
+    write_if_changed "$f.d/alerta.conf" "$want" && changed=1 || { rc=$?; ((rc == 1)) || return 1; }
+  done
+  if ((changed)); then systemctl daemon-reload || return 1; fi
+}
+if setup_alerts; then
+  echo "Alertas: OnFailure das unidades do systemd em dia"
+else
+  echo "AVISO: não consegui instalar os alertas das unidades do systemd (o deploy segue)" >&2
 fi
 REMOTE
 

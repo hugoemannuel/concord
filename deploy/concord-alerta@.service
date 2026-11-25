@@ -14,5 +14,5 @@ Type=oneshot
 # A porta do backend (ListenStream do concord-server.socket). Outra porta:
 # um complemento concord-alerta@.service.d/porta.conf com outro Environment=.
 Environment=ALERT_URL=http://127.0.0.1:8090/internal/alerts/unit-failed
-# Tenta por ~5 min: a falha pode ser num boot, antes de o backend subir.
-ExecStart=/usr/bin/curl -fsS -m 10 --retry 20 --retry-delay 15 --retry-all-errors --data-urlencode unit=%i ${ALERT_URL}
+# Tenta por ~5–9 min (o backend pode estar numa avaliação lenta): a falha pode ser num boot, antes de o backend subir.
+ExecStart=/usr/bin/curl -fsS -m 40 --retry 10 --retry-delay 15 --retry-all-errors --data-urlencode unit=%i ${ALERT_URL}
