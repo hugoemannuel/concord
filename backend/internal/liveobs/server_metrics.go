@@ -104,13 +104,17 @@ var counterQueries = [numCounters]query{
 	cCPUSeconds:         {"process_cpu_seconds_total", nil},
 }
 
+// video: o rótulo kind que o LiveKit publica (TrackType.String(), em
+// maiúsculas; conferido na produção em 25/11/2026: kind="VIDEO" e "AUDIO").
+var video = map[string]string{"kind": "VIDEO"}
+
 var gaugeQueries = [numGauges]query{
 	gRooms:        {"livekit_room_total", nil},
 	gParticipants: {"livekit_participant_total", nil},
 	gTracksIn:     {"livekit_track_published_total", nil},
 	gTracksOut:    {"livekit_track_subscribed_total", nil},
-	gVideoIn:      {"livekit_track_published_total", map[string]string{"kind": "video"}},
-	gVideoOut:     {"livekit_track_subscribed_total", map[string]string{"kind": "video"}},
+	gVideoIn:      {"livekit_track_published_total", video},
+	gVideoOut:     {"livekit_track_subscribed_total", video},
 	gRSS:          {"process_resident_memory_bytes", nil},
 }
 

@@ -36,10 +36,10 @@ livekit_quality_score_sum 40
 livekit_quality_score_count 10
 livekit_room_total 1
 livekit_participant_total 3
-livekit_track_published_total{kind="audio"} 3
-livekit_track_published_total{kind="video"} 1
-livekit_track_subscribed_total{kind="audio"} 6
-livekit_track_subscribed_total{kind="video"} 2
+livekit_track_published_total{kind="AUDIO"} 3
+livekit_track_published_total{kind="VIDEO"} 1
+livekit_track_subscribed_total{kind="AUDIO"} 6
+livekit_track_subscribed_total{kind="VIDEO"} 2
 process_cpu_seconds_total 10
 process_resident_memory_bytes 5.24288e+07
 `
@@ -63,10 +63,10 @@ livekit_quality_score_sum 85
 livekit_quality_score_count 20
 livekit_room_total 2
 livekit_participant_total 5
-livekit_track_published_total{kind="audio"} 4
-livekit_track_published_total{kind="video"} 2
-livekit_track_subscribed_total{kind="audio"} 12
-livekit_track_subscribed_total{kind="video"} 6
+livekit_track_published_total{kind="AUDIO"} 4
+livekit_track_published_total{kind="VIDEO"} 2
+livekit_track_subscribed_total{kind="AUDIO"} 12
+livekit_track_subscribed_total{kind="VIDEO"} 6
 process_cpu_seconds_total 40
 process_resident_memory_bytes 1.048576e+08
 `
