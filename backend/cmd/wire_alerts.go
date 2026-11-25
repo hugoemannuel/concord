@@ -8,11 +8,13 @@ import (
 	"time"
 
 	"gin-quickstart/backend/internal/alert"
+	"gin-quickstart/backend/internal/apperrors"
 	"gin-quickstart/backend/internal/bot"
 	"gin-quickstart/backend/internal/channel"
 	"gin-quickstart/backend/internal/channelcategory"
 	"gin-quickstart/backend/internal/liveobs"
 	"gin-quickstart/backend/internal/message"
+	"gin-quickstart/backend/internal/serverobs"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +32,8 @@ const alertMessageKind = "alert"
 func (a *app) wireAlerts() {
 	serverID := strings.TrimSpace(os.Getenv("ALERTS_SERVER_ID"))
 	repo := alert.NewRepository(a.db)
-	rules := alert.Rules(repo)
+	feeds := alert.NewFeeds(repo, serverobs.NewHostRepository(a.db), serverobs.NewAPIRepository(a.db), apperrors.NewRepository(a.db))
+	rules := alert.Rules(feeds)
 	report := alert.NewReportHandler(repo, liveobs.NewReportRepository(a.db), alert.Titles(rules), serverID != "")
 	a.route(func(_ *gin.Engine, api *gin.RouterGroup) { alert.ReportRoutes(api, report, a.authMiddleware) })
 	if serverID == "" {
