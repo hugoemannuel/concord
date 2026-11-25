@@ -9,7 +9,8 @@ import {
   type Draft,
   type TimedEvent
 } from './telemetryOutbox'
-import { shareSample, watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
+import { watchSample, type SampleCounters, type SampleResult } from './telemetrySample'
+import { shareSample } from './telemetryShare'
 import type {
   ClientContext,
   SessionKind,
