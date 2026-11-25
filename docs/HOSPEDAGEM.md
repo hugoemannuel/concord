@@ -1005,6 +1005,25 @@ Até o `--infra`, o backend grava as linhas só com a CPU/memória da VPS
 `LIVEKIT_PROMETHEUS_PORT` no `/opt/concord/.env` (o backend e o compose leem
 a mesma variável).
 
+### Métricas da API e da VPS
+
+O backend grava, a cada minuto, a saúde da API (`api_metrics`; rotas de 5 em 5
+min em `api_route_metrics`) e da máquina (`host_metrics`; as maiores tabelas
+de hora em hora em `db_table_sizes`), lendo só o `/proc` e o `statfs`: nada a
+instalar e nenhuma porta nova. 14 dias de retenção. Painel e consultas:
+[OBSERVABILIDADE.md](OBSERVABILIDADE.md#servidor-api-e-vps) ([ADR 0067](adr/0067-metricas-da-api-e-da-vps.md)).
+
+Variáveis (opcionais, no `/opt/concord/.env`):
+
+| Variável | Padrão | Para quê |
+|---|---|---|
+| `OBS_DISK_PATH` | `.` (a pasta de trabalho do serviço: `/opt/concord`) | pasta cujo disco é medido (espaço, inodes, leitura/escrita) |
+| `OBS_BACKUP_DIR` | `backups` (= `/opt/concord/backups`) | idade e tamanho do backup mais novo; sem a pasta, fica nulo |
+
+O CPU e a memória do Postgres saem dos processos `postgres` no `/proc` (os do
+container aparecem para o host); se o `/proc` estiver montado com `hidepid`,
+ficam nulos.
+
 ## Nomes de usuário sem diferenciar caixa
 
 O login aceita e-mail ou nome de usuário sem diferenciar maiúsculas de

@@ -42,8 +42,11 @@ primeira; períodos: 24 h, 3, 7 ou 14 dias, valendo para todas as abas).
   decodificando no processador entre os espectadores) e as **piores lives e
   por quê** (de quem transmite e de quem assiste).
 - **Chamadas** (`chamadas`): as **piores chamadas e por quê** (voz das calls).
-- **Servidor** (`servidor`): picos de saída, pessoas, CPU da VPS e perda média
-  na descida; gráficos de banda (entrada/saída) e de CPU (VPS e LiveKit).
+- **Servidor** (`servidor`): em blocos **VPS** (CPU com steal, RAM e swap, disco,
+  rede, backup, último boot, banco), **API** (pedidos por minuto, 5xx, latência,
+  rotas mais lentas e com erro, WebSockets, pool do banco, panics) e **LiveKit**
+  (picos de saída, pessoas, perda na descida; banda e CPU). Ver
+  [Servidor: API e VPS](#servidor-api-e-vps).
 - **Distribuição** (`distribuicao`) por sistema, placa de vídeo, codec e conexão.
 - **Eventos** (`eventos`): eventos recentes das lives e calls.
 
@@ -270,3 +273,122 @@ SELECT at, type, detail FROM live_events WHERE session_id = '<id>' ORDER BY at;
 boot que o buffer de UDP é pequeno (425 984 × 5 000 000 sugeridos); confira
 `grep -A1 '^Udp:' /proc/net/snmp` (coluna `RcvbufErrors`). Em 30/10/2026
 eram 10 em 5 dias (sem efeito).
+
+## Servidor: API e VPS
+
+Desde a [ADR 0067](adr/0067-metricas-da-api-e-da-vps.md) o backend guarda também a
+saúde da API e da máquina, para responder o que aconteceu numa queda ou lentidão
+(como os 16 minutos fora em 24/11/2026). Tudo lido pelo próprio backend (middleware
+do gin, `runtime`, `pgxpool.Stat`, `/proc` e `statfs`), 14 dias de retenção.
+
+| Tabela | De quanto em quanto | O quê |
+|---|---|---|
+| `api_metrics` | 1 min | pedidos, por classe (2xx, 3xx, 4xx, 5xx), latência p50/p95/p99/máx (ms, por baldes; o máx é exato), pedidos em andamento (agora e o máximo do minuto), **panics**, WebSockets abertos e quantos entraram/saíram, goroutines, heap e `Sys` do Go, ciclos e pausa de GC, pool do Postgres (em uso, ociosas, total, máximo, esperas por conexão e quanto tempo esperaram) |
+| `api_route_metrics` | 5 min, até 20 rotas | por rota (método + padrão do gin, ex. `GET /api/channels/:id/messages`, nunca a URL): pedidos, 4xx, 5xx, p50, p95, máx e tempo total; as com 5xx primeiro, depois as que mais gastaram tempo |
+| `host_metrics` | 1 min | CPU (uso, `iowait`, `steal`), carga 1/5/15, RAM usada (%) e disponível, swap, disco da pasta de dados (usado/livre, %, inodes, leitura/escrita por segundo, % ocupado), rede da interface principal (bytes e pacotes por segundo, erros, descartes), erros UDP do kernel (`InErrors`, `RcvbufErrors`, `SndbufErrors`), CPU e memória do backend e do Postgres, tamanho do banco e conexões, idade e tamanho do backup mais novo, hora do boot |
+| `db_table_sizes` | 1 h | as 10 maiores tabelas (com índices) |
+
+Fora da conta da API: `/healthz`, os downloads longos (`/updates/*`, mídia do chat) e
+o `/rtc` do LiveKit. O `/ws` conta como conexão, não como pedido. `minute` é o
+minuto da coleta (os números são do minuto anterior a ele); nas rotas, o fim da
+janela de 5 min. Nulo = não deu para ler (ex.: Windows em dev). CPU de processo
+em % da máquina inteira (100% = as 2 vCPUs). Um buraco nas duas tabelas = o
+backend estava fora; `boot_at` mudou = a máquina reiniciou.
+
+**Painel:** aba **Servidor** de `/observabilidade`, em blocos VPS, API e LiveKit.
+O mesmo JSON: `GET /api/obs/server?days=7` (token de um dev).
+
+### Consultas prontas (psql)
+
+**O que aconteceu na última hora** (um buraco de minutos = backend fora):
+```sql
+SELECT a.minute, a.requests, a.status_5xx, round(a.p95_ms::numeric) AS p95_ms, a.panics,
+       a.ws_open, a.db_in_use, a.db_waits, round(h.cpu_pct::numeric) AS cpu,
+       round(h.steal_pct::numeric, 1) AS steal, round(h.mem_used_pct::numeric) AS ram,
+       round(h.swap_used_mb::numeric) AS swap_mb, h.boot_at
+FROM api_metrics a LEFT JOIN host_metrics h USING (minute)
+WHERE a.minute > now() - interval '1 hour' ORDER BY a.minute;
+```
+
+**Buracos (backend fora) nos últimos 14 dias:**
+```sql
+SELECT minute AS voltou, minute - prev AS ficou_fora
+FROM (SELECT minute, lag(minute) OVER (ORDER BY minute) AS prev FROM api_metrics) x
+WHERE minute - prev > interval '2 minutes' ORDER BY minute DESC;
+```
+
+**Reinícios da máquina:**
+```sql
+SELECT DISTINCT boot_at FROM host_metrics WHERE boot_at IS NOT NULL ORDER BY 1 DESC;
+```
+
+**Rotas com mais 5xx e mais lentas (últimas 24 h):**
+```sql
+SELECT route, sum(requests) AS pedidos, sum(status_5xx) AS erros_5xx,
+       round((sum(total_ms) / nullif(sum(requests), 0))::numeric, 1) AS media_ms,
+       round(max(p95_ms)::numeric) AS p95_ms, round(max(max_ms)::numeric) AS max_ms
+FROM api_route_metrics WHERE minute > now() - interval '24 hours'
+GROUP BY 1 ORDER BY erros_5xx DESC, sum(total_ms) DESC LIMIT 20;
+```
+
+**API por hora (pedidos, 5xx, latência, pool):**
+```sql
+SELECT date_trunc('hour', minute) AS hora, sum(requests) AS pedidos, sum(status_5xx) AS erros_5xx,
+       round(max(p95_ms)::numeric) AS pior_p95_ms, sum(panics) AS panics,
+       max(ws_open) AS ws_max, max(db_in_use) AS banco_max, sum(db_waits) AS esperas_banco,
+       max(goroutines) AS goroutines_max, round(max(heap_mb)::numeric) AS heap_mb_max
+FROM api_metrics WHERE minute > now() - interval '24 hours' GROUP BY 1 ORDER BY 1;
+```
+
+**Quedas de WebSocket em massa** (todo mundo saindo no mesmo minuto):
+```sql
+SELECT minute, ws_open, ws_connects, ws_disconnects FROM api_metrics
+WHERE ws_disconnects > 5 ORDER BY minute DESC LIMIT 30;
+```
+
+**VPS por hora (CPU, steal, RAM, swap, disco, rede):**
+```sql
+SELECT date_trunc('hour', minute) AS hora, round(avg(cpu_pct)::numeric) AS cpu, round(max(cpu_pct)::numeric) AS cpu_max,
+       round(max(steal_pct)::numeric, 1) AS steal_max, round(max(iowait_pct)::numeric, 1) AS iowait_max,
+       round(max(mem_used_pct)::numeric) AS ram_max, round(max(swap_used_mb)::numeric) AS swap_mb,
+       round(max(disk_used_pct)::numeric) AS disco, round((max(net_tx_bps) * 8 / 1e6)::numeric, 1) AS mbps_saida_max,
+       sum(udp_rcvbuf_errors) AS udp_rcvbuf
+FROM host_metrics WHERE minute > now() - interval '24 hours' GROUP BY 1 ORDER BY 1;
+```
+
+**Quem come a máquina** (backend × Postgres; o LiveKit está em `livekit_metrics`):
+```sql
+SELECT date_trunc('hour', h.minute) AS hora, round(avg(h.cpu_pct)::numeric) AS vps,
+       round(avg(h.backend_cpu_pct)::numeric, 1) AS backend, round(avg(h.postgres_cpu_pct)::numeric, 1) AS postgres,
+       round(avg(l.livekit_cpu_pct / 2)::numeric, 1) AS livekit,  -- livekit_cpu_pct é % de 1 vCPU
+       round(max(h.backend_mem_mb)::numeric) AS backend_mb, round(max(h.postgres_mem_mb)::numeric) AS postgres_mb
+FROM host_metrics h LEFT JOIN livekit_metrics l USING (minute)
+WHERE h.minute > now() - interval '24 hours' GROUP BY 1 ORDER BY 1;
+```
+
+**Backup e banco agora:**
+```sql
+SELECT minute, backup_at, now() - backup_at AS idade, pg_size_pretty(backup_bytes) AS backup,
+       pg_size_pretty(db_size_bytes) AS banco, db_connections
+FROM host_metrics ORDER BY minute DESC LIMIT 1;
+SELECT table_name, pg_size_pretty(total_bytes) FROM db_table_sizes
+WHERE hour = (SELECT max(hour) FROM db_table_sizes) ORDER BY total_bytes DESC;
+```
+
+### Onde agir (API e VPS)
+
+| Sinal | Provável causa | O que fazer |
+|---|---|---|
+| buraco em `api_metrics` e `host_metrics`, `boot_at` igual | o backend caiu ou reiniciou | `journalctl -u concord-server` no horário; `panics` e `heap_mb`/`goroutines` subindo antes = vazamento ou panic |
+| buraco nas duas tabelas e `boot_at` novo | a VPS reiniciou | painel do provedor; ver `swap_used_mb`/`mem_used_pct` antes |
+| `steal_pct` > 10% por vários minutos | vizinho barulhento na VPS | abrir chamado no provedor ou trocar de plano/host |
+| `iowait_pct` alto, `disk_busy_pct` perto de 100% | disco lento (backup, `VACUUM`, uploads) | ver o horário do backup; disco melhor |
+| `mem_used_pct` > 90% e swap crescendo | RAM no limite | ver backend/Postgres/LiveKit/Maestro na consulta "quem come a máquina" |
+| `disk_used_pct` > 85% ou inodes > 85% | disco enchendo | `du -sh /opt/concord/*`; uploads e backups antigos |
+| backup com mais de 26 h | o timer do `pg_dump` não rodou | `systemctl list-timers`, `journalctl -u <backup>` |
+| `status_5xx` numa rota | erro do servidor nessa rota | consulta "rotas com mais 5xx"; log do backend no minuto |
+| `p95_ms` alto com `db_waits` > 0 | pool do Postgres esgotado | consultas lentas (`pg_stat_statements`), `db_max` |
+| `p95_ms` alto sem espera no banco, CPU alta | CPU da VPS | ver quem come a máquina |
+| `ws_disconnects` grande num minuto | reinício do backend/Caddy ou rede da VPS | conferir deploy no horário; `net_drops`/`net_errors` |
+| `goroutines` ou `heap_mb` só sobem | vazamento no backend | `pprof`; comparar com o último deploy |
+| `udp_rcvbuf_errors` subindo com lives pesadas | buffer de UDP do kernel pequeno (ver a nota do LiveKit acima) | `net.core.rmem_max` maior |
