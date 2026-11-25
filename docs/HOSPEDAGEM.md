@@ -1024,6 +1024,15 @@ O CPU e a memória do Postgres saem dos processos `postgres` no `/proc` (os do
 container aparecem para o host); se o `/proc` estiver montado com `hidepid`,
 ficam nulos.
 
+### Erros do app (pilha traduzida)
+
+Nada a ligar: os erros do app e os panics do backend vão para o banco com a
+migration 000212 ([OBSERVABILIDADE.md](OBSERVABILIDADE.md#erros-do-app)). Para a
+pilha do renderer sair traduzida no painel, o deploy guarda os source maps do
+build em `/opt/concord/sourcemaps/` (fora do que o Caddy serve; os de mais de
+90 dias são apagados a cada deploy). Outra pasta: `SOURCEMAPS_DIR` no
+`/opt/concord/.env` (vazia = sem tradução; a pilha aparece crua).
+
 ## Nomes de usuário sem diferenciar caixa
 
 O login aceita e-mail ou nome de usuário sem diferenciar maiúsculas de

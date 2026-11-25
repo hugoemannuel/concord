@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { appendLog, logPath } from '../app/appLog'
+import { reportHelperExit } from '../errorReport/mainErrors'
 
 // Som só da janela compartilhada (Windows 10 2004+): o helper nativo
 // concord-audio.exe captura o áudio do processo dono da janela e manda PCM
@@ -100,10 +101,14 @@ export function startWindowAudio(hwnd: string, contents: WebContents): Promise<b
       logAudio(`falha ao iniciar o helper: ${err.message}`)
       finish(false)
     })
-    child.on('exit', (code) => {
+    child.on('exit', (code, signal) => {
       logAudio(`helper saiu (código ${code})`)
       finish(false)
-      if (helper === child) stopWindowAudio()
+      // Ainda é o helper atual: ninguém pediu (stopWindowAudio já o teria trocado).
+      if (helper === child) {
+        reportHelperExit('concord-audio', code, signal)
+        stopWindowAudio()
+      }
     })
     child.stderr?.setEncoding('utf8')
     child.stderr?.on('data', (text: string) => {

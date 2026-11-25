@@ -101,3 +101,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0063. Pôr alguém de castigo nas calls do servidor, direto ou por votação da call](0063-castigo-na-call.md)
 - [0065. Mencionar cargo pelo nome no texto, com os ids escolhidos enviados pelo app](0065-mencao-de-cargo-pelo-nome.md)
 - [0067. Métricas da API por minuto e da VPS no Postgres, lidas pelo próprio backend](0067-metricas-da-api-e-da-vps.md)
+- [0068. Relatório de erros do app: grupos por impressão digital e pilha traduzida no servidor](0068-relatorio-de-erros-do-app.md)

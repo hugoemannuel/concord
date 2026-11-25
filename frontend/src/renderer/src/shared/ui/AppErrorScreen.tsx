@@ -3,6 +3,7 @@ import { useRouteError } from 'react-router-dom'
 import { updateFromErrorScreen } from '../../features/updates/lib/appUpdate'
 import Button from './Button'
 import UpdateBar from '../../features/updates/components/UpdateBar'
+import { reportAppError } from '../lib/errorSink'
 
 /**
  * "Algo deu errado": no lugar da tela crua de erro do react-router (ou da tela
@@ -65,6 +66,7 @@ export function RouteErrorScreen(): React.JSX.Element {
   const error = useRouteError()
   useEffect(() => {
     console.error('[router] erro na tela:', error)
+    reportAppError(error, 'rota')
   }, [error])
   return <AppErrorScreen error={error} />
 }
@@ -79,6 +81,8 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, { error
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
     console.error('[app] erro na tela:', error, info.componentStack)
+    // Só o erro: o componentStack, as props e o estado ficam no aparelho.
+    reportAppError(error, 'tela')
   }
 
   render(): ReactNode {

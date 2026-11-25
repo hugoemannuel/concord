@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import { reportAppError } from '../lib/errorSink'
 import { colors, fontSize, spacing } from '../theme/tokens'
 import { Button } from './Button'
 
@@ -17,6 +18,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(): State {
     return { failed: true }
+  }
+
+  // Só o erro vai ao relatório: nada de componentStack, props ou estado (ADR 0068).
+  componentDidCatch(error: unknown): void {
+    reportAppError(error, 'tela')
   }
 
   private retry = (): void => this.setState({ failed: false })

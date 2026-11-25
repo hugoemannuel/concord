@@ -69,6 +69,7 @@ import { setupNativeLive } from './nativeLive/setupNativeLive'
 import { openSplash } from './splash/openSplash'
 import { createMainWindowStartup } from './splash/mainWindowStartup'
 import { takeHiddenRelaunch } from './splash/splashMarks'
+import { setupErrorReport } from './errorReport/setupErrorReport'
 
 let mainWindow: BrowserWindow | null = null
 /** Endereço do servidor que respondeu ao abrir (undefined no dev: o do build). */
@@ -294,6 +295,8 @@ function createWindow(): void {
 
   loadRenderer(mainWindow)
 }
+
+setupErrorReport(() => mainWindow) // relatório de erros (docs/adr/0068): antes de tudo
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

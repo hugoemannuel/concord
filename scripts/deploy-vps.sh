@@ -8,7 +8,9 @@
 # de download (site/), o app web (frontend/dist-web, gerado por
 # `yarn build:web`) e as atualizações do app (backend/updates, geradas por
 # release-win.sh/release-linux.sh: instaladores, AppImage, .tar.gz do Linux e
-# manifestos) para /opt/concord, garante o ffmpeg e o yt-dlp do Maestro (bot de
+# manifestos) para /opt/concord, os source maps do renderer (frontend/sourcemaps,
+# gerados pelos builds; ficam em /opt/concord/sourcemaps, fora do que o Caddy
+# serve, e os de mais de 90 dias são apagados), garante o ffmpeg e o yt-dlp do Maestro (bot de
 # música; binário oficial + timer diário de atualização) e reinicia o backend.
 # O site/install.sh vai com a chave pública de backend/.release-key embutida.
 # Reiniciar não derruba chamadas: o backend recarrega as chamadas ativas, e a
@@ -82,7 +84,7 @@ remote() {
 q() { printf '%q' "$1"; }
 
 (cd "$ROOT/backend" && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o "$BIN" ./cmd)
-ssh "$HOST" "mkdir -p $(q "$DIR/updates") $(q "$DIR/uploads") $(q "$DIR/web")"
+ssh "$HOST" "mkdir -p $(q "$DIR/updates") $(q "$DIR/uploads") $(q "$DIR/web") $(q "$DIR/sourcemaps")"
 rsync -az "$BIN" "$HOST:$DIR/concord-server.new"
 rsync -az --delete "$ROOT/backend/migrations/" "$HOST:$DIR/migrations.new/"
 # O compose novo só substitui o atual se não recriar nada (ver abaixo).
@@ -94,6 +96,14 @@ rsync -az --delete --chmod=D755,F644 "$SITE/" "$HOST:$DIR/site.new/"
 if [[ -d "$ROOT/backend/updates" ]]; then
   rsync -az --chmod=D755,F644 --exclude latest.yml --exclude latest-linux.yml --exclude latest-linux-tar.yml "$ROOT/backend/updates/" "$HOST:$DIR/updates/"
 fi
+# Source maps do renderer (docs/adr/0068): o backend traduz com eles a pilha
+# dos erros do app (SOURCEMAPS_DIR). Só o backend lê; o Caddy não serve esta
+# pasta. Sem --delete: quem ainda não atualizou continua mandando erros da
+# versão antiga. Os de mais de 90 dias saem.
+if [[ -d "$ROOT/frontend/sourcemaps" ]]; then
+  rsync -az --chmod=D755,F644 "$ROOT/frontend/sourcemaps/" "$HOST:$DIR/sourcemaps/"
+fi
+ssh "$HOST" "find $(q "$DIR/sourcemaps") -type f -name '*.map' -mtime +90 -delete"
 
 # Postgres/LiveKit: compara o hash da configuração nova de cada serviço (o que
 # o Compose usa para decidir recriar) com o dos containers rodando.

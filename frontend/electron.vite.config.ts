@@ -5,7 +5,7 @@ import {
   buildMediaSrc,
   serverCandidates
 } from './src/renderer/src/shared/lib/serverUrl'
-import { cspPlugin, rendererShared } from './vite.renderer.shared'
+import { cspPlugin, rendererShared, SOURCEMAP_BUILD } from './vite.renderer.shared'
 
 // Endereço do servidor e os alternativos (o app usa o primeiro que responde
 // ao abrir; ver src/main/server/serverChoice.ts).
@@ -38,8 +38,11 @@ export default defineConfig({
     // Aliases, plugins e assets: iguais aos do build web (vite.renderer.shared.ts).
     ...rendererShared(connectSrcPlugin),
     // Duas páginas: o app e o overlay de jogo (janela à parte, sem rede).
+    // Source maps "hidden", fora do pacote (SOURCEMAP_BUILD, docs/adr/0068).
     build: {
+      sourcemap: SOURCEMAP_BUILD.sourcemap,
       rollupOptions: {
+        ...SOURCEMAP_BUILD.rollupOptions,
         input: {
           index: resolve('src/renderer/index.html'),
           overlay: resolve('src/renderer/overlay.html')

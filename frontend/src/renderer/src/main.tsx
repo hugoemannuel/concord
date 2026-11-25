@@ -25,6 +25,10 @@ import { startTTS } from './features/tts/lib/ttsStart'
 import { startSessionRevoked } from './features/auth/lib/sessionRevokedStart'
 import { startPluginsEvents } from './features/plugins/lib/pluginsEventsStart'
 import { startServerLevels } from './features/serverlevel/lib/serverLevelStart'
+import { startErrorReports } from './features/errorReports/lib/errorReportStart'
+
+// Relatório de erros (docs/adr/0068): primeiro, para pegar os erros dos outros start*.
+startErrorReports()
 
 // Tema salvo antes do primeiro render: o app já abre com as cores certas (os
 // temas próprios primeiro, para o CSS deles existir quando o tema for aplicado).

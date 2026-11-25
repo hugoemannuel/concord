@@ -3,6 +3,7 @@ import CallsTab from '../components/tabs/CallsTab'
 import EventsTab from '../components/tabs/EventsTab'
 import LivesTab from '../components/tabs/LivesTab'
 import ServerTab from '../components/tabs/ServerTab'
+import ErrorsTab from '../../errorReports/components/ErrorsTab'
 
 // Registro das abas do painel /observabilidade (docs/OBSERVABILIDADE.md § Painel).
 // Aba nova = uma entrada aqui: `id` vira a URL (/observabilidade/<id>), `label` é
@@ -20,5 +21,6 @@ export const PANEL_TABS: PanelTab[] = [
   { id: 'chamadas', label: 'Chamadas', Component: CallsTab },
   { id: 'servidor', label: 'Servidor', Component: ServerTab },
   { id: 'distribuicao', label: 'Distribuição', Component: BreakdownTab },
-  { id: 'eventos', label: 'Eventos', Component: EventsTab }
+  { id: 'eventos', label: 'Eventos', Component: EventsTab },
+  { id: 'erros', label: 'Erros', Component: ErrorsTab }
 ]
