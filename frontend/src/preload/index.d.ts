@@ -7,6 +7,7 @@ import type { PortalStatus, ScreenShareFlow } from '../shared/screenShareFlow'
 import type { ServerDiagnostics } from '../shared/serverConnection'
 import type { TTSVoiceState } from '../shared/ttsVoice'
 import type { NativeLiveApi } from './nativeLiveApi'
+import type { ErrorReportApi } from './errorReportApi'
 
 export interface ScreenSourceInfo {
   id: string
@@ -222,6 +223,8 @@ declare global {
       nativeLive?: NativeLiveApi
       /** Esconde a janela de print/gravação (só no app desktop). */
       contentProtection?: { set(on: boolean): Promise<void> }
+      /** Erros do main do Electron para o relatório de erros (docs/adr/0068). */
+      errorReport?: ErrorReportApi
     }
   }
 }
