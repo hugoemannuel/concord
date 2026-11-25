@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"gin-quickstart/backend/internal/apperrors"
 	"gin-quickstart/backend/internal/serverobs"
 )
 
@@ -50,4 +51,8 @@ func (f *fakeSources) PreviousBackup(context.Context, time.Time) (*Backup, error
 func (f *fakeSources) PeakEgress(context.Context, time.Time) (*Peak, error) {
 	f.peakCalls++
 	return f.peak, f.err
+}
+
+func (f *fakeSources) AffectedByGroup(context.Context, time.Time, time.Time) ([]apperrors.GroupImpact, error) {
+	return f.impact, f.err
 }

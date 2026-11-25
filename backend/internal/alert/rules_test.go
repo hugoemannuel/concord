@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"gin-quickstart/backend/internal/apperrors"
 	"gin-quickstart/backend/internal/serverobs"
 )
 
@@ -22,6 +23,7 @@ type fakeSources struct {
 	lastMinute  *time.Time
 	prevBackup  *Backup
 	peak        *Peak
+	impact      []apperrors.GroupImpact
 	backupCalls int
 	peakCalls   int
 }

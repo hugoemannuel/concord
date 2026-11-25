@@ -9,6 +9,7 @@ type Sources interface {
 	collectorSource // host_metrics, api_metrics e o último minuto do LiveKit
 	backupSource
 	egressSource
+	impactSource
 }
 
 // Rules: as regras avaliadas a cada minuto. Regra nova = um rule_<nome>.go
@@ -34,6 +35,8 @@ func Rules(src Sources) []Rule {
 		udpBufferRule(src),
 		collectorRule(src),
 		capacityRule(src),
+		errorSpikeRule(src),
+		decoderFailingRule(src),
 	}
 }
 
@@ -51,6 +54,7 @@ func Titles(rules []Rule) map[string]string {
 		databaseDownRuleID: "Banco fora do ar",
 		unitFailedRuleID:   "Serviço do systemd falhou",
 		freezeRuleID:       "Máquina congelada",
+		errorNewRuleID:     "Erro novo",
 	}
 	for _, r := range rules {
 		out[r.ID] = r.Title

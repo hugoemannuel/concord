@@ -40,7 +40,8 @@ func (a *app) wireAlerts() {
 		return
 	}
 	poster := alert.NewPoster(nil, a.postAlert)
-	engine := alert.NewEngine(rules, repo, poster, envOr("APP_URL", "http://localhost:5173"), envList("ALERTS_MUTED"))
+	appURL := envOr("APP_URL", "http://localhost:5173")
+	engine := alert.NewEngine(rules, repo, poster, appURL, envList("ALERTS_MUTED"))
 	units := alert.NewUnitHandler(engine)
 	a.route(func(router *gin.Engine, _ *gin.RouterGroup) { alert.UnitRoutes(router, units) })
 	store := alertChannels{repository: a.channelRepository, channels: a.channelService, categories: channelcategory.NewRepository(a.db)}
@@ -54,6 +55,7 @@ func (a *app) wireAlerts() {
 		Database:  alert.NewDatabaseWatch(a.db.Ping, engine.Notify),
 		Watches: []func(ctx context.Context){
 			alert.NewFreezeWatch(repo, engine.Notify).Run,
+			alert.NewErrorWatch(feeds, repo, engine.Notify, appURL).Run,
 		},
 		// Banco instável no boot: lê o estado de novo a cada 15 s.
 		RetryEvery: 15 * time.Second,
