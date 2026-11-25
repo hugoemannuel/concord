@@ -1,5 +1,5 @@
-// Quanto da linha a janela ficou visível e com foco, contado pelos eventos
-// (visibilitychange, focus, blur): sem timer nenhum.
+// Quanto da linha a janela ficou visível e com foco, contado pelas mudanças
+// do estado da janela do app (windowSignal.ts): sem timer nenhum.
 
 export class VisibilityClock {
   private since: number

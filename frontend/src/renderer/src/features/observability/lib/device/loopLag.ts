@@ -23,7 +23,7 @@ export class LoopLag {
 
   constructor(private readonly env: LagEnv) {}
 
-  /** Liga com a janela visível, desliga escondida. Chamar no início e no visibilitychange. */
+  /** Liga com a janela visível, desliga escondida. Chamar no início e a cada mudança da janela. */
   sync(): void {
     if (this.env.visible()) {
       if (this.timer === null) this.schedule()

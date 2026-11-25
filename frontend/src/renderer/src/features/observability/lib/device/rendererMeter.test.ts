@@ -71,6 +71,15 @@ describe('RendererMeter', () => {
     ])
   })
 
+  it('interação com a janela escondida não conta', () => {
+    const m = meter()
+    visible = false
+    m.windowChanged()
+    m.interaction(7, 400)
+    const row = m.take(null)
+    expect([row.slow_inputs, row.input_max_ms]).toEqual([0, null])
+  })
+
   it('stop desliga o timer do laço', () => {
     const m = meter()
     m.start()

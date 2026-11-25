@@ -49,15 +49,16 @@ export class RendererMeter {
     this.frames.add(durationMs, this.env.visible())
   }
 
+  /** Só com a janela visível, como os quadros longos. */
   interaction(interactionId: number, durationMs: number): void {
-    this.inputs.add(interactionId, durationMs)
+    if (this.env.visible()) this.inputs.add(interactionId, durationMs)
   }
 
   resource(entry: ResourceLike): void {
     this.api.add(entry)
   }
 
-  /** visibilitychange, focus ou blur. */
+  /** A janela do app mudou (minimizada, na bandeja, ganhou ou perdeu o foco). */
   windowChanged(): void {
     this.clock.set(this.env.now(), this.env.visible(), this.env.focused())
     this.lag.sync()

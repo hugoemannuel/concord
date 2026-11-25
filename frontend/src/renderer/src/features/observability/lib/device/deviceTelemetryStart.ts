@@ -14,12 +14,12 @@ import { deviceLabelOf, shouldCollect } from './deviceState'
 import { RendererMeter } from './rendererMeter'
 import { createSessionSwitch } from './sessionSwitch'
 import { markStartup } from './startupMark'
+import { watchWindowActivity, windowFocused, windowVisible } from './windowSignal'
 
 // Cola da telemetria do aparelho (docs/adr/0069) com o DOM, os stores (só
 // leitura) e o main. Timers: 60 s com login de conta e 2 s só com a janela
-// visível; o resto são observadores e eventos. Nenhum requestAnimationFrame.
-
-const isVisible = (): boolean => document.visibilityState === 'visible'
+// visível (pelo estado da janela do app, windowSignal.ts); o resto são
+// observadores e eventos. Nenhum requestAnimationFrame.
 
 function readHeap(): number | null {
   const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
@@ -49,24 +49,12 @@ function takeMain(): Promise<DeviceTake | null> {
   return window.api?.deviceStats?.take() ?? Promise.resolve(null)
 }
 
-/** Ouve visibilidade e foco; devolve o "desligar". */
-function watchWindow(onChange: () => void): () => void {
-  document.addEventListener('visibilitychange', onChange)
-  window.addEventListener('focus', onChange)
-  window.addEventListener('blur', onChange)
-  return () => {
-    document.removeEventListener('visibilitychange', onChange)
-    window.removeEventListener('focus', onChange)
-    window.removeEventListener('blur', onChange)
-  }
-}
-
 function startCollecting(webStartupMs: () => number | null): () => void {
   const now = (): number => performance.now()
   const meter = new RendererMeter({
     now,
-    visible: isVisible,
-    focused: () => document.hasFocus(),
+    visible: windowVisible,
+    focused: windowFocused,
     apiBaseUrl: API_BASE_URL,
     takeWsRtt
   })
@@ -83,7 +71,7 @@ function startCollecting(webStartupMs: () => number | null): () => void {
   })
   meter.start()
   const stopObservers = observeDevicePerformance(meter)
-  const stopWindow = watchWindow(() => meter.windowChanged())
+  const stopWindow = watchWindowActivity(() => meter.windowChanged())
   const onLabel = (): void => void reporter.labelChanged()
   const offCall = useCallStore.subscribe(onLabel)
   const offActivity = usePresenceActivityStore.subscribe(onLabel)
