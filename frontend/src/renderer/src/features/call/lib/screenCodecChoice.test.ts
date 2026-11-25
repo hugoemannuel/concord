@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   describeCodecChoice,
+  describeNativeChoice,
   noteScreenCodecChoice,
   takeScreenCodecChoice
 } from './screenCodecChoice'
@@ -28,6 +29,39 @@ describe('describeCodecChoice', () => {
         marked: []
       })
     ).toBe('vp8: vp8 | av1 placa, h265 placa, h264 placa')
+  })
+})
+
+describe('describeCodecChoice: AV1 sem as camadas temporais (ADR 0074)', () => {
+  const base = {
+    preference: 'auto' as const,
+    support: {
+      av1: 'software' as const,
+      h265: 'hardware' as const,
+      h264: 'hardware' as const,
+      vp8: 'software' as const
+    },
+    simulcast: false,
+    codec: { videoCodec: 'h265' as const, backupCodec: { codec: 'h264' as const } },
+    marked: []
+  }
+  it('o L1T1 na placa e o L1T3 não: anota ao lado', () => {
+    expect(describeCodecChoice({ ...base, av1Plain: 'hardware' })).toBe(
+      'auto: h265 + h264 | av1 proc. (L1T1 placa), h265 placa, h264 placa'
+    )
+  })
+  it('mesma resposta: não repete', () => {
+    expect(describeCodecChoice({ ...base, av1Plain: 'software' })).toBe(
+      'auto: h265 + h264 | av1 proc., h265 placa, h264 placa'
+    )
+  })
+})
+
+describe('describeNativeChoice', () => {
+  it('a live pelo motor nativo: o motor e onde o H.264 saiu', () => {
+    expect(describeNativeChoice(true)).toBe('nativo: h264 placa')
+    expect(describeNativeChoice(false)).toBe('nativo: h264 proc.')
+    expect(describeNativeChoice(null)).toBe('nativo: h264 —')
   })
 })
 

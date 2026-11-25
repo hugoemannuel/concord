@@ -386,6 +386,42 @@ describe('createTelemetryReporter: conexão e codec', () => {
     expect(t.sent).toHaveLength(1)
   })
 
+  it('ADR 0074: tempo até o ar e até o primeiro quadro na 1ª amostra; o microfone na voz', async () => {
+    const t = setup({ callId: 'c1', sharing: true, watching: ['bia'] })
+    let start: number | null = 2400
+    t.deps.media = {
+      liveStart: () => {
+        const out = start
+        start = null
+        return out
+      },
+      firstFrame: (id) => (id === 'bia' ? 900 : null)
+    }
+    t.deps.micDsp = () => ({ underrun: null, total: null, dsp: 'portão' })
+    await t.tick()
+    const first = t.sent.flat()
+    expect(first.find((r) => r.kind === 'transmite')?.sample).toMatchObject({ start_ms: 2400 })
+    expect(first.find((r) => r.kind === 'assiste')?.sample).toMatchObject({ start_ms: 900 })
+    expect(first.find((r) => r.kind === 'call')?.sample).toMatchObject({ dsp: 'portão' })
+    await t.tick()
+    const shares = t.sent.flat().filter((r) => r.kind === 'transmite')
+    expect(shares[1].sample?.start_ms).toBeNull()
+  })
+
+  it('ADR 0074: a live que não começou e o PC que dormiu vão na voz; no fim, se a call acabou', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: [] })
+    const pending = [{ type: 'live_falhou', detail: 'seletor · NotReadableError', at: 0 }]
+    t.deps.media = { liveFailures: () => pending.splice(0), sleeps: () => [] }
+    await t.tick()
+    const calls = t.sent.flat().filter((r) => r.kind === 'call')
+    expect(calls[0].events.map((e) => e.detail)).toContain('seletor · NotReadableError')
+    pending.push({ type: 'pc_dormiu', detail: '312 s', at: 0 })
+    t.set({ callId: null, sharing: false, watching: [] })
+    await t.tick()
+    const ended = t.sent.flat().find((r) => r.kind === 'call' && r.ended)
+    expect(ended?.events.map((e) => e.type)).toContain('pc_dormiu')
+  })
+
   it('a live leva o motivo do codec na amostra seguinte à escolha', async () => {
     const t = setup({ callId: 'c1', sharing: true, watching: [] })
     let choice: string | null = 'auto: h265 + h264'

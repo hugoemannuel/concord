@@ -12,6 +12,7 @@ import {
 } from './displayMedia'
 import { IS_WEB } from '../../../shared/lib/config'
 import { requestScreenQuality } from '../store/screenQualityStore'
+import { notePickerFailure } from './screenStartTelemetry'
 import {
   loadScreenQuality,
   rememberScreenSource,
@@ -68,7 +69,9 @@ export async function getDisplayStream(
       throw err
     })
     .catch((err: unknown) => {
-      throw portal ? portalPickerError(err) : pickerError(err)
+      const error = portal ? portalPickerError(err) : pickerError(err)
+      notePickerFailure(error)
+      throw error
     })
   const quality = requestedQuality ?? loadScreenQuality()
   stream.getVideoTracks().forEach(rememberScreenSource)

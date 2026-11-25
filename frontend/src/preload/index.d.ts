@@ -203,7 +203,12 @@ declare global {
       /** Sistema operacional do app desktop (process.platform). */
       platform?: string
       appMetrics?: { sample(reset?: boolean): Promise<AppMetrics | null> }
-      deviceStats?: { take(): Promise<import('../shared/deviceStats').DeviceTake | null>; usable(): void }
+      deviceStats?: {
+        take(): Promise<import('../shared/deviceStats').DeviceTake | null>
+        usable(): void
+        /** O PC acordou: quanto tempo ficou suspenso (ms). Versões antigas do preload não têm. */
+        onSlept?(cb: (sleptMs: number) => void): () => void
+      }
       perf?: { enabled(): Promise<boolean>; report(event: PerfEvent): void }
       /** Foco/visibilidade da janela; o renderer valida com parseWindowActivity. */
       windowActivity?: { onChange(cb: (activity: unknown) => void): () => void }

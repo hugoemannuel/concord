@@ -122,6 +122,32 @@ async function encoderOf(
   }
 }
 
+/**
+ * O AV1 sem camadas temporais (L1T1) sai na placa quando o L1T3 do LiveKit
+ * não sai? Só pergunta nesse caso (telemetria, ADR 0074): undefined = não
+ * perguntou ou não deu para saber.
+ */
+export async function av1WithoutLayers(
+  video: ScreenVideoShape,
+  api: EncodingInfoApi | undefined,
+  support: ScreenCodecSupport
+): Promise<CodecEncoder | undefined> {
+  if (!api || support.av1 === null || support.av1 === 'hardware') return undefined
+  try {
+    return (await ask(api, 'video/AV1', video, 'L1T1')).powerEfficient ? 'hardware' : 'software'
+  } catch {
+    return undefined
+  }
+}
+
+export function detectAv1WithoutLayers(
+  video: ScreenVideoShape,
+  support: ScreenCodecSupport
+): Promise<CodecEncoder | undefined> {
+  const api = globalThis.navigator?.mediaCapabilities as EncodingInfoApi | undefined
+  return av1WithoutLayers(video, api, support)
+}
+
 /** A placa só codifica o H.264 no High? Então a live precisa oferecer só ele. */
 export async function needsHighH264(
   video: ScreenVideoShape,

@@ -42,7 +42,7 @@ beforeEach(() => {
 
 function fakeWindow() {
   const listeners = new Map<string, Listener>()
-  const webContents = { mainFrame: {} }
+  const webContents = { mainFrame: {}, send: vi.fn() }
   const win = {
     isDestroyed: () => false,
     webContents,
@@ -116,6 +116,19 @@ describe('setupDeviceStats', () => {
       gpuCrashes: 1,
       sys: { speedLimitPct: 60 }
     })
+  })
+
+  it('o PC dormiu: ao acordar, conta à janela quanto tempo ficou suspenso (ADR 0074)', () => {
+    const { win, webContents } = fakeWindow()
+    setupDeviceStats(() => win as unknown as BrowserWindow)
+    electron.powerListeners.get('resume')?.()
+    expect(webContents.send).not.toHaveBeenCalled()
+    electron.powerListeners.get('suspend')?.()
+    vi.advanceTimersByTime(312_000)
+    electron.powerListeners.get('resume')?.()
+    expect(webContents.send).toHaveBeenCalledWith('device-stats:slept', 312_000)
+    electron.powerListeners.get('resume')?.()
+    expect(webContents.send).toHaveBeenCalledTimes(1)
   })
 
   it('usable marca a abertura só vindo da janela principal', () => {

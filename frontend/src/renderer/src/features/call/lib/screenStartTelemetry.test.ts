@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  failingAs,
   failureName,
+  notePickerFailure,
   noteLiveFailure,
   noteLiveStart,
   takeLiveFailures,
@@ -34,6 +36,20 @@ describe('screenStartTelemetry', () => {
   it('guarda no máximo as 5 últimas', () => {
     for (let i = 0; i < 7; i++) noteLiveFailure('seletor', new Error('x'), i)
     expect(takeLiveFailures().map((e) => e.at)).toEqual([2, 3, 4, 5, 6])
+  })
+})
+
+describe('failingAs e notePickerFailure', () => {
+  it('a etapa que rejeitou fica anotada e o erro segue', async () => {
+    const err = new DOMException('x', 'InvalidStateError')
+    await expect(failingAs('publicação', Promise.reject(err))).rejects.toBe(err)
+    expect(await failingAs('codec', Promise.resolve(7))).toBe(7)
+    expect(takeLiveFailures().map((e) => e.detail)).toEqual(['publicação · InvalidStateError'])
+  })
+  it('cancelar o seletor não é falha', () => {
+    notePickerFailure(new DOMException('x', 'NotAllowedError'))
+    notePickerFailure(new DOMException('x', 'NotReadableError'))
+    expect(takeLiveFailures().map((e) => e.detail)).toEqual(['seletor · NotReadableError'])
   })
 })
 

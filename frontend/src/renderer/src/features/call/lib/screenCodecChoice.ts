@@ -16,11 +16,20 @@ export interface CodecChoice {
   marked: ScreenVideoCodec[]
   /** De onde veio o som da live (a live nativa não informa). */
   sound?: ScreenSound
+  /** O AV1 sem camadas temporais (L1T1), quando o L1T3 não sai na placa (ADR 0074). */
+  av1Plain?: CodecEncoder
 }
 
 const WHERE: Record<string, string> = { hardware: 'placa', software: 'proc.' }
 
 const where = (encoder: CodecEncoder): string => (encoder ? WHERE[encoder] : '—')
+
+/** "av1 proc. (L1T1 placa)": a resposta sem as camadas só quando é outra. */
+function av1Part(choice: CodecChoice): string {
+  const plain = choice.av1Plain
+  const extra = plain !== undefined && plain !== choice.support.av1 ? ` (L1T1 ${where(plain)})` : ''
+  return `av1 ${where(choice.support.av1)}${extra}`
+}
 
 /** "auto: h264 + vp8 | av1 —, h265 proc., h264 placa | 720p extra | caiu no proc.: h265 | som: janela" */
 export function describeCodecChoice(choice: CodecChoice): string {
@@ -28,12 +37,23 @@ export function describeCodecChoice(choice: CodecChoice): string {
   const backup = codec.backupCodec ? ` + ${codec.backupCodec.codec}` : ''
   const parts = [
     `${choice.preference}: ${codec.videoCodec}${backup}`,
-    (['av1', 'h265', 'h264'] as const).map((c) => `${c} ${where(support[c])}`).join(', ')
+    [av1Part(choice), ...(['h265', 'h264'] as const).map((c) => `${c} ${where(support[c])}`)].join(
+      ', '
+    )
   ]
   if (choice.simulcast) parts.push('720p extra')
   if (choice.marked.length > 0) parts.push(`caiu no proc.: ${choice.marked.join(', ')}`)
   if (choice.sound) parts.push(`som: ${choice.sound}`)
   return parts.join(' | ')
+}
+
+/**
+ * A live pelo motor nativo (ADR 0031): só H.264, na placa ou no processador
+ * (powerEfficientEncoder do helper; null = ainda não disse). O "nativo:" é o
+ * que separa as lives nativas no painel (ADR 0074).
+ */
+export function describeNativeChoice(hardware: boolean | null): string {
+  return `nativo: h264 ${where(hardware === null ? null : hardware ? 'hardware' : 'software')}`
 }
 
 // A última escolha, até a telemetria levar (fora do callStore).

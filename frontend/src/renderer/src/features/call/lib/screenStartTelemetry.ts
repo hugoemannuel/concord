@@ -44,6 +44,21 @@ export function noteLiveFailure(stage: LiveStartStage, err: unknown, now = Date.
   failures = [...failures, event].slice(-MAX_FAILURES)
 }
 
+/** A etapa que rejeitou fica anotada; o erro segue para quem chamou. */
+export async function failingAs<T>(stage: LiveStartStage, run: Promise<T>): Promise<T> {
+  try {
+    return await run
+  } catch (err) {
+    noteLiveFailure(stage, err)
+    throw err
+  }
+}
+
+/** O seletor falhou (cancelar, NotAllowedError, não é falha). */
+export function notePickerFailure(err: unknown): void {
+  if (failureName(err) !== 'NotAllowedError') noteLiveFailure('seletor', err)
+}
+
 export function takeLiveFailures(): LiveFailureEvent[] {
   const out = failures
   failures = []

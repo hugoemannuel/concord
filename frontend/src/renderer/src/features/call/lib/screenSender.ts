@@ -15,6 +15,7 @@ import {
 } from './screenShareQuality'
 import { loadScreenCodec, screenCodecOptions } from './screenCodec'
 import {
+  detectAv1WithoutLayers,
   detectHighH264,
   detectScreenCodecs,
   markSoftwareCodec,
@@ -25,6 +26,7 @@ import {
 } from './screenCodecSupport'
 import { syncScreenScales } from './screenScaleSync'
 import { describeCodecChoice, noteScreenCodecChoice } from './screenCodecChoice'
+import { failingAs, noteLiveStart } from './screenStartTelemetry'
 import { screenSound } from './screenSound'
 import { chooseScreenSimulcast, loadScreenSimulcast } from './screenSimulcast'
 import { ScreenAdapt } from './screenAdapt'
@@ -70,8 +72,9 @@ async function screenPlan(
   const codec = screenCodecOptions(preference, support, simulcast, failed)
   const marked = softwareMarkedCodecs()
   const sound = screenSound(stream)
+  const av1Plain = await detectAv1WithoutLayers(shape, support)
   noteScreenCodecChoice(
-    describeCodecChoice({ preference, support, simulcast, codec, marked, sound })
+    describeCodecChoice({ preference, support, simulcast, codec, marked, sound, av1Plain })
   )
   return { codec, simulcast, h264High: await detectHighH264(shape), support }
 }
@@ -101,13 +104,16 @@ export class ScreenSender {
       useScreenCodecFallbackStore.getState().setFallback(fallback)
   ) {}
 
+  /** Publica a live; o tempo até o ar e onde falhou vão para a telemetria (ADR 0074). */
   async publish(stream: MediaStream): Promise<void> {
+    const started = performance.now()
     const [video] = stream.getVideoTracks()
     this.failed = []
     this.onFallback(null)
-    const plan = await screenPlan(stream, this.failed)
+    const plan = await failingAs('codec', screenPlan(stream, this.failed))
     this.published(plan)
-    await publishScreenTracks(this.participant, stream, plan)
+    await failingAs('publicação', publishScreenTracks(this.participant, stream, plan))
+    noteLiveStart(performance.now() - started)
     if (video) this.watch(stream, streamQuality(stream), screenSource(video), plan.simulcast)
   }
 
