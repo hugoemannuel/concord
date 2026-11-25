@@ -58,7 +58,8 @@ perda recebida, tempo para entrar). O backend manda uma lista só; o app separa
 por tipo (`kind = call` na aba Chamadas, o resto na aba Lives).
 
 As abas Lives, Chamadas, Servidor, Distribuição e Eventos usam o mesmo pedido
-(`useSharedLiveReport`): trocar entre elas não busca de novo.
+(`useSharedLiveReport`): trocar entre elas não busca de novo. A aba Servidor
+busca também os blocos VPS e API (`GET /api/obs/server`, hook `useServerReport`).
 
 **Aba nova** = uma entrada em
 `frontend/src/renderer/src/features/observability/lib/panelTabs.tsx`

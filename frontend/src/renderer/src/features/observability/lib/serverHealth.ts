@@ -58,6 +58,11 @@ export function apiSummary(api: ServerReport['api']): ApiSummary {
   }
 }
 
+/** A última linha tem mais de 3 min: o coletor parou (ou o backend caiu). */
+export function isStale(minuteIso: string, now: number): boolean {
+  return now - Date.parse(minuteIso) > 3 * 60000
+}
+
 // Limites dos avisos do bloco VPS (ver "Onde agir" em docs/OBSERVABILIDADE.md).
 const LIMITS = { cpu: 90, steal: 10, memory: 90, disk: 85, backupHours: 26 }
 
@@ -70,8 +75,9 @@ export interface HostSummary {
 const over = (value: number | null | undefined, limit: number): boolean =>
   value != null && value >= limit
 
+// Sem backup nenhum também é aviso (pasta errada ou o timer nunca rodou).
 function backupLate(backupAt: string | null | undefined, now: number): boolean {
-  return backupAt != null && now - Date.parse(backupAt) > LIMITS.backupHours * 3600000
+  return backupAt == null || now - Date.parse(backupAt) > LIMITS.backupHours * 3600000
 }
 
 export function hostSummary(host: ServerReport['host'], now: number): HostSummary {

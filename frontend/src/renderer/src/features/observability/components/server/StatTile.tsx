@@ -1,3 +1,5 @@
+import { timeLabel } from '../../lib/timeLabel'
+
 /**
  * Número de resumo no topo de um bloco. `warn`: o valor passou do limite (a
  * dica diz qual); a cor nunca vem sozinha.
@@ -23,6 +25,22 @@ export function StatTile({
       </span>
       {hint && <span className={`text-ds-xs ${warn ? 'text-warning' : 'text-muted'}`}>{hint}</span>}
     </div>
+  )
+}
+
+/** A hora da última linha; velha (o coletor parou) vira aviso. */
+export function LastCollected({
+  minute,
+  stale
+}: {
+  minute: string
+  stale: boolean
+}): React.JSX.Element {
+  return (
+    <p className={`text-ds-xs ${stale ? 'text-warning' : 'text-muted'}`}>
+      Última coleta: {timeLabel(minute)}
+      {stale && ' (parada: os números de agora estão velhos)'}
+    </p>
   )
 }
 

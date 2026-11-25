@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ApiPoint, HostMinute, HostPoint, ServerReport } from '../api/serverReport'
-import { ageLabel, apiSummary, bytesLabel, hostSummary, mbps } from './serverHealth'
+import { ageLabel, apiSummary, bytesLabel, hostSummary, isStale, mbps } from './serverHealth'
 
 const apiPoint = (p: Partial<ApiPoint>): ApiPoint => ({
   at: '2026-11-25T12:00:00Z',
@@ -134,9 +134,14 @@ describe('hostSummary', () => {
     )
     expect(s.cpuPeak).toBe(97)
   })
-  it('sem nada, sem aviso', () => {
+  it('sem nada, só o aviso de backup', () => {
     const s = hostSummary({ latest: null, tables: [], series: [] }, 0)
     expect(s.cpuPeak).toBeNull()
-    expect(s.warn).toEqual({ cpu: false, steal: false, memory: false, disk: false, backup: false })
+    expect(s.warn).toEqual({ cpu: false, steal: false, memory: false, disk: false, backup: true })
+  })
+  it('última coleta com mais de 3 min é velha', () => {
+    const now = Date.parse('2026-11-25T12:00:00Z')
+    expect(isStale('2026-11-25T11:58:00Z', now)).toBe(false)
+    expect(isStale('2026-11-25T11:56:00Z', now)).toBe(true)
   })
 })

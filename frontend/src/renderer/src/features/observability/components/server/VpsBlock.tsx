@@ -1,10 +1,10 @@
 import type { ServerReport } from '../../api/serverReport'
 import { numberLabel } from '../../lib/reportFormat'
-import { ageLabel, bytesLabel, hostSummary, mbps } from '../../lib/serverHealth'
+import { ageLabel, bytesLabel, hostSummary, isStale, mbps } from '../../lib/serverHealth'
 import { timeLabel } from '../../lib/timeLabel'
 import { LineChart } from '../LineChart'
 import { Empty, Panel, ScrollTable } from '../Panel'
-import { ChartGrid, StatTile, TileGrid } from './StatTile'
+import { ChartGrid, LastCollected, StatTile, TileGrid } from './StatTile'
 
 const pct = (v: number | null | undefined): string => `${numberLabel(v, 0)}%`
 
@@ -45,7 +45,7 @@ function VpsTiles({ host, now }: { host: ServerReport['host']; now: number }): R
       <StatTile
         label="Último backup"
         value={ageLabel(latest?.backup_at ?? null, now)}
-        hint={bytesLabel(latest?.backup_bytes)}
+        hint={latest?.backup_at ? bytesLabel(latest.backup_bytes) : 'nenhum backup encontrado'}
         warn={s.warn.backup}
       />
       <StatTile
@@ -136,6 +136,7 @@ export function VpsBlock({
     <Panel title="VPS">
       {host.latest ? (
         <>
+          <LastCollected minute={host.latest.minute} stale={isStale(host.latest.minute, now)} />
           <VpsTiles host={host} now={now} />
           <VpsCharts series={host.series} />
           <TablesTable tables={host.tables} />

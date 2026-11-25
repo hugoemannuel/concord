@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ServerReport } from '../../api/serverReport'
-import type { ReportState } from '../../hooks/useLiveReport'
-import { ServerTabBody } from './ServerTab'
+import { ServerMetrics } from './ServerMetrics'
 
 const now = Date.parse('2026-11-25T12:00:00Z')
-const noLive: ReportState = { status: 'loading' }
 
 const report: ServerReport = {
   from: '2026-11-24T12:00:00Z',
@@ -81,13 +79,10 @@ const report: ServerReport = {
   }
 }
 
-const render = (
-  state: Parameters<typeof ServerTabBody>[0]['state'],
-  live: ReportState = noLive
-): string =>
-  renderToStaticMarkup(<ServerTabBody state={state} live={live} now={now} onRetry={() => {}} />)
+const render = (state: Parameters<typeof ServerMetrics>[0]['state']): string =>
+  renderToStaticMarkup(<ServerMetrics state={state} now={now} onRetry={() => {}} />)
 
-describe('ServerTabBody', () => {
+describe('ServerMetrics', () => {
   it('carregando, sem acesso e erro', () => {
     expect(render({ status: 'loading' })).toContain('Carregando')
     expect(render({ status: 'forbidden' })).toContain('Só os devs')
@@ -101,7 +96,8 @@ describe('ServerTabBody', () => {
     expect(html).toContain('GET /api/channels/:id/messages')
     expect(html).toContain('messages')
     expect(html).toContain('há 9 h')
-    expect(html).not.toContain('LiveKit')
+    expect(html).toContain('Última coleta')
+    expect(html).not.toContain('parada')
   })
 
   it('o disco acima do limite aparece em aviso', () => {
@@ -117,22 +113,5 @@ describe('ServerTabBody', () => {
     const html = render({ status: 'ready', report: empty })
     expect(html).toContain('Sem métricas da VPS no período.')
     expect(html).toContain('Sem métricas da API no período.')
-  })
-
-  it('o bloco do LiveKit vem do relatório das lives', () => {
-    const live: ReportState = {
-      status: 'ready',
-      report: {
-        from: '',
-        to: '',
-        bucket_minutes: 5,
-        server: [],
-        lives: [],
-        worst: [],
-        breakdown: { os: [], gpu: [], codec: [], transport: [] },
-        events: []
-      }
-    }
-    expect(render({ status: 'ready', report }, live)).toContain('LiveKit')
   })
 })

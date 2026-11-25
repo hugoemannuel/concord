@@ -1,9 +1,9 @@
 import type { ServerReport } from '../../api/serverReport'
 import { numberLabel } from '../../lib/reportFormat'
-import { apiSummary } from '../../lib/serverHealth'
+import { apiSummary, isStale } from '../../lib/serverHealth'
 import { LineChart } from '../LineChart'
 import { Empty, Panel, ScrollTable } from '../Panel'
-import { ChartGrid, StatTile, TileGrid } from './StatTile'
+import { ChartGrid, LastCollected, StatTile, TileGrid } from './StatTile'
 
 const ms = (v: number | null | undefined): string => `${numberLabel(v, 0)} ms`
 
@@ -106,11 +106,18 @@ function RoutesTable({ routes }: { routes: ServerReport['api']['routes'] }): Rea
 }
 
 /** A API: pedidos, 5xx, latência, rotas mais lentas e com erro, conexões, pool e panics. */
-export function ApiBlock({ api }: { api: ServerReport['api'] }): React.JSX.Element {
+export function ApiBlock({
+  api,
+  now
+}: {
+  api: ServerReport['api']
+  now: number
+}): React.JSX.Element {
   return (
     <Panel title="API">
       {api.latest ? (
         <>
+          <LastCollected minute={api.latest.minute} stale={isStale(api.latest.minute, now)} />
           <ApiTiles api={api} />
           <ApiCharts series={api.series} />
           <RoutesTable routes={api.routes} />
