@@ -24,8 +24,17 @@ var dimensions = []dimension{
 	{"codec", func(s SessionStats) string { return s.Codec }, false, false},
 	{"transport", func(s SessionStats) string { return s.Transport }, true, false},
 	{"target", func(s SessionStats) string { return s.Target }, true, false},
-	{"network", func(s SessionStats) string { return s.Network }, true, false},
+	{"network", androidNetwork, true, true},
 	{"device", func(s SessionStats) string { return s.Device }, true, true},
+}
+
+// androidNetwork: a rede só do Android. No desktop e na web a coluna é o
+// effectiveType do Chromium ("4g" em ~90% das sessões), não o tipo de rede.
+func androidNetwork(s SessionStats) string {
+	if s.Target != "android" {
+		return ""
+	}
+	return s.Network
 }
 
 // counts: a sessão entra nessa distribuição.

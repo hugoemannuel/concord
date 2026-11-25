@@ -257,7 +257,7 @@ describe('abas do relatório das lives', () => {
   })
   it('Distribuição e Eventos', () => {
     const breakdown = render(BreakdownTab, ready())
-    for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede (com as calls)', 'Aparelho Android (com as calls)']) {
+    for (const text of ['Distribuição', 'Plataforma (com as calls)', 'android', 'Rede do Android (com as calls)', 'Aparelho Android (com as calls)']) {
       expect(breakdown).toContain(text)
     }
     const events = render(EventsTab, ready())

@@ -8,7 +8,7 @@ const GROUPS: { key: keyof LiveReport['breakdown']; title: string }[] = [
   { key: 'codec', title: 'Codec' },
   { key: 'transport', title: 'Conexão (com as calls)' },
   { key: 'target', title: 'Plataforma (com as calls)' },
-  { key: 'network', title: 'Rede (com as calls)' },
+  { key: 'network', title: 'Rede do Android (com as calls)' },
   { key: 'device', title: 'Aparelho Android (com as calls)' }
 ]
 
