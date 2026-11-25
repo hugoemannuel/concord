@@ -5,7 +5,7 @@ if (process.platform === 'win32') process.exit(0);
 // journalctl são de mentira. Não precisa de rede, Docker nem VPS.
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -197,6 +197,20 @@ test('pasta remota com espaço e aspas chega inteira ao servidor', () => {
   const r = deploy(ctx)
   assert.equal(r.status, 0, r.stderr)
   assert.ok(existsSync(join(odd, 'concord-server.good')))
+})
+
+test('source maps com mais de 90 dias saem da VPS; os recentes ficam', () => {
+  const ctx = setup({ current: fakeBinary('good') })
+  const maps = join(ctx.server, 'sourcemaps')
+  mkdirSync(maps)
+  writeFileSync(join(maps, 'index-velho.js.map'), '{}')
+  writeFileSync(join(maps, 'index-novo.js.map'), '{}')
+  const old = new Date(Date.now() - 100 * 86400_000)
+  utimesSync(join(maps, 'index-velho.js.map'), old, old)
+  const r = deploy(ctx)
+  assert.equal(r.status, 0, r.stderr)
+  assert.ok(!existsSync(join(maps, 'index-velho.js.map')), 'o de 100 dias ficou')
+  assert.ok(existsSync(join(maps, 'index-novo.js.map')), 'o recente saiu')
 })
 
 test('--infra chega ao servidor', () => {

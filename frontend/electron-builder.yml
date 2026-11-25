@@ -11,6 +11,8 @@ files:
   # Build web (yarn build:web) e a config dele: não vão no instalador.
   - '!{vite.web.config.ts,vite.renderer.shared.ts}'
   - '!{dist-web,web-public}/**'
+  # Source maps do renderer (docs/adr/0068): vão só para o servidor, nunca no instalador.
+  - '!sourcemaps/**'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
