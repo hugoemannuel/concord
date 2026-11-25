@@ -13,15 +13,19 @@ import (
 // origem, a versão e o link da aba Erros. Teto de 5 por hora: uma versão ruim
 // que cria dezenas de grupos sai como uma mensagem só ("mais N erros novos"),
 // no máximo uma por hora; o resto vai só para o histórico. O cursor é o
-// first_seen do último grupo avisado (gravado no incidente), então reiniciar
-// não repete nem pula; nunca volta mais de 1 h (alertas desligados por dias
-// não viram enxurrada ao ligar).
+// first_seen do último grupo avisado (gravado no incidente) mais os grupos já
+// avisados naquele mesmo instante (um lote grava o mesmo first_seen em
+// todos), então reiniciar não repete e uma falha no meio do lote não pula os
+// outros; nunca volta mais de 1 h (alertas desligados por dias não viram
+// enxurrada ao ligar). Grupo de menos de 30 s espera a próxima rodada: um lote
+// que confirma depois de outro mais novo não fica atrás do cursor.
 const (
 	errorNewRuleID  = "error_new"
 	errorNewEvery   = time.Minute
 	errorNewPerHour = 5
 	errorNewMaxBack = time.Hour
 	errorTextMax    = 140
+	errorNewSettle  = 30 * time.Second
 )
 
 type newErrorSource interface {
@@ -36,9 +40,13 @@ type ErrorWatch struct {
 	texts   texts
 	now     func() time.Time
 
-	cursor  time.Time
-	sent    []time.Time
-	summary time.Time
+	cursor time.Time
+	// atCursor: os grupos já avisados com first_seen igual ao cursor;
+	// skipCursor: todos os do cursor já foram (o cursor veio do histórico).
+	atCursor   map[string]bool
+	skipCursor bool
+	sent       []time.Time
+	summary    time.Time
 }
 
 func NewErrorWatch(src newErrorSource, history lastIncidentSource, notify func(ctx context.Context, ev Event) error, appURL string) *ErrorWatch {
@@ -55,21 +63,46 @@ func (w *ErrorWatch) Tick(ctx context.Context) error {
 	if err := w.loadCursor(ctx, now); err != nil {
 		return err
 	}
-	groups, err := w.src.GroupsFirstSeenSince(ctx, w.cursor.Add(time.Microsecond))
-	if err != nil || len(groups) == 0 {
+	read, err := w.src.GroupsFirstSeenSince(ctx, w.cursor)
+	if err != nil {
 		return err
 	}
-	budget := w.budget(now)
-	for _, g := range groups[:min(budget, len(groups))] {
+	groups := w.pending(read, now)
+	n := min(w.budget(now), len(groups))
+	for _, g := range groups[:n] {
 		if err := w.notify(ctx, w.newErrorEvent(g)); err != nil {
 			return err
 		}
-		w.cursor, w.sent = g.FirstSeen, append(w.sent, now)
+		w.advance(g)
+		w.sent = append(w.sent, now)
 	}
-	if rest := groups[min(budget, len(groups)):]; len(rest) > 0 {
+	if rest := groups[n:]; len(rest) > 0 {
 		return w.notifyMany(ctx, rest, now)
 	}
 	return nil
+}
+
+// pending: os grupos lidos que ainda não foram avisados e já assentaram.
+func (w *ErrorWatch) pending(read []apperrors.GroupHead, now time.Time) []apperrors.GroupHead {
+	out := read[:0:0]
+	for _, g := range read {
+		if g.FirstSeen.After(now.Add(-errorNewSettle)) {
+			break // em ordem de first_seen: os seguintes também são recentes
+		}
+		if g.FirstSeen.Equal(w.cursor) && (w.skipCursor || w.atCursor[g.Fingerprint]) {
+			continue
+		}
+		out = append(out, g)
+	}
+	return out
+}
+
+// advance: o grupo foi avisado (ou entrou no resumo).
+func (w *ErrorWatch) advance(g apperrors.GroupHead) {
+	if g.FirstSeen.After(w.cursor) {
+		w.cursor, w.atCursor, w.skipCursor = g.FirstSeen, map[string]bool{}, false
+	}
+	w.atCursor[g.Fingerprint] = true
 }
 
 // loadCursor: na primeira vez, o first_seen do último grupo avisado (ou agora,
@@ -82,7 +115,7 @@ func (w *ErrorWatch) loadCursor(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return fmt.Errorf("último erro novo: %w", err)
 	}
-	w.cursor = now
+	w.cursor, w.atCursor, w.skipCursor = now, map[string]bool{}, true
 	if last != nil {
 		w.cursor = later(last.StartedAt, now.Add(-errorNewMaxBack))
 	}
@@ -118,7 +151,9 @@ func (w *ErrorWatch) notifyMany(ctx context.Context, rest []apperrors.GroupHead,
 	if err := w.notify(ctx, ev); err != nil {
 		return err
 	}
-	w.cursor = last
+	for _, g := range rest {
+		w.advance(g)
+	}
 	if !quiet {
 		w.summary = now
 	}

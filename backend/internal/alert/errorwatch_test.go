@@ -108,12 +108,12 @@ func TestErrorWatchRetomaDoHistorico(t *testing.T) {
 	var events []Event
 	w := newErrorWatch(src, &Incident{StartedAt: lastSeen}, &events, &now)
 	_ = w.Tick(context.Background())
-	if got := src.since[0]; !got.Equal(lastSeen.Add(time.Microsecond)) {
-		t.Errorf("cursor = %v, quer logo depois de %v", got, lastSeen)
+	if got := src.since[0]; !got.Equal(lastSeen) {
+		t.Errorf("cursor = %v, quer %v", got, lastSeen)
 	}
 	w2 := newErrorWatch(src, &Incident{StartedAt: now.Add(-48 * time.Hour)}, &events, &now)
 	_ = w2.Tick(context.Background())
-	if got := src.since[1]; !got.Equal(now.Add(-time.Hour + time.Microsecond)) {
+	if got := src.since[1]; !got.Equal(now.Add(-time.Hour)) {
 		t.Errorf("cursor velho = %v, quer no máximo 1 h atrás", got)
 	}
 }
@@ -130,7 +130,8 @@ func TestErrorWatchFalhas(t *testing.T) {
 	failing.now = func() time.Time { return now }
 	_ = failing.Tick(context.Background())
 	src.groups = []apperrors.GroupHead{group(1, now.Add(time.Second))}
-	if err := failing.Tick(context.Background()); err == nil || !failing.cursor.Equal(now) {
+	now = now.Add(time.Minute)
+	if err := failing.Tick(context.Background()); err == nil || !failing.cursor.Equal(at(14, 0)) {
 		t.Fatalf("post que falha não pode avançar o cursor: %v, %v", err, failing.cursor)
 	}
 }
@@ -164,8 +165,11 @@ func TestErrorSpikeRule(t *testing.T) {
 	}
 	got := check(t, errorSpikeRule(&fakeSources{impact: impact(6)}), now)
 	want := `o erro "TypeError: x is undefined" (app) atingiu 6 pessoas em 15 min (limite 5): algo quebrou para muita gente; veja a aba Erros e, se veio com a última versão, reverta`
-	if got.Level != LevelCritical || got.Text != want {
+	if got.Level != LevelWarning || got.Text != want {
 		t.Errorf("6 pessoas = %+v", got)
+	}
+	if got := check(t, errorSpikeRule(&fakeSources{impact: impact(9)}), now); got.Level != LevelCritical || !strings.Contains(got.Text, "atingiu 9 pessoas em 15 min (limite 8)") {
+		t.Errorf("9 pessoas = %+v", got)
 	}
 }
 
@@ -179,5 +183,60 @@ func TestDecoderFailingRule(t *testing.T) {
 	if got := check(t, decoderFailingRule(src), now); got.Level != LevelWarning ||
 		!strings.HasPrefix(got.Text, "4 pessoas assistindo live com o vídeo caindo para o processador em 10 min (limite 4)") {
 		t.Errorf("4 pessoas = %+v", got)
+	}
+}
+
+// Regressão (revisão): um lote grava o mesmo first_seen em vários grupos; o
+// post que falha no meio não pode fazer os outros sumirem.
+func TestErrorWatchMesmoInstanteNaoPerdeGrupos(t *testing.T) {
+	now := at(14, 0)
+	src := &fakeNewErrors{}
+	var posted []string
+	fail := false
+	w := NewErrorWatch(src, &fakeLastIncident{}, func(_ context.Context, ev Event) error {
+		if fail && strings.Contains(ev.Text, "x2") {
+			return errors.New("canal")
+		}
+		posted = append(posted, ev.Text)
+		return nil
+	}, "")
+	w.now = func() time.Time { return now }
+	_ = w.Tick(context.Background())
+	seen := now.Add(5 * time.Second)
+	src.groups = []apperrors.GroupHead{group(1, seen), group(2, seen), group(3, seen)}
+	now = now.Add(time.Minute)
+	fail = true
+	if err := w.Tick(context.Background()); err == nil {
+		t.Fatal("engoliu o erro")
+	}
+	fail = false
+	now = now.Add(time.Minute)
+	_ = w.Tick(context.Background())
+	now = now.Add(time.Minute)
+	_ = w.Tick(context.Background())
+	if len(posted) != 3 || !strings.Contains(posted[1], "x2") || !strings.Contains(posted[2], "x3") {
+		t.Fatalf("posts = %q", posted)
+	}
+}
+
+// Regressão (revisão): grupo de menos de 30 s espera (o lote mais velho pode
+// confirmar depois).
+func TestErrorWatchEsperaOGrupoAssentar(t *testing.T) {
+	now := at(14, 0)
+	src := &fakeNewErrors{}
+	var events []Event
+	w := newErrorWatch(src, nil, &events, &now)
+	_ = w.Tick(context.Background())
+	src.groups = []apperrors.GroupHead{group(1, now.Add(50*time.Second))}
+	now = now.Add(time.Minute)
+	_ = w.Tick(context.Background())
+	if len(events) != 0 {
+		t.Fatal("avisou antes de assentar")
+	}
+	src.groups = append([]apperrors.GroupHead{group(0, now.Add(-50*time.Second))}, src.groups...) // confirmou atrasado, mais velho
+	now = now.Add(time.Minute)
+	_ = w.Tick(context.Background())
+	if len(events) != 2 {
+		t.Fatalf("eventos = %d, quer os 2", len(events))
 	}
 }

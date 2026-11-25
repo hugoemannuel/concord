@@ -36,7 +36,7 @@ describe('AlertSections', () => {
 
   it('ligado sem resumo ainda: diz isso', () => {
     const html = render({ enabled: true, active: [], history: [], last_summary_at: null })
-    expect(html).toContain('Nenhum resumo diário enviado ainda (sai às 8h).')
+    expect(html).toContain('Nenhum resumo diário enviado ainda (sai às 8h, horário de Brasília).')
   })
 
   it('vazio e desligado: diz isso', () => {

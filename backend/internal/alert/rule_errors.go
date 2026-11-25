@@ -9,14 +9,16 @@ import (
 	"gin-quickstart/backend/internal/apperrors"
 )
 
-// Pico de erro (#erros): um grupo de erro atingindo 5 pessoas diferentes em
-// 15 min (app_error_occurrences, por pessoa com conta) é algo quebrado para
-// muita gente ao mesmo tempo: crítico. O grupo é pequeno (picos de ~15
-// pessoas na call): 5 é um terço de quem está usando. Normaliza depois de
-// 30 min abaixo. Panic do backend sem conta não conta pessoas (sai em
-// api_panics).
+// Pico de erro (#erros): um grupo de erro atingindo várias pessoas diferentes
+// em 15 min (app_error_occurrences, por pessoa com conta). O grupo é pequeno
+// (picos de ~15 pessoas na call): 5 pessoas é um terço de quem está usando,
+// aviso; 8 é metade, crítico. Um erro conhecido que todo mundo pega ao abrir
+// o app pode chegar a 5 no horário cheio: por isso o crítico pede 8, e
+// ALERTS_MUTED=error_spike desliga se virar ruído. Normaliza depois de 30 min
+// abaixo. Panic do backend sem conta não conta pessoas (sai em api_panics).
 const (
 	spikePeople   = 5
+	spikeCritical = 8
 	spikeWindow   = 15 * time.Minute
 	spikeClearFor = 30 * time.Minute
 )
@@ -38,9 +40,13 @@ func errorSpikeRule(src impactSource) Rule {
 				return Reading{Level: LevelOK}, nil
 			}
 			g := groups[0]
-			return Reading{Level: LevelCritical, Text: fmt.Sprintf(
+			level, limit := LevelWarning, spikePeople
+			if g.Users >= spikeCritical {
+				level, limit = LevelCritical, spikeCritical
+			}
+			return Reading{Level: level, Text: fmt.Sprintf(
 				"o erro %q (%s) atingiu %d pessoas em 15 min (limite %d): algo quebrou para muita gente; veja a aba Erros e, se veio com a última versão, reverta",
-				short(errorLine(g.Kind, g.Message)), sourceLabel(g.Source), g.Users, spikePeople)}, nil
+				short(errorLine(g.Kind, g.Message)), sourceLabel(g.Source), g.Users, limit)}, nil
 		},
 	}
 }

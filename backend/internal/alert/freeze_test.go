@@ -217,3 +217,71 @@ func TestSystemClockAnda(t *testing.T) {
 		t.Fatalf("a = %+v, b = %+v", a, b)
 	}
 }
+
+// Regressão (revisão): o kernel copia a hora do sistema, ainda atrasada, para
+// o relógio de hardware antes de o NTP corrigir; o salto do NTP não pode virar
+// um segundo aviso.
+func TestFreezeRTCSincronizadoAntesDoNTPNaoRepete(t *testing.T) {
+	start := time.Date(2026, 11, 25, 9, 32, 0, 0, time.UTC)
+	c := &fakeClocks{wall: start, hw: start}
+	var events []Event
+	w := newFreeze(c, &fakeLastIncident{}, &events)
+	ctx := context.Background()
+	_ = w.Tick(ctx)
+	pause := 4*time.Hour + 49*time.Minute
+	c.hw = c.hw.Add(pause)
+	c.tick(freezeEvery)
+	_ = w.Tick(ctx)
+	c.hw = c.wall // o RTC passou a seguir o sistema atrasado
+	for range 20 {
+		c.tick(freezeEvery)
+		_ = w.Tick(ctx)
+	}
+	c.wall, c.hw = c.wall.Add(pause), c.hw.Add(pause) // o NTP corrige
+	c.tick(freezeEvery)
+	_ = w.Tick(ctx)
+	if len(events) != 1 {
+		t.Fatalf("eventos = %d, quer 1: %+v", len(events), events)
+	}
+}
+
+// Regressão (revisão): reiniciado com o relógio atrasado e sem RTC, o salto do
+// NTP consulta o histórico antes de avisar.
+func TestFreezeSaltoDepoisDeReiniciarConsultaOHistorico(t *testing.T) {
+	from, to := at(9, 32), at(14, 21)
+	c := &fakeClocks{wall: at(9, 50), noHW: true}
+	hist := &fakeLastIncident{last: &Incident{RuleID: "host_frozen", StartedAt: from, EndedAt: &to}}
+	var events []Event
+	w := newFreeze(c, hist, &events)
+	_ = w.Tick(context.Background())
+	c.wall = c.wall.Add(to.Sub(from))
+	c.tick(freezeEvery)
+	_ = w.Tick(context.Background())
+	if len(events) != 0 {
+		t.Fatalf("repetiu: %+v", events)
+	}
+}
+
+// Regressão (revisão): uma rodada demorada (post lento) não vira congelamento.
+func TestFreezeRodadaDemoradaNaoContaComoPausa(t *testing.T) {
+	c := &fakeClocks{wall: at(9, 0), hw: at(9, 0)}
+	var events []Event
+	slow := true
+	w := NewFreezeWatch(&fakeLastIncident{}, func(context.Context, Event) error { return nil })
+	reads := 0
+	w.clock = func() clockReading {
+		reads++
+		if slow && reads == 2 { // fim da primeira rodada: 95 s depois do começo
+			c.tick(95 * time.Second)
+		}
+		return c.read()
+	}
+	w.hardware = c.hardware
+	w.notify = func(_ context.Context, ev Event) error { events = append(events, ev); return nil }
+	_ = w.Tick(context.Background())
+	c.tick(freezeEvery)
+	_ = w.Tick(context.Background())
+	if len(events) != 0 {
+		t.Fatalf("rodada lenta virou congelamento: %+v", events)
+	}
+}

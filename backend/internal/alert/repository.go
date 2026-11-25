@@ -43,10 +43,12 @@ func (r *Repository) OpenIncidents(ctx context.Context) ([]Incident, error) {
 	return r.incidents(ctx, `SELECT `+incidentColumns+` FROM alert_incidents WHERE ended_at IS NULL ORDER BY started_at`)
 }
 
-// History: os incidentes que começaram depois de from ou ainda abertos, do mais novo ao mais antigo.
+// History: os incidentes que começaram depois de from ou ainda abertos: os
+// abertos primeiro (uma enxurrada de erro novo não tira do teto um disparo
+// aberto há dias), depois do mais novo ao mais antigo.
 func (r *Repository) History(ctx context.Context, from time.Time) ([]Incident, error) {
 	return r.incidents(ctx, `SELECT `+incidentColumns+` FROM alert_incidents
-		WHERE started_at >= $1 OR ended_at IS NULL ORDER BY started_at DESC LIMIT $2`, from, historyLimit)
+		WHERE started_at >= $1 OR ended_at IS NULL ORDER BY (ended_at IS NULL) DESC, started_at DESC LIMIT $2`, from, historyLimit)
 }
 
 func (r *Repository) InsertIncident(ctx context.Context, inc *Incident) error {

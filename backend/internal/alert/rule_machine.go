@@ -17,7 +17,8 @@ import (
 //     > 10% por vários minutos como "vizinho barulhento"; 10 min seguidos.
 //   - UDP: erros de buffer do kernel (RcvbufErrors + SndbufErrors) = pacotes
 //     de voz e vídeo descartados na própria VPS. Em 30/10/2026 eram 10 em 5
-//     dias, sem efeito; 100 em 5 min é outra ordem de grandeza.
+//     dias, sem efeito; 100 em 5 min é outra ordem de grandeza. Hold de 8 min
+//     (maior que a janela): um estouro de um minuto só não basta.
 const (
 	swapMinMB      = 512
 	swapGrowMB     = 256
@@ -66,7 +67,7 @@ func hostStealRule(src hostSource) Rule {
 func udpBufferRule(src hostSource) Rule {
 	return Rule{
 		ID: "udp_buffer", Title: "Buffer de UDP estourando", Channel: ChannelInfra, Tab: "servidor",
-		Hold: Hold{Warning: 5 * time.Minute, Clear: 15 * time.Minute},
+		Hold: Hold{Warning: 8 * time.Minute, Clear: 15 * time.Minute},
 		Check: func(ctx context.Context, now time.Time) (Reading, error) {
 			rows, err := recentHost(ctx, src, now, udpWindowMin)
 			if err != nil || rows == nil {

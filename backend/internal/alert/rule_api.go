@@ -12,15 +12,18 @@ import (
 // minuto) e api_route_metrics (rotas de 5 em 5 min), ADR 0067.
 //
 // 5xx: a taxa dos últimos 5 min, com volume mínimo (10 erros) para um pedido
-// só, de madrugada, não disparar. Aviso em 5% por 3 min; crítico em 25% (e
-// 50 erros) por 5 min: um quarto dos pedidos falhando é o app quebrado para
-// todo mundo. Panic: qualquer um em 15 min é bug (o gin devolve 500 e segue);
+// só, de madrugada, não disparar. Aviso em 5%; crítico em 25% (e 50 erros):
+// um quarto dos pedidos falhando é o app quebrado para todo mundo. A janela
+// já soma 5 min, então um minuto ruim fica nela por 5 avaliações: o Hold (8 e
+// 10 min) é maior que a janela, para valer só quando os erros se estendem por
+// 4 min ou mais (6 para o crítico), não um soluço de segundos. Panic: qualquer um em 15 min é bug (o gin devolve 500 e segue);
 // normaliza depois de 30 min sem.
 //
 // Lenta: o p95 do minuto (por baldes: 1 s, 2,5 s, 5 s...), só com 20 pedidos
-// ou mais no minuto. Um pedido comum leva menos de 250 ms; 2 s por 5 min
-// seguidos já é o app "travando" para quem usa; 5 s por 10 min é o app
-// parado (crítico).
+// ou mais no minuto (com menos, sem dado: de madrugada não normaliza nem
+// dispara por falta de tráfego). Um pedido comum leva menos de 250 ms; 2 s
+// por 5 min seguidos já é o app "travando" para quem usa; 5 s por 10 min é o
+// app parado (crítico).
 const (
 	apiErrWindowMin = 5
 	apiErrMinErrors = 10
@@ -43,7 +46,7 @@ const (
 func apiErrorsRule(src apiSource) Rule {
 	return Rule{
 		ID: "api_errors", Title: "API com erro 5xx", Channel: ChannelInfra, Tab: "servidor",
-		Hold: Hold{Warning: 3 * time.Minute, Critical: 5 * time.Minute, Clear: 10 * time.Minute},
+		Hold: Hold{Warning: 8 * time.Minute, Critical: 10 * time.Minute, Clear: 10 * time.Minute},
 		Check: func(ctx context.Context, now time.Time) (Reading, error) {
 			rows, err := recentAPI(ctx, src, now, apiErrWindowMin)
 			if err != nil || rows == nil {
@@ -136,7 +139,7 @@ func apiSlowRule(src apiSource) Rule {
 				return Reading{Level: LevelUnknown}, err
 			}
 			if m.Requests < apiSlowMinReqs || m.P95Ms == nil {
-				return Reading{Level: LevelOK}, nil
+				return Reading{Level: LevelUnknown}, nil
 			}
 			r := levelFor(*m.P95Ms, limits{apiSlowWarnMs, apiSlowCritMs}, "p95 da API em %.0f ms (limite %.0f ms)")
 			if r.Level != LevelOK {

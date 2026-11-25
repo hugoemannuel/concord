@@ -68,7 +68,12 @@ func (r Runner) loadState(ctx context.Context) bool {
 	}
 }
 
-// every roda fn a cada d até ctx acabar (o erro só vai para o log).
+// watchTimeout: teto de uma rodada de vigia. O Engine.Notify segura o mutex
+// do motor enquanto posta: um post preso pararia a avaliação de todas as regras.
+const watchTimeout = 20 * time.Second
+
+// every roda fn a cada d até ctx acabar, cada rodada com watchTimeout (o erro
+// só vai para o log).
 func every(ctx context.Context, d time.Duration, what string, fn func(context.Context) error) {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
@@ -77,7 +82,10 @@ func every(ctx context.Context, d time.Duration, what string, fn func(context.Co
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := fn(ctx); err != nil {
+			runCtx, cancel := context.WithTimeout(ctx, watchTimeout)
+			err := fn(runCtx)
+			cancel()
+			if err != nil {
 				log.Printf("[alert] %s: %v", what, err)
 			}
 		}

@@ -21,6 +21,7 @@ const (
 	summaryEvery    = time.Minute
 	summaryTopErrs  = 3
 	summaryDayHours = 24 * time.Hour
+	releaseTimeout  = 5 * time.Second
 )
 
 type summaryStore interface {
@@ -71,11 +72,19 @@ func (d *DailySummary) Tick(ctx context.Context) error {
 	}
 	if claimed {
 		if err := d.send(ctx, day); err != nil {
-			return errors.Join(err, d.store.ReleaseDailySummary(ctx, day))
+			return errors.Join(err, d.release(ctx, day))
 		}
 	}
 	d.done = day
 	return nil
+}
+
+// release desfaz a marca mesmo com o desligamento chegando (deploy às 8h): sem
+// isso o resumo do dia se perderia.
+func (d *DailySummary) release(ctx context.Context, day time.Time) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), releaseTimeout)
+	defer cancel()
+	return d.store.ReleaseDailySummary(ctx, day)
 }
 
 func (d *DailySummary) send(ctx context.Context, day time.Time) error {

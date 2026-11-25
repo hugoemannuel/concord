@@ -137,3 +137,21 @@ func TestRepositoryUltimoIncidenteDaRegra(t *testing.T) {
 		t.Fatalf("último = %+v, %v", last, err)
 	}
 }
+
+// Regressão (revisão): o disparo aberto vem antes do teto do histórico.
+func TestRepositoryHistoricoAbertosPrimeiro(t *testing.T) {
+	repo := newAlertDB(t)
+	ctx := context.Background()
+	t0 := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	if err := repo.InsertIncident(ctx, &Incident{RuleID: "host_disk", Channel: "alert_infra", Severity: "critico", StartedAt: t0}); err != nil {
+		t.Fatal(err)
+	}
+	end := t0.Add(48 * time.Hour)
+	if err := repo.InsertIncident(ctx, &Incident{RuleID: "error_new", Channel: "alert_errors", Severity: "aviso", StartedAt: end, EndedAt: &end}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := repo.History(ctx, t0.Add(-time.Hour))
+	if err != nil || len(rows) != 2 || rows[0].RuleID != "host_disk" {
+		t.Fatalf("histórico = %+v, %v", rows, err)
+	}
+}

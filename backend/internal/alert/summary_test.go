@@ -165,3 +165,32 @@ func TestSummaryTextSemDados(t *testing.T) {
 		t.Errorf("sem backup = %q", got)
 	}
 }
+
+// Regressão (revisão): com o desligamento chegando no meio do post, a marca
+// sai mesmo assim (o contexto da faxina não herda o cancelamento).
+func TestDailySummaryDesmarcaMesmoNoDesligamento(t *testing.T) {
+	store := &cancelAwareStore{fakeSummaryStore: &fakeSummaryStore{claimed: map[string]bool{}}}
+	ctx, cancel := context.WithCancel(context.Background())
+	d := NewDailySummary(store, &fakeSources{}, func(context.Context, string, ChannelKind, string) error {
+		cancel()
+		return context.Canceled
+	}, nil, "")
+	d.now = func() time.Time { return at(8, 0) }
+	_ = d.Tick(ctx)
+	if store.releasedWith != nil {
+		t.Fatalf("desmarcou com o contexto cancelado: %v", store.releasedWith)
+	}
+	if store.released != 1 {
+		t.Fatal("não desmarcou")
+	}
+}
+
+type cancelAwareStore struct {
+	*fakeSummaryStore
+	releasedWith error
+}
+
+func (c *cancelAwareStore) ReleaseDailySummary(ctx context.Context, day time.Time) error {
+	c.releasedWith = ctx.Err()
+	return c.fakeSummaryStore.ReleaseDailySummary(ctx, day)
+}

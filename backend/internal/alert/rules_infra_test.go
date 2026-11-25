@@ -165,11 +165,11 @@ func TestAPISlowRule(t *testing.T) {
 		text string
 	}{
 		{"rápida", &fakeSources{api: minute(100, num(120), 0)}, LevelOK, ""},
-		{"pouco pedido não conta", &fakeSources{api: minute(3, num(9000), 0)}, LevelOK, ""},
+		{"pouco pedido é sem dado", &fakeSources{api: minute(3, num(9000), 0)}, LevelUnknown, ""},
 		{"lenta com fila no banco", &fakeSources{api: minute(100, num(2500), 4), routes: routes}, LevelWarning,
 			"p95 da API em 2500 ms (limite 2000 ms); a rota mais lenta: GET /api/b (p95 4200 ms); há espera por conexão do banco"},
 		{"parada", &fakeSources{api: minute(100, num(6000), 0)}, LevelCritical, "(limite 5000 ms); sem espera no banco"},
-		{"sem p95", &fakeSources{api: minute(100, nil, 0)}, LevelOK, ""},
+		{"sem p95", &fakeSources{api: minute(100, nil, 0)}, LevelUnknown, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -312,5 +312,18 @@ func TestCapacityRule(t *testing.T) {
 	}
 	if got := check(t, capacityRule(&fakeSources{}), now); got.Level != LevelUnknown {
 		t.Errorf("sem linhas = %+v", got)
+	}
+}
+
+// Regressão (revisão): um minuto ruim só fica na janela de 5 min por 5
+// avaliações e não pode cumprir o Hold sozinho.
+func TestAPIErrorsUmMinutoRuimNaoDispara(t *testing.T) {
+	rule := apiErrorsRule(&fakeSources{})
+	window := time.Duration(apiErrWindowMin) * time.Minute
+	if rule.Hold.Warning <= window || rule.Hold.Critical <= window {
+		t.Fatalf("Hold %+v não passa da janela de %v", rule.Hold, window)
+	}
+	if udp := udpBufferRule(&fakeSources{}); udp.Hold.Warning <= udpWindowMin*time.Minute {
+		t.Fatalf("Hold do UDP %v não passa da janela", udp.Hold.Warning)
 	}
 }

@@ -85,7 +85,7 @@ function History({ rows }: { rows: AlertRow[] }): React.JSX.Element {
 function LastSummary({ at }: { at: string | null | undefined }): React.JSX.Element {
   return (
     <p className="text-ds-sm text-muted">
-      {at ? `Último resumo diário: ${timeLabel(at)}.` : 'Nenhum resumo diário enviado ainda (sai às 8h).'}
+      {at ? `Último resumo diário: ${timeLabel(at)}.` : 'Nenhum resumo diário enviado ainda (sai às 8h, horário de Brasília).'}
     </p>
   )
 }

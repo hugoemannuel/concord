@@ -196,17 +196,17 @@ aberto) fica em `alert_incidents`: reiniciar o backend não repete o aviso.
 | Disco da máquina (`host_disk`) | alertas | ≥ 80% por 15 min | ≥ 90% por 10 min | abaixo por 30 min |
 | Inodes do disco (`host_inodes`) | alertas | ≥ 80% por 15 min | ≥ 90% por 10 min | abaixo por 30 min |
 | Backup do banco (`backup_late`) | alertas | arquivo mais novo com mais de 26 h, ou com menos da metade do anterior (anterior ≥ 1 MB), por 10 min | — | em dia por 10 min |
-| API com erro 5xx (`api_errors`) | alertas | ≥ 5% dos pedidos em 5 min (mín. 10 erros) por 3 min, com a rota que mais errou | ≥ 25% (mín. 50 erros) por 5 min | abaixo por 10 min |
+| API com erro 5xx (`api_errors`) | alertas | ≥ 5% dos pedidos em 5 min (mín. 10 erros) por 8 min seguidos (erros se estendendo por 4 min ou mais), com a rota que mais errou | ≥ 25% (mín. 50 erros) por 10 min | abaixo por 10 min |
 | Panic no backend (`api_panics`) | alertas | 1+ panic em 15 min | — | 30 min sem |
-| API lenta (`api_slow`) | alertas | p95 do minuto ≥ 2 s (com 20+ pedidos) por 5 min, com a rota mais lenta | ≥ 5 s por 10 min | abaixo por 5 min |
+| API lenta (`api_slow`) | alertas | p95 do minuto ≥ 2 s (com 20+ pedidos; com menos, sem dado) por 5 min, com a rota mais lenta | ≥ 5 s por 10 min | abaixo por 5 min |
 | Pool do banco no limite (`db_pool`) | alertas | 30+ esperas por conexão ou 3 s esperando no minuto, ou o pool cheio com fila, por 5 min | — | abaixo por 5 min |
 | Swap crescendo (`host_swap`) | alertas | ≥ 512 MB e +256 MB em 30 min, por 10 min | — | parado por 30 min |
 | CPU roubada pelo provedor (`host_steal`) | alertas | `steal` ≥ 10% por 10 min | — | abaixo por 10 min |
-| Buffer de UDP estourando (`udp_buffer`) | alertas | 100+ `RcvbufErrors`+`SndbufErrors` em 5 min, por 5 min | — | abaixo por 15 min |
+| Buffer de UDP estourando (`udp_buffer`) | alertas | 100+ `RcvbufErrors`+`SndbufErrors` em 5 min, por 8 min | — | abaixo por 15 min |
 | Coleta parada (`collector_stalled`) | alertas | `api_metrics`, `host_metrics` ou `livekit_metrics` sem linha há 5 min, por 10 min (com o backend no ar) | — | em dia por 2 min |
 | Capacidade das lives (`live_capacity`) | alertas | pico de saída do LiveKit nos últimos 7 dias ≥ 45 Mbps (teto de CPU perto de 60); lembra a cada 7 dias | — | pico da semana abaixo |
 | Erro novo (`error_new`) | erros | cada grupo visto pela primeira vez (tipo, origem, versão, link da aba Erros), até 5 por hora; o resto numa mensagem só por hora | — | (evento) |
-| Pico de erro (`error_spike`) | erros | — | um grupo atingindo 5+ pessoas em 15 min | abaixo por 30 min |
+| Pico de erro (`error_spike`) | erros | um grupo atingindo 5+ pessoas em 15 min | 8+ pessoas | abaixo por 30 min |
 | Decodificador falhando em massa (`decoder_failing`) | qualidade | 4+ pessoas com `decoder_software` em 10 min | — | abaixo por 15 min |
 
 Os números estão em constantes no começo de cada `backend/internal/alert/rule_*.go`.

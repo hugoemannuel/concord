@@ -182,10 +182,13 @@ jump" ao voltar. Sem agente nem acesso ao hospedeiro, a decisão foi:
 - de reserva, o salto do relógio de parede sobre o monotônico entre duas
   leituras (o que sobra quando o NTP corrige, ou quando o hipervisor conta a
   pausa no monotônico): cobre máquina sem RTC legível;
-- uma mensagem por congelamento: o salto do NTP com a mesma duração do já
-  avisado é ignorado, e um reinício com o relógio ainda atrasado consulta o
-  último `host_frozen` gravado (duração parecida, nas últimas 3 h) antes de
-  avisar de novo. Relógio de hardware na hora local (`/etc/adjtime` com
+- uma mensagem por congelamento: o avisado fica lembrado por 3 h (o kernel
+  pode copiar a hora atrasada para o RTC antes de o NTP corrigir, e o salto do
+  NTP com a mesma duração é ignorado), e os dois sinais consultam o último
+  `host_frozen` gravado (duração parecida, nas últimas 3 h) antes de avisar,
+  para um reinício no meio não repetir. A leitura de referência é a do fim de
+  cada rodada (um post lento não conta como tempo sumido) e cada rodada de
+  vigia tem prazo de 20 s (o `Notify` segura o mutex do motor). Relógio de hardware na hora local (`/etc/adjtime` com
   `LOCAL`) ou ausente (dev, Windows, contêiner) = sem dado; só o salto vale.
 - O incidente grava início e fim estimados **na hora certa** (do relógio de
   hardware). A mensagem avisa que as mensagens saem com a hora errada até
@@ -196,9 +199,13 @@ visto" é o padrão, mas "avisar todo erro novo" afoga o canal; o remédio deles
 limitar a frequência por regra. Aqui: uma mensagem por grupo, no máximo 5 por
 hora; o que passa sai numa mensagem só ("mais N erros novos…"), no máximo uma
 por hora, e o resto fica só no histórico. O cursor é o `first_seen` do último
-grupo avisado (gravado no `started_at` do incidente): reiniciar não repete nem
-pula, e nunca volta mais de 1 h (alertas desligados por dias não viram
-enxurrada).
+grupo avisado (gravado no `started_at` do incidente) mais as fingerprints já
+avisadas naquele mesmo instante (um lote grava o mesmo `first_seen` em todos os
+grupos): uma falha no meio do lote não pula os outros, reiniciar não repete, e
+nunca volta mais de 1 h (alertas desligados por dias não viram enxurrada).
+Grupo com menos de 30 s espera a rodada seguinte, para um lote que confirma
+depois de outro mais novo não ficar atrás do cursor. Limite conhecido: um
+reinício no meio de um lote do mesmo instante pula o resto daquele instante.
 
 **Buraco na coleta** (`collector_stalled`). Do Prometheus/Grafana: o
 `absent_over_time` e o "No Data" separam "a fonte parou" de "o valor está
@@ -210,10 +217,11 @@ propósito) não conta.
 **Regras novas e limiares** (justificativa no topo de cada `rule_*.go`; tabela
 em docs/OBSERVABILIDADE.md § Alertas): disco e inodes (80/90%), backup com mais
 de 26 h ou com menos da metade do anterior, 5xx (5% e 25%, com 10 e 50 erros no
-mínimo em 5 min), panic, p95 (2 s e 5 s com 20 pedidos no minuto), pool do banco
-com fila, swap crescendo, steal ≥ 10% por 10 min, 100 erros de buffer UDP em
-5 min, capacidade (pico semanal ≥ 45 Mbps, teto medido perto de 60), pico de
-erro (um grupo em 5 pessoas em 15 min, crítico) e decodificador caindo para o
+mínimo em 5 min, com Hold maior que a janela, para um minuto ruim não bastar),
+panic, p95 (2 s e 5 s com 20 pedidos no minuto; com menos, sem dado), pool do
+banco com fila, swap crescendo, steal ≥ 10% por 10 min, 100 erros de buffer UDP
+em 5 min, capacidade (pico semanal ≥ 45 Mbps, teto medido perto de 60), pico de
+erro (um grupo em 5 pessoas em 15 min é aviso; em 8, crítico) e decodificador caindo para o
 processador em 4 pessoas em 10 min (`#qualidade`). "Lives abaixo do alvo em
 massa" não tem evento claro (é média de amostras): fica no resumo.
 

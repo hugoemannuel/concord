@@ -48,9 +48,23 @@ type FreezeWatch struct {
 	history  lastIncidentSource
 
 	prev *clockReading
-	// reported: a duração do congelamento já avisado (0 = nenhum).
-	reported time.Duration
+	// reported: o congelamento já avisado (ou achado no histórico). Vale por
+	// freezeRecent: o relógio de hardware pode voltar a concordar com o do
+	// sistema antes do salto do NTP (o kernel copia a hora do sistema para o
+	// RTC a cada 11 min), e esse salto não pode virar um segundo aviso.
+	reported *frozenSpan
 	pending  *Event
+}
+
+// frozenSpan: um congelamento, pela duração e pelo fim (na hora certa).
+type frozenSpan struct {
+	lasted time.Duration
+	end    time.Time
+}
+
+// covers: o salto (ou a diferença) de d visto em at é este congelamento.
+func (f *frozenSpan) covers(d time.Duration, at time.Time) bool {
+	return f != nil && near(d, f.lasted) && at.Sub(f.end) < freezeRecent
 }
 
 func NewFreezeWatch(history lastIncidentSource, notify func(ctx context.Context, ev Event) error) *FreezeWatch {
@@ -61,31 +75,31 @@ func (w *FreezeWatch) Run(ctx context.Context) {
 	every(ctx, freezeEvery, "máquina congelada", w.Tick)
 }
 
-// Tick: uma leitura dos relógios.
+// Tick: uma leitura dos relógios. A leitura de referência da próxima é a do
+// fim desta: uma rodada demorada (post lento) não conta como tempo sumido.
 func (w *FreezeWatch) Tick(ctx context.Context) error {
-	now := w.clock()
-	ev, err := w.detect(ctx, now)
-	w.prev = &now
+	ev, err := w.detect(ctx, w.clock())
 	if ev != nil {
 		w.pending = ev
 	}
-	return errors.Join(err, w.flush(ctx))
+	err = errors.Join(err, w.flush(ctx))
+	end := w.clock()
+	w.prev = &end
+	return err
 }
 
 func (w *FreezeWatch) detect(ctx context.Context, now clockReading) (*Event, error) {
-	hw, ok := w.hardware()
-	if ok && hw.Sub(now.wall) > freezeMin {
+	if hw, ok := w.hardware(); ok && hw.Sub(now.wall) > freezeMin {
 		return w.fromHardware(ctx, hw, hw.Sub(now.wall))
 	}
-	reported := w.reported
-	if ok {
-		// Relógio em dia: o congelamento avisado acabou.
-		w.reported = 0
-	}
 	lost := w.lost(now)
-	if lost <= freezeMin || (reported > 0 && near(lost, reported)) {
+	if lost <= freezeMin || w.reported.covers(lost, now.wall) {
 		// Nada sumiu, ou é o NTP corrigindo o congelamento já avisado.
 		return nil, nil
+	}
+	seen, err := w.remember(ctx, now.wall, lost)
+	if err != nil || seen {
+		return nil, err
 	}
 	ev := frozenJumpEvent(now.wall.Add(-lost), now.wall)
 	return &ev, nil
@@ -105,30 +119,30 @@ func (w *FreezeWatch) lost(now clockReading) time.Duration {
 // fromHardware: o congelamento visto pelo relógio de hardware, uma vez só
 // (nem a cada leitura, nem depois de um reinício do backend).
 func (w *FreezeWatch) fromHardware(ctx context.Context, hw time.Time, skew time.Duration) (*Event, error) {
-	if w.reported > 0 && near(skew, w.reported) {
+	if w.reported.covers(skew, hw) {
 		return nil, nil
 	}
-	seen, err := w.alreadyRecorded(ctx, hw, skew)
-	if err != nil {
+	seen, err := w.remember(ctx, hw, skew)
+	if err != nil || seen {
 		return nil, err
-	}
-	w.reported = skew
-	if seen {
-		return nil, nil
 	}
 	ev := frozenEvent(hw.Add(-skew), hw)
 	return &ev, nil
 }
 
-func (w *FreezeWatch) alreadyRecorded(ctx context.Context, hw time.Time, skew time.Duration) (bool, error) {
+// remember: marca o congelamento de lasted terminado em end como avisado e
+// diz se ele já estava no histórico (avisado antes de um reinício).
+func (w *FreezeWatch) remember(ctx context.Context, end time.Time, lasted time.Duration) (bool, error) {
 	last, err := w.history.LastIncident(ctx, freezeRuleID)
 	if err != nil {
 		return false, fmt.Errorf("último congelamento: %w", err)
 	}
+	w.reported = &frozenSpan{lasted: lasted, end: end}
 	if last == nil || last.EndedAt == nil {
 		return false, nil
 	}
-	return hw.Sub(*last.EndedAt) < freezeRecent && near(last.EndedAt.Sub(last.StartedAt), skew), nil
+	recorded := &frozenSpan{lasted: last.EndedAt.Sub(last.StartedAt), end: *last.EndedAt}
+	return recorded.covers(lasted, end), nil
 }
 
 func near(a, b time.Duration) bool {
