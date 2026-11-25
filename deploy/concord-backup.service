@@ -6,6 +6,8 @@
 Description=Backup diário do banco da Salinha
 After=docker.service
 Requires=docker.service
+# Falhou: avisa em #alertas (deploy/concord-alerta@.service).
+OnFailure=concord-alerta@%n.service
 
 [Service]
 Type=oneshot

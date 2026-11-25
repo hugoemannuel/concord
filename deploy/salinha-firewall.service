@@ -4,6 +4,8 @@
 Description=Firewall da Salinha (tabela nft inet salinha_fw)
 Wants=network-pre.target
 Before=network-pre.target
+# Falhou: avisa em #alertas (deploy/concord-alerta@.service).
+OnFailure=concord-alerta@%n.service
 
 [Service]
 Type=oneshot

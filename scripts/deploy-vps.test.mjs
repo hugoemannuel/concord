@@ -273,3 +273,48 @@ test('valor com quebra de linha ou espaço é recusado antes de qualquer troca',
     assert.ok(!existsSync(join(ctx.server, 'concord-server.good')), 'seguiu para o restart')
   }
 })
+
+// Alertas das unidades do systemd (docs/adr/0071).
+const ALERT_UNIT = readFileSync(new URL('../deploy/concord-alerta@.service', import.meta.url), 'utf8')
+const DROPIN = '# Gerado pelo scripts/deploy-vps.sh: falhou, avisa em #alertas (docs/adr/0071).\n[Unit]\nOnFailure=concord-alerta@%n.service\n'
+
+function withUnits(ctx, units) {
+  const dir = join(ctx.base, 'systemd')
+  mkdirSync(dir, { recursive: true })
+  for (const [name, body] of Object.entries(units)) writeFileSync(join(dir, name), body)
+  return dir
+}
+
+test('instala o concord-alerta@.service e o OnFailure nas unidades concord-* e salinha-*', () => {
+  const ctx = setup({ current: fakeBinary('good') })
+  const dir = withUnits(ctx, {
+    'concord-backup.service': '[Unit]\nDescription=backup\n',
+    'salinha-firewall.service': '[Unit]\nDescription=firewall\n',
+    'concord-server.service': '[Unit]\nDescription=backend\n',
+    'concord-ja-tem.service': '[Unit]\nOnFailure=concord-alerta@%n.service\n',
+    'outra.service': '[Unit]\n'
+  })
+  const r = deploy(ctx)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(r.stdout, /Alertas: OnFailure das unidades do systemd em dia/)
+  assert.equal(readFileSync(join(dir, 'concord-alerta@.service'), 'utf8'), ALERT_UNIT)
+  for (const unit of ['concord-backup.service', 'salinha-firewall.service']) {
+    assert.equal(readFileSync(join(dir, `${unit}.d`, 'alerta.conf'), 'utf8'), DROPIN, unit)
+  }
+  for (const unit of ['concord-server.service', 'concord-ja-tem.service', 'outra.service', 'concord-alerta@.service']) {
+    assert.ok(!existsSync(join(dir, `${unit}.d`, 'alerta.conf')), `${unit} ganhou o complemento`)
+  }
+  // O que o deploy gera já nasce com o OnFailure.
+  assert.match(readFileSync(join(dir, 'concord-ytdlp-update.service'), 'utf8'), /^OnFailure=concord-alerta@%n\.service$/m)
+  assert.match(r.log, /systemctl daemon-reload/)
+})
+
+test('deploy de novo sem mudança não recarrega o systemd', () => {
+  const ctx = setup({ current: fakeBinary('good') })
+  withUnits(ctx, { 'concord-backup.service': '[Unit]\n' })
+  assert.equal(deploy(ctx).status, 0)
+  writeFileSync(ctx.log, '')
+  const r = deploy(ctx)
+  assert.equal(r.status, 0, r.stderr)
+  assert.doesNotMatch(r.log, /daemon-reload/)
+})
