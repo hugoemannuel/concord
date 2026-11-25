@@ -47,6 +47,8 @@ export interface TelemetrySample {
 export interface TelemetryEvent {
   type: string
   detail: string
+  /** Há quanto tempo aconteceu, em ms (o servidor grava a hora do fato). */
+  ago_ms?: number
 }
 
 export interface ClientContext {
@@ -68,6 +70,8 @@ export interface TelemetryReport {
   sample: TelemetrySample | null
   events: TelemetryEvent[]
   ended: boolean
+  /** Há quanto tempo o relatório foi montado (reenvio depois de uma falha). */
+  ago_ms?: number
 }
 
 export function emptySample(): TelemetrySample {

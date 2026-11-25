@@ -113,6 +113,10 @@ jobs:
       # Antes do instalador: se o build web quebrar, nada é publicado.
       - name: App web
         working-directory: frontend
+        # A versão nova vai no app web (telemetria e relatório de erros): o
+        # package.json só sobe depois, no release-win.sh.
+        env:
+          VITE_APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
           npm i -g yarn@1.22.22
           yarn install --frozen-lockfile --ignore-scripts

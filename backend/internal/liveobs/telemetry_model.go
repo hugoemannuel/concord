@@ -35,6 +35,12 @@ const (
 	EventForeground     = "primeiro_plano"
 	EventNetworkChanged = "rede_trocou"
 	EventAudioRoute     = "rota_do_audio"
+	// Entrar na call levou mais de 3 s (o tempo de cada etapa: acesso, sinal, mídia).
+	EventSlowJoin = "entrada_lenta"
+	// Nova tentativa ou saída durante a entrada (a etapa e o tempo).
+	EventJoinAbandoned = "entrada_abandonada"
+	// Do servidor: o app recomeçou no meio da call (buraco e troca de versão).
+	EventResumed = "retomou"
 	// O H.265 de uma live chegou e não decodificou (ADR 0073): o app desktop
 	// deixa de anunciá-lo para receber na próxima abertura (no navegador, só o evento).
 	EventDecoderFailed = "decoder_falhou"
@@ -58,6 +64,9 @@ type Report struct {
 	Events     []Event       `json:"events"`
 	// Ended: última amostra (parou de transmitir/assistir, saiu da call).
 	Ended bool `json:"ended"`
+	// AgoMs: há quanto tempo o app montou o relatório (reenvio depois de uma
+	// falha). O fim e o início ficam nessa hora; versões antigas não mandam (0).
+	AgoMs int `json:"ago_ms"`
 }
 
 type ClientContext struct {
@@ -118,4 +127,6 @@ type Sample struct {
 type Event struct {
 	Type   string `json:"type"`
 	Detail string `json:"detail"`
+	// AgoMs: há quanto tempo aconteceu (0 = agora; teto de 15 min).
+	AgoMs int `json:"ago_ms"`
 }

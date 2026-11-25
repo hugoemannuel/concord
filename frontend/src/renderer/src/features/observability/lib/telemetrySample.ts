@@ -33,14 +33,23 @@ export interface SampleCounters {
   captured: number
   /** ms gastos no codec (totalEncodeTime/totalDecodeTime). */
   codecMs: number
-  /** Call: amostras de áudio sintetizadas (sem o silêncio) e recebidas. */
+  /** Call: os contadores de cada voz recebida, pelo id da faixa (stat.id). */
+  voices?: Record<string, VoiceCounters>
+}
+
+/** Uma voz recebida: amostras sintetizadas (sem o silêncio), recebidas e pacotes. */
+export interface VoiceCounters {
   concealed: number
   samples: number
+  lost: number
+  received: number
 }
 
 export interface SampleResult {
   sample: TelemetrySample
   counters: SampleCounters
+  /** Minha live: por que o controlador desceu (ScreenAdaptView.reason); não vai na amostra. */
+  stepReason?: string | null
 }
 
 export const n0 = (value: unknown): number => num(value) ?? 0
@@ -83,18 +92,18 @@ export function countersOf(stat: Stat, keys: CounterKeys, source?: Stat): Sample
     frames: num(stat[keys.frames]) ?? -1,
     framesReceived: n0(stat.framesReceived),
     captured: n0(source?.frames),
-    codecMs: n0(stat[keys.codecTime]) * 1000,
-    concealed: 0,
-    samples: 0
+    codecMs: n0(stat[keys.codecTime]) * 1000
   }
 }
 
-export type Deltas = Record<keyof SampleCounters, number>
+type CounterKey = Exclude<keyof SampleCounters, 'voices'>
+export type Deltas = Record<CounterKey, number>
 
 /** Diferenças no intervalo (zeros na primeira leitura; contador que voltou = 0). */
 export function deltas(now: SampleCounters, prev: SampleCounters | null): Deltas {
   const out = {} as Deltas
   for (const key of Object.keys(now) as (keyof SampleCounters)[]) {
+    if (key === 'voices') continue
     out[key] = prev ? Math.max(0, now[key] - prev[key]) : 0
   }
   return out
@@ -130,7 +139,7 @@ function bitrateKbps(d: Deltas): number | null {
   return d.timestamp > 0 ? Math.round((d.bytes * 8) / d.timestamp) : null
 }
 
-export function lossPct(d: Deltas): number | null {
+export function lossPct(d: { lost: number; received: number }): number | null {
   const total = d.lost + d.received
   return total > 0 ? Math.round((d.lost * 10000) / total) / 100 : null
 }
@@ -255,6 +264,7 @@ export function shareSample(
   const target = chosenTarget(input.quality?.chosen)
   return {
     counters: read.now,
+    stepReason: input.quality?.reason ?? null,
     sample: {
       ...base,
       ...layersOf(input.report, base.codec),

@@ -120,7 +120,7 @@ func TestSessionEventsPoeInicioEFim(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := sessionEvents(Report{Events: app, Ended: tt.ended}, tt.inserted)
+			got := sessionEvents(ownedReport{rep: Report{Events: app, Ended: tt.ended}, inserted: tt.inserted, endedNow: tt.ended})
 			if len(got) != len(tt.want) {
 				t.Fatalf("eventos = %v, quer %v", got, tt.want)
 			}
@@ -159,5 +159,46 @@ func TestValidateReportLimitaOsSinaisDeQualidade(t *testing.T) {
 		if !c.ok {
 			t.Errorf("%s: %+v %v", c.name, s, r.Events)
 		}
+	}
+}
+
+func TestValidateReportLimitaAIdadeDosEventos(t *testing.T) {
+	r := validReport()
+	r.AgoMs = -5
+	r.Events = []Event{{Type: EventReconnected, AgoMs: 90_000}, {Type: EventConnectFailed, AgoMs: 99 * 60_000}, {Type: EventStepUp, AgoMs: -1}}
+	if err := r.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if r.AgoMs != 0 {
+		t.Errorf("idade negativa do relatório = %d, quer 0", r.AgoMs)
+	}
+	want := []int{90_000, maxAgoMs, 0}
+	for i, e := range r.Events {
+		if e.AgoMs != want[i] {
+			t.Errorf("evento %d: idade = %d, quer %d", i, e.AgoMs, want[i])
+		}
+	}
+}
+
+func TestSessionEventsInicioEFimNaHoraDoRelatorio(t *testing.T) {
+	rep := Report{AgoMs: 30_000, Events: []Event{{Type: EventReconnected, AgoMs: 50_000}}, Ended: true}
+	got := sessionEvents(ownedReport{rep: rep, inserted: true, endedNow: true})
+	// O início vai para o evento mais velho; o fim fica na hora do relatório.
+	want := []int{50_000, 50_000, 30_000}
+	for i, e := range got {
+		if e.AgoMs != want[i] {
+			t.Errorf("%s: idade = %d, quer %d", e.Type, e.AgoMs, want[i])
+		}
+	}
+}
+
+func TestValidateReportAceitaOsEventosDaEntrada(t *testing.T) {
+	r := validReport()
+	r.Events = []Event{{Type: EventSlowJoin, Detail: "acesso 0,2 s · sinal 0,4 s · mídia 4,1 s"}, {Type: EventJoinAbandoned, Detail: "saiu · sinal · 8 s"}}
+	if err := r.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Events) != 2 || r.Events[0].Type != "entrada_lenta" || r.Events[1].Type != "entrada_abandonada" {
+		t.Errorf("eventos = %+v", r.Events)
 	}
 }

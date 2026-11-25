@@ -13,6 +13,12 @@ describe('sampleEvents: quem transmite', () => {
       'degrau_subiu'
     ])
   })
+  it('degrau caiu: o motivo é o do controlador, não o qualityLimitationReason', () => {
+    const down = sampleEvents('transmite', s({ step: 0 }), s({ step: 1, limitation: 'none' }), {
+      stepReason: 'bandwidth'
+    })
+    expect(down).toEqual([{ type: 'degrau_caiu', detail: '0 → 1 (bandwidth)' }])
+  })
   it('reserva ligada, encoder caiu para o processador e codec trocou', () => {
     const got = sampleEvents(
       'transmite',
