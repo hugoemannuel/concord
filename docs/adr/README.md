@@ -102,3 +102,4 @@ O que fica mais fácil, o que fica mais difícil, o que precisa ser feito depois
 - [0065. Mencionar cargo pelo nome no texto, com os ids escolhidos enviados pelo app](0065-mencao-de-cargo-pelo-nome.md)
 - [0067. Métricas da API por minuto e da VPS no Postgres, lidas pelo próprio backend](0067-metricas-da-api-e-da-vps.md)
 - [0068. Relatório de erros do app: grupos por impressão digital e pilha traduzida no servidor](0068-relatorio-de-erros-do-app.md)
+- [0069. Medir o aparelho (app lento, travado ou pesado) com agregados por minuto feitos no app](0069-metricas-do-aparelho.md)
