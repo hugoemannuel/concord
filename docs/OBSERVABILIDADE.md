@@ -5,6 +5,7 @@ Decisão e alternativas: [ADR 0029](adr/0029-observabilidade-das-lives.md); os
 sinais de qualidade (cada um com a pergunta e a ação que ele habilita):
 [ADR 0032](adr/0032-sinais-de-qualidade-das-lives-e-calls.md).
 Como ligar na VPS: [HOSPEDAGEM.md](HOSPEDAGEM.md#métricas-do-livekit-observabilidade-das-lives).
+Os erros do app (desktop, web, Android e panics do backend) estão em [Erros do app](#erros-do-app).
 
 ## O que é coletado
 
@@ -393,3 +394,114 @@ WHERE hour = (SELECT max(hour) FROM db_table_sizes) ORDER BY total_bytes DESC;
 | `ws_disconnects` grande num minuto | reinício do backend/Caddy ou rede da VPS | conferir deploy no horário; `net_drops`/`net_errors` |
 | `goroutines` ou `heap_mb` só sobem | vazamento no backend | `pprof`; comparar com o último deploy |
 | `udp_rcvbuf_errors` subindo com lives pesadas | buffer de UDP do kernel pequeno (ver a nota do LiveKit acima) | `net.core.rmem_max` maior |
+
+## Erros do app
+
+Decisão, alternativas e tetos: [ADR 0068](adr/0068-relatorio-de-erros-do-app.md).
+Um erro que antes ficava só no `console.error` do aparelho (ou no journal, no
+caso de um panic do backend) vira uma linha agrupada no painel dos devs.
+
+### O que é coletado
+
+| Origem | De onde | O quê |
+|---|---|---|
+| `renderer` (desktop e web) | `window.onerror`, `unhandledrejection`, a tela "Algo deu errado" (`AppErrorBoundary`) e o erro de rota (`RouteErrorScreen`) | tipo, mensagem, pilha |
+| `main` (Electron) | `uncaughtException`, `unhandledRejection`, `render-process-gone`, `child-process-gone`, saída inesperada do `concord-live`, `concord-audio` e do overlay | tipo, mensagem (processo, motivo, código de saída ou sinal), pilha; o renderer manda pela conta dele |
+| `mobile` (Android) | `ErrorBoundary`, handler global do React Native (`ErrorUtils`), promessas rejeitadas | tipo, mensagem, pilha |
+| `backend` | panic recuperado (`internal/platform/recovery`) | rota (`FullPath`, sem ids), valor do panic, pilha do Go |
+
+Junto de cada erro: versão do app, SO (`Windows`, `Linux`, `Android <API>`…),
+desktop/web/android, a tela (o **padrão** da rota: `/servers/:id/channels/:id`),
+se estava em call ou em live, e quantas vezes repetiu desde o último envio. Ligado
+à conta (como a telemetria); visitante não manda.
+
+**Não vai**: erro de rede esperado (pedido que falhou, offline, `AbortError`,
+erro devolvido pela nossa API, arquivo do app que não baixou), o aviso
+`ResizeObserver loop` e erro cuja pilha começa numa extensão do navegador. Nunca
+vão props, estado nem a pilha de componentes do React.
+
+### O que é limpo (no aparelho e de novo no servidor)
+
+Query string e fragmento das URLs; tokens (`Bearer …`, JWT, sequências longas de
+hex/base64) → `<token>`; e-mail → `<email>`; UUID → `<id>`; caminhos de usuário
+(`C:\Users\<nome>`, `/home/<nome>`, `/Users/<nome>`) → `<user>`; texto entre aspas
+com mais de 24 caracteres → `"…"`; a URL de cada quadro da pilha fica só com o
+caminho dentro do app (`assets/index-abc123.js:1:23456`). Mensagem até 300 bytes,
+pilha até 30 linhas e 4 KB.
+
+### Agrupamento, tetos e retenção
+
+- `app_error_groups`: um por erro distinto. A impressão digital (no servidor) é
+  `sha256(origem, tipo, mensagem com números → N, 3 primeiros quadros sem linha
+  e coluna e sem o hash do arquivo)`. Guarda a primeira pilha, a primeira e a
+  última vez e a primeira versão.
+- `app_error_occurrences`: uma linha por (grupo, pessoa, hora, versão), com a
+  contagem somada; tela, SO e call/live da última vez naquela hora.
+- Aparelho: no máximo 10 erros a cada 30 s, repetição vira contagem, 50 erros
+  distintos por sessão do app. Servidor: 6 pedidos/min e 120 erros/h por pessoa,
+  1200/h no total; panic do backend gravado a cada 10 s (até 50 distintos).
+- 14 dias, apagados pelo backend de hora em hora.
+
+### Pilha traduzida
+
+O build do renderer gera source maps **sem** o comentário `sourceMappingURL` e
+sem o código-fonte dentro (`sourcesContent`); os `.map` saem da pasta do app
+(não vão no instalador nem no app web) e o deploy os guarda em
+`/opt/concord/sourcemaps/` (fora do que o Caddy serve; os de mais de 90 dias são
+apagados). O backend traduz a pilha quando um dev abre o grupo
+(`SOURCEMAPS_DIR`, padrão `/opt/concord/sourcemaps`). Não é traduzido: o main do
+Electron (não é minificado, já se lê), o Android (Hermes; fica crua) e o backend
+(o Go já dá arquivo e linha).
+
+### Painel
+
+Aba **Erros** de `/observabilidade` (só `dev_badge_users`): grupos ordenados por
+pessoas afetadas e recência, com contagem, pessoas, primeira e última vez,
+versões, sistemas e origem; filtros por origem e versão; selo "novo nesta
+versão" (todas as ocorrências são da versão mais nova daquela origem). Abrir um
+grupo mostra a pilha (traduzida quando dá), as telas e as últimas ocorrências.
+O mesmo JSON: `GET /api/obs/errors?days=7&source=&version=` e
+`GET /api/obs/errors/<impressão digital>?days=7`.
+
+### Consultas prontas (psql)
+
+**Erros que mais afetam gente (7 dias):**
+```sql
+SELECT g.source, g.kind, left(g.message, 80) AS mensagem,
+       count(DISTINCT o.user_id) AS pessoas, sum(o.count) AS vezes,
+       min(o.hour) AS primeira, max(o.last_at) AS ultima,
+       string_agg(DISTINCT o.app_version, ', ') AS versoes
+FROM app_error_groups g JOIN app_error_occurrences o USING (fingerprint)
+WHERE o.hour > now() - interval '7 days'
+GROUP BY g.fingerprint ORDER BY pessoas DESC, ultima DESC LIMIT 30;
+```
+
+**Erros novos desde ontem:**
+```sql
+SELECT fingerprint, source, kind, left(message, 80), first_seen, first_version
+FROM app_error_groups WHERE first_seen > now() - interval '1 day' ORDER BY first_seen DESC;
+```
+
+**Erros por hora (para ver um pico ou um deploy ruim):**
+```sql
+SELECT o.hour, g.source, sum(o.count) AS vezes, count(DISTINCT o.user_id) AS pessoas
+FROM app_error_occurrences o JOIN app_error_groups g USING (fingerprint)
+WHERE o.hour > now() - interval '48 hours'
+GROUP BY 1, 2 ORDER BY 1, 2;
+```
+
+**Um grupo por dentro (telas e versões):**
+```sql
+SELECT screen, app_version, os, target, in_call, in_live, sum(count) AS vezes
+FROM app_error_occurrences WHERE fingerprint = '<impressão digital>'
+GROUP BY 1, 2, 3, 4, 5, 6 ORDER BY vezes DESC;
+SELECT stack FROM app_error_groups WHERE fingerprint = '<impressão digital>';
+```
+
+**Panics do backend por rota:**
+```sql
+SELECT o.screen AS rota, left(g.message, 80), sum(o.count) AS vezes, max(o.last_at) AS ultima
+FROM app_error_groups g JOIN app_error_occurrences o USING (fingerprint)
+WHERE g.source = 'backend' AND o.hour > now() - interval '14 days'
+GROUP BY 1, 2 ORDER BY vezes DESC;
+```
