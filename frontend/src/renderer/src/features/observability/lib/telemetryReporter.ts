@@ -41,6 +41,8 @@ export interface ReporterDeps {
   connection?(): ConnectionTelemetry
   /** Por que a live saiu nesse codec (screenCodecChoice); leva e limpa. */
   codecChoice?(): string | null
+  /** O H.265 da live desse streamer chegou e não decodificou (screenHevcFailure); leva e limpa. */
+  decodeFailure?(streamerId: string): string | null
 }
 
 interface Wanted {
@@ -129,20 +131,28 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     return result
   }
 
-  /** O que vai junto da amostra: a conexão (voz) ou o motivo do codec (minha live). */
-  function extras(kind: SessionKind): ConnectionTelemetry {
-    if (kind === 'call') return deps.connection?.() ?? NOTHING
-    const choice = kind === 'transmite' ? deps.codecChoice?.() : null
-    return choice
-      ? { connectMs: null, events: [{ type: 'codec_escolhido', detail: choice }] }
-      : NOTHING
+  /** O motivo do codec (minha live) ou a falha do decodificador (live assistida). */
+  function extraEvent(s: Wanted): TelemetryEvent | null {
+    if (s.kind === 'transmite') {
+      const choice = deps.codecChoice?.()
+      return choice ? { type: 'codec_escolhido', detail: choice } : null
+    }
+    const failure = deps.decodeFailure?.(s.streamerId)
+    return failure ? { type: 'decoder_falhou', detail: failure } : null
+  }
+
+  /** O que vai junto da amostra: a conexão (voz) ou um evento da live. */
+  function extras(s: Wanted): ConnectionTelemetry {
+    if (s.kind === 'call') return deps.connection?.() ?? NOTHING
+    const event = extraEvent(s)
+    return event ? { connectMs: null, events: [event] } : NOTHING
   }
 
   async function sampleOf(s: Session): Promise<Draft | null> {
     const result = await read(s)
     s.ticks++
     if (!result) return null
-    const extra = extras(s.kind)
+    const extra = extras(s)
     const sample = { ...result.sample, connect_ms: extra.connectMs ?? result.sample.connect_ms }
     const events = [...extra.events, ...sampleEvents(s.kind, s.last, sample)]
     s.counters = result.counters
@@ -155,7 +165,8 @@ export function createTelemetryReporter(deps: ReporterDeps): {
     const ended: Draft[] = []
     for (const [key, s] of sessions) {
       if (keys.has(key)) continue
-      ended.push(draft(s, null, s.kind === 'call' ? extras(s.kind).events : [], true))
+      // A minha live não leva o motivo do codec no fim (é da próxima live).
+      ended.push(draft(s, null, s.kind === 'transmite' ? [] : extras(s).events, true))
       sessions.delete(key)
     }
     return ended

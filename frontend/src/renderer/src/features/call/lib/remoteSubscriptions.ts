@@ -11,6 +11,8 @@ import { samePause, videoEnabled, type VideoPauseState } from './screenVideoPaus
 // custa CPU e GPU que o jogo precisa. O som segue, e a live na janela flutuante
 // não pausa (ver screenVideoPause.ts). A live pelo helper nativo
 // (`<id>:screen`) conta como a do dono; a minha, só o vídeo (a minha prévia).
+// Quando o meu decodificador não dá conta da live de alguém, ela vem na camada
+// de baixo (screenReceiveWatch, docs/adr/0073).
 
 export interface RemotePublicationLike {
   source: string
@@ -31,6 +33,8 @@ export class RemoteSubscriptions {
   /** O meu helper nativo transmitindo (identidade na sala), ou null. */
   private ownScreen: string | null = null
   private pause: VideoPauseState = { windowHidden: false, offscreen: new Set(), pip: null }
+  /** Identidade → a live dela na camada de baixo (true) ou de volta à de cima (false). */
+  private decodeLimited = new Map<string, boolean>()
 
   setWatched(userIds: string[]): void {
     this.watched = new Set(userIds)
@@ -43,6 +47,11 @@ export class RemoteSubscriptions {
   /** Quem parou de transmitir sai dos assistidos (se voltar, começa pausada). */
   prune(availableScreens: string[]): void {
     this.watched = new Set(pruneWatched([...this.watched], availableScreens))
+  }
+
+  /** O meu decodificador não dá conta da live dessa identidade (ou voltou a dar). */
+  setDecodeLimited(identity: string, low: boolean): void {
+    this.decodeLimited.set(identity, low)
   }
 
   /** true se mudou (quem chama reaplica). */
@@ -65,11 +74,16 @@ export class RemoteSubscriptions {
       const want = wantsSubscription(publication.source as TrackSourceName, owner, this.watched)
       // Com autoSubscribe desligado, isDesired começa false.
       if (publication.isDesired !== want) publication.setSubscribed(want)
-      // O SDK só aceita pausar o que está assinado; repetir o mesmo valor é no-op.
-      if (want && publication.kind === 'video') {
-        publication.setEnabled(videoEnabled(publication.source, owner, this.pause))
-      }
+      if (want && publication.kind === 'video') this.applyVideo(participant.identity, owner, publication)
     }
+  }
+
+  /** O SDK só aceita pausar (e escolher a camada d)o que está assinado; repetir o mesmo valor é no-op. */
+  private applyVideo(identity: string, owner: string, publication: RemotePublicationLike): void {
+    publication.setEnabled(videoEnabled(publication.source, owner, this.pause))
+    const low = this.decodeLimited.get(identity)
+    if (publication.source !== 'screen_share' || low === undefined) return
+    publication.setVideoQuality?.(low ? VideoQuality.LOW : VideoQuality.HIGH)
   }
 
   /** A minha live nativa: vídeo na camada de baixo (prévia); o som dela não volta (eco). */

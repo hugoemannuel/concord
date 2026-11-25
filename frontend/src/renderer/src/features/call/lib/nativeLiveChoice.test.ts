@@ -5,7 +5,8 @@ import {
   nativeLiveWanted,
   nativeQuality,
   nativeStatsReport,
-  saveNativeLivePref
+  saveNativeLivePref,
+  stampNativeStats
 } from './nativeLiveChoice'
 
 const NVIDIA = { available: true, nvidia: true }
@@ -84,5 +85,17 @@ describe('nativeStatsReport', () => {
     const report = nativeStatsReport([{ id: 'OT1', type: 'outbound-rtp' }, { type: 'codec' }])
     expect(report.get('OT1')).toEqual({ id: 'OT1', type: 'outbound-rtp' })
     expect(report.size).toBe(2)
+  })
+})
+
+describe('stampNativeStats', () => {
+  it('regressão: o helper manda o tempo do libwebrtc em µs; vale a hora de chegada, em ms', () => {
+    const stats = stampNativeStats([{ id: 'OT1', timestamp: 1_764_000_000_000_000 }], 1_764_000_000_000)
+    expect(stats[0]).toEqual({ id: 'OT1', timestamp: 1_764_000_000_000 })
+  })
+
+  it('continua certo se o helper passar a mandar ms (ou não mandar o tempo)', () => {
+    const stats = stampNativeStats([{ id: 'a', timestamp: 1_764_000_000_000 }, { id: 'b' }], 5000)
+    expect(stats.map((stat) => stat.timestamp)).toEqual([5000, 5000])
   })
 })

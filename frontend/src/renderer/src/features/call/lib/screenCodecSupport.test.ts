@@ -197,3 +197,45 @@ describe('softwareMarkedCodecs', () => {
     expect(softwareMarkedCodecs()).toEqual([])
   })
 })
+
+describe('marca de "caiu no processador" (regressão: a marca se renovava sozinha)', () => {
+  const GPU = 'ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)'
+  const BASIC = 'ANGLE (Microsoft, Microsoft Basic Render Driver Direct3D11 vs_5_0 ps_5_0, D3D11)'
+
+  afterEach(() => vi.useRealTimers())
+
+  it('marca ainda válida não é regravada: a validade conta da primeira queda', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-20T12:00:00Z'))
+    markSoftwareCodec('h264', GPU)
+    vi.setSystemTime(Date.now() + 3 * 24 * 3600_000)
+    markSoftwareCodec('h264', GPU)
+    vi.setSystemTime(Date.now() + MARK_TTL_MS - 3 * 24 * 3600_000 + 1000)
+    expect(softwareMarkedCodecs(GPU)).toEqual([])
+  })
+
+  it('com o driver de vídeo fora do ar (Basic Render Driver) não marca', () => {
+    markSoftwareCodec('h264', BASIC)
+    expect(softwareMarkedCodecs(BASIC)).toEqual([])
+    expect(softwareMarkedCodecs(GPU)).toEqual([])
+  })
+
+  it('a marca é da placa: com outra placa (ou outro driver) não vale', () => {
+    markSoftwareCodec('h265', GPU)
+    expect(softwareMarkedCodecs(GPU)).toEqual(['h265'])
+    expect(softwareMarkedCodecs('ANGLE (AMD, AMD Radeon RX 9060 XT)')).toEqual([])
+  })
+
+  it('marca do formato anterior (só a data, sem a placa) não vale: podia estar renovada pelo defeito', () => {
+    localStorage.setItem('salinha:screen-h264-software', String(Date.now()))
+    expect(softwareMarkedCodecs(GPU)).toEqual([])
+    expect(softwareMarkedCodecs('')).toEqual([])
+  })
+
+  it('a placa marcada pula a pergunta ao Chromium só nela', async () => {
+    markSoftwareCodec('h265', GPU)
+    const encoding = api({ 'video/H265': hw, [H264]: hw })
+    expect((await screenCodecSupport(video, encoding, allCaps, GPU)).h265).toBe('software')
+    expect((await screenCodecSupport(video, encoding, allCaps, 'outra')).h265).toBe('hardware')
+  })
+})

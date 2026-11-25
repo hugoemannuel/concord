@@ -241,6 +241,42 @@ describe('createTelemetryReporter: conexão e codec', () => {
     })
     expect(shares[1].events.map((e) => e.type)).not.toContain('codec_escolhido')
   })
+
+  it('a live assistida leva o "decoder_falhou" (H.265 chega e não decodifica) uma vez, só na dela', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: ['bia', 'caio'] })
+    const pending = new Map([['bia', 'h265: 13 chegam, 0,4 decodificados por segundo']])
+    t.deps.decodeFailure = (streamerId) => {
+      const out = pending.get(streamerId) ?? null
+      pending.delete(streamerId)
+      return out
+    }
+    await t.tick()
+    await t.tick()
+    const watches = t.sent.flat().filter((r) => r.kind === 'assiste')
+    const failed = watches.filter((r) => r.events.some((e) => e.type === 'decoder_falhou'))
+    expect(failed).toHaveLength(1)
+    expect(failed[0]).toMatchObject({ streamer_id: 'bia' })
+    expect(failed[0].events).toContainEqual({
+      type: 'decoder_falhou',
+      detail: 'h265: 13 chegam, 0,4 decodificados por segundo'
+    })
+  })
+
+  it('regressão: parou de assistir antes da leitura seguinte, o "decoder_falhou" vai no fim da sessão', async () => {
+    const t = setup({ callId: 'c1', sharing: false, watching: ['bia'] })
+    let pending: string | null = null
+    t.deps.decodeFailure = () => {
+      const out = pending
+      pending = null
+      return out
+    }
+    await t.tick()
+    pending = 'h265: 13 chegam, 0 decodificados por segundo'
+    t.set({ callId: 'c1', sharing: false, watching: [] })
+    await t.tick()
+    const ended = t.sent.flat().find((r) => r.kind === 'assiste' && r.ended)
+    expect(ended?.events.map((e) => e.type)).toEqual(['decoder_falhou'])
+  })
 })
 
 describe('stepChanged', () => {
