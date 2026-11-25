@@ -19,6 +19,7 @@ import { useInAppNotifications } from '../src/features/notifications/hooks/useIn
 import { useCallForeground } from '../src/features/call/hooks/useCallForeground'
 import { ErrorReportBridge } from '../src/features/errorReports/components/ErrorReportBridge'
 import { startErrorReports } from '../src/features/errorReports/lib/errorReportStart'
+import { useCallTelemetry } from '../src/features/observability/hooks/useCallTelemetry'
 import { registerCallService } from '../src/features/call/lib/notifeeForeground'
 import { useNotificationTap } from '../src/features/notifications/hooks/useNotificationTap'
 import { usePushRegistration } from '../src/features/notifications/hooks/usePushRegistration'
@@ -58,6 +59,7 @@ function Gate() {
   useCallPresence()
   useCallLifecycle()
   useIncomingCallRoute()
+  useCallTelemetry()
 
   useEffect(() => {
     void useAuthStore.getState().restore()

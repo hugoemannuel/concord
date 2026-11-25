@@ -3,6 +3,8 @@ import { ConnectionState, DisconnectReason, Room, RoomEvent, Track, type LocalVi
 import type { CallMedia, MediaConnection } from './callMedia'
 import { clearCameraTracks, setCameraTrack } from './livekitCamera'
 import { createNativeTracks, releaseNativeTrack } from './releaseNativeTrack'
+import { clearActiveCallStats, setActiveCallStats, type CallStatsReader } from './callStatsSource'
+import { createLiveKitStats } from './livekitStats'
 import { disableVideoStartBitrate } from './startBitrate'
 
 // Os dois únicos arquivos do app que falam com o SDK do LiveKit (ADR 0023): este e livekitScreen.tsx (que só
@@ -68,6 +70,8 @@ export function createLiveKitMedia(): CallMedia {
   const cameraListeners = new Set<(ids: string[]) => void>()
   let facing: 'user' | 'environment' = 'user'
   const native = createNativeTracks()
+  // A telemetria lê o getStats() desta sala (docs/adr/0070).
+  let stats: CallStatsReader | null = null
 
   const emitConnection = (state: MediaConnection): void => connectionListeners.forEach((l) => l(state))
 
@@ -166,10 +170,12 @@ export function createLiveKitMedia(): CallMedia {
       emitScreens(next)
       emitPeers(next)
       emitCameras(next)
+      setActiveCallStats((stats = createLiveKitStats(next)))
     },
     async disconnect() {
       const current = room
       room = null
+      if (stats) clearActiveCallStats(stats)
       screenTracks.clear()
       clearCameraTracks()
       await closeRoom(current)
