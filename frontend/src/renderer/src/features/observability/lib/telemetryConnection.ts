@@ -1,4 +1,5 @@
-import type { CallConnection, CallJoinStep } from '../../call/lib/callConnection'
+import type { CallConnection } from '../../call/lib/callConnection'
+import { createJoinTracker, seconds, STEPS } from './telemetryJoin'
 import type { TimedEvent } from './telemetryOutbox'
 import type { TelemetryEvent } from './telemetryTypes'
 
@@ -30,15 +31,10 @@ export interface ConnectionSource {
 const MAX_AGE_MS = 5 * 60_000
 const MAX_EVENTS = 5
 
-const STEPS: Record<CallJoinStep, string> = { token: 'acesso', signal: 'sinal', media: 'mídia' }
-
 function wherePhase(prev: CallConnection): string {
   if (prev.phase === 'connecting') return `entrando (${prev.step ? STEPS[prev.step] : '—'})`
   return prev.phase === 'reconnecting' ? 'reconectando' : 'conectada'
 }
-
-const seconds = (ms: number): string =>
-  `${(ms / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s`
 
 /** O que uma mudança de fase diz: tempo para entrar ou um evento. */
 export function connectionChange(
@@ -65,6 +61,10 @@ export function createConnectionLog(now: () => number = Date.now): ConnectionSou
 } {
   let connectMs: number | null = null
   let events: { at: number; event: TelemetryEvent }[] = []
+  const join = createJoinTracker()
+  const push = (event: TelemetryEvent): void => {
+    events = [...events, { at: now(), event }].slice(-MAX_EVENTS)
+  }
   function takeEvents(): TimedEvent[] {
     const fresh = events
       .filter((e) => now() - e.at <= MAX_AGE_MS)
@@ -76,7 +76,9 @@ export function createConnectionLog(now: () => number = Date.now): ConnectionSou
     observe(prev, next) {
       const change = connectionChange(prev, next)
       if (change.connectMs !== undefined) connectMs = change.connectMs
-      if (change.event) events = [...events, { at: now(), event: change.event }].slice(-MAX_EVENTS)
+      if (change.event) push(change.event)
+      const joinEvent = join(prev, next, now())
+      if (joinEvent) push(joinEvent)
     },
     takeEvents,
     take() {

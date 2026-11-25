@@ -72,3 +72,23 @@ describe('createConnectionLog', () => {
     expect(log.take()).toEqual({ connectMs: 900, events: [] })
   })
 })
+
+describe('createConnectionLog: entrada', () => {
+  it('a entrada lenta vai com os eventos', () => {
+    let now = 0
+    const log = createConnectionLog(() => now)
+    const steps: [CallConnection, number][] = [
+      [at('connecting', 0, { step: 'token' }), 0],
+      [at('connected', 4000), 4000]
+    ]
+    let prev = at('idle', 0)
+    for (const [next, t] of steps) {
+      now = t
+      log.observe(prev, next)
+      prev = next
+    }
+    const { connectMs, events } = log.take()
+    expect(connectMs).toBe(4000)
+    expect(events.map((e) => e.type)).toEqual(['entrada_lenta'])
+  })
+})

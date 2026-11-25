@@ -35,6 +35,10 @@ const (
 	EventForeground     = "primeiro_plano"
 	EventNetworkChanged = "rede_trocou"
 	EventAudioRoute     = "rota_do_audio"
+	// Entrar na call levou mais de 3 s (o tempo de cada etapa: acesso, sinal, mídia).
+	EventSlowJoin = "entrada_lenta"
+	// Nova tentativa ou saída durante a entrada (a etapa e o tempo).
+	EventJoinAbandoned = "entrada_abandonada"
 )
 
 // Batch: um pedido do app, com todas as sessões ativas dele.

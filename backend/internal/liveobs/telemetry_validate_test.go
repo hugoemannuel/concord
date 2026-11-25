@@ -189,3 +189,14 @@ func TestSessionEventsInicioEFimNaHoraDoRelatorio(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateReportAceitaOsEventosDaEntrada(t *testing.T) {
+	r := validReport()
+	r.Events = []Event{{Type: EventSlowJoin, Detail: "acesso 0,2 s · sinal 0,4 s · mídia 4,1 s"}, {Type: EventJoinAbandoned, Detail: "saiu · sinal · 8 s"}}
+	if err := r.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Events) != 2 || r.Events[0].Type != "entrada_lenta" || r.Events[1].Type != "entrada_abandonada" {
+		t.Errorf("eventos = %+v", r.Events)
+	}
+}
