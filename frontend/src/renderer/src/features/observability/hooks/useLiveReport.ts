@@ -10,7 +10,7 @@ export type ReportState =
   | { status: 'ready'; report: LiveReport }
 
 /** Falha ao carregar: 403 = não é dev; o resto, erro (com "tentar de novo"). */
-export function failedState(err: unknown): ReportState {
+export function failedState(err: unknown): { status: 'forbidden' } | { status: 'error' } {
   return err instanceof ApiError && err.status === 403
     ? { status: 'forbidden' }
     : { status: 'error' }

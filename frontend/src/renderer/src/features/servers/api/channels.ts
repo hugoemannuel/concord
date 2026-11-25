@@ -3,7 +3,14 @@ import type { ChannelOverwrite, OverwriteTarget } from '../lib/permissions'
 
 export type ChannelType = 'text' | 'voice'
 
-export type SystemChannelKind = 'maestro' | 'notices'
+// alert_*: os canais de alerta do servidor dos devs (backend internal/alert, ADR 0071).
+export type SystemChannelKind =
+  | 'maestro'
+  | 'notices'
+  | 'alert_infra'
+  | 'alert_errors'
+  | 'alert_quality'
+  | 'alert_daily'
 
 export interface Channel {
   id: string
