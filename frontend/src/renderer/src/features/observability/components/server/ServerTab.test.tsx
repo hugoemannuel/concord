@@ -81,7 +81,10 @@ const report: ServerReport = {
   }
 }
 
-const render = (state: Parameters<typeof ServerTabBody>[0]['state'], live = noLive): string =>
+const render = (
+  state: Parameters<typeof ServerTabBody>[0]['state'],
+  live: ReportState = noLive
+): string =>
   renderToStaticMarkup(<ServerTabBody state={state} live={live} now={now} onRetry={() => {}} />)
 
 describe('ServerTabBody', () => {

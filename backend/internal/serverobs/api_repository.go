@@ -50,14 +50,18 @@ func (r *APIRepository) InsertRoutes(ctx context.Context, rows []RouteWindow) er
 	if len(rows) == 0 {
 		return nil
 	}
+	if err := r.db.SendBatch(ctx, routeBatch(rows)).Close(); err != nil {
+		return fmt.Errorf("inserir api_route_metrics: %w", err)
+	}
+	return nil
+}
+
+func routeBatch(rows []RouteWindow) *pgx.Batch {
 	batch := &pgx.Batch{}
 	for _, w := range rows {
 		batch.Queue(insertRouteSQL, w.Minute, w.Route, w.Requests, w.Status4xx, w.Status5xx, w.P50Ms, w.P95Ms, w.MaxMs, w.TotalMs)
 	}
-	if err := r.db.SendBatch(ctx, batch).Close(); err != nil {
-		return fmt.Errorf("inserir api_route_metrics: %w", err)
-	}
-	return nil
+	return batch
 }
 
 func scanAPI(row pgx.CollectableRow) (APIMinute, error) {

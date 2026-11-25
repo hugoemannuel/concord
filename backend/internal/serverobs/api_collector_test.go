@@ -109,3 +109,10 @@ func TestGCPausesDoIntervalo(t *testing.T) {
 		t.Errorf("gc = %d ciclos, %v ms, maior %v; quer 2, 8, 5", cycles, total, worst)
 	}
 }
+
+func TestRouteBatchUmaLinhaPorRota(t *testing.T) {
+	b := routeBatch([]RouteWindow{{Route: "GET /a"}, {Route: "GET /b"}})
+	if b.Len() != 2 || b.QueuedQueries[1].Arguments[1] != "GET /b" {
+		t.Errorf("batch = %d consultas", b.Len())
+	}
+}
