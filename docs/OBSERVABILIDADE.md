@@ -508,4 +508,144 @@ SELECT o.screen AS rota, left(g.message, 80), sum(o.count) AS vezes, max(o.last_
 FROM app_error_groups g JOIN app_error_occurrences o USING (fingerprint)
 WHERE g.source = 'backend' AND o.hour > now() - interval '14 days'
 GROUP BY 1, 2 ORDER BY vezes DESC;
+## O aparelho: o app está lento, travado ou pesado?
+
+Decisão, alternativas e o que ficou de fora: [ADR 0069](adr/0069-metricas-do-aparelho.md).
+Responde "o Salinha tá pesado/travou no meu PC" com números, sem olhar nada
+fora do app.
+
+### O que é coletado
+
+| Tabela | De quanto em quanto | O quê |
+|---|---|---|
+| `device_sessions` | uma por abertura do app (renovada a cada envio) | SO, versão, web/desktop, placa de vídeo (renderer do WebGL), núcleos, memória total, **tempo para abrir** (`startup_ms`: do início até a lista de servidores chegar; só quem abriu já logado) e **aceleração por hardware** (`gpu_status`: `enabled`, `software`, `disabled`) |
+| `device_samples` | **1 linha por minuto em call ou live, 1 a cada 5 min parado** (fecha antes quando o estado muda); enviadas em lote a cada ~5 min | estado (`parado`, `call`, `transmitindo`), assistindo live, jogo aberto (sim/não, só com a atividade ligada); % do tempo com a janela visível e com foco; **CPU do app** por processo (principal, renderer, GPU, outros; média, % da máquina) e o máximo do app; **memória** do app (média), do renderer e da GPU (máximo); helpers nativos (só Linux); **máquina**: CPU do sistema, memória livre (mínimo), carga (não existe no Windows), bateria, limite de velocidade da CPU do SO; **travadas**: atraso do laço de eventos (p95/máx), quadros longos (quantos, ms somados, o maior), interações lentas (≥ 200 ms) e a pior, memória do JS, janela que parou de responder (`hangs`), GPU que caiu; **rede do app**: RTT do batimento do WebSocket (mediana/máx) e latência da API (p50/p95, quantas) |
+
+Desktop manda tudo; o **app web** manda só o que o navegador dá (travadas,
+memória do JS, WebSocket, API, abertura, placa pelo WebGL): os campos do
+processo principal e da máquina ficam vazios. Android não manda (ainda).
+Visitante sem conta não manda. 14 dias (o backend apaga de hora em hora).
+
+Como ler os números:
+
+- `cpu_*` é **% da máquina inteira** (dividido pelos núcleos): numa máquina de 8
+  núcleos, 12,5% = um núcleo cheio.
+- O atraso do laço de eventos e os quadros longos **só contam com a janela
+  visível** (escondida, o Chromium espaça os timers e isso não é travada);
+  `visible_pct` diz quanto da linha foi medido. Travadas por minuto =
+  `long_ms` / minutos visíveis.
+- `seconds` é a duração da linha; `at` é quando ela fechou.
+
+### Painel
+
+Aba **Dispositivos** do `/observabilidade` (só `dev_badge_users`), para 24 h,
+3, 7 ou 14 dias. O mesmo JSON: `GET /api/obs/devices?days=7`.
+
+- **Aparelhos mais pesados ou travados**: pessoa, sistema, placa, versão, os
+  motivos prováveis em palavras e a linha de números.
+- **Consumo típico por estado** (parado, em call, transmitindo): a linha de
+  base para saber se um número é alto.
+- **Por versão do app**: para ver se uma versão piorou.
+
+| Motivo | Regra (no período) | O que fazer |
+|---|---|---|
+| A janela parou de responder | `hangs` > 0 | travamento de verdade: ver versão e o que estava aberto; reproduzir com `--perf-log` |
+| Travadas longas | ≥ 1 s de quadros longos por minuto visível | perfilar a tela/versão (`--perf-log`); comparar com a linha de base |
+| Sem aceleração por hardware | `gpu_status` software/disabled | driver, lista de bloqueio do Chromium, ou a GPU caiu e voltou por software |
+| Placa de vídeo caiu | `gpu_crashes` > 0 | driver; cruzar com codec/placa nas lives |
+| CPU alta do renderer em call | renderer ≥ 20% da máquina em call/live | o que a tela da call faz (vídeos, animações, DSP de áudio) |
+| App pesado (CPU) | app ≥ 25% da máquina na média | ver por processo e por estado |
+| Interface atrasada | atraso p95 ≥ 100 ms | idem às travadas |
+| Cliques demorando | ≥ 5 interações ≥ 200 ms | qual tela; perfilar |
+| Memória do app alta | ≥ 1,5 GB na média | vazamento? `heap_mb` subindo ao longo da sessão |
+| Pouca memória livre | < 10% ou < 1 GB livre | a máquina está no limite: o app pesa mais; não é bug |
+| Máquina no limite (CPU) | CPU do sistema ≥ 85% | com o app baixo: outra coisa (jogo) ocupa a máquina |
+| Rede do app lenta | RTT do WS ≥ 300 ms | rede da pessoa ou VPS (comparar com as métricas do servidor) |
+| Abre devagar | abertura ≥ 15 s | regressão de abertura na versão? disco lento? |
+
+### Consultas prontas (psql)
+
+**Quem está mais pesado (média do período, por pessoa e estado):**
+```sql
+SELECT u.username, x.state, count(*) AS linhas, round(sum(x.seconds) / 60) AS minutos,
+       round(avg(x.cpu_browser + x.cpu_renderer + x.cpu_gpu + x.cpu_other)::numeric, 1) AS cpu_app,
+       round(avg(x.cpu_renderer)::numeric, 1) AS cpu_renderer, round(avg(x.mem_app_mb)) AS mem_app_mb,
+       round(min(x.sys_mem_free_mb)) AS livre_min_mb, s.os, s.gpu, s.app_version
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+WHERE x.at > now() - interval '7 days'
+GROUP BY u.username, x.state, s.os, s.gpu, s.app_version ORDER BY cpu_app DESC NULLS LAST LIMIT 30;
+```
+
+**Linha de base por estado (p50/p90 do app inteiro):**
+```sql
+SELECT state, count(*) AS linhas, count(DISTINCT s.user_id) AS pessoas,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY cpu_browser + cpu_renderer + cpu_gpu + cpu_other) AS cpu_p50,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY cpu_browser + cpu_renderer + cpu_gpu + cpu_other) AS cpu_p90,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY mem_app_mb) AS mem_p50,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY mem_app_mb) AS mem_p90
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id
+WHERE s.target = 'desktop' GROUP BY state ORDER BY state;
+```
+
+**Travadas por pessoa (só o tempo visível conta):**
+```sql
+SELECT u.username, s.app_version, s.gpu,
+       round((sum(x.long_ms) / nullif(sum(x.seconds * x.visible_pct / 100) / 60, 0))::numeric) AS travada_ms_por_min,
+       max(x.long_max_ms) AS maior_ms, percentile_cont(0.5) WITHIN GROUP (ORDER BY x.lag_p95_ms) AS atraso_p95,
+       sum(x.hangs) AS parou_de_responder, sum(x.slow_inputs) AS cliques_lentos
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+WHERE x.visible_pct > 0 GROUP BY u.username, s.app_version, s.gpu
+ORDER BY travada_ms_por_min DESC NULLS LAST LIMIT 30;
+```
+
+**Uma versão piorou?** (em call, desktop):
+```sql
+SELECT s.app_version, count(DISTINCT s.user_id) AS pessoas, count(*) AS linhas,
+       round(avg(x.cpu_browser + x.cpu_renderer + x.cpu_gpu + x.cpu_other)::numeric, 1) AS cpu_app,
+       round(avg(x.mem_app_mb)) AS mem_mb, percentile_cont(0.5) WITHIN GROUP (ORDER BY x.lag_p95_ms) AS atraso_p95,
+       sum(x.hangs) AS parou
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id
+WHERE x.state <> 'parado' AND s.target = 'desktop'
+GROUP BY s.app_version ORDER BY s.app_version DESC;
+```
+
+**Sem aceleração por hardware ou GPU que caiu:**
+```sql
+SELECT u.username, s.os, s.gpu, s.gpu_status, s.app_version, sum(x.gpu_crashes) AS gpu_caiu
+FROM device_sessions s JOIN users u ON u.id = s.user_id LEFT JOIN device_samples x ON x.session_id = s.id
+GROUP BY u.username, s.id HAVING s.gpu_status IN ('software', 'disabled') OR sum(x.gpu_crashes) > 0
+ORDER BY s.last_seen_at DESC;
+```
+
+**Máquina no limite × app pesado** (CPU do sistema alta com o app baixo = outra coisa):
+```sql
+SELECT u.username, x.state, x.game, round(avg(x.sys_cpu_pct)::numeric) AS cpu_sistema,
+       round(avg(x.cpu_browser + x.cpu_renderer + x.cpu_gpu + x.cpu_other)::numeric, 1) AS cpu_app,
+       round(min(x.sys_mem_free_mb)) AS livre_min_mb, bool_or(x.on_battery) AS bateria,
+       min(x.speed_limit_pct) AS limite_cpu
+FROM device_samples x JOIN device_sessions s ON s.id = x.session_id JOIN users u ON u.id = s.user_id
+GROUP BY u.username, x.state, x.game HAVING avg(x.sys_cpu_pct) > 70 ORDER BY cpu_sistema DESC;
+```
+
+**Tempo para abrir, por versão:**
+```sql
+SELECT app_version, target, count(*) AS aberturas,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY startup_ms) AS p50_ms,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY startup_ms) AS p90_ms
+FROM device_sessions WHERE startup_ms IS NOT NULL GROUP BY 1, 2 ORDER BY 1 DESC;
+```
+
+**Rede do app (WS e API), por dia:**
+```sql
+SELECT date_trunc('day', at) AS dia, percentile_cont(0.5) WITHIN GROUP (ORDER BY ws_rtt_ms) AS ws_rtt,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY ws_rtt_ms) AS ws_rtt_p90,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY api_ms_p50) AS api_p50,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY api_ms_p95) AS api_p95
+FROM device_samples GROUP BY 1 ORDER BY 1;
+```
+
+**Volume (está dentro do previsto? ~170 linhas por pessoa por dia):**
+```sql
+SELECT date_trunc('day', at) AS dia, count(*) AS linhas, count(DISTINCT session_id) AS aberturas
+FROM device_samples GROUP BY 1 ORDER BY 1;
 ```
