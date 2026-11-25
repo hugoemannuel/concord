@@ -21,7 +21,20 @@ describe('scrubText (regras 1–5 do ADR 0068)', () => {
     ['aspas longas viram reticências', 'texto "isto aqui é uma mensagem que a pessoa digitou" quebrou', 'texto "…" quebrou'],
     ['aspas simples longas também', "texto 'isto aqui é uma mensagem que a pessoa digitou' quebrou", 'texto "…" quebrou'],
     ['crase longa também', 'texto `isto aqui é uma mensagem que a pessoa digitou` quebrou', 'texto "…" quebrou'],
-    ['aspas curtas ficam', "Cannot read property 'id' of undefined", "Cannot read property 'id' of undefined"]
+    ['aspas curtas ficam', "Cannot read property 'id' of undefined", "Cannot read property 'id' of undefined"],
+    // Mesmos casos da tabela do servidor (backend/internal/apperrors/scrub_test.go) e do desktop.
+    ['bearer minúsculo', 'bearer abc', 'Bearer <token>'],
+    ['bearer maiúsculo', 'BEARER abc', 'Bearer <token>'],
+    ['Windows minúsculo', 'c:\\users\\ana\\x', 'c:\\users\\<user>\\x'],
+    ['Windows com barras escapadas', 'C:\\\\Users\\\\Ana Silva\\\\x', 'C:\\\\Users\\\\<user>\\\\x'],
+    ['Windows com espaço no nome', 'C:\\Users\\Ana Maria\\AppData\\x.log', 'C:\\Users\\<user>\\AppData\\x.log'],
+    ['esquema do app perde a query', 'salinha://x?y=1', 'salinha://x'],
+    ['URL relativa perde a query', 'GET /api/media/x?token=abc', 'GET /api/media/x'],
+    ['URL relativa no quadro mantém linha e coluna', 'at f (/a/b.js?v=1:3:4)', 'at f (/a/b.js:3:4)'],
+    ['interrogação de texto fica', 'o que é /isto? nada', 'o que é /isto? nada'],
+    ['caminho sem query fica', 'at f (/data/app/x.js:1:2)', 'at f (/data/app/x.js:1:2)'],
+    ['quadro do Hermes não é e-mail', 'render@index.android.bundle:1:234', 'render@index.android.bundle:1:234'],
+    ['hex só de dígitos de 32+', `n ${'1'.repeat(40)}`, 'n <token>']
   ])('%s', (_nome, entrada, esperado) => {
     expect(scrubText(entrada)).toBe(esperado)
   })
@@ -59,9 +72,9 @@ describe('scrubStack (regra 6 + quadros do Hermes)', () => {
     expect(scrubStack(stack)).toBe(stack)
   })
 
-  it('URL do Metro (dev) fica só com o caminho, sem origem nem query', () => {
+  it('URL do Metro (dev) fica só com o caminho, sem origem nem query (linha e coluna ficam)', () => {
     const stack = 'Error: x\n    at fn (http://10.0.2.2:8081/index.bundle?platform=android&dev=true:12:34)'
-    expect(scrubStack(stack)).toBe('Error: x\n    at fn (index.bundle)')
+    expect(scrubStack(stack)).toBe('Error: x\n    at fn (index.bundle:12:34)')
   })
 
   it('até 30 linhas', () => {
@@ -87,5 +100,26 @@ describe('scrubStack (regra 6 + quadros do Hermes)', () => {
 
   it('pilha vazia continua vazia', () => {
     expect(scrubStack('')).toBe('')
+  })
+})
+
+describe('entrada enorme (a limpeza roda no aparelho: não pode travar)', () => {
+  const huge = 200 * 1024
+  it.each([
+    ['letras', 'a'.repeat(huge)],
+    ['parece e-mail', 'a.'.repeat(huge / 2)],
+    ['palavras', 'palavra '.repeat(huge / 8)],
+    ['parece esquema de URL', 'a+'.repeat(huge / 2)],
+    ['aspas abertas', `"${'a'.repeat(huge)}`]
+  ])('%s: 200 KB em menos de 100 ms', (_nome, entrada) => {
+    const start = performance.now()
+    scrubMessage(entrada)
+    scrubStack(entrada)
+    scrubStack(`${entrada}\n`.repeat(40))
+    expect(performance.now() - start).toBeLessThan(100)
+  })
+
+  it('o corte antes da limpeza não deixa pedaço de e-mail no fim', () => {
+    expect(scrubStack(`${'x '.repeat(511)}ana.silva@exemplo.com.br`)).not.toContain('ana')
   })
 })
