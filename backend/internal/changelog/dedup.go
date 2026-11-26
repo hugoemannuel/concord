@@ -45,7 +45,8 @@ func newEntries(releases []Release, version string, entries []Entry) []Entry {
 	return kept
 }
 
-// withoutSources tira a origem das notas antes de mostrá-las: é detalhe do deploy.
+// withoutSources tira a origem (e a marca de obrigatória, que só vale no PUT)
+// das notas antes de mostrá-las: são detalhes do deploy.
 func withoutSources(releases []Release) []Release {
 	shown := make([]Release, len(releases))
 	for i, r := range releases {
@@ -53,6 +54,7 @@ func withoutSources(releases []Release) []Release {
 		shown[i].Entries = make([]Entry, len(r.Entries))
 		for j, e := range r.Entries {
 			e.Source = ""
+			e.Required = false
 			shown[i].Entries[j] = e
 		}
 	}

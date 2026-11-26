@@ -6,6 +6,9 @@
 /** Evento do backend: manifesto de atualização mudou ({ file, version }). */
 export const APP_UPDATE_EVENT = 'app:update'
 
+/** Evento do backend: o deploy publicou as notas; a versão mínima pode ter mudado (ADR 0066). */
+export const CHANGELOG_UPDATE_EVENT = 'changelog:update'
+
 export function requestUpdateCheck(): void {
   if (typeof window === 'undefined') return
   window.api?.updates?.checkNow()

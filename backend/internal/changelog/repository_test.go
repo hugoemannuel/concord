@@ -109,3 +109,56 @@ func TestUpsertAndListKeepEntrySource(t *testing.T) {
 	}
 	t.Fatalf("release %s não encontrada", version)
 }
+
+// Release obrigatória e nota em destaque voltam do banco (ADR 0066); repetir o
+// deploy sem a marca desliga a obrigatória.
+func TestRepositoryKeepsRequiredAndHighlight(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL não definido")
+	}
+	ctx := context.Background()
+	db, err := database.Connect(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.Migrate(db, "../../migrations"); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewRepository(db)
+	version := fmt.Sprintf("8.%d.0", time.Now().UnixNano())
+	p := Publication{Required: true, Entries: []Entry{
+		{Kind: KindFeature, Text: "A", Source: "a.md", Highlight: true},
+		{Kind: KindFix, Text: "B", Source: "b.md"},
+	}}
+	if err := repo.Upsert(ctx, version, p); err != nil {
+		t.Fatal(err)
+	}
+	got := findRelease(t, repo, version)
+	if !got.Required || !got.Entries[0].Highlight || got.Entries[1].Highlight {
+		t.Fatalf("release lida: %+v", got)
+	}
+	p.Required = false
+	if err := repo.Upsert(ctx, version, p); err != nil {
+		t.Fatal(err)
+	}
+	if findRelease(t, repo, version).Required {
+		t.Fatal("republicar sem a marca deveria desligar a obrigatória")
+	}
+}
+
+func findRelease(t *testing.T, repo *Repository, version string) Release {
+	t.Helper()
+	releases, err := repo.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range releases {
+		if r.Version == version {
+			return r
+		}
+	}
+	t.Fatalf("release %s não encontrada", version)
+	return Release{}
+}

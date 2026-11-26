@@ -13,6 +13,7 @@ import NoticeStack from '../features/updates/components/NoticeStack'
 import SandboxNotice from '../features/updates/components/SandboxNotice'
 import AutoUpdateUnavailableNotice from '../features/updates/components/AutoUpdateUnavailableNotice'
 import UpdateCallBridge from '../features/updates/components/UpdateCallBridge'
+import ReleaseGate from '../features/updates/components/ReleaseGate'
 import UserContextMenu from '../features/profile/components/UserContextMenu'
 import ImageContextMenu from '../features/chat/components/ImageContextMenu'
 import ReactionLimitModal from '../features/chat/components/ReactionLimitModal'
@@ -77,6 +78,8 @@ function App(): React.JSX.Element {
       <ServerSettingsScreen />
       <ModerationHost />
       <StreamJoinHost />
+      {/* Atualização obrigatória (desktop) e novidades (desktop e web). */}
+      <ReleaseGate />
       {customTitleBar ? (
         <div className="flex h-full flex-col">
           <TitleBar center={<TitleBarServerSlot />} />

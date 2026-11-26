@@ -19,6 +19,7 @@ const h = vi.hoisted(() => {
     archived: store(),
     notify: store(),
     updateCheck: vi.fn(),
+    refreshRequired: vi.fn(async () => {}),
     ping: vi.fn(),
     toast: { info: vi.fn() },
     role: vi.fn(() => false),
@@ -51,7 +52,11 @@ vi.mock('../../../notifications/store/notifySettingsStore', () => ({
 }))
 vi.mock('../../../updates/lib/appUpdate', () => ({
   APP_UPDATE_EVENT: 'app:update',
+  CHANGELOG_UPDATE_EVENT: 'changelog:update',
   requestUpdateCheck: h.updateCheck
+}))
+vi.mock('../../../updates/store/releaseGateStore', () => ({
+  useReleaseGateStore: { getState: () => ({ refreshRequired: h.refreshRequired }) }
 }))
 vi.mock('./alerts', () => ({ ping: h.ping }))
 vi.mock('../../../../shared/store/toastStore', () => ({ showToast: h.toast }))
@@ -109,6 +114,11 @@ describe('dispatchWsEvent', () => {
     ]
     for (const s of owners) expect(s.handleWsEvent).toHaveBeenCalledTimes(s === owner ? 1 : 0)
     expect(h.role).not.toHaveBeenCalled()
+  })
+
+  it('changelog:update confere de novo a versão mínima', () => {
+    send('changelog:update')
+    expect(h.refreshRequired).toHaveBeenCalledOnce()
   })
 
   it('app:update pede a checagem de atualização', () => {
