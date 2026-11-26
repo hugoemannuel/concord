@@ -17,13 +17,15 @@ describe('channelMenuItems', () => {
     sectionLength: 3,
     canManageChannels: false,
     canManageServer: false,
-    canManageRolesHere: false
+    canManageRolesHere: false,
+    canInvite: false
   }
   const mod: ChannelMenuContext = {
     ...member,
     canManageChannels: true,
     canManageServer: true,
-    canManageRolesHere: true
+    canManageRolesHere: true,
+    canInvite: true
   }
 
   it('membro só vê as notificações do canal de texto', () => {
@@ -32,8 +34,17 @@ describe('channelMenuItems', () => {
     expect(channelMenuItems({ ...member, hasServer: false })).toEqual([])
   })
 
+  it('quem pode convidar vê "Convidar pessoas" no topo, no canal de texto e no de voz', () => {
+    expect(channelMenuItems({ ...member, canInvite: true })).toEqual(['invite', 'notifications'])
+    expect(channelMenuItems({ ...member, canInvite: true, isText: false })).toEqual(['invite'])
+    expect(channelMenuItems({ ...member, canInvite: true, isSystem: true })).toContain('invite')
+    expect(channelMenuItems({ ...member, canInvite: true, isManaged: true })).toContain('invite')
+    expect(channelMenuItems({ ...member, canInvite: true, hasServer: false })).toEqual([])
+  })
+
   it('moderador vê tudo, na ordem do menu', () => {
     expect(channelMenuItems(mod)).toEqual([
+      'invite',
       'notifications',
       'move-up',
       'move-down',
@@ -70,7 +81,8 @@ describe('canal de sala de evento (gerenciado)', () => {
     sectionLength: 3,
     canManageChannels: true,
     canManageServer: true,
-    canManageRolesHere: true
+    canManageRolesHere: true,
+    canInvite: false
   }
 
   it('um canal comum mostra o menu inteiro para quem gerencia', () => {
