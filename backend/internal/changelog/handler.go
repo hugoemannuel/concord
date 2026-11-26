@@ -11,12 +11,33 @@ import (
 )
 
 type Handler struct {
-	store store
-	token string
+	store     store
+	token     string
+	onPublish func()
 }
 
 func NewHandler(store store, token string) *Handler {
-	return &Handler{store: store, token: token}
+	return &Handler{store: store, token: token, onPublish: func() {}}
+}
+
+// OnPublish é chamado depois de cada release gravada (o WS avisa os apps: o
+// aviso de versão nova sai antes de o deploy publicar as notas).
+func (h *Handler) OnPublish(fn func()) *Handler {
+	h.onPublish = fn
+	return h
+}
+
+// Required devolve a versão mínima: GET /changelog/required → {"min_version":
+// "x.y.z"} ("" se nenhuma). Sem login: a janelinha de abertura não tem token e
+// as versões já são públicas no /updates/latest.yml.
+func (h *Handler) Required(c *gin.Context) {
+	releases, err := h.store.List(c.Request.Context())
+	if err != nil {
+		log.Printf("[changelog] required: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load changelog"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"min_version": requiredVersion(releases)})
 }
 
 // List devolve todas as releases, da mais nova para a mais antiga: GET /changelog.
@@ -61,15 +82,18 @@ func (h *Handler) Publish(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to publish"})
 		return
 	}
+	h.onPublish()
 	c.Status(http.StatusNoContent)
 }
 
-// publish grava a release só com as notas que nenhuma release anterior trouxe.
+// publish grava a release só com as notas que nenhuma release anterior trouxe;
+// ela é obrigatória se alguma dessas notas novas for.
 func (h *Handler) publish(ctx context.Context, version string, p Publication) error {
 	releases, err := h.store.List(ctx)
 	if err != nil {
 		return fmt.Errorf("listar releases: %w", err)
 	}
 	p.Entries = newEntries(releases, version, p.Entries)
+	p.Required = anyRequired(p.Entries)
 	return h.store.Upsert(ctx, version, p)
 }

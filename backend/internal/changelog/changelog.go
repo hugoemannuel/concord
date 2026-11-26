@@ -25,16 +25,23 @@ var versionRe = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 // Source identifica de onde a nota veio (o arquivo em changelog/pending/): é
 // ela, e não o texto, que diz se a nota já saiu numa release.
+// Highlight: a nota aparece no modal de novidades (cabeçalho destaque: true).
+// Required só chega no PUT (cabeçalho obrigatoria: true): não é guardado na
+// nota, vira o Required da release (ver publish).
 type Entry struct {
-	Kind   string `json:"kind"`
-	Text   string `json:"text"`
-	Source string `json:"source,omitempty"`
+	Kind      string `json:"kind"`
+	Text      string `json:"text"`
+	Source    string `json:"source,omitempty"`
+	Highlight bool   `json:"highlight,omitempty"`
+	Required  bool   `json:"required,omitempty"`
 }
 
+// Required: quem tem uma versão anterior precisa atualizar (ADR 0066).
 type Release struct {
 	Version    string    `json:"version"`
 	ReleasedAt time.Time `json:"released_at"`
 	Summary    string    `json:"summary"`
+	Required   bool      `json:"required"`
 	Entries    []Entry   `json:"entries"`
 }
 
@@ -44,6 +51,8 @@ type Publication struct {
 	ReleasedAt *time.Time `json:"released_at"`
 	Summary    string     `json:"summary"`
 	Entries    []Entry    `json:"entries"`
+	// Calculado no publish, pelas notas novas; não vem no corpo.
+	Required bool `json:"-"`
 }
 
 type store interface {

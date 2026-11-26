@@ -29,7 +29,7 @@ func (r *Repository) List(ctx context.Context) ([]Release, error) {
 // listReleases devolve as releases (sem notas) e onde cada id está na lista.
 func (r *Repository) listReleases(ctx context.Context) ([]Release, map[int64]int, error) {
 	rows, err := r.db.Query(ctx,
-		`SELECT id, version, released_at, summary
+		`SELECT id, version, released_at, summary, required
 		 FROM changelog_releases
 		 ORDER BY released_at DESC, id DESC`)
 	if err != nil {
@@ -45,7 +45,7 @@ func collectReleases(rows pgx.Rows) ([]Release, map[int64]int, error) {
 	for rows.Next() {
 		var id int64
 		rel := Release{Entries: []Entry{}}
-		if err := rows.Scan(&id, &rel.Version, &rel.ReleasedAt, &rel.Summary); err != nil {
+		if err := rows.Scan(&id, &rel.Version, &rel.ReleasedAt, &rel.Summary, &rel.Required); err != nil {
 			return nil, nil, err
 		}
 		index[id] = len(releases)
@@ -56,7 +56,7 @@ func collectReleases(rows pgx.Rows) ([]Release, map[int64]int, error) {
 
 func (r *Repository) attachEntries(ctx context.Context, releases []Release, index map[int64]int) error {
 	rows, err := r.db.Query(ctx,
-		`SELECT release_id, kind, text, source FROM changelog_entries ORDER BY release_id, position`)
+		`SELECT release_id, kind, text, source, highlight FROM changelog_entries ORDER BY release_id, position`)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func collectEntries(rows pgx.Rows, releases []Release, index map[int64]int) erro
 	for rows.Next() {
 		var id int64
 		var e Entry
-		if err := rows.Scan(&id, &e.Kind, &e.Text, &e.Source); err != nil {
+		if err := rows.Scan(&id, &e.Kind, &e.Text, &e.Source, &e.Highlight); err != nil {
 			return err
 		}
 		appendEntry(releases, index, id, e)
@@ -111,21 +111,22 @@ func replaceRelease(ctx context.Context, tx pgx.Tx, version string, p Publicatio
 func upsertRelease(ctx context.Context, tx pgx.Tx, version string, p Publication) (int64, error) {
 	var id int64
 	err := tx.QueryRow(ctx,
-		`INSERT INTO changelog_releases (version, released_at, summary)
-		 VALUES ($1, COALESCE($2::timestamptz, NOW()), $3)
+		`INSERT INTO changelog_releases (version, released_at, summary, required)
+		 VALUES ($1, COALESCE($2::timestamptz, NOW()), $3, $4)
 		 ON CONFLICT (version) DO UPDATE
 		   SET released_at = COALESCE($2::timestamptz, changelog_releases.released_at),
-		       summary = EXCLUDED.summary
+		       summary = EXCLUDED.summary,
+		       required = EXCLUDED.required
 		 RETURNING id`,
-		version, p.ReleasedAt, p.Summary).Scan(&id)
+		version, p.ReleasedAt, p.Summary, p.Required).Scan(&id)
 	return id, err
 }
 
 func insertEntries(ctx context.Context, tx pgx.Tx, releaseID int64, entries []Entry) error {
 	for i, e := range entries {
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO changelog_entries (release_id, kind, text, source, position) VALUES ($1, $2, $3, $4, $5)`,
-			releaseID, e.Kind, e.Text, e.Source, i); err != nil {
+			`INSERT INTO changelog_entries (release_id, kind, text, source, highlight, position) VALUES ($1, $2, $3, $4, $5, $6)`,
+			releaseID, e.Kind, e.Text, e.Source, e.Highlight, i); err != nil {
 			return err
 		}
 	}

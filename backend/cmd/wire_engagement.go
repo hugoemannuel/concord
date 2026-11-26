@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 
 	"gin-quickstart/backend/internal/badge"
 	"gin-quickstart/backend/internal/birthday"
 	"gin-quickstart/backend/internal/bot"
-	"gin-quickstart/backend/internal/changelog"
 	"gin-quickstart/backend/internal/conversation"
 	"gin-quickstart/backend/internal/enquete"
 	"gin-quickstart/backend/internal/level"
@@ -20,8 +18,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// wireEngagement: aniversários, níveis, badges, propostas, preferências de
-// notificação e changelog, com os jobs de fundo de cada um.
+// wireEngagement: aniversários, níveis, badges, propostas e preferências de
+// notificação, com os jobs de fundo de cada um (changelog: wire_changelog.go).
 func (a *app) wireEngagement() {
 	// Aniversários (mensagem do servidor às 9h + modal para o aniversariante)
 	birthdayService := birthday.BirthdayService(birthday.BirthdayRepository(a.db), a.messageService)
@@ -79,7 +77,6 @@ func (a *app) wireEngagement() {
 		notifysettings.Routes(api, notifySettingsHandler, a.authMiddleware)
 		proposal.ProposalRoutes(api, proposalHandler, a.authMiddleware, a.requireVerified)
 		birthday.BirthdayRoutes(api, birthdayHandler, a.authMiddleware)
-		changelog.Routes(api, changelog.NewHandler(changelog.NewRepository(a.db), os.Getenv("CHANGELOG_TOKEN")), a.authMiddleware)
 	})
 }
 

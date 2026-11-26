@@ -30,6 +30,11 @@ func (f *fakeStore) Upsert(_ context.Context, version string, p Publication) err
 
 func serve(t *testing.T, st *fakeStore, token, method, path, sentToken, body string, logged bool) *httptest.ResponseRecorder {
 	t.Helper()
+	return serveWith(t, NewHandler(st, token), method, path, sentToken, body, logged)
+}
+
+func serveWith(t *testing.T, h *Handler, method, path, sentToken, body string, logged bool) *httptest.ResponseRecorder {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	auth := func(c *gin.Context) {
@@ -39,7 +44,7 @@ func serve(t *testing.T, st *fakeStore, token, method, path, sentToken, body str
 		}
 		c.Next()
 	}
-	Routes(r.Group("/api"), NewHandler(st, token), auth)
+	Routes(r.Group("/api"), h, auth)
 	req := httptest.NewRequest(method, path, bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	if sentToken != "" {

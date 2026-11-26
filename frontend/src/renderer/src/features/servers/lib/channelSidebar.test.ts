@@ -47,10 +47,14 @@ describe('sidebarSections', () => {
 
 describe('canOpenChannelMenu', () => {
   it('texto: todo mundo; voz: só quem gerencia canais ou as permissões dele', () => {
-    expect(canOpenChannelMenu({ type: 'text' }, false, false)).toBe(true)
-    expect(canOpenChannelMenu({ type: 'voice' }, false, false)).toBe(false)
-    expect(canOpenChannelMenu({ type: 'voice' }, true, false)).toBe(true)
-    expect(canOpenChannelMenu({ type: 'voice' }, false, true)).toBe(true)
+    expect(canOpenChannelMenu({ type: 'text' }, false, false, false)).toBe(true)
+    expect(canOpenChannelMenu({ type: 'voice' }, false, false, false)).toBe(false)
+    expect(canOpenChannelMenu({ type: 'voice' }, true, false, false)).toBe(true)
+    expect(canOpenChannelMenu({ type: 'voice' }, false, true, false)).toBe(true)
+  })
+
+  it('voz: quem pode convidar também abre (para "Convidar pessoas")', () => {
+    expect(canOpenChannelMenu({ type: 'voice' }, false, false, true)).toBe(true)
   })
 })
 

@@ -37,6 +37,7 @@ import {
 import { watchWindowActivity } from './window/windowActivity'
 import { registerContentProtection } from './window/contentProtection'
 import { setupUpdater } from './updates/updater'
+import { mandatoryUpdateFor } from './updates/startupRequired'
 import { updateFeedFor } from './server/serverChoice'
 import { registerServerDiagnostics, startServerChoice } from './server/serverSetup'
 import { serverArgs } from '../shared/serverConnection'
@@ -375,7 +376,8 @@ app.whenReady().then(() => {
     })
     // A janela carrega escondida enquanto a janelinha checa a atualização.
     createWindow()
-    await splash.update(startupUpdate)
+    // Versão abaixo da mínima (ADR 0066): sem "Abrir sem atualizar".
+    await splash.update(startupUpdate, mandatoryUpdateFor(serverUrl))
     mainStartup.dispatch('released')
     splash.handOff(mainStartup.handOffTarget())
   })

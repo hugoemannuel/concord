@@ -2,7 +2,7 @@
 // Cada regra é uma função pequena; a ordem da tabela é a ordem do menu.
 
 export type ChannelMenuItem =
-  'notifications' | 'move-up' | 'move-down' | 'make-primary' | 'edit' | 'permissions' | 'delete'
+  'invite' | 'notifications' | 'move-up' | 'move-down' | 'make-primary' | 'edit' | 'permissions' | 'delete'
 
 export interface ChannelMenuContext {
   hasServer: boolean
@@ -18,9 +18,13 @@ export interface ChannelMenuContext {
   canManageChannels: boolean
   canManageServer: boolean
   canManageRolesHere: boolean
+  /** "Convidar pessoas": abre o convite do servidor direto do menu do canal. */
+  canInvite: boolean
 }
 
 const CHANNEL_RULES: [ChannelMenuItem, (c: ChannelMenuContext) => boolean][] = [
+  // No topo, como no Discord; vale para texto e voz.
+  ['invite', (c) => c.hasServer && c.canInvite],
   ['notifications', (c) => c.hasServer && c.isText],
   // Alternativa ao arrastar (teclado/leitor de tela).
   ['move-up', (c) => c.canManageChannels && c.index > 0],

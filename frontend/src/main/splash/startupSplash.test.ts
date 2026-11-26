@@ -198,3 +198,21 @@ describe('startSplash', () => {
     })
   })
 })
+
+describe('versão obrigatória (ADR 0066)', () => {
+  it('obrigatória: a janelinha não oferece "Abrir sem atualizar"', async () => {
+    const { splash, window } = setup()
+    void splash.update(fakeUpdate(true), async () => true)
+    await settle()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(window.views.some((v) => v.canSkip)).toBe(false)
+  })
+
+  it('sem a consulta, o botão aparece como antes', async () => {
+    const { splash, window } = setup()
+    void splash.update(fakeUpdate(true))
+    await settle()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(window.views.some((v) => v.canSkip)).toBe(true)
+  })
+})
