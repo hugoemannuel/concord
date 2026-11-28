@@ -58,6 +58,7 @@ export function MeTile({
   size?: TileSize
   video?: MediaStream | null
 }): React.JSX.Element {
+  const meId = useAuthStore((s) => s.user?.id)
   const muted = useCallStore((s) => s.muted)
   const deafened = useCallStore((s) => s.deafened)
 
@@ -66,6 +67,9 @@ export function MeTile({
       user={info}
       selfMuted={muted}
       deafened={deafened}
+      onContextMenu={userMenuHandler(info.id, info.display_name, meId, info.username, {
+        allowSelf: true
+      })}
       speaking={!muted && (speaking?.has(info.id) ?? false)}
       size={size}
       videoStream={video}

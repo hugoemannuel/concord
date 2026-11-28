@@ -31,7 +31,8 @@ export const useUserMenuStore = create<UserMenuState>()((set) => ({
 
 /**
  * onContextMenu pronto para um usuário. Em você mesmo só abre com allowSelf
- * (lista de membros do servidor: o menu curto, com "Alterar apelido").
+ * (lista de membros do servidor, canal de voz e palco: permite alterar apelido,
+ * cargos e liberar/silenciar a si mesmo).
  */
 export function userMenuHandler(
   userId: string,

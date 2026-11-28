@@ -46,6 +46,7 @@ import { Perm } from '../lib/permissions'
 import { useAuthStore } from '../../auth/store/authStore'
 import { useMusicStore } from '../../music/store/musicStore'
 import { useServerStore } from '../store/serverStore'
+import * as userMenuStore from '../../profile/store/userMenuStore'
 import VoiceChannelRow, { type VoiceChannelRowProps } from './VoiceChannelRow'
 
 const channel: Channel = {
@@ -292,5 +293,16 @@ describe('VoiceChannelRow', () => {
     const html = render()
     expect(html).toContain('title="Menções no chat"')
     expect(html).toContain('>1</span>')
+  })
+
+  it('permite abrir o próprio menu de contexto na lista do canal de voz (auto-liberação)', () => {
+    const spy = vi.spyOn(userMenuStore, 'userMenuHandler')
+    try {
+      inCall([participant('eu')])
+      render()
+      expect(spy).toHaveBeenCalledWith('eu', 'EU', 'eu', 'eu', { allowSelf: true })
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
