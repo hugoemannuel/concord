@@ -35,12 +35,29 @@ const mockState = vi.hoisted(() => ({
   call: {
     status: 'idle',
     participants: [] as Array<{ id: string; username?: string }>,
-    serverCalls: {}
+    serverCalls: {} as Record<
+      string,
+      {
+        call?: { id: string }
+        participants: Array<{
+          user_id: string
+          server_muted?: boolean
+          server_deafened?: boolean
+        }>
+      }
+    >
   },
   server: { id: 's1', owner_id: 'dono' },
   member: { user_id: 'u1', username: 'alvo', role_ids: [] as string[] },
   canChangeNick: false,
   isOwner: false,
+  canActOnMember: false,
+  canModerateVoiceMember: false,
+  canInChannel: ((_channelId: string, _want: number) => false) as (
+    channelId: string,
+    want: number
+  ) => boolean,
+  channels: [] as Array<{ id: string; name: string; type: string }>,
   roles: [] as unknown[]
 }))
 
@@ -87,7 +104,7 @@ vi.mock('../../servers/store/serverStore', () => ({
       currentServer: mockState.server,
       currentMembers: [mockState.member],
       roles: mockState.roles,
-      channels: [],
+      channels: mockState.channels,
       addMemberRole: vi.fn(),
       removeMemberRole: vi.fn()
     })
@@ -101,13 +118,12 @@ vi.mock('../../servers/hooks/useServerAccess', () => ({
     myRoles: [],
     can: () => mockState.isOwner,
     channelPerms: () => 0,
-    canInChannel: () => false,
+    canInChannel: (channelId: string, want: number) => mockState.canInChannel(channelId, want),
     highestOf: () => 0,
-    canActOnMember: () => false,
+    canActOnMember: () => mockState.canActOnMember,
+    canModerateVoiceMember: () => mockState.canModerateVoiceMember,
     canEditRolesOf: () => true,
     canChangeNickname: () => mockState.canChangeNick ?? false,
-    canDisconnectMember: () => false,
-    canMoveMember: () => false,
     canManage: () => false,
     isPrivate: () => false
   })
@@ -198,5 +214,133 @@ describe('UserContextMenu', () => {
     const html = renderToStaticMarkup(<UserContextMenu />)
     expect(html).not.toContain('Cargos')
     mockState.roles = []
+  })
+
+  it('moderador vê ações de voz no dono sem cargo acima/mesmo cargo em call sem exibir expulsar, banir nem castigo', () => {
+    mockState.target = { userId: 'dono', name: 'Dono', x: 10, y: 10 }
+    mockState.member = { user_id: 'dono', username: 'dono', role_ids: [] }
+    mockState.isOwner = false
+    mockState.canActOnMember = false
+    mockState.canModerateVoiceMember = true
+    mockState.canInChannel = () => true
+    mockState.channels = [
+      { id: 'v1', name: 'Geral', type: 'voice' },
+      { id: 'v2', name: 'Jogos', type: 'voice' }
+    ]
+    mockState.call = {
+      status: 'active',
+      participants: [{ id: 'dono', username: 'dono' }],
+      serverCalls: {
+        v1: { call: { id: 'call-1' }, participants: [{ user_id: 'dono' }] }
+      }
+    }
+    const html = renderToStaticMarkup(<UserContextMenu />)
+    expect(html).toContain('Silenciar no servidor')
+    expect(html).toContain('Ensurdecer no servidor')
+    expect(html).toContain('Desconectar da chamada')
+    expect(html).toContain('Mover para')
+    expect(html).not.toContain('Expulsar')
+    expect(html).not.toContain('Banir')
+    expect(html).not.toContain('Castigo')
+    mockState.canModerateVoiceMember = false
+    mockState.canInChannel = () => false
+    mockState.channels = []
+    mockState.call = { status: 'idle', participants: [], serverCalls: {} }
+  })
+
+  it('moderador não vê ações de voz nem castigo contra cargo acima', () => {
+    mockState.target = { userId: 'chefe', name: 'Chefe', x: 10, y: 10 }
+    mockState.member = { user_id: 'chefe', username: 'chefe', role_ids: [] }
+    mockState.isOwner = false
+    mockState.canActOnMember = false
+    mockState.canModerateVoiceMember = false
+    mockState.canInChannel = () => true
+    mockState.channels = [
+      { id: 'v1', name: 'Geral', type: 'voice' },
+      { id: 'v2', name: 'Jogos', type: 'voice' }
+    ]
+    mockState.call = {
+      status: 'active',
+      participants: [{ id: 'chefe', username: 'chefe' }],
+      serverCalls: {
+        v1: { call: { id: 'call-1' }, participants: [{ user_id: 'chefe' }] }
+      }
+    }
+    const html = renderToStaticMarkup(<UserContextMenu />)
+    expect(html).not.toContain('Silenciar no servidor')
+    expect(html).not.toContain('Ensurdecer no servidor')
+    expect(html).not.toContain('Desconectar da chamada')
+    expect(html).not.toContain('Mover para')
+    expect(html).not.toContain('Castigo')
+    mockState.canInChannel = () => false
+    mockState.channels = []
+    mockState.call = { status: 'idle', participants: [], serverCalls: {} }
+  })
+
+  it('moderador vê ações de voz para visitante em call (fora de currentMembers)', () => {
+    mockState.target = { userId: 'guest-1', name: 'Visitante', x: 10, y: 10 }
+    mockState.member = { user_id: 'u1', username: 'alvo', role_ids: [] }
+    mockState.isOwner = false
+    mockState.canActOnMember = false
+    mockState.canModerateVoiceMember = true
+    mockState.canInChannel = () => true
+    mockState.channels = [
+      { id: 'v1', name: 'Geral', type: 'voice' },
+      { id: 'v2', name: 'Jogos', type: 'voice' }
+    ]
+    mockState.call = {
+      status: 'active',
+      participants: [{ id: 'guest-1', username: 'visitante' }],
+      serverCalls: {
+        v1: { call: { id: 'call-1' }, participants: [{ user_id: 'guest-1' }] }
+      }
+    }
+    const html = renderToStaticMarkup(<UserContextMenu />)
+    expect(html).toContain('Silenciar no servidor')
+    expect(html).toContain('Ensurdecer no servidor')
+    expect(html).toContain('Desconectar da chamada')
+    expect(html).toContain('Mover para')
+    mockState.canModerateVoiceMember = false
+    mockState.canInChannel = () => false
+    mockState.channels = []
+    mockState.call = { status: 'idle', participants: [], serverCalls: {} }
+  })
+
+  it('menu próprio exibe liberar fala/áudio quando silenciado/ensurdecido pelo servidor e com permissão no canal, sem desconectar', () => {
+    mockState.target = { userId: 'me-id', name: 'Eu Mesmo', x: 10, y: 10 }
+    mockState.member = { user_id: 'me-id', username: 'eu', role_ids: [] }
+    mockState.canInChannel = () => true
+    mockState.call = {
+      status: 'active',
+      participants: [{ id: 'me-id', username: 'eu' }],
+      serverCalls: {
+        v1: {
+          call: { id: 'call-1' },
+          participants: [{ user_id: 'me-id', server_muted: true, server_deafened: true }]
+        }
+      }
+    }
+    const html = renderToStaticMarkup(<UserContextMenu />)
+    expect(html).toContain('Liberar a fala no servidor')
+    expect(html).toContain('Liberar o áudio no servidor')
+    expect(html).not.toContain('Desconectar da chamada')
+    mockState.canInChannel = () => false
+    mockState.call = { status: 'idle', participants: [], serverCalls: {} }
+  })
+
+  it('menu próprio não exibe seção de voz sem permissão no canal', () => {
+    mockState.target = { userId: 'me-id', name: 'Eu Mesmo', x: 10, y: 10 }
+    mockState.canInChannel = () => false
+    mockState.call = {
+      status: 'active',
+      participants: [{ id: 'me-id', username: 'eu' }],
+      serverCalls: {
+        v1: { call: { id: 'call-1' }, participants: [{ user_id: 'me-id', server_muted: true }] }
+      }
+    }
+    const html = renderToStaticMarkup(<UserContextMenu />)
+    expect(html).not.toContain('Silenciar no servidor')
+    expect(html).not.toContain('Liberar a fala no servidor')
+    mockState.call = { status: 'idle', participants: [], serverCalls: {} }
   })
 })

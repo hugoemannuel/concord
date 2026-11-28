@@ -5,12 +5,11 @@ import {
   DEFAULT_EVERYONE,
   Perm,
   canActOn,
-  canDisconnectMember,
   canEditRolesOf,
-  canMoveMember,
   canGrant,
   canManageNicknameOf,
   canManageRole,
+  canModerateVoice,
   computeBase,
   computeChannel,
   has,
@@ -69,6 +68,24 @@ interface Vectors {
     expect_channel: string[]
   }[]
   can_act_on: {
+    name: string
+    owner_id: string
+    actor: string
+    target: string
+    actor_highest: number
+    target_highest: number
+    expect: boolean
+  }[]
+  can_manage_nickname_of: {
+    name: string
+    owner_id: string
+    actor: string
+    target: string
+    actor_highest: number
+    target_highest: number
+    expect: boolean
+  }[]
+  can_moderate_voice: {
     name: string
     owner_id: string
     actor: string
@@ -239,31 +256,25 @@ describe('hierarquia (casos do backend)', () => {
     })
   }
 
-  it('canManageNicknameOf permite mesmo cargo ou superior, mas nunca o dono a menos que seja o dono', () => {
-    expect(canManageNicknameOf('dono', 'mod1', 'mod2', 2, 2)).toBe(true)
-    expect(canManageNicknameOf('dono', 'chefe', 'mod', 3, 2)).toBe(true)
-    expect(canManageNicknameOf('dono', 'mod', 'chefe', 2, 3)).toBe(false)
-    expect(canManageNicknameOf('dono', 'chefe', 'dono', 3, 0)).toBe(false)
-    expect(canManageNicknameOf('dono', 'dono', 'dono', 0, 0)).toBe(true)
-    expect(canManageNicknameOf('dono', 'dono', 'chefe', 0, 3)).toBe(true)
+  for (const tc of vectors.can_manage_nickname_of) {
+    it(`canManageNicknameOf: ${tc.name}`, () => {
+      expect(
+        canManageNicknameOf(tc.owner_id, tc.actor, tc.target, tc.actor_highest, tc.target_highest)
+      ).toBe(tc.expect)
+    })
+  }
+  it('canManageNicknameOf nega sem actorId', () => {
     expect(canManageNicknameOf('dono', undefined, 'mod', 0, 2)).toBe(false)
   })
-
-  it('canMoveMember permite mesmo cargo ou inferior, mas nunca o dono a menos que seja o dono', () => {
-    expect(canMoveMember('dono', 'mod1', 'mod2', 2, 2)).toBe(true)
-    expect(canMoveMember('dono', 'chefe', 'mod', 3, 2)).toBe(true)
-    expect(canMoveMember('dono', 'mod', 'chefe', 2, 3)).toBe(false)
-    expect(canMoveMember('dono', 'chefe', 'dono', 3, 0)).toBe(false)
-    expect(canMoveMember('dono', 'dono', 'chefe', 0, 3)).toBe(true)
-    expect(canMoveMember('dono', undefined, 'mod', 0, 2)).toBe(false)
-  })
-  it('canDisconnectMember permite mesmo cargo ou inferior, mas nunca o dono a menos que seja o dono', () => {
-    expect(canDisconnectMember('dono', 'mod1', 'mod2', 2, 2)).toBe(true)
-    expect(canDisconnectMember('dono', 'chefe', 'mod', 3, 2)).toBe(true)
-    expect(canDisconnectMember('dono', 'mod', 'chefe', 2, 3)).toBe(false)
-    expect(canDisconnectMember('dono', 'chefe', 'dono', 3, 0)).toBe(false)
-    expect(canDisconnectMember('dono', 'dono', 'chefe', 0, 3)).toBe(true)
-    expect(canDisconnectMember('dono', undefined, 'mod', 0, 2)).toBe(false)
+  for (const tc of vectors.can_moderate_voice) {
+    it(`canModerateVoice: ${tc.name}`, () => {
+      expect(canModerateVoice(tc.owner_id, tc.actor, tc.actor_highest, tc.target_highest)).toBe(
+        tc.expect
+      )
+    })
+  }
+  it('canModerateVoice nega sem actorId', () => {
+    expect(canModerateVoice('dono', undefined, 2, 0)).toBe(false)
   })
   for (const tc of vectors.can_grant) {
     it(`canGrant: ${tc.name}`, () => {

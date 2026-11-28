@@ -34,6 +34,7 @@ import { useUserMenuStore, type UserMenuTarget } from '../store/userMenuStore'
 import { isMaestroUser } from '../../music/lib/music'
 import { UserMemberSubmenus } from './UserContextMenuSubmenus'
 import SelfRolesSubmenu from './SelfRolesSubmenu'
+import SelfVoiceModeration from './SelfVoiceModeration'
 import { useStandardUserMenuActions } from '../hooks/useStandardUserMenuActions'
 import { useStandardUserMenuModel } from '../hooks/useStandardUserMenuModel'
 import CastigoMenuItems from '../../castigo/components/CastigoMenuItems'
@@ -332,6 +333,7 @@ function UserContextMenu(): React.JSX.Element | null {
         }}
         itemClass={itemClass}
         rolesItem={<SelfRolesSubmenu target={target} itemClass={itemClass} close={close} />}
+        voiceItem={<SelfVoiceModeration target={target} itemClass={itemClass} close={close} />}
       />
     )
   }

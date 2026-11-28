@@ -110,7 +110,7 @@ function VoiceParticipantItem({
   const isMe = p.user_id === meId
   return (
     <div
-      onContextMenu={userMenuHandler(p.user_id, name, meId, p.username)}
+      onContextMenu={userMenuHandler(p.user_id, name, meId, p.username, { allowSelf: true })}
       onClick={profileCardHandler(p.user_id, name, p.username, 'right')}
       draggable={movable}
       onDragStart={(e) => {
@@ -229,9 +229,8 @@ function VoiceChannelMembers({
           canWatch={canWatch}
           movable={canMoveVoiceUser({
             meId,
-            targetId: p.user_id,
             canMoveMembers,
-            canMoveTarget: access.canMoveMember(p.user_id)
+            canModerateTarget: access.canModerateVoiceMember(p.user_id)
           })}
           onDragEnd={onDragEnd}
         />

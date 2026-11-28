@@ -1,11 +1,10 @@
 import {
   Perm,
   canActOn,
-  canDisconnectMember,
   canEditRolesOf,
-  canMoveMember,
   canManageNicknameOf,
   canManageRole,
+  canModerateVoice,
   computeBase,
   computeChannel,
   everyoneRole,
@@ -54,17 +53,15 @@ export interface ServerAccess {
   canInChannel: (channelId: string, want: number) => boolean
   /** Posição do cargo mais alto de outro membro. */
   highestOf: (userId: string) => number
-  /** Pode expulsar, banir, silenciar ou mover essa pessoa. */
+  /** Pode expulsar, banir ou aplicar/abrir castigo nessa pessoa (cargo mais alto estritamente maior). */
   canActOnMember: (userId: string) => boolean
+  /** Pode silenciar, ensurdecer, desconectar ou mover em voz (cargo mais alto >= alvo, sem imunidade do dono). */
+  canModerateVoiceMember: (userId: string) => boolean
   /** Pode dar ou tirar cargos dessa pessoa (os do dono, só o dono). */
   canEditRolesOf: (userId: string) => boolean
-  /** Pode desconectar da chamada de voz (mesmo cargo ou menor). */
-  canDisconnectMember: (userId: string) => boolean
-  /** Pode mover membros entre canais de voz (mesmo cargo ou menor). */
-  canMoveMember: (userId: string) => boolean
   /**
    * Pode mudar o apelido dessa pessoa neste servidor: o próprio com "Alterar
-   * apelido"; o dos outros com "Gerenciar apelidos" e só abaixo do seu cargo.
+   * apelido"; o dos outros com "Gerenciar apelidos" para mesmo cargo ou menor (dono só ele mesmo).
    */
   canChangeNickname: (userId: string) => boolean
   /** Pode editar/dar esse cargo. */
@@ -114,16 +111,14 @@ export function serverAccess(input: ServerAccessInput): ServerAccess {
     canInChannel: (channelId, want) => has(channelPerms(channelId), want),
     highestOf,
     canActOnMember: (userId) => canActOn(ownerId, meId, userId, highest, highestOf(userId)),
+    canModerateVoiceMember: (userId) =>
+      canModerateVoice(ownerId, meId, highest, highestOf(userId)),
     canEditRolesOf: (userId) => canEditRolesOf(ownerId, meId, userId),
     canChangeNickname: (userId) =>
       userId === meId
         ? has(perms, Perm.CHANGE_NICKNAME)
         : has(perms, Perm.MANAGE_NICKNAMES) &&
           canManageNicknameOf(ownerId, meId, userId, highest, highestOf(userId)),
-    canDisconnectMember: (userId) =>
-      canDisconnectMember(ownerId, meId, userId, highest, highestOf(userId)),
-    canMoveMember: (userId) =>
-      canMoveMember(ownerId, meId, userId, highest, highestOf(userId)),
     canManage: (role) => canManageRole(isOwner, highest, role.position),
     isPrivate: (channelId) => {
       const ch = channelById.get(channelId)

@@ -324,6 +324,27 @@
     {"name": "mesma posição não age", "owner_id": "dono", "actor": "mod", "target": "ana", "actor_highest": 2, "target_highest": 2, "expect": false},
     {"name": "abaixo não age", "owner_id": "dono", "actor": "mod", "target": "ana", "actor_highest": 1, "target_highest": 3, "expect": false}
   ],
+  "can_manage_nickname_of": [
+    {"name": "dono muda apelido de qualquer um", "owner_id": "dono", "actor": "dono", "target": "ana", "actor_highest": 0, "target_highest": 5, "expect": true},
+    {"name": "dono muda o próprio apelido", "owner_id": "dono", "actor": "dono", "target": "dono", "actor_highest": 0, "target_highest": 0, "expect": true},
+    {"name": "ninguém muda o apelido do dono", "owner_id": "dono", "actor": "admin", "target": "dono", "actor_highest": 50, "target_highest": 0, "expect": false},
+    {"name": "mesmo cargo muda apelido", "owner_id": "dono", "actor": "mod1", "target": "mod2", "actor_highest": 2, "target_highest": 2, "expect": true},
+    {"name": "cargo mais alto muda apelido", "owner_id": "dono", "actor": "chefe", "target": "mod", "actor_highest": 3, "target_highest": 2, "expect": true},
+    {"name": "cargo abaixo não muda apelido", "owner_id": "dono", "actor": "mod", "target": "chefe", "actor_highest": 2, "target_highest": 3, "expect": false},
+    {"name": "sem cargo vs sem cargo muda apelido (mesma posição)", "owner_id": "dono", "actor": "ana", "target": "bia", "actor_highest": 0, "target_highest": 0, "expect": true}
+  ],
+  "can_moderate_voice": [
+    {"name": "dono sem cargo modera cargo alto", "owner_id": "dono", "actor": "dono", "target": "admin", "actor_highest": 0, "target_highest": 5, "expect": true},
+    {"name": "dono modera a si mesmo", "owner_id": "dono", "actor": "dono", "target": "dono", "actor_highest": 0, "target_highest": 0, "expect": true},
+    {"name": "moderador modera cargo menor", "owner_id": "dono", "actor": "mod", "target": "ana", "actor_highest": 2, "target_highest": 0, "expect": true},
+    {"name": "moderador modera mesmo cargo", "owner_id": "dono", "actor": "mod", "target": "mod2", "actor_highest": 2, "target_highest": 2, "expect": true},
+    {"name": "moderador modera a si mesmo", "owner_id": "dono", "actor": "mod", "target": "mod", "actor_highest": 2, "target_highest": 2, "expect": true},
+    {"name": "moderador modera dono sem cargo", "owner_id": "dono", "actor": "mod", "target": "dono", "actor_highest": 2, "target_highest": 0, "expect": true},
+    {"name": "moderador modera dono com mesmo cargo", "owner_id": "dono", "actor": "mod", "target": "dono", "actor_highest": 2, "target_highest": 2, "expect": true},
+    {"name": "moderador não modera dono com cargo acima", "owner_id": "dono", "actor": "mod", "target": "dono", "actor_highest": 2, "target_highest": 5, "expect": false},
+    {"name": "moderador não modera membro com cargo acima", "owner_id": "dono", "actor": "mod", "target": "chefe", "actor_highest": 2, "target_highest": 3, "expect": false},
+    {"name": "sem cargo vs sem cargo modera (mesma posição)", "owner_id": "dono", "actor": "ana", "target": "bia", "actor_highest": 0, "target_highest": 0, "expect": true}
+  ],
   "can_manage_role": [
     {"name": "dono gerencia qualquer cargo", "is_owner": true, "actor_highest": 0, "role_position": 10, "expect": true},
     {"name": "cargo abaixo do seu", "is_owner": false, "actor_highest": 3, "role_position": 2, "expect": true},

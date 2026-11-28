@@ -57,8 +57,8 @@ type NicknamePublisher interface {
 }
 
 // Nicknames muda o apelido de membros: o próprio com CHANGE_NICKNAME, o dos
-// outros com MANAGE_NICKNAMES e só de quem está abaixo na hierarquia (a mesma
-// regra de expulsar e banir: o dono nunca é alvo).
+// outros com MANAGE_NICKNAMES para cargos iguais ou abaixo na hierarquia (o
+// dono nunca é alvo de outro membro).
 type Nicknames struct {
 	store     nicknameStore
 	perms     snapshots

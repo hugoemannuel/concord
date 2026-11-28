@@ -77,23 +77,19 @@ func TestRolesOfOrderedAndHighest(t *testing.T) {
 	if !snap.CanManageNicknameOf("dono", "mod") || !snap.CanManageNicknameOf("dono", "dono") {
 		t.Fatal("dono pode alterar apelido de qualquer um")
 	}
-	if !snap.CanDisconnectMember("mod", "mod2") || !snap.CanDisconnectMember("mod", "vip") {
-		t.Fatal("CanDisconnectMember deve permitir mesmo cargo ou cargo menor")
+	snap = snap.WithRole("chefe", 3, 0).WithMember("multi", "vip", "chefe")
+	if !snap.CanModerateVoice("mod", "mod2") || !snap.CanModerateVoice("mod", "vip") || !snap.CanModerateVoice("mod", "dono") || !snap.CanModerateVoice("mod", "mod") {
+		t.Fatal("CanModerateVoice deve permitir menor, mesmo cargo, dono sem cargo acima e si mesmo")
 	}
-	if snap.CanDisconnectMember("vip", "mod") || snap.CanDisconnectMember("mod", "dono") {
-		t.Fatal("CanDisconnectMember não pode permitir cargo superior nem o dono")
+	if snap.CanModerateVoice("mod", "multi") {
+		t.Fatal("CanModerateVoice deve usar sempre o cargo mais alto do alvo")
 	}
-	if !snap.CanDisconnectMember("dono", "mod") {
-		t.Fatal("dono pode desconectar qualquer um")
+	snapDonoAlto := testSnapshot().WithRole("chefe", 3, 0).WithMember("dono", "chefe")
+	if snapDonoAlto.CanModerateVoice("mod", "dono") {
+		t.Fatal("CanModerateVoice não pode permitir contra dono com cargo acima")
 	}
-	if !snap.CanMoveMember("mod", "mod2") || !snap.CanMoveMember("mod", "vip") {
-		t.Fatal("CanMoveMember deve permitir mesmo cargo ou cargo menor")
-	}
-	if snap.CanMoveMember("vip", "mod") || snap.CanMoveMember("mod", "dono") {
-		t.Fatal("CanMoveMember não pode permitir cargo superior nem o dono")
-	}
-	if !snap.CanMoveMember("dono", "mod") {
-		t.Fatal("dono pode mover qualquer um")
+	if !snapDonoAlto.CanModerateVoice("dono", "mod") {
+		t.Fatal("dono sempre pode moderar voz")
 	}
 	if !snap.CanManageRole("mod", snap.Roles["vip"]) || snap.CanManageRole("mod", snap.Roles["mod"]) {
 		t.Fatal("CanManageRole errado")

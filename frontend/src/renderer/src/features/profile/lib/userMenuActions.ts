@@ -199,7 +199,7 @@ export function computeSelfGivableRoles(
 
 export function computeServerModerationPerms(
   canAct: boolean,
-  canDisconnect: boolean,
+  canModerateVoice: boolean,
   inFrom: (perm: number) => boolean,
   can: (perm: number) => boolean
 ): {
@@ -210,9 +210,9 @@ export function computeServerModerationPerms(
   canBan: boolean
 } {
   return {
-    canMute: Boolean(canAct && inFrom(Perm.MUTE_MEMBERS)),
-    canDeafen: Boolean(canAct && inFrom(Perm.DEAFEN_MEMBERS)),
-    canDisconnect: Boolean(canDisconnect && inFrom(Perm.DISCONNECT_MEMBERS)),
+    canMute: Boolean(canModerateVoice && inFrom(Perm.MUTE_MEMBERS)),
+    canDeafen: Boolean(canModerateVoice && inFrom(Perm.DEAFEN_MEMBERS)),
+    canDisconnect: Boolean(canModerateVoice && inFrom(Perm.DISCONNECT_MEMBERS)),
     canKick: Boolean(canAct && can(Perm.KICK_MEMBERS)),
     canBan: Boolean(canAct && can(Perm.BAN_MEMBERS))
   }

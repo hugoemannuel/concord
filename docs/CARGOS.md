@@ -7,8 +7,8 @@ Cada servidor tem **cargos** com permissões, como no Discord.
 O **dono** (quem criou o servidor, `owner_id`) **não é um cargo**: é um nível interno e absoluto, preso à pessoa.
 
 - Pode tudo sem precisar de cargo nenhum e ignora as regras dos canais.
-- Está acima de qualquer cargo na hierarquia: mesmo sem cargo, expulsa, bane, silencia, move e mexe nos cargos de qualquer membro.
-- Nunca é alvo de expulsão, banimento, silêncio, ensurdecer, desconectar, mover nem troca de apelido ou de cargos por outra pessoa (nem por quem tem Administrador). Também não sai do servidor: apaga.
+- Está acima de qualquer cargo na hierarquia: mesmo sem cargo, expulsa, bane, silencia, move, troca apelidos e mexe nos cargos de qualquer membro.
+- Nunca é alvo de expulsão, banimento, castigo, troca de apelido nem troca de cargos por outra pessoa (nem por quem tem Administrador). Em chamadas de voz, vale a regra geral de cargo mais alto (`>=`) sem imunidade especial do dono como alvo: se o dono não tiver cargo acima do moderador, pode ser silenciado, ensurdecido, movido ou desconectado; se colocar um cargo acima, fica protegido. Também pode liberar o próprio silêncio/áudio no servidor pelo menu dele. Não sai do servidor: apaga.
 - Pode dar e tirar de si mesmo qualquer cargo, só para a cor e o grupo na lista.
 - Na lista de membros, no perfil e na aba Membros, aparece como qualquer membro (agrupado e colorido pelo cargo que tiver) com uma **coroa** ao lado do nome ("Dono do servidor").
 
@@ -51,7 +51,7 @@ O cálculo é o mesmo no backend (`backend/internal/permission`) e no app (`fron
 | | Gerenciar mensagens | Apagar mensagem de outros e encerrar enquetes. Isenta do modo lento. |
 | Voz | Conectar, Falar, Transmitir | Entrar, usar o microfone, compartilhar tela/câmera. |
 | | Usar mesa de áudio | Tocar os sons na chamada (os do servidor e os favoritos de outros servidores). Enviar som é *Adicionar sons*. |
-| | Silenciar / Ensurdecer / Mover membros | Moderação na chamada (mover inclui desconectar). |
+| | Silenciar / Ensurdecer / Mover / Desconectar membros | Moderação na chamada de voz (cargo mais alto igual ou menor, sem imunidade especial do dono). |
 | | Convidar visitantes | Gerar, na call em que está, um link para alguém de fora do servidor entrar só nela, por tempo limitado (ver "Visitantes" abaixo). **Fora do @everyone**: só o dono, o Administrador e os cargos que ganharem. Vale por canal (sobrescrita do canal de voz). |
 
 Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir, histórico, convidar, conectar, falar, transmitir, mesa de áudio, alterar o próprio apelido, adicionar sons e figurinhas, mensagens TTS, usar emojis e figurinhas de outros servidores) e o cargo fixo **Bots** (dos bots do servidor). Não há mais cargo **Moderador** padrão: quem quiser cria os seus. Nos servidores antigos o Moderador que já existia continua, como um cargo comum (dá para editar, mover e apagar).
@@ -73,11 +73,13 @@ Padrões de um servidor novo: só o **@everyone** (ver, escrever, anexar, reagir
 
 ## Hierarquia
 
-A posição do cargo define quem manda em quem (maior = mais alto).
+A posição do **cargo mais alto** de cada membro define quem manda em quem (maior = mais alto; quem só tem @everyone tem posição 0).
 
 - Só se edita, dá ou tira um cargo que esteja **abaixo do seu cargo mais alto** (o dono, qualquer um). Vale também para os próprios cargos: o dono dá e tira de si mesmo qualquer cargo (no menu *Cargos ›* do próprio nome e na aba Membros).
 - Os cargos **do dono** só ele mesmo mexe (nem quem tem Administrador).
-- Expulsar, banir, silenciar, ensurdecer, desconectar e mover só vale sobre quem tem o cargo mais alto **menor** que o seu. Mesma posição não vale.
+- Expulsar, banir, aplicar castigo direto e **abrir votação de castigo** só valem sobre quem tem o cargo mais alto **menor** que o seu (mesma posição não vale; o dono nunca é alvo).
+- Alterar o apelido de outro membro (*Gerenciar apelidos*) vale para quem tem o cargo mais alto **igual ou menor** que o seu (o dono nunca é alvo).
+- Moderação de voz (*Silenciar*, *Ensurdecer*, *Mover* e *Desconectar membros*) vale para quem tem o cargo mais alto **igual ou menor** que o seu, **sem imunidade especial do dono** (se o dono tiver cargo acima, fica protegido; se não tiver, pode ser moderado em voz; o dono como ator sempre pode). Quem tem *Silenciar* ou *Ensurdecer* no canal também consegue alternar/liberar a si mesmo na chamada.
 - Ninguém dá ou tira uma permissão que **não tem** (Administrador pode tudo).
 - **Administrador** tem todas as permissões, mas a hierarquia vale para ele também: age sobre quem tem o cargo mais alto menor que o seu. Quem não tem cargo nenhum (só o @everyone, posição 0) está abaixo de qualquer cargo, então qualquer administrador com um cargo age sobre ele. Administrador dado só pelo @everyone não age sobre outros membros sem cargo (mesma posição); para isso, precisa de um cargo.
 
@@ -109,7 +111,7 @@ Em **Editar canal**, quem tem *Gerenciar canais* escolhe um intervalo mínimo en
 
 - Cada canal de voz tem um **chat próprio** (como o "Text in Voice" do Discord): valem as permissões de texto do canal (*Ver canais* + *Ver histórico* para ler, *Enviar mensagens* para escrever, etc.), sem precisar de *Conectar*. O editor de permissões do canal de voz mostra esse grupo como "Chat do canal de voz".
 - Entrar exige **Conectar**; o token do LiveKit só deixa publicar o microfone com **Falar** e tela/câmera com **Transmitir**.
-- *Silenciar* e *Ensurdecer no servidor* tiram do LiveKit a permissão de publicar / de ouvir e valem até um moderador liberar ou a chamada acabar. Ao liberar, o LiveKit devolve a escuta sozinho e o app republica o microfone e desmuta quem só estava mudo por causa do silêncio (quem já estava mudo por escolha continua mudo).
+- *Silenciar* e *Ensurdecer no servidor* tiram do LiveKit a permissão de publicar / de ouvir e valem até alguém com a permissão no canal e cargo mais alto `>=` ao do alvo (inclusive o próprio membro afetado) liberar ou a chamada acabar. Ao liberar, o LiveKit devolve a escuta sozinho e o app republica o microfone e desmuta quem só estava mudo por causa do silêncio (quem já estava mudo por escolha continua mudo).
 - Mudou um cargo ou canal no meio da chamada? Quem perdeu o acesso sai da chamada e quem perdeu falar/transmitir tem a mídia ajustada na hora.
 
 ## Castigo
@@ -118,7 +120,7 @@ Castigo nas calls do servidor por um tempo ([ADR 0063](adr/0063-castigo-na-call.
 
 - O castigo tira, em todos os canais de voz do servidor, um ou mais destes: **falar**, **entrar na call** (quem está numa sai na hora) e **escutar**. Prazos: 1, 5, 10 ou 30 minutos ou 1 hora. Acaba sozinho no fim do prazo, mesmo que o servidor reinicie no meio. Castigos somados ficam com o prazo mais longo de cada efeito.
 - **Aplicar direto** (e tirar antes da hora) pede, no servidor, a moderação de voz de cada efeito: falar → *Silenciar membros*; escutar → *Ensurdecer membros*; entrar → *Desconectar membros*. E vale a hierarquia: só sobre quem tem o cargo mais alto menor que o seu.
-- **Votação**: qualquer membro que está na call abre, contra outra pessoa da call. Votam os membros do servidor que estavam na call quando a votação abriu, **menos o alvo** (ele não vota e não conta). O castigo vale com **mais da metade** desses votos (quem abre já vota sim). Precisa de pelo menos 2 votantes (call com 3 pessoas ou mais). Dura 60 s, uma por call; quem abre espera 30 s para abrir outra. Visitantes não abrem nem votam.
+- **Votação**: quem está na call e tem o cargo mais alto **maior** que o do alvo (ou o dono) abre, contra outro membro da call. Votam os membros do servidor que estavam na call quando a votação abriu, **menos o alvo** (ele não vota e não conta). O castigo vale com **mais da metade** desses votos (quem abre já vota sim). Precisa de pelo menos 2 votantes (call com 3 pessoas ou mais). Dura 60 s, uma por call; quem abre espera 30 s para abrir outra. Visitantes não abrem nem votam.
 - O dono nunca fica de castigo; ninguém castiga a si mesmo. Silenciar ou ensurdecer no servidor não mexe no castigo, e liberar o silêncio não tira o castigo de falar.
 - Fica no registro de auditoria: quem castigou (na votação, quem abriu), o quê, por quanto tempo e se foi votação; e quem tirou.
 

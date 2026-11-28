@@ -11,7 +11,7 @@ import (
 
 var (
 	ErrNoConnect         = errors.New("você não tem permissão para entrar neste canal de voz")
-	ErrCannotActOnMember = errors.New("você não pode fazer isso com alguém de cargo igual ou acima do seu")
+	ErrCannotActOnMember = errors.New("você não pode fazer isso com alguém de cargo acima do seu")
 	ErrTargetNotInCall   = errors.New("essa pessoa não está nesta chamada")
 	ErrNotChannelCall    = errors.New("isso só vale para canais de voz de servidor")
 	ErrTargetCannotJoin  = errors.New("essa pessoa não tem permissão para entrar no canal de destino")
@@ -134,8 +134,9 @@ func (s *Service) channelCall(callID string) (channelID, serverID string, err er
 	return *ac.info.ChannelID, *ac.info.ServerID, nil
 }
 
-// authorizeAction confere que o ator tem want no canal da chamada e está acima
-// do alvo, e que o alvo está na chamada.
+// authorizeAction confere que o ator tem want no canal da chamada, que o alvo
+// está na chamada e que o cargo mais alto do ator é igual ou maior que o do
+// alvo (sem imunidade especial do dono e permitindo alternar em si mesmo).
 func (s *Service) authorizeAction(ctx context.Context, callID, actorID, targetID string, want int64) (channelID string, snap *permission.Snapshot, err error) {
 	channelID, serverID, err := s.channelCall(callID)
 	if err != nil {
@@ -154,7 +155,7 @@ func (s *Service) authorizeAction(ctx context.Context, callID, actorID, targetID
 	if !s.IsParticipant(callID, targetID) {
 		return "", nil, ErrTargetNotInCall
 	}
-	if !snap.CanActOn(actorID, targetID) {
+	if !snap.CanModerateVoice(actorID, targetID) {
 		return "", nil, ErrCannotActOnMember
 	}
 	return channelID, snap, nil
@@ -206,27 +207,10 @@ func (s *Service) setServerVoice(ctx context.Context, callID, actorID, targetID 
 	return nil
 }
 
-// DisconnectParticipant tira alguém da chamada (DISCONNECT_MEMBERS + hierarquia: mesmo nível ou menor).
+// DisconnectParticipant tira alguém da chamada (DISCONNECT_MEMBERS no canal + cargo mais alto >= alvo).
 func (s *Service) DisconnectParticipant(ctx context.Context, callID, actorID, targetID string) error {
-	channelID, serverID, err := s.channelCall(callID)
-	if err != nil {
+	if _, _, err := s.authorizeAction(ctx, callID, actorID, targetID, permission.DisconnectMembers); err != nil {
 		return err
-	}
-	if s.perms == nil {
-		return ErrMissingPermission
-	}
-	snap, err := s.perms.Snapshot(ctx, serverID)
-	if err != nil || !snap.IsMember(actorID) {
-		return ErrNotMember
-	}
-	if !permission.Has(snap.Channel(channelID, actorID), permission.DisconnectMembers) {
-		return ErrMissingPermission
-	}
-	if !s.IsParticipant(callID, targetID) {
-		return ErrTargetNotInCall
-	}
-	if !snap.CanDisconnectMember(actorID, targetID) {
-		return ErrCannotActOnMember
 	}
 	return s.kick(ctx, callID, targetID)
 }

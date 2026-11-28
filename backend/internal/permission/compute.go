@@ -132,9 +132,9 @@ func CanEditRolesOf(ownerID, actorID, targetID string) bool {
 	return targetID != ownerID || actorID == ownerID
 }
 
-// CanActOn: o ator pode expulsar, banir, silenciar, mover ou trocar os cargos
-// do alvo? O dono nunca é alvo; ninguém age sobre si mesmo; fora o dono, só
-// quem tem cargo mais alto que o do alvo.
+// CanActOn: o ator pode expulsar, banir ou aplicar castigo direto no alvo?
+// O dono nunca é alvo; ninguém age sobre si mesmo; fora o dono, só quem tem
+// cargo mais alto que o do alvo.
 func CanActOn(ownerID, actorID, targetID string, actorHighest, targetHighest int) bool {
 	if targetID == ownerID || actorID == targetID {
 		return false
@@ -157,23 +157,13 @@ func CanManageNicknameOf(ownerID, actorID, targetID string, actorHighest, target
 	return actorHighest >= targetHighest
 }
 
-// CanDisconnectMember: o ator pode desconectar o alvo da chamada de voz?
-// O dono nunca é alvo (exceto por si mesmo); fora o dono, pode quem tem o mesmo cargo ou superior (actorHighest >= targetHighest).
-func CanDisconnectMember(ownerID, actorID, targetID string, actorHighest, targetHighest int) bool {
-	if targetID == ownerID {
-		return actorID == ownerID
-	}
-	if actorID == ownerID {
-		return true
-	}
-	return actorHighest >= targetHighest
-}
-
-// CanMoveMember: o ator pode mover o alvo entre canais de voz?
-// O dono nunca é alvo (exceto por si mesmo); fora o dono, pode quem tem o mesmo cargo ou superior (actorHighest >= targetHighest).
-func CanMoveMember(ownerID, actorID, targetID string, actorHighest, targetHighest int) bool {
-	if targetID == ownerID {
-		return actorID == ownerID
+// CanModerateVoice: o ator pode silenciar, ensurdecer, desconectar ou mover
+// o alvo em chamadas de voz? O dono como ator sempre pode; nos demais casos,
+// compara sempre o cargo mais alto de cada um (actorHighest >= targetHighest),
+// sem imunidade especial do dono como alvo e permitindo alternar em si mesmo.
+func CanModerateVoice(ownerID, actorID string, actorHighest, targetHighest int) bool {
+	if actorID == "" {
+		return false
 	}
 	if actorID == ownerID {
 		return true

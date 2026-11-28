@@ -215,17 +215,45 @@ describe('userMenuActions', () => {
     expect(computeSelfGivableRoles(false, roles, { isOwner: true, highest: 0, can: () => true })).toEqual([])
   })
 
-  it('computeServerModerationPerms computes flags correctly', () => {
-    const res = computeServerModerationPerms(
+  it('computeServerModerationPerms usa canModerateVoice para voz e canAct para kick/ban', () => {
+    const sameLevel = computeServerModerationPerms(
+      false,
+      true,
+      (p) => p === Perm.MUTE_MEMBERS || p === Perm.DEAFEN_MEMBERS || p === Perm.DISCONNECT_MEMBERS,
+      () => true
+    )
+    expect(sameLevel).toEqual({
+      canMute: true,
+      canDeafen: true,
+      canDisconnect: true,
+      canKick: false,
+      canBan: false
+    })
+
+    const higherTarget = computeServerModerationPerms(
+      false,
+      false,
+      () => true,
+      () => true
+    )
+    expect(higherTarget).toEqual({
+      canMute: false,
+      canDeafen: false,
+      canDisconnect: false,
+      canKick: false,
+      canBan: false
+    })
+
+    const lowerTarget = computeServerModerationPerms(
       true,
       true,
-      (p) => p === Perm.MUTE_MEMBERS || p === Perm.DISCONNECT_MEMBERS,
+      () => false,
       (p) => p === Perm.KICK_MEMBERS
     )
-    expect(res).toEqual({
-      canMute: true,
+    expect(lowerTarget).toEqual({
+      canMute: false,
       canDeafen: false,
-      canDisconnect: true,
+      canDisconnect: false,
       canKick: true,
       canBan: false
     })

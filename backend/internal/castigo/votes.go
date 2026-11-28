@@ -21,7 +21,7 @@ func (s *Service) sameCall(callID, initiatorID, targetID string) (call.VoiceLoca
 	return loc, nil
 }
 
-// StartVote abre a votação de castigo na call (qualquer membro que esteja nela).
+// StartVote abre a votação de castigo na call (membro na call com cargo mais alto acima do alvo).
 func (s *Service) StartVote(ctx context.Context, callID, initiatorID string, req Request) (Vote, error) {
 	if _, err := req.valid(); err != nil {
 		return Vote{}, err
@@ -36,6 +36,9 @@ func (s *Service) StartVote(ctx context.Context, callID, initiatorID string, req
 	}
 	if err := checkTarget(snap, initiatorID, req.UserID); err != nil {
 		return Vote{}, err
+	}
+	if !snap.CanActOn(initiatorID, req.UserID) {
+		return Vote{}, ErrCannotActOn
 	}
 	voters := eligibleVoters(snap, s.calls.ParticipantIDs(callID), req.UserID)
 	if len(voters) < minVoters {
@@ -75,10 +78,13 @@ func (s *Service) CurrentVote(callID, userID string) (Vote, bool) {
 
 // applyVote: o castigo aprovado vale como se quem abriu a votação o desse.
 func (s *Service) applyVote(ctx context.Context, v Vote) {
-	// Algo pode ter mudado no minuto da votação (o alvo virou dono, saiu).
+	// Algo pode ter mudado no minuto da votação (o alvo virou dono, saiu, subiu de cargo).
 	snap, err := s.snapshot(ctx, v.ServerID)
 	if err == nil {
 		err = checkTarget(snap, v.InitiatorID, v.TargetID)
+	}
+	if err == nil && !snap.CanActOn(v.InitiatorID, v.TargetID) {
+		err = ErrCannotActOn
 	}
 	if err != nil {
 		log.Printf("[castigo] votação %s aprovada, mas não vale mais: %v", v.ID, err)

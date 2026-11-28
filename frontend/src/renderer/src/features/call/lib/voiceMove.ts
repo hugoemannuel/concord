@@ -1,21 +1,15 @@
 /**
- * Mover pessoas entre canais de voz (como no Discord): precisa de MOVE_MEMBERS
- * no canal em que a pessoa está e de um cargo igual ou acima do dela (o dono nunca é
- * movido por outro). Mover a si mesmo só pede a permissão.
+ * Mover pessoas entre canais de voz: precisa de MOVE_MEMBERS no canal em que a
+ * pessoa está e cargo mais alto igual ou maior que o do alvo (sem imunidade especial do dono).
  */
 export function canMoveVoiceUser(opts: {
   meId: string | undefined
-  targetId: string
   /** Você tem MOVE_MEMBERS no canal de voz em que a pessoa está. */
   canMoveMembers: boolean
-  /** Você tem cargo igual ou maior (ServerAccess.canMoveMember). */
-  canMoveTarget?: boolean
-  /** @deprecated use canMoveTarget */
-  canActOnTarget?: boolean
+  /** Seu cargo mais alto é >= ao do alvo (ServerAccess.canModerateVoiceMember). */
+  canModerateTarget: boolean
 }): boolean {
-  if (!opts.meId || !opts.canMoveMembers) return false
-  const allowed = opts.canMoveTarget ?? opts.canActOnTarget ?? false
-  return opts.targetId === opts.meId || allowed
+  return Boolean(opts.meId && opts.canMoveMembers && opts.canModerateTarget)
 }
 
 /** Em qual canal de voz do servidor a pessoa está conectada (ou null). */

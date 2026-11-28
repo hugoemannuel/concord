@@ -56,13 +56,15 @@ func (f fakePerms) ChannelPerms(ctx context.Context, channelID, userID string) (
 	return f.svc.ChannelPerms(ctx, channelID, userID)
 }
 
-// voiceSnapshot: dono; mod (posição 2, moderador padrão); vip (1); ana comum.
+// voiceSnapshot: dono; chefe (posição 3, acima de mod); mod (posição 2, moderador padrão); vip (1); ana comum.
 // Canais de voz: geral (livre), vip-voz (só vip) e palco (@everyone sem falar).
 func voiceSnapshot() *permission.Snapshot {
 	return permission.NewSnapshot("srv-1", "dono", permission.DefaultEveryone).
+		WithRole("chefe", 3, modPerms).
 		WithRole("mod", 2, modPerms).
 		WithRole("vip", 1, 0).
 		WithMember("dono").
+		WithMember("chefe", "chefe").
 		WithMember("mod", "mod").
 		WithMember("mod2", "mod").
 		WithMember("vip", "vip").
@@ -189,15 +191,17 @@ func TestServerMute(t *testing.T) {
 		{"moderador silencia membro", "mod", "ana", nil},
 		{"dono silencia moderador", "dono", "mod", nil},
 		{"membro sem permissão", "ana", "vip", ErrMissingPermission},
-		{"mesmo cargo", "mod", "mod2", ErrCannotActOnMember},
-		{"cargo acima", "vip", "mod", ErrMissingPermission},
-		{"ninguém silencia o dono", "mod", "dono", ErrCannotActOnMember},
+		{"mesmo cargo", "mod", "mod2", nil},
+		{"cargo acima bloqueado", "mod", "chefe", ErrCannotActOnMember},
+		{"sem permissão contra cargo acima", "vip", "mod", ErrMissingPermission},
+		{"moderador silencia dono sem cargo acima", "mod", "dono", nil},
+		{"moderador silencia a si mesmo", "mod", "mod", nil},
 		{"fora da chamada", "mod", "zeca", ErrTargetNotInCall},
 		{"não membro como ator", "zeca", "ana", ErrNotMember},
 	}
 	for _, tc := range cases {
 		svc, media, _ := newVoiceService(voiceSnapshot())
-		putInCall(svc, "c1", "geral", "ana", "vip", "mod", "mod2", "dono")
+		putInCall(svc, "c1", "geral", "ana", "vip", "mod", "mod2", "chefe", "dono")
 		err := svc.SetServerMute(ctx, "c1", tc.actor, tc.target, true)
 		if !errors.Is(err, tc.want) {
 			t.Errorf("%s: err = %v, want %v", tc.name, err, tc.want)
@@ -281,22 +285,91 @@ func TestServerMuteOnlyInServerChannelCalls(t *testing.T) {
 	}
 }
 
+func TestServerVoiceHierarchyAndSelfUnmute(t *testing.T) {
+	snap := voiceSnapshot().WithMember("multi", "vip", "chefe")
+	svc, media, _ := newVoiceService(snap)
+	putInCall(svc, "c1", "geral", "mod", "mod2", "chefe", "multi", "dono")
+	ctx := context.Background()
+
+	// Moderador silencia e ensurdece mesmo cargo e dono sem cargo acima.
+	for _, target := range []string{"mod2", "dono"} {
+		if err := svc.SetServerMute(ctx, "c1", "mod", target, true); err != nil {
+			t.Fatalf("silenciar %s: %v", target, err)
+		}
+		if err := svc.SetServerDeafen(ctx, "c1", "mod", target, true); err != nil {
+			t.Fatalf("ensurdecer %s: %v", target, err)
+		}
+	}
+
+	// Cargo acima (incluindo múltiplo cargo cujo maior é 3) é bloqueado em mute e deafen.
+	for _, target := range []string{"chefe", "multi"} {
+		if err := svc.SetServerMute(ctx, "c1", "mod", target, true); !errors.Is(err, ErrCannotActOnMember) {
+			t.Fatalf("silenciar %s: err = %v, want ErrCannotActOnMember", target, err)
+		}
+		if err := svc.SetServerDeafen(ctx, "c1", "mod", target, true); !errors.Is(err, ErrCannotActOnMember) {
+			t.Fatalf("ensurdecer %s: err = %v, want ErrCannotActOnMember", target, err)
+		}
+	}
+
+	// Dono consegue se liberar (microfone e áudio) sem precisar de outro moderador.
+	if err := svc.SetServerMute(ctx, "c1", "dono", "dono", false); err != nil {
+		t.Fatalf("dono se desmutar: %v", err)
+	}
+	if err := svc.SetServerDeafen(ctx, "c1", "dono", "dono", false); err != nil {
+		t.Fatalf("dono se desensurdecer: %v", err)
+	}
+	if last := media.updates[len(media.updates)-1]; last.identity != "dono" || last.grant != (livekit.Grant{}) {
+		t.Fatalf("grant do dono após se liberar = %+v, want completo", last)
+	}
+
+	// Dono com cargo acima fica protegido contra moderador abaixo, mas continua podendo agir sobre todos.
+	snapDonoAlto := voiceSnapshot().WithMember("dono", "chefe")
+	svcAlto, _, _ := newVoiceService(snapDonoAlto)
+	putInCall(svcAlto, "c1", "geral", "mod", "chefe", "dono")
+	if err := svcAlto.SetServerMute(ctx, "c1", "mod", "dono", true); !errors.Is(err, ErrCannotActOnMember) {
+		t.Fatalf("silenciar dono com cargo acima: err = %v, want ErrCannotActOnMember", err)
+	}
+	if err := svcAlto.SetServerDeafen(ctx, "c1", "mod", "dono", true); !errors.Is(err, ErrCannotActOnMember) {
+		t.Fatalf("ensurdecer dono com cargo acima: err = %v, want ErrCannotActOnMember", err)
+	}
+	if err := svcAlto.SetServerMute(ctx, "c1", "dono", "chefe", true); err != nil {
+		t.Fatalf("dono silencia chefe: %v", err)
+	}
+}
+
 func TestDisconnectParticipant(t *testing.T) {
 	svc, media, _ := newVoiceService(voiceSnapshot())
-	putInCall(svc, "c1", "geral", "ana", "mod", "vip")
+	putInCall(svc, "c1", "geral", "ana", "mod", "mod2", "chefe", "dono", "vip")
 	ctx := context.Background()
 
 	if err := svc.DisconnectParticipant(ctx, "c1", "ana", "vip"); !errors.Is(err, ErrMissingPermission) {
 		t.Fatalf("membro desconectando: err = %v", err)
 	}
+	if err := svc.DisconnectParticipant(ctx, "c1", "mod", "chefe"); !errors.Is(err, ErrCannotActOnMember) {
+		t.Fatalf("desconectar cargo acima: err = %v, want ErrCannotActOnMember", err)
+	}
 	if err := svc.DisconnectParticipant(ctx, "c1", "mod", "ana"); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(media.removed, []string{"c1|ana"}) {
-		t.Fatalf("mídia removida: %v", media.removed)
+	if err := svc.DisconnectParticipant(ctx, "c1", "mod", "mod2"); err != nil {
+		t.Fatalf("desconectar mesmo cargo: %v", err)
 	}
-	if svc.IsParticipant("c1", "ana") || !svc.IsParticipant("c1", "vip") {
-		t.Fatal("só a ana devia sair")
+	if err := svc.DisconnectParticipant(ctx, "c1", "mod", "dono"); err != nil {
+		t.Fatalf("desconectar dono sem cargo acima: %v", err)
+	}
+	wantRemoved := []string{"c1|ana", "c1|mod2", "c1|dono"}
+	if !reflect.DeepEqual(media.removed, wantRemoved) {
+		t.Fatalf("mídia removida: %v, want %v", media.removed, wantRemoved)
+	}
+	if svc.IsParticipant("c1", "ana") || svc.IsParticipant("c1", "dono") || !svc.IsParticipant("c1", "vip") || !svc.IsParticipant("c1", "chefe") {
+		t.Fatal("apenas ana, mod2 e dono deviam sair")
+	}
+
+	snapDonoAlto := voiceSnapshot().WithMember("dono", "chefe")
+	svcAlto, _, _ := newVoiceService(snapDonoAlto)
+	putInCall(svcAlto, "c1", "geral", "mod", "dono")
+	if err := svcAlto.DisconnectParticipant(ctx, "c1", "mod", "dono"); !errors.Is(err, ErrCannotActOnMember) {
+		t.Fatalf("desconectar dono com cargo acima: err = %v, want ErrCannotActOnMember", err)
 	}
 }
 
@@ -434,7 +507,8 @@ func TestAuthorizeMove(t *testing.T) {
 		{"dono move moderador", "dono", "mod", "geral", "jogos", nil},
 		{"membro não move", "ana", "vip", "geral", "jogos", ErrNotModerator},
 		{"MOVE_MEMBERS é do canal de origem", "mod", "ana", "sem-mover", "jogos", ErrNotModerator},
-		{"moderador não move o dono", "mod", "dono", "geral", "jogos", ErrCannotMoveOwner},
+		{"moderador move o dono sem cargo acima", "mod", "dono", "geral", "jogos", nil},
+		{"moderador não move cargo acima", "mod", "chefe", "geral", "jogos", ErrCannotActOnMember},
 		{"mesmo cargo", "mod", "mod2", "geral", "jogos", nil},
 		{"destino que o ator não vê", "mod", "ana", "geral", "vip-voz", ErrNotFound},
 		{"destino onde o alvo não entra", "mod", "ana", "geral", "so-mod", ErrTargetCannotJoin},
@@ -446,6 +520,11 @@ func TestAuthorizeMove(t *testing.T) {
 		if !errors.Is(err, tc.want) {
 			t.Errorf("%s: err = %v, want %v", tc.name, err, tc.want)
 		}
+	}
+
+	snapDonoAlto := voiceSnapshot().WithChannel("jogos", permission.ChannelVoice).WithMember("dono", "chefe")
+	if err := authorizeMove(snapDonoAlto, "mod", "dono", in("geral"), true, dest("jogos")); !errors.Is(err, ErrCannotActOnMember) {
+		t.Errorf("moderador não move dono com cargo acima: err = %v, want ErrCannotActOnMember", err)
 	}
 }
 
