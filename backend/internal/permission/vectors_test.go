@@ -50,6 +50,24 @@ type vectorFile struct {
 		TargetHighest int    `json:"target_highest"`
 		Expect        bool   `json:"expect"`
 	} `json:"can_act_on"`
+	CanManageNicknameOf []struct {
+		Name          string `json:"name"`
+		OwnerID       string `json:"owner_id"`
+		Actor         string `json:"actor"`
+		Target        string `json:"target"`
+		ActorHighest  int    `json:"actor_highest"`
+		TargetHighest int    `json:"target_highest"`
+		Expect        bool   `json:"expect"`
+	} `json:"can_manage_nickname_of"`
+	CanModerateVoice []struct {
+		Name          string `json:"name"`
+		OwnerID       string `json:"owner_id"`
+		Actor         string `json:"actor"`
+		Target        string `json:"target"`
+		ActorHighest  int    `json:"actor_highest"`
+		TargetHighest int    `json:"target_highest"`
+		Expect        bool   `json:"expect"`
+	} `json:"can_moderate_voice"`
 	CanManageRole []struct {
 		Name         string `json:"name"`
 		IsOwner      bool   `json:"is_owner"`
@@ -204,6 +222,16 @@ func TestVectorsHierarchy(t *testing.T) {
 	for _, tc := range v.CanActOn {
 		if got := CanActOn(tc.OwnerID, tc.Actor, tc.Target, tc.ActorHighest, tc.TargetHighest); got != tc.Expect {
 			t.Errorf("CanActOn %q = %v, want %v", tc.Name, got, tc.Expect)
+		}
+	}
+	for _, tc := range v.CanManageNicknameOf {
+		if got := CanManageNicknameOf(tc.OwnerID, tc.Actor, tc.Target, tc.ActorHighest, tc.TargetHighest); got != tc.Expect {
+			t.Errorf("CanManageNicknameOf %q = %v, want %v", tc.Name, got, tc.Expect)
+		}
+	}
+	for _, tc := range v.CanModerateVoice {
+		if got := CanModerateVoice(tc.OwnerID, tc.Actor, tc.ActorHighest, tc.TargetHighest); got != tc.Expect {
+			t.Errorf("CanModerateVoice %q = %v, want %v", tc.Name, got, tc.Expect)
 		}
 	}
 	for _, tc := range v.CanManageRole {

@@ -43,7 +43,7 @@ func (h *Handler) Move(c *gin.Context) {
 
 func mapMoveError(err error) int {
 	switch {
-	case errors.Is(err, ErrNotModerator), errors.Is(err, ErrCannotMoveOwner), errors.Is(err, ErrCannotActOnMember), errors.Is(err, ErrTargetCannotJoin):
+	case errors.Is(err, ErrNotModerator), errors.Is(err, ErrCannotActOnMember), errors.Is(err, ErrTargetCannotJoin):
 		return http.StatusForbidden
 	case errors.Is(err, ErrNotInVoice), errors.Is(err, ErrSameChannel), errors.Is(err, ErrNotVoiceChannel):
 		return http.StatusBadRequest
@@ -114,7 +114,7 @@ func (h *Handler) serverVoice(c *gin.Context, action audit.Action, field string,
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// Disconnect: DELETE /calls/:id/participants/:userId (MOVE_MEMBERS).
+// Disconnect: DELETE /calls/:id/participants/:userId (DISCONNECT_MEMBERS).
 func (h *Handler) Disconnect(c *gin.Context) {
 	userID, ok := authctx.UserID(c)
 	if !ok {

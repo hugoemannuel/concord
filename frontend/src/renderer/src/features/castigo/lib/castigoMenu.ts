@@ -8,7 +8,7 @@ import {
 } from './castigo'
 
 export interface CastigoMenuInput {
-  /** O alvo é membro do servidor aberto, não sou eu e não é o dono. */
+  /** O alvo é membro do servidor aberto e tem cargo mais alto menor que o meu (não é eu nem o dono). */
   eligible: boolean
   /** A call de canal em que os dois estamos (votação), se houver. */
   sharedCallId?: string

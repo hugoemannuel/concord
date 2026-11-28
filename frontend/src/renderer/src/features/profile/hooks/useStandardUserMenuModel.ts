@@ -51,6 +51,7 @@ export function useStandardUserMenuModel(
   const username = resolveTargetUsername(target.username, member?.username, callUsername)
   const inServer = Boolean(server && member)
   const canAct = inServer && access.canActOnMember(target.userId)
+  const canModVoice = Boolean(server && access.canModerateVoiceMember(target.userId))
   // Os cargos do dono só o próprio dono mexe.
   const givable: Role[] = computeGivableRoles(
     inServer && access.canEditRolesOf(target.userId),
@@ -70,9 +71,8 @@ export function useStandardUserMenuModel(
     fromChannel &&
     canMoveVoiceUser({
       meId,
-      targetId: target.userId,
       canMoveMembers: access.canInChannel(fromChannel, Perm.MOVE_MEMBERS),
-      canMoveTarget: access.canMoveMember(target.userId)
+      canModerateTarget: canModVoice
     })
   )
   const canNick = canChangeServerNickname(
@@ -92,11 +92,6 @@ export function useStandardUserMenuModel(
     voiceCallId,
     moveTargets: computeVoiceMoveTargets(fromChannel, channels, canMove),
     canNick,
-    modPerms: computeServerModerationPerms(
-      canAct,
-      access.canDisconnectMember(target.userId),
-      inFrom,
-      access.can
-    )
+    modPerms: computeServerModerationPerms(canAct, canModVoice, inFrom, access.can)
   }
 }

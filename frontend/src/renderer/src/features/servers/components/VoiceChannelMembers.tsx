@@ -229,9 +229,8 @@ function VoiceChannelMembers({
           canWatch={canWatch}
           movable={canMoveVoiceUser({
             meId,
-            targetId: p.user_id,
             canMoveMembers,
-            canMoveTarget: access.canMoveMember(p.user_id)
+            canModerateTarget: access.canModerateVoiceMember(p.user_id)
           })}
           onDragEnd={onDragEnd}
         />

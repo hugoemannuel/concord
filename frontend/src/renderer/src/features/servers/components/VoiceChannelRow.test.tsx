@@ -69,10 +69,9 @@ function fakeAccess(perms: number, opts: { isPrivate?: boolean } = {}): ServerAc
     canInChannel: (_id, want) => (perms & want) === want,
     highestOf: () => 0,
     canActOnMember: () => true,
+    canModerateVoiceMember: () => true,
     canEditRolesOf: () => true,
     canChangeNickname: () => false,
-    canDisconnectMember: () => true,
-    canMoveMember: () => true,
     canManage: () => false,
     isPrivate: () => Boolean(opts.isPrivate)
   }
@@ -186,25 +185,34 @@ describe('VoiceChannelRow', () => {
     expect(html).toContain('Arraste para outro canal de voz')
   })
 
-  it('membro de mesma hierarquia pode ser arrastado se tiver permissão de mover', () => {
+  it('membro de mesma hierarquia ou dono sem cargo acima pode ser arrastado se tiver permissão de mover', () => {
     inCall([participant('colega')])
     setCall({ status: 'active', type: 'channel', channelId: 'v1' })
     const access = fakeAccess(Perm.VIEW_CHANNEL | Perm.CONNECT | Perm.MOVE_MEMBERS)
     access.canActOnMember = () => false
-    access.canMoveMember = () => true
+    access.canModerateVoiceMember = () => true
     const html = render({ access })
     expect(html).toContain('COLEGA')
     expect(html).toContain('Arraste para outro canal de voz')
   })
 
-  it('membro de hierarquia superior não pode ser arrastado', () => {
+  it('membro de cargo acima não pode ser arrastado mesmo com MOVE_MEMBERS', () => {
     inCall([participant('superior')])
     setCall({ status: 'active', type: 'channel', channelId: 'v1' })
     const access = fakeAccess(Perm.VIEW_CHANNEL | Perm.CONNECT | Perm.MOVE_MEMBERS)
     access.canActOnMember = () => false
-    access.canMoveMember = () => false
+    access.canModerateVoiceMember = () => false
     const html = render({ access })
     expect(html).toContain('SUPERIOR')
+    expect(html).not.toContain('Arraste para outro canal de voz')
+  })
+
+  it('sem permissão de mover ninguém pode ser arrastado', () => {
+    inCall([participant('colega')])
+    setCall({ status: 'active', type: 'channel', channelId: 'v1' })
+    const access = fakeAccess(Perm.VIEW_CHANNEL | Perm.CONNECT)
+    const html = render({ access })
+    expect(html).toContain('COLEGA')
     expect(html).not.toContain('Arraste para outro canal de voz')
   })
 

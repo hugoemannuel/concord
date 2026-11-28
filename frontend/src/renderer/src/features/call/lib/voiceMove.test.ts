@@ -2,37 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { canMoveVoiceUser, voiceChannelOf } from './voiceMove'
 
 describe('canMoveVoiceUser', () => {
-  const base = { meId: 'mod', targetId: 'ana', canMoveMembers: true, canActOnTarget: true }
-
-  it('precisa de MOVE_MEMBERS e de estar acima da pessoa', () => {
-    expect(canMoveVoiceUser(base)).toBe(true)
-    expect(canMoveVoiceUser({ ...base, canMoveMembers: false })).toBe(false)
-    expect(canMoveVoiceUser({ ...base, canActOnTarget: false })).toBe(false)
-  })
-
-  it('sem login ninguém move', () => {
-    expect(canMoveVoiceUser({ ...base, meId: undefined })).toBe(false)
-  })
-
-  it('quem move a si mesmo só precisa da permissão', () => {
+  it('precisa de usuário autenticado, MOVE_MEMBERS no canal e cargo mais alto >= alvo', () => {
+    expect(canMoveVoiceUser({ meId: 'mod', canMoveMembers: true, canModerateTarget: true })).toBe(
+      true
+    )
+    expect(canMoveVoiceUser({ meId: 'mod', canMoveMembers: false, canModerateTarget: true })).toBe(
+      false
+    )
+    expect(canMoveVoiceUser({ meId: 'mod', canMoveMembers: true, canModerateTarget: false })).toBe(
+      false
+    )
     expect(
-      canMoveVoiceUser({ ...base, targetId: 'mod', canActOnTarget: false, canMoveMembers: true })
-    ).toBe(true)
-    expect(
-      canMoveVoiceUser({ ...base, targetId: 'mod', canActOnTarget: false, canMoveMembers: false })
+      canMoveVoiceUser({ meId: undefined, canMoveMembers: true, canModerateTarget: true })
     ).toBe(false)
-  })
-
-  it('suporta canMoveTarget para membros de mesmo cargo', () => {
-    expect(
-      canMoveVoiceUser({ meId: 'mod', targetId: 'mod2', canMoveMembers: true, canMoveTarget: true })
-    ).toBe(true)
-    expect(
-      canMoveVoiceUser({ meId: 'mod', targetId: 'admin', canMoveMembers: true, canMoveTarget: false })
-    ).toBe(false)
-  })
-  it('moderador não move o dono (a hierarquia nunca deixa)', () => {
-    expect(canMoveVoiceUser({ ...base, targetId: 'dono', canActOnTarget: false })).toBe(false)
   })
 })
 

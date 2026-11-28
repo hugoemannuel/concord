@@ -25,15 +25,20 @@ func TestStartVoteRegras(t *testing.T) {
 		wantErr    error
 		wantVoters int
 	}{
-		{"qualquer membro abre", []string{"ana", "bia", "caio"}, "ana", "caio", nil, 2},
-		{"alvo não vota e não conta", []string{"ana", "bia", "caio", "duda"}, "bia", "ana", nil, 3},
-		{"call de 2 não tem votação", []string{"ana", "bia"}, "ana", "bia", ErrFewVoters, 0},
-		{"visitante não conta como votante", []string{"ana", "bia", "visita"}, "ana", "bia", ErrFewVoters, 0},
-		{"visitante não abre", []string{"ana", "bia", "caio", "visita"}, "visita", "ana", ErrNotMember, 0},
-		{"alvo fora da call", []string{"ana", "bia", "caio"}, "ana", "duda", ErrNotInCall, 0},
-		{"quem abre fora da call", []string{"ana", "bia", "caio"}, "duda", "ana", ErrNotInCall, 0},
-		{"o dono não vai a votação", []string{"ana", "bia", "dono"}, "ana", "dono", ErrOwner, 0},
-		{"nem a si mesmo", []string{"ana", "bia", "caio"}, "ana", "ana", ErrSelf, 0},
+		{"cargo maior abre contra menor", []string{"mod", "bia", "caio"}, "mod", "caio", nil, 2},
+		{"chefe abre contra mod", []string{"chefe", "bia", "mod", "duda"}, "chefe", "mod", nil, 3},
+		{"dono abre contra chefe", []string{"dono", "bia", "chefe"}, "dono", "chefe", nil, 2},
+		{"alvo não vota e não conta", []string{"chefe", "bia", "mod", "duda"}, "chefe", "mod", nil, 3},
+		{"mesmo cargo sem cargo não abre", []string{"ana", "bia", "caio"}, "ana", "caio", ErrCannotActOn, 0},
+		{"mesmo cargo com cargo não abre", []string{"mod", "mod2", "bia"}, "mod", "mod2", ErrCannotActOn, 0},
+		{"cargo acima não abre", []string{"mod", "chefe", "bia"}, "mod", "chefe", ErrCannotActOn, 0},
+		{"call de 2 não tem votação", []string{"mod", "bia"}, "mod", "bia", ErrFewVoters, 0},
+		{"visitante não conta como votante", []string{"mod", "bia", "visita"}, "mod", "bia", ErrFewVoters, 0},
+		{"visitante não abre", []string{"mod", "bia", "caio", "visita"}, "visita", "caio", ErrNotMember, 0},
+		{"alvo fora da call", []string{"mod", "bia", "caio"}, "mod", "duda", ErrNotInCall, 0},
+		{"quem abre fora da call", []string{"mod", "bia", "caio"}, "duda", "caio", ErrNotInCall, 0},
+		{"o dono não vai a votação", []string{"mod", "bia", "dono"}, "mod", "dono", ErrOwner, 0},
+		{"nem a si mesmo", []string{"mod", "bia", "caio"}, "mod", "mod", ErrSelf, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -52,9 +57,9 @@ func TestStartVoteRegras(t *testing.T) {
 
 func TestVotacaoPassaComAMaioriaEAplicaOCastigo(t *testing.T) {
 	w := newWorld(t)
-	w.inCall("ana", "bia", "caio", "duda")
+	w.inCall("mod", "bia", "caio", "duda")
 	ctx := context.Background()
-	v, err := w.svc.StartVote(ctx, "c1", "ana", Request{UserID: "duda", Effects: Effects{Connect: true}, Duration: 600})
+	v, err := w.svc.StartVote(ctx, "c1", "mod", Request{UserID: "duda", Effects: Effects{Connect: true}, Duration: 600})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +72,7 @@ func TestVotacaoPassaComAMaioriaEAplicaOCastigo(t *testing.T) {
 	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "duda", false); !errors.Is(err, ErrNotVoter) {
 		t.Errorf("o alvo não vota: %v", err)
 	}
-	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "ana", true); !errors.Is(err, ErrAlreadyVoted) {
+	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "mod", true); !errors.Is(err, ErrAlreadyVoted) {
 		t.Errorf("quem abriu já votou: %v", err)
 	}
 	if w.svc.Punished("duda") {
@@ -81,7 +86,7 @@ func TestVotacaoPassaComAMaioriaEAplicaOCastigo(t *testing.T) {
 		t.Error("castigo aprovado vale")
 	}
 	e := w.audit.events[len(w.audit.events)-1]
-	if e.ActorID != "ana" || e.ChannelID != "geral" || e.Changes[2].After != "vote" {
+	if e.ActorID != "mod" || e.ChannelID != "geral" || e.Changes[2].After != "vote" {
 		t.Errorf("auditoria: quem abriu, onde e pela votação: %+v", e)
 	}
 	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "caio", true); !errors.Is(err, ErrVoteNotFound) {
@@ -91,9 +96,9 @@ func TestVotacaoPassaComAMaioriaEAplicaOCastigo(t *testing.T) {
 
 func TestVotacaoFalhaQuandoOSimNaoChegaMais(t *testing.T) {
 	w := newWorld(t)
-	w.inCall("ana", "bia", "caio")
+	w.inCall("mod", "bia", "caio")
 	ctx := context.Background()
-	v, err := w.svc.StartVote(ctx, "c1", "ana", speak5min("caio"))
+	v, err := w.svc.StartVote(ctx, "c1", "mod", speak5min("caio"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,16 +113,16 @@ func TestVotacaoFalhaQuandoOSimNaoChegaMais(t *testing.T) {
 
 func TestVotacaoUmaPorCallComEsperaEPrazo(t *testing.T) {
 	w := newWorld(t)
-	w.inCall("ana", "bia", "caio", "duda")
+	w.inCall("mod", "chefe", "caio", "duda")
 	ctx := context.Background()
-	v, err := w.svc.StartVote(ctx, "c1", "ana", speak5min("caio"))
+	v, err := w.svc.StartVote(ctx, "c1", "mod", speak5min("caio"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := w.svc.StartVote(ctx, "c1", "bia", speak5min("duda")); !errors.Is(err, ErrVoteOpen) {
+	if _, err := w.svc.StartVote(ctx, "c1", "chefe", speak5min("duda")); !errors.Is(err, ErrVoteOpen) {
 		t.Errorf("uma votação por vez na call: %v", err)
 	}
-	if cur, ok := w.svc.CurrentVote("c1", "bia"); !ok || cur.ID != v.ID {
+	if cur, ok := w.svc.CurrentVote("c1", "chefe"); !ok || cur.ID != v.ID {
 		t.Error("quem está na call vê a votação aberta")
 	}
 	if _, ok := w.svc.CurrentVote("c1", "visita"); ok {
@@ -125,7 +130,7 @@ func TestVotacaoUmaPorCallComEsperaEPrazo(t *testing.T) {
 	}
 
 	w.now = w.now.Add(VoteWindow)
-	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "bia", true); !errors.Is(err, ErrVoteNotFound) {
+	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "chefe", true); !errors.Is(err, ErrVoteNotFound) {
 		t.Errorf("fora do prazo não vota: %v", err)
 	}
 	w.svc.Sweep(ctx)
@@ -134,7 +139,7 @@ func TestVotacaoUmaPorCallComEsperaEPrazo(t *testing.T) {
 	if got.Status != VoteExpired || w.svc.Punished("caio") {
 		t.Errorf("prazo acabou sem maioria: %+v", got)
 	}
-	if _, ok := w.svc.CurrentVote("c1", "bia"); ok {
+	if _, ok := w.svc.CurrentVote("c1", "chefe"); ok {
 		t.Error("votação vencida sai")
 	}
 
@@ -142,20 +147,20 @@ func TestVotacaoUmaPorCallComEsperaEPrazo(t *testing.T) {
 
 func TestQuemAbreEsperaParaAbrirOutra(t *testing.T) {
 	w := newWorld(t)
-	w.inCall("ana", "bia", "caio")
+	w.inCall("mod", "chefe", "caio")
 	ctx := context.Background()
-	v, err := w.svc.StartVote(ctx, "c1", "ana", speak5min("caio"))
+	v, err := w.svc.StartVote(ctx, "c1", "mod", speak5min("caio"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "bia", false); err != nil {
+	if _, err := w.svc.CastVote(ctx, "c1", v.ID, "chefe", false); err != nil {
 		t.Fatal(err)
 	}
 	w.now = w.now.Add(10 * time.Second)
-	if _, err := w.svc.StartVote(ctx, "c1", "ana", speak5min("caio")); !errors.Is(err, ErrVoteCooldown) {
+	if _, err := w.svc.StartVote(ctx, "c1", "mod", speak5min("caio")); !errors.Is(err, ErrVoteCooldown) {
 		t.Errorf("quem abriu espera para abrir outra: %v", err)
 	}
-	if _, err := w.svc.StartVote(ctx, "c1", "bia", speak5min("caio")); err != nil {
+	if _, err := w.svc.StartVote(ctx, "c1", "chefe", speak5min("caio")); err != nil {
 		t.Errorf("outra pessoa abre: %v", err)
 	}
 	w.now = w.now.Add(voteCooldown)
@@ -167,9 +172,9 @@ func TestQuemAbreEsperaParaAbrirOutra(t *testing.T) {
 
 func TestVotacaoAprovadaConfereOAlvoDeNovo(t *testing.T) {
 	w := newWorld(t)
-	w.inCall("ana", "bia", "caio")
+	w.inCall("mod", "bia", "caio")
 	ctx := context.Background()
-	v, err := w.svc.StartVote(ctx, "c1", "ana", speak5min("caio"))
+	v, err := w.svc.StartVote(ctx, "c1", "mod", speak5min("caio"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,5 +184,20 @@ func TestVotacaoAprovadaConfereOAlvoDeNovo(t *testing.T) {
 	}
 	if w.svc.Punished("caio") {
 		t.Error("quem saiu do servidor não fica de castigo")
+	}
+
+	// Alvo que sobe para cargo >= ao de quem abriu durante a votação não é punido.
+	w2 := newWorld(t)
+	w2.inCall("mod", "bia", "caio")
+	v2, err := w2.svc.StartVote(ctx, "c1", "mod", speak5min("caio"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w2.svc.perms.(fakePerms).snap.MemberRoles["caio"] = []string{"chefe"}
+	if v2, err = w2.svc.CastVote(ctx, "c1", v2.ID, "bia", true); err != nil || v2.Status != VotePassed {
+		t.Fatalf("%+v, %v", v2, err)
+	}
+	if w2.svc.Punished("caio") {
+		t.Error("alvo com cargo >= ao de quem abriu não fica de castigo")
 	}
 }

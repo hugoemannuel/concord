@@ -189,6 +189,8 @@ interface SelfMenuProps {
   nicknameItem?: React.JSX.Element | false | null
   /** "Cargos ›" (só o dono dá cargos a si mesmo). */
   rolesItem?: React.ReactNode
+  /** Ações de voz em si mesmo (silenciar/ensurdecer/liberar no servidor). */
+  voiceItem?: React.ReactNode
   openProfile: () => void
   itemClass: string
 }
@@ -200,6 +202,7 @@ export function SelfContextMenu({
   menuRef,
   nicknameItem,
   rolesItem,
+  voiceItem,
   openProfile,
   itemClass
 }: SelfMenuProps): React.JSX.Element {
@@ -220,6 +223,7 @@ export function SelfContextMenu({
       </button>
       {nicknameItem}
       {rolesItem}
+      {voiceItem}
     </div>
   )
 }
@@ -281,12 +285,14 @@ interface SelfUserMenuProps {
   onOpenProfile: () => void
   itemClass: string
   rolesItem?: React.ReactNode
+  voiceItem?: React.ReactNode
 }
 
 export function SelfUserMenu({
   target,
   canNick,
   rolesItem,
+  voiceItem,
   left,
   top,
   menuRef,
@@ -307,6 +313,7 @@ export function SelfUserMenu({
       menuRef={menuRef}
       nicknameItem={nicknameItem}
       rolesItem={rolesItem}
+      voiceItem={voiceItem}
       openProfile={onOpenProfile}
       itemClass={itemClass}
     />

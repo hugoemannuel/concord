@@ -79,15 +79,18 @@ func TestHTTPCastigoDireto(t *testing.T) {
 
 func TestHTTPVotacao(t *testing.T) {
 	w, router := httpWorld(t)
-	w.inCall("ana", "bia", "caio")
+	w.inCall("mod", "bia", "caio", "chefe")
 
-	rec := do(router, "POST", "/api/calls/c1/castigo-votes", "ana", `{"user_id":"caio","effects":{"listen":true},"duration":60}`)
+	if rec := do(router, "POST", "/api/calls/c1/castigo-votes", "bia", `{"user_id":"caio","effects":{"listen":true},"duration":60}`); rec.Code != http.StatusForbidden || code(t, rec) != "role_hierarchy" {
+		t.Errorf("mesmo cargo não abre votação: %d %s", rec.Code, rec.Body.String())
+	}
+	rec := do(router, "POST", "/api/calls/c1/castigo-votes", "mod", `{"user_id":"caio","effects":{"listen":true},"duration":60}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("abrir: %d %s", rec.Code, rec.Body.String())
 	}
 	var v Vote
 	_ = json.Unmarshal(rec.Body.Bytes(), &v)
-	if rec := do(router, "POST", "/api/calls/c1/castigo-votes", "bia", `{"user_id":"caio","effects":{"listen":true},"duration":60}`); rec.Code != http.StatusConflict || code(t, rec) != "vote_open" {
+	if rec := do(router, "POST", "/api/calls/c1/castigo-votes", "chefe", `{"user_id":"caio","effects":{"listen":true},"duration":60}`); rec.Code != http.StatusConflict || code(t, rec) != "vote_open" {
 		t.Errorf("segunda votação: %d %s", rec.Code, rec.Body.String())
 	}
 	if rec := do(router, "GET", "/api/calls/c1/castigo-votes/current", "bia", ""); rec.Code != http.StatusOK {

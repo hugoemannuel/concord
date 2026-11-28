@@ -149,12 +149,7 @@ func (s *Snapshot) CanManageNicknameOf(actorID, targetID string) bool {
 	return CanManageNicknameOf(s.OwnerID, actorID, targetID, s.Highest(actorID), s.Highest(targetID))
 }
 
-// CanDisconnectMember: o ator pode desconectar o alvo da chamada de voz neste servidor?
-func (s *Snapshot) CanDisconnectMember(actorID, targetID string) bool {
-	return CanDisconnectMember(s.OwnerID, actorID, targetID, s.Highest(actorID), s.Highest(targetID))
-}
-
-// CanMoveMember: o ator pode mover o alvo de canal de voz neste servidor?
-func (s *Snapshot) CanMoveMember(actorID, targetID string) bool {
-	return CanMoveMember(s.OwnerID, actorID, targetID, s.Highest(actorID), s.Highest(targetID))
+// CanModerateVoice: o ator pode moderar o alvo em voz (cargo mais alto >= alvo, sem imunidade especial do dono)?
+func (s *Snapshot) CanModerateVoice(actorID, targetID string) bool {
+	return CanModerateVoice(s.OwnerID, actorID, s.Highest(actorID), s.Highest(targetID))
 }

@@ -249,9 +249,9 @@ export function canEditRolesOf(
 }
 
 /**
- * O ator pode expulsar, banir, silenciar, mover ou trocar cargos do alvo? O
- * dono nunca é alvo; ninguém age sobre si mesmo; fora o dono, só quem tem cargo
- * mais alto que o do alvo.
+ * O ator pode expulsar, banir ou aplicar/abrir castigo no alvo? O dono nunca é
+ * alvo; ninguém age sobre si mesmo; fora o dono, só quem tem cargo mais alto
+ * que o do alvo.
  */
 export function canActOn(
   ownerId: string | undefined,
@@ -283,35 +283,18 @@ export function canManageNicknameOf(
 }
 
 /**
- * Pode desconectar outro membro da voz: mesmo cargo ou inferior.
- * Alvo não pode ser o dono (exceto se o próprio ator for o dono).
+ * Pode silenciar, ensurdecer, desconectar ou mover o alvo em chamadas de voz?
+ * O dono como ator sempre pode; nos demais casos compara sempre o cargo mais
+ * alto de cada um (`actorHighest >= targetHighest`), sem imunidade especial
+ * do dono como alvo e permitindo alternar em si mesmo.
  */
-export function canDisconnectMember(
+export function canModerateVoice(
   ownerId: string | undefined,
   actorId: string | undefined,
-  targetId: string,
   actorHighest: number,
   targetHighest: number
 ): boolean {
   if (!actorId) return false
-  if (targetId === ownerId) return actorId === ownerId
-  if (actorId === ownerId) return true
-  return actorHighest >= targetHighest
-}
-
-/**
- * Pode mover outro membro entre canais de voz: mesmo cargo ou inferior.
- * Alvo não pode ser o dono (exceto se o próprio ator for o dono).
- */
-export function canMoveMember(
-  ownerId: string | undefined,
-  actorId: string | undefined,
-  targetId: string,
-  actorHighest: number,
-  targetHighest: number
-): boolean {
-  if (!actorId) return false
-  if (targetId === ownerId) return actorId === ownerId
   if (actorId === ownerId) return true
   return actorHighest >= targetHighest
 }

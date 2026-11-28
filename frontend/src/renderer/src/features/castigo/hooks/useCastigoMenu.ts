@@ -1,4 +1,3 @@
-import { useAuthStore } from '../../auth/store/authStore'
 import { useCallStore } from '../../call/store/callStore'
 import { useServerAccess } from '../../servers/hooks/useServerAccess'
 import { Perm } from '../../servers/lib/permissions'
@@ -27,7 +26,6 @@ export interface CastigoMenuState extends CastigoMenu {
 export function useCastigoMenu(target: CastigoMenuTarget): CastigoMenuState {
   const server = useServerStore((s) => s.currentServer)
   const isMember = useServerStore((s) => s.currentMembers.some((m) => m.user_id === target.userId))
-  const meId = useAuthStore((s) => s.user?.id)
   const myCallId = useCallStore((s) =>
     s.status === 'active' && s.type === 'channel' ? s.callId : null
   )
@@ -44,9 +42,7 @@ export function useCastigoMenu(target: CastigoMenuTarget): CastigoMenuState {
   }
   const sharedCallId = myCallId && myCallId === target.voiceCallId ? myCallId : undefined
   const menu = castigoMenu({
-    eligible: Boolean(
-      server && isMember && target.userId !== meId && target.userId !== server.owner_id
-    ),
+    eligible: Boolean(server && isMember && canAct),
     sharedCallId,
     powers,
     castigo,

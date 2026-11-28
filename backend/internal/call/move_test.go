@@ -17,44 +17,40 @@ func voiceChannel(id string) *channel.Channel {
 var inGeral = voiceLocation{callID: "call-1", channelID: "geral", serverID: "server-1"}
 
 func TestModeratorMovesMember(t *testing.T) {
-	if err := checkMove(true, "mod", "dono", "ana", inGeral, true, voiceChannel("jogos")); err != nil {
+	if err := checkMove(true, inGeral, true, voiceChannel("jogos")); err != nil {
 		t.Fatalf("moderator moving member: %v", err)
 	}
 }
 
 func TestOnlyModeratorsMove(t *testing.T) {
-	err := checkMove(false, "bia", "dono", "ana", inGeral, true, voiceChannel("jogos"))
+	err := checkMove(false, inGeral, true, voiceChannel("jogos"))
 	if !errors.Is(err, ErrNotModerator) {
 		t.Fatalf("member moving = %v, want ErrNotModerator", err)
 	}
 }
 
-func TestModeratorCannotMoveOwner(t *testing.T) {
-	err := checkMove(true, "mod", "dono", "dono", inGeral, true, voiceChannel("jogos"))
-	if !errors.Is(err, ErrCannotMoveOwner) {
-		t.Fatalf("moving owner = %v, want ErrCannotMoveOwner", err)
-	}
-	if err := checkMove(true, "dono", "dono", "dono", inGeral, true, voiceChannel("jogos")); err != nil {
-		t.Fatalf("owner moving self: %v", err)
+func TestModeratorMovesOwner(t *testing.T) {
+	if err := checkMove(true, inGeral, true, voiceChannel("jogos")); err != nil {
+		t.Fatalf("moderator moving owner = %v, want nil", err)
 	}
 }
 
 func TestMoveDestinationRules(t *testing.T) {
 	text := &channel.Channel{ID: "chat", ServerID: "server-1", Type: channel.TypeText}
-	if err := checkMove(true, "mod", "dono", "ana", inGeral, true, text); !errors.Is(err, ErrNotVoiceChannel) {
+	if err := checkMove(true, inGeral, true, text); !errors.Is(err, ErrNotVoiceChannel) {
 		t.Fatalf("text channel = %v, want ErrNotVoiceChannel", err)
 	}
 
 	other := &channel.Channel{ID: "x", ServerID: "server-2", Type: channel.TypeVoice}
-	if err := checkMove(true, "mod", "dono", "ana", inGeral, true, other); !errors.Is(err, ErrNotInVoice) {
+	if err := checkMove(true, inGeral, true, other); !errors.Is(err, ErrNotInVoice) {
 		t.Fatalf("other server = %v, want ErrNotInVoice", err)
 	}
 
-	if err := checkMove(true, "mod", "dono", "ana", voiceLocation{}, false, voiceChannel("jogos")); !errors.Is(err, ErrNotInVoice) {
+	if err := checkMove(true, voiceLocation{}, false, voiceChannel("jogos")); !errors.Is(err, ErrNotInVoice) {
 		t.Fatalf("not in voice = %v, want ErrNotInVoice", err)
 	}
 
-	if err := checkMove(true, "mod", "dono", "ana", inGeral, true, voiceChannel("geral")); !errors.Is(err, ErrSameChannel) {
+	if err := checkMove(true, inGeral, true, voiceChannel("geral")); !errors.Is(err, ErrSameChannel) {
 		t.Fatalf("same channel = %v, want ErrSameChannel", err)
 	}
 }
